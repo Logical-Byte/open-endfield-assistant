@@ -9,7 +9,6 @@ use rapidocr_core::config::PipelineConfig;
 use dak::input::{Contact, InputBase, SeizeInput};
 use dak::ocr;
 use dak::screencap::PrintWindowScreencap;
-use dak::utils::Rect;
 
 fn main() -> Result<()> {
     dak::set_thread_dpi_awareness_context();

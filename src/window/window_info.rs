@@ -9,6 +9,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SWP_NOACTIVATE, SWP_NOZORDER, SetWindowPos, WS_POPUP,
 };
 
+use crate::utils::point::{Point2D, Region2D};
+
 pub fn get_window_title(hwnd: HWND) -> Result<String> {
     let length = unsafe { GetWindowTextLengthW(hwnd) };
     if length == 0 {
@@ -22,16 +24,16 @@ pub fn get_window_title(hwnd: HWND) -> Result<String> {
     Ok(title)
 }
 
-pub fn get_client_rect(hwnd: HWND) -> Result<RECT> {
+pub fn get_client_rect(hwnd: HWND) -> Result<Region2D<i32>> {
     let mut rect = RECT::default();
     unsafe { GetClientRect(hwnd, &mut rect) }?;
-    Ok(rect)
+    Ok(rect.into())
 }
 
-pub fn client_to_screen(hwnd: HWND, x: i32, y: i32) -> Result<POINT> {
+pub fn client_to_screen(hwnd: HWND, x: i32, y: i32) -> Result<Point2D<i32>> {
     let mut point = POINT { x, y };
     unsafe { ClientToScreen(hwnd, &mut point) }.ok()?;
-    Ok(point)
+    Ok(point.into())
 }
 
 pub fn get_window_class_name(hwnd: HWND) -> Result<String> {
