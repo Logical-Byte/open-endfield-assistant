@@ -23,7 +23,7 @@ pub struct SeizeInput {
 
 impl Drop for SeizeInput {
     fn drop(&mut self) {
-        self.unblock_input();
+        let _ = self.unblock_input();
     }
 }
 
@@ -46,23 +46,25 @@ impl SeizeInput {
         (0, 0)
     }
 
-    fn check_and_block_input(&self) {
+    fn check_and_block_input(&self) -> Result<()> {
         if self.block_input {
-            unsafe { BlockInput(true) };
+            unsafe { BlockInput(true) }?;
         }
+        Ok(())
     }
 
-    fn unblock_input(&self) {
+    fn unblock_input(&self) -> Result<()> {
         if self.block_input {
-            unsafe { BlockInput(false) };
+            unsafe { BlockInput(false) }?;
         }
+        Ok(())
     }
 
-    pub fn inactive(&self) {
-        self.unblock_input();
+    pub fn inactive(&self) -> Result<()> {
+        self.unblock_input()?;
         if !self.hwnd.is_invalid() {
             unsafe {
-                let _ = SetWindowPos(
+                SetWindowPos(
                     self.hwnd,
                     Some(HWND_NOTOPMOST),
                     0,
@@ -70,9 +72,10 @@ impl SeizeInput {
                     0,
                     0,
                     SWP_NOMOVE | SWP_NOSIZE,
-                );
-            }
+                )
+            }?;
         }
+        Ok(())
     }
 
     pub fn relative_move(&mut self, dx: i32, dy: i32) -> Result<()> {
@@ -81,8 +84,10 @@ impl SeizeInput {
         }
         self.ensure_foreground()?;
 
-        self.check_and_block_input();
-        defer!(self.unblock_input());
+        self.check_and_block_input()?;
+        defer! {
+            let _ = self.unblock_input();
+        }
 
         let mut input: INPUT = unsafe { std::mem::zeroed() };
         input.r#type = INPUT_MOUSE;
@@ -164,8 +169,10 @@ impl SeizeInput {
     pub fn scroll(&mut self, dx: i32, dy: i32) -> Result<()> {
         self.ensure_foreground()?;
 
-        self.check_and_block_input();
-        defer!(self.unblock_input());
+        self.check_and_block_input()?;
+        defer! {
+            let _ = self.unblock_input();
+        }
 
         // 移动光标到目标位置
         let (target_x, target_y) = self.get_target_pos();
@@ -299,7 +306,9 @@ impl InputBase for SeizeInput {
             self.ensure_foreground()?;
         }
 
-        defer!(self.unblock_input());
+        defer! {
+            let _ = self.unblock_input();
+        }
 
         let flags = contact.to_mouse_up_flags();
 
