@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow, bail};
-use image::{ImageBuffer, Rgba};
+use image::{ImageBuffer, Rgba, RgbaImage};
 use windows::Foundation::Metadata::ApiInformation;
 use windows::Graphics::Capture::{
     Direct3D11CaptureFrame, Direct3D11CaptureFramePool, GraphicsCaptureItem, GraphicsCaptureSession,
@@ -46,11 +46,11 @@ pub struct FramePoolScreencap {
     // 存储上次的窗口大小，用于检测窗口大小变化
     last_capture_size: (i32, i32),
 }
-impl ScreencapBase<ImageBuffer<Rgba<u8>, Vec<u8>>> for FramePoolScreencap {
+impl ScreencapBase for FramePoolScreencap {
     fn new(hwnd: HWND) -> Self {
         Self::new(hwnd)
     }
-    fn screencap(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+    fn screencap(&mut self) -> Result<RgbaImage> {
         self.screencap()
     }
 }

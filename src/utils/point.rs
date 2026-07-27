@@ -36,12 +36,16 @@ where
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Region2D<T> {
-    pub p0: Point2D<T>,
-    pub p1: Point2D<T>,
+    p0: Point2D<T>,
+    p1: Point2D<T>,
 }
 
 impl<T> Region2D<T> {
-    pub fn from_width_height(x: T, y: T, width: T, height: T) -> Self
+    pub fn from_points(p0: Point2D<T>, p1: Point2D<T>) -> Self {
+        Self { p0, p1 }
+    }
+
+    pub fn from_ltwh(x: T, y: T, width: T, height: T) -> Self
     where
         T: Add<Output = T> + Copy,
     {
@@ -62,6 +66,20 @@ impl<T> Region2D<T> {
                 y: bottom,
             },
         }
+    }
+
+    pub fn p0(&self) -> Point2D<T>
+    where
+        T: Copy,
+    {
+        self.p0
+    }
+
+    pub fn p1(&self) -> Point2D<T>
+    where
+        T: Copy,
+    {
+        self.p1
     }
 
     pub fn x0(&self) -> T

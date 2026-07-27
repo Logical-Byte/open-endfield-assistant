@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow, bail};
-use image::{ImageBuffer, Rgba};
+use image::{ImageBuffer, Rgba, RgbaImage};
 use windows::Win32::Foundation::{HMODULE, HWND};
 use windows::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
 use windows::Win32::Graphics::Direct3D11::{
@@ -373,11 +373,11 @@ impl DesktopDupScreencap {
     }
 }
 
-impl ScreencapBase<ImageBuffer<Rgba<u8>, Vec<u8>>> for DesktopDupScreencap {
+impl ScreencapBase for DesktopDupScreencap {
     fn new(hwnd: HWND) -> Self {
         Self::new(hwnd)
     }
-    fn screencap(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+    fn screencap(&mut self) -> Result<RgbaImage> {
         self.screencap()
     }
 }
