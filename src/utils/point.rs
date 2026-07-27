@@ -22,6 +22,18 @@ where
     }
 }
 
+impl<T> From<Point2D<T>> for POINT
+where
+    T: Cast<i32>,
+{
+    fn from(point: Point2D<T>) -> Self {
+        Self {
+            x: point.x.cast(),
+            y: point.y.cast(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Region2D<T> {
     pub p0: Point2D<T>,
