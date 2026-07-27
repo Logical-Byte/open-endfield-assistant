@@ -2,6 +2,8 @@ use std::ops::{Add, Sub};
 
 use windows::Win32::Foundation::{POINT, RECT};
 
+use crate::utils::cast::Cast;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Point2D<T> {
     pub x: T,
@@ -10,12 +12,12 @@ pub struct Point2D<T> {
 
 impl<T> From<POINT> for Point2D<T>
 where
-    T: From<i32>,
+    i32: Cast<T>,
 {
     fn from(point: POINT) -> Self {
         Self {
-            x: point.x.into(),
-            y: point.y.into(),
+            x: point.x.cast(),
+            y: point.y.cast(),
         }
     }
 }
@@ -123,17 +125,17 @@ impl<T> Region2D<T> {
 
 impl<T> From<RECT> for Region2D<T>
 where
-    T: From<i32>,
+    i32: Cast<T>,
 {
     fn from(rect: RECT) -> Self {
         Self {
             p0: Point2D {
-                x: rect.left.into(),
-                y: rect.top.into(),
+                x: rect.left.cast(),
+                y: rect.top.cast(),
             },
             p1: Point2D {
-                x: rect.right.into(),
-                y: rect.bottom.into(),
+                x: rect.right.cast(),
+                y: rect.bottom.cast(),
             },
         }
     }

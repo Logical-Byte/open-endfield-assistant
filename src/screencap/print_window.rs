@@ -123,17 +123,18 @@ impl PrintWindowScreencap {
         RgbaImage::from_raw_bgra(width as u32, height as u32, mat).context("从原始数据创建图像失败")
     }
 
-    /// 跟直接截取整个窗口再裁剪差不多慢
     pub fn screencap_region(&mut self, relative_region: Region2D<u32>) -> Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
 
-        let region_w = relative_region.width();
-        let region_h = relative_region.height();
+        let x1 = relative_region.x1();
+        let y1 = relative_region.y1();
+        let width = relative_region.width();
+        let height = relative_region.height();
 
-        if region_w == 0 || region_h == 0 {
-            bail!("Invalid region size width={} height={}", region_w, region_h);
+        if width <= 0 || height <= 0 {
+            bail!("Invalid region size width={} height={}", width, height,);
         }
 
         // 获取整个客户区大小
@@ -168,7 +169,7 @@ impl PrintWindowScreencap {
             let _ = unsafe { DeleteDC(full_mem_dc) };
         }
 
-        let full_bitmap = unsafe { CreateCompatibleBitmap(hdc, full_w, full_h) };
+        let full_bitmap = unsafe { CreateCompatibleBitmap(hdc, x1 as i32, y1 as i32) };
         if full_bitmap.is_invalid() {
             bail!("CreateCompatibleBitmap failed, error code: {:?}", unsafe {
                 GetLastError()
@@ -204,8 +205,7 @@ impl PrintWindowScreencap {
             let _ = unsafe { DeleteDC(region_mem_dc) };
         }
 
-        let region_bitmap =
-            unsafe { CreateCompatibleBitmap(hdc, region_w as i32, region_h as i32) };
+        let region_bitmap = unsafe { CreateCompatibleBitmap(hdc, width as i32, height as i32) };
         if region_bitmap.is_invalid() {
             bail!(
                 "CreateCompatibleBitmap(region) failed, error code: {:?}",
@@ -232,8 +232,8 @@ impl PrintWindowScreencap {
                 region_mem_dc,
                 0,
                 0,
-                region_w as i32,
-                region_h as i32,
+                width as i32,
+                height as i32,
                 Some(full_mem_dc),
                 relative_region.x0() as i32,
                 relative_region.y0() as i32,
@@ -245,8 +245,8 @@ impl PrintWindowScreencap {
         let mut bmi = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
                 biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: region_w as i32,
-                biHeight: -(region_h as i32), // top-down
+                biWidth: width as i32,
+                biHeight: -(height as i32), // top-down
                 biPlanes: 1,
                 biBitCount: 32,
                 biCompression: BI_RGB.0,
@@ -255,14 +255,14 @@ impl PrintWindowScreencap {
             ..Default::default()
         };
 
-        let pixel_count = (region_w * region_h) as usize;
+        let pixel_count = (width * height) as usize;
         let mut mat = vec![0u8; pixel_count * 4];
         if unsafe {
             GetDIBits(
                 region_mem_dc,
                 region_bitmap,
                 0,
-                region_h,
+                height,
                 Some(mat.as_mut_ptr() as *mut _),
                 &mut bmi,
                 DIB_RGB_COLORS,
@@ -274,7 +274,7 @@ impl PrintWindowScreencap {
             });
         }
 
-        RgbaImage::from_raw_bgra(region_w, region_h, mat).context("从原始数据创建图像失败")
+        RgbaImage::from_raw_bgra(width, height, mat).context("从原始数据创建图像失败")
     }
 }
 
@@ -287,7 +287,6 @@ impl ScreencapBase for PrintWindowScreencap {
         self.screencap()
     }
 
-    /// 跟直接截取整个窗口再裁剪差不多慢
     fn screencap_region(&mut self, relative_region: Region2D<u32>) -> Result<RgbaImage> {
         self.screencap_region(relative_region)
     }
