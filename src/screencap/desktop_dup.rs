@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 use image::{ImageBuffer, Rgba, RgbaImage};
-use windows::Win32::Foundation::{HMODULE, HWND};
+use windows::Win32::Foundation::{HMODULE, HWND, RECT};
 use windows::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
 use windows::Win32::Graphics::Direct3D11::{
     D3D11_CPU_ACCESS_READ, D3D11_CPU_ACCESS_WRITE, D3D11_MAP_READ, D3D11_MAPPED_SUBRESOURCE,
@@ -8,16 +8,16 @@ use windows::Win32::Graphics::Direct3D11::{
     ID3D11DeviceContext, ID3D11Texture2D,
 };
 use windows::Win32::Graphics::Dxgi::{
-    CreateDXGIFactory, DXGI_OUTDUPL_FRAME_INFO, IDXGIAdapter, IDXGIFactory, IDXGIOutput,
-    IDXGIOutput1, IDXGIOutputDuplication, IDXGIResource,
+    CreateDXGIFactory, DXGI_ERROR_ACCESS_LOST, DXGI_OUTDUPL_FRAME_INFO, IDXGIAdapter, IDXGIFactory,
+    IDXGIOutput, IDXGIOutput1, IDXGIOutputDuplication, IDXGIResource,
 };
 use windows::Win32::Graphics::Gdi::{HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow};
 use windows::core::Interface;
 
 use super::base::ScreencapBase;
 
-// AcquireNextFrame 的超时参数：无限等待
-const INFINITE: u32 = 0xFFFF_FFFF;
+// AcquireNextFrame 的超时参数
+const ACQUIRE_TIMEOUT: u32 = 2000;
 
 pub struct DesktopDupScreencap {
     hwnd: HWND,
@@ -90,6 +90,19 @@ impl DesktopDupScreencap {
 
         ImageBuffer::from_raw(self.texture_desc.Width, self.texture_desc.Height, bgra)
             .ok_or_else(|| anyhow!("从原始数据创建图像失败"))
+    }
+
+    /// 获取当前输出（显示器）在虚拟桌面中的坐标
+    pub(crate) fn output_desktop_coordinates(&self) -> Result<RECT> {
+        let dxgi_output = self
+            .dxgi_output
+            .as_ref()
+            .ok_or_else(|| anyhow!("dxgi_output is null"))?;
+
+        let output_desc =
+            unsafe { dxgi_output.GetDesc() }.map_err(|e| anyhow!("GetDesc failed: {:?}", e))?;
+
+        Ok(output_desc.DesktopCoordinates)
     }
 
     fn init(&mut self) -> Result<()> {
@@ -314,10 +327,18 @@ impl DesktopDupScreencap {
 
         let mut frame_info = DXGI_OUTDUPL_FRAME_INFO::default();
         let mut desktop_resource: Option<IDXGIResource> = None;
-        unsafe {
-            dxgi_dup
-                .AcquireNextFrame(INFINITE, &mut frame_info, &mut desktop_resource)
-                .map_err(|e| anyhow!("AcquireNextFrame failed: {:?}", e))?;
+        let ret = unsafe {
+            dxgi_dup.AcquireNextFrame(ACQUIRE_TIMEOUT, &mut frame_info, &mut desktop_resource)
+        };
+        if let Err(e) = ret {
+            if e.code() == DXGI_ERROR_ACCESS_LOST {
+                eprintln!("Desktop duplication access lost, reinitializing");
+                self.dxgi_dup = None;
+                self.readable_texture = None;
+                self.current_monitor = HMONITOR::default();
+                return Err(anyhow!("DXGI_ERROR_ACCESS_LOST"));
+            }
+            return Err(anyhow!("AcquireNextFrame failed: {:?}", e));
         }
         // OnScopeLeave 等价：dxgi_dup_->ReleaseFrame() + desktop_resource->Release()
         // desktop_resource 为 COM 智能指针，移出作用域时自动 Release
