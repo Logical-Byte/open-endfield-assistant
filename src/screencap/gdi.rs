@@ -8,8 +8,8 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
-use crate::screencap::base::ScreencapBase;
-use crate::utils::point::Region2D;
+use super::base::ScreencapBase;
+use crate::utils::region::Region2D;
 
 pub struct GdiScreencap {
     hwnd: HWND,
@@ -25,10 +25,10 @@ impl GdiScreencap {
         unsafe {
             GetClientRect(self.hwnd, &mut rect)?;
         }
-        self.screencap_region(rect.into())
+        self.screencap_region(Region2D::from(rect).cast())
     }
 
-    pub fn screencap_region(&mut self, region: Region2D<u32>) -> Result<RgbaImage> {
+    pub fn screencap_region(&mut self, region: Region2D<i32>) -> Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -60,7 +60,7 @@ impl GdiScreencap {
             let _ = unsafe { DeleteDC(mem_dc) };
         }
 
-        let bitmap = unsafe { CreateCompatibleBitmap(hdc, width as i32, height as i32) };
+        let bitmap = unsafe { CreateCompatibleBitmap(hdc, width, height) };
         if bitmap.is_invalid() {
             bail!("CreateCompatibleBitmap failed, error code: {:?}", unsafe {
                 GetLastError()
@@ -80,35 +80,16 @@ impl GdiScreencap {
             unsafe { SelectObject(mem_dc, old_obj) };
         }
 
-        unsafe {
-            BitBlt(
-                mem_dc,
-                0,
-                0,
-                width as i32,
-                height as i32,
-                Some(hdc),
-                x0 as i32,
-                y0 as i32,
-                SRCCOPY,
-            )
-        }?;
+        unsafe { BitBlt(mem_dc, 0, 0, width, height, Some(hdc), x0, y0, SRCCOPY) }?;
 
         let mut mat = vec![0u8; (width * height * 4) as usize];
-        if unsafe {
-            GetBitmapBits(
-                bitmap,
-                (width * height * 4) as i32,
-                mat.as_mut_ptr() as *mut _,
-            )
-        } == 0
-        {
+        if unsafe { GetBitmapBits(bitmap, width * height * 4 , mat.as_mut_ptr() as *mut _) } == 0 {
             bail!("GetBitmapBits failed, error code: {:?}", unsafe {
                 GetLastError()
             });
         }
 
-        RgbaImage::from_raw_bgra(width, height, mat).context("从原始数据创建图像失败")
+        RgbaImage::from_raw_bgra(width as u32, height as u32, mat).context("从原始数据创建图像失败")
     }
 }
 
@@ -122,6 +103,6 @@ impl ScreencapBase for GdiScreencap {
     }
 
     fn screencap_region(&mut self, relative_region: Region2D<u32>) -> Result<RgbaImage> {
-        self.screencap_region(relative_region)
+        self.screencap_region(relative_region.cast())
     }
 }

@@ -1,7 +1,7 @@
 use image::{GrayImage, RgbImage, imageops};
 use imageproc::contrast::{ThresholdType, threshold};
 
-use crate::utils::point::Region2D;
+use crate::utils::region::Region2D;
 
 /// 检测单行连续文字（黑底白字）。
 ///
@@ -159,7 +159,7 @@ fn merge_horizontal(mut regions: Vec<Region2D<u32>>, max_gap: u32) -> Vec<Region
     regions.sort_by_key(|r| r.x0());
 
     let mut merged: Vec<Region2D<u32>> = Vec::new();
-    let mut current = regions[0].clone();
+    let mut current = regions[0];
 
     for next in regions.into_iter().skip(1) {
         // 判断是否在同一行（y 方向有重叠）

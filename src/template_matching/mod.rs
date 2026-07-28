@@ -4,7 +4,7 @@ use anyhow::Result;
 use image::{RgbImage, imageops};
 use imageproc::template_matching;
 
-use crate::utils::point::Region2D;
+use crate::utils::region::Region2D;
 
 pub mod ccoeff;
 

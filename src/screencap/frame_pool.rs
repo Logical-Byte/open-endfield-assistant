@@ -76,13 +76,12 @@ impl FramePoolScreencap {
         if self.hwnd.is_invalid() {
             bail!("hwnd_ is nullptr");
         }
-        if self.cap_frame_pool.is_none() {
-            if !self.init()? {
+        if self.cap_frame_pool.is_none()
+            && !self.init()? {
                 eprintln!("init failed");
                 self.uninit();
                 bail!("init failed");
             }
-        }
 
         // 检查窗口大小是否变化，如果变化则重新创建 frame pool
         if !self.check_and_handle_size_changed()? {
@@ -309,11 +308,10 @@ impl FramePoolScreencap {
         self.cap_session.as_ref().unwrap().StartCapture()?;
 
         // 记录初始窗口大小
-        if let Some(item) = &self.cap_item {
-            if let Ok(size) = item.Size() {
+        if let Some(item) = &self.cap_item
+            && let Ok(size) = item.Size() {
                 self.last_capture_size = (size.Width, size.Height);
             }
-        }
 
         Ok(true)
     }
@@ -445,12 +443,11 @@ impl FramePoolScreencap {
             return;
         }
 
-        if let Some(session) = &self.cap_session {
-            if let Err(e) = session.SetIsBorderRequired(false) {
+        if let Some(session) = &self.cap_session
+            && let Err(e) = session.SetIsBorderRequired(false) {
                 eprintln!("SetIsBorderRequired failed: {:?}", e);
                 return;
             }
-        }
         println!("Capture border disabled successfully");
     }
 }

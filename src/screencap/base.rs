@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::{RgbaImage, imageops};
 use windows::Win32::Foundation::HWND;
 
-use crate::utils::point::Region2D;
+use crate::utils::region::Region2D;
 
 pub trait ScreencapBase {
     fn new(hwnd: HWND) -> Self;

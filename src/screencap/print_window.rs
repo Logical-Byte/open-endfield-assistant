@@ -10,7 +10,7 @@ use windows::Win32::Storage::Xps::{PRINT_WINDOW_FLAGS, PW_CLIENTONLY, PrintWindo
 use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
 use super::base::ScreencapBase;
-use crate::utils::point::Region2D;
+use crate::utils::region::Region2D;
 
 // PW_RENDERFULLCONTENT (0x2): 捕获非最小化后台窗口
 const PW_RENDERFULLCONTENT: PRINT_WINDOW_FLAGS = PRINT_WINDOW_FLAGS(0x2_u32);

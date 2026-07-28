@@ -2,11 +2,11 @@ use anyhow::{Result, bail};
 use windows::Win32::Foundation::{HWND, POINT, RECT};
 use windows::Win32::Graphics::Gdi::ClientToScreen;
 use windows::Win32::UI::WindowsAndMessaging::{
-    GWL_STYLE, GetClassNameW, GetClientRect, GetWindowLongPtrW,
-    GetWindowTextLengthW, GetWindowTextW, WS_POPUP,
+    GWL_STYLE, GetClassNameW, GetClientRect, GetWindowLongPtrW, GetWindowTextLengthW,
+    GetWindowTextW, WS_POPUP,
 };
 
-use crate::utils::point::{Point2D, Region2D};
+use crate::utils::{point::Point2D, region::Region2D};
 
 pub fn get_window_title(hwnd: HWND) -> Result<String> {
     let length = unsafe { GetWindowTextLengthW(hwnd) };

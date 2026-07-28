@@ -8,8 +8,8 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
-use crate::screencap::base::ScreencapBase;
-use crate::utils::point::Region2D;
+use super::base::ScreencapBase;
+use crate::utils::region::Region2D;
 
 pub struct ScreenDCScreencap {
     hwnd: HWND,
@@ -25,10 +25,10 @@ impl ScreenDCScreencap {
         let mut client_rect = RECT::default();
         unsafe { GetClientRect(self.hwnd, &mut client_rect) }?;
 
-        self.screencap_region(client_rect.into())
+        self.screencap_region(Region2D::from(client_rect).cast())
     }
 
-    pub fn screencap_region(&mut self, region: Region2D<u32>) -> Result<RgbaImage> {
+    pub fn screencap_region(&mut self, region: Region2D<i32>) -> Result<RgbaImage> {
         let mut p0 = POINT::from(region.p0());
         unsafe { ClientToScreen(self.hwnd, &mut p0) }.ok()?;
 
@@ -130,6 +130,6 @@ impl ScreencapBase for ScreenDCScreencap {
     }
 
     fn screencap_region(&mut self, relative_region: Region2D<u32>) -> Result<RgbaImage> {
-        self.screencap_region(relative_region)
+        self.screencap_region(relative_region.cast())
     }
 }
