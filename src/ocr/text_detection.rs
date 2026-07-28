@@ -10,10 +10,11 @@ use crate::utils::region::Region2D;
 pub fn detect_single_line(
     image: &RgbImage,
     threshold_value: u8,
+    threshold_type: ThresholdType,
     padding: u32,
 ) -> Option<Region2D<u32>> {
     let gray = imageops::grayscale(image);
-    let binary = threshold(&gray, threshold_value, ThresholdType::Binary);
+    let binary = threshold(&gray, threshold_value, threshold_type);
 
     let (w, h) = binary.dimensions();
     let mut min_x = u32::MAX;
@@ -24,7 +25,7 @@ pub fn detect_single_line(
 
     for y in 0..h {
         for x in 0..w {
-            if binary.get_pixel(x, y).0[0] == 255 {
+            if binary.get_pixel(x, y).0[0] >= 128 {
                 found = true;
                 min_x = min_x.min(x);
                 min_y = min_y.min(y);

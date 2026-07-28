@@ -10,11 +10,9 @@ use dak::{
     utils::region::Region2D,
 };
 use image::{DynamicImage, imageops};
+use imageproc::contrast::ThresholdType;
 use rapidocr_core::config::PipelineConfig;
 use tracing::{debug, info, trace};
-
-const THRESHOLD: u8 = 128;
-const PADDING: u32 = 6;
 
 fn main() -> Result<()> {
     let _logger_guard = dak::logger::init();
@@ -57,7 +55,9 @@ fn main() -> Result<()> {
         let image = DynamicImage::ImageRgba8(image).to_rgb8();
         let ocr_roi = imageops::crop_imm(&image, 350, 58, 578, 42).to_image();
 
-        if let Some(region) = text_detection::detect_single_line(&ocr_roi, THRESHOLD, PADDING) {
+        if let Some(region) =
+            text_detection::detect_single_line(&ocr_roi, 128, ThresholdType::Binary, 6)
+        {
             let text_image = text_detection::crop_region(&ocr_roi, region);
             let ocr_output = ocr_engine.ocr(&text_image)?;
             info!(
