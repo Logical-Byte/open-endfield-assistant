@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 use image::{ImageBuffer, Rgba, RgbaImage};
+use tracing::{debug, warn};
 use windows::Win32::Foundation::{HMODULE, HWND, RECT};
 use windows::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
 use windows::Win32::Graphics::Direct3D11::{
@@ -54,7 +55,7 @@ impl DesktopDupScreencap {
         // 初始化 D3D 设备和 DXGI 工厂（只需要初始化一次）
         if self.d3d_device.is_none()
             && let Err(e) = self.init() {
-                eprintln!("failed to init_d3d_device: {:?}", e);
+                warn!("failed to init_d3d_device: {:?}", e);
                 self.uninit();
                 return Err(e);
             }
@@ -75,7 +76,7 @@ impl DesktopDupScreencap {
                         break;
                     }
                 }
-                eprintln!("blank image, continue");
+                debug!("blank image, continue");
             }
         }
 
@@ -115,7 +116,7 @@ impl DesktopDupScreencap {
         let target_monitor = if !self.hwnd.is_invalid() {
             let m = unsafe { MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTONEAREST) };
             if m.is_invalid() {
-                eprintln!("MonitorFromWindow failed, falling back to primary monitor");
+                warn!("MonitorFromWindow failed, falling back to primary monitor");
                 HMONITOR::default()
             } else {
                 m
@@ -218,7 +219,7 @@ impl DesktopDupScreencap {
                                 .cast::<IDXGIOutput1>()
                                 .map_err(|e| anyhow!("cast IDXGIOutput1 failed: {:?}", e))?,
                         );
-                        eprintln!(
+                        debug!(
                             "Found matching output for window monitor adapter={} output={}",
                             adapter_index, output_index
                         );
@@ -330,7 +331,7 @@ impl DesktopDupScreencap {
         };
         if let Err(e) = ret {
             if e.code() == DXGI_ERROR_ACCESS_LOST {
-                eprintln!("Desktop duplication access lost, reinitializing");
+                warn!("Desktop duplication access lost, reinitializing");
                 self.dxgi_dup = None;
                 self.readable_texture = None;
                 self.current_monitor = HMONITOR::default();

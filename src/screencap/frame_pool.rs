@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 use image::{ImageBuffer, Rgba, RgbaImage};
+use tracing::{debug, error, info, warn};
 use windows::Foundation::Metadata::ApiInformation;
 use windows::Graphics::Capture::{
     Direct3D11CaptureFrame, Direct3D11CaptureFramePool, GraphicsCaptureItem, GraphicsCaptureSession,
@@ -78,7 +79,7 @@ impl FramePoolScreencap {
         }
         if self.cap_frame_pool.is_none()
             && !self.init()? {
-                eprintln!("init failed");
+                error!("init failed");
                 self.uninit();
                 bail!("init failed");
             }
@@ -342,7 +343,7 @@ impl FramePoolScreencap {
             return Ok(true);
         }
 
-        eprintln!(
+        info!(
             "Window size changed, recreating frame pool Width={} Height={} last=({},{})",
             current_size.Width,
             current_size.Height,
@@ -393,7 +394,7 @@ impl FramePoolScreencap {
             10,
         ) {
             Ok(false) | Err(_) => {
-                println!("UniversalApiContract v10 not present, border toggle not supported");
+                debug!("UniversalApiContract v10 not present, border toggle not supported");
                 return;
             }
             _ => {}
@@ -403,7 +404,7 @@ impl FramePoolScreencap {
             "Windows.Graphics.Capture.GraphicsCaptureAccess"
         )) {
             Ok(false) | Err(_) => {
-                println!("GraphicsCaptureAccess not present, border toggle not supported");
+                debug!("GraphicsCaptureAccess not present, border toggle not supported");
                 return;
             }
             _ => {}
@@ -414,7 +415,7 @@ impl FramePoolScreencap {
             windows::core::h!("IsBorderRequired"),
         ) {
             Ok(false) | Err(_) => {
-                println!("IsBorderRequired property not supported on this system");
+                debug!("IsBorderRequired property not supported on this system");
                 return;
             }
             _ => {}
@@ -425,7 +426,7 @@ impl FramePoolScreencap {
         ) {
             Ok(op) => op,
             Err(e) => {
-                eprintln!("RequestAccessAsync failed: {:?}", e);
+                warn!("RequestAccessAsync failed: {:?}", e);
                 return;
             }
         };
@@ -433,22 +434,22 @@ impl FramePoolScreencap {
         let access_result = match op.join() {
             Ok(r) => r,
             Err(e) => {
-                eprintln!("RequestAccessAsync did not complete: {:?}", e);
+                warn!("RequestAccessAsync did not complete: {:?}", e);
                 return;
             }
         };
 
         if access_result != AppCapabilityAccessStatus::Allowed {
-            eprintln!("Borderless capture access not granted: {:?}", access_result);
+            warn!("Borderless capture access not granted: {:?}", access_result);
             return;
         }
 
         if let Some(session) = &self.cap_session
             && let Err(e) = session.SetIsBorderRequired(false) {
-                eprintln!("SetIsBorderRequired failed: {:?}", e);
+                warn!("SetIsBorderRequired failed: {:?}", e);
                 return;
             }
-        println!("Capture border disabled successfully");
+        info!("Capture border disabled successfully");
     }
 }
 

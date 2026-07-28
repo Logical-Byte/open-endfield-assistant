@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use scopeguard::defer;
+use tracing::error;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     HOT_KEY_MODIFIERS, MOD_ALT, MOD_NOREPEAT, RegisterHotKey, UnregisterHotKey, VK_DELETE,
 };
@@ -25,7 +26,7 @@ impl HotkeyListener {
             let hotkey_id = 1i32;
             unsafe {
                 if RegisterHotKey(None, hotkey_id, modifiers, vk).is_err() {
-                    eprintln!("热键注册失败（可能已被占用）");
+                    error!("热键注册失败（可能已被占用）");
                     return;
                 }
             }

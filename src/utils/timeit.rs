@@ -1,4 +1,5 @@
 use std::time::{Duration, Instant};
+use tracing::debug;
 
 pub fn timeit<F, R>(func: F) -> (R, Duration)
 where
@@ -15,7 +16,7 @@ where
     F: FnOnce() -> R,
 {
     let (result, duration) = timeit(func);
-    println!("{} took {:?}", label, duration);
+    debug!("{} took {:?}", label, duration);
     result
 }
 
@@ -25,6 +26,6 @@ macro_rules! timeit_print {
         let start = std::time::Instant::now();
         $($t)*
         let duration = start.elapsed();
-        println!("{} took {:?}", $label, duration);
+        debug!("{} took {:?}", $label, duration);
     };
 }
