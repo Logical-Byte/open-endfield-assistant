@@ -1,3 +1,5 @@
+pub mod text_detection;
+
 use std::path::Path;
 
 use anyhow::{Result, anyhow};

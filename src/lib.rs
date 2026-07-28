@@ -3,10 +3,12 @@ use windows::Win32::UI::HiDpi::{
 };
 
 pub mod geometry;
+pub mod hotkey;
 mod include;
 pub mod input;
 pub mod ocr;
 pub mod screencap;
+pub mod template_matching;
 pub mod utils;
 pub mod window;
 

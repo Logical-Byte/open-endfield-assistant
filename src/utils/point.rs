@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 use windows::Win32::Foundation::{POINT, RECT};
 
@@ -47,7 +47,7 @@ impl<T> Region2D<T> {
 
     pub fn from_ltwh(x: T, y: T, width: T, height: T) -> Self
     where
-        T: Add<Output = T> + Copy,
+        T: Copy + Add<Output = T>,
     {
         Self {
             p0: Point2D { x, y },
@@ -140,16 +140,69 @@ impl<T> Region2D<T> {
 
     pub fn width(&self) -> T
     where
-        T: Sub<Output = T> + Copy,
+        T: Copy + Sub<Output = T>,
     {
         self.p1.x - self.p0.x
     }
 
     pub fn height(&self) -> T
     where
-        T: Sub<Output = T> + Copy,
+        T: Copy + Sub<Output = T>,
     {
         self.p1.y - self.p0.y
+    }
+
+    pub fn x_center(&self) -> T
+    where
+        T: Copy + Add<Output = T> + Div<Output = T>,
+        u8: Cast<T>,
+    {
+        (self.p0.x + self.p1.x) / 2.cast()
+    }
+
+    pub fn y_center(&self) -> T
+    where
+        T: Copy + Add<Output = T> + Div<Output = T>,
+        u8: Cast<T>,
+    {
+        (self.p0.y + self.p1.y) / 2.cast()
+    }
+
+    pub fn center(&self) -> Point2D<T>
+    where
+        T: Copy + Add<Output = T> + Div<Output = T>,
+        u8: Cast<T>,
+    {
+        Point2D {
+            x: self.x_center(),
+            y: self.y_center(),
+        }
+    }
+
+    pub fn area(&self) -> T
+    where
+        T: Copy + Sub<Output = T> + Mul<Output = T>,
+    {
+        self.width() * self.height()
+    }
+
+    pub fn apply_padding_ltrb(&self, pl: T, pt: T, pr: T, pb: T) -> Self
+    where
+        T: Copy + Add<Output = T> + Sub<Output = T>,
+    {
+        let left = self.left() - pl;
+        let top = self.top() - pt;
+        let right = self.right() + pr;
+        let bottom = self.bottom() + pb;
+
+        Self::from_ltrb(left, top, right, bottom)
+    }
+
+    pub fn apply_padding(&self, padding: T) -> Self
+    where
+        T: Copy + Add<Output = T> + Sub<Output = T>,
+    {
+        self.apply_padding_ltrb(padding, padding, padding, padding)
     }
 }
 
