@@ -3,6 +3,7 @@
 use std::{thread, time::Duration};
 
 use anyhow::{Result, anyhow, bail};
+use dak::utils::cast::Cast;
 use image::{DynamicImage, RgbImage, RgbaImage, imageops};
 use rapidocr_core::{config::PipelineConfig, types::OcrOutput};
 
@@ -36,6 +37,10 @@ fn main() -> Result<()> {
     let next_button_template = template_matching::load_template("resources/templates/下一篇.png")?;
     let next_button_region = Region2D::from_ltrb(762, 654, 925, 711);
 
+    let arrow_right_template =
+        template_matching::load_template("resources/templates/档案库右箭头.png")?;
+    let arrow_right_region = Region2D::from_ltrb(1206, 313, 1276, 423);
+
     let hotkey = HotkeyListener::alt_delete();
     println!("按 Alt+Delete 停止");
 
@@ -64,21 +69,26 @@ fn main() -> Result<()> {
             println!("未检测到文字区域");
         }
 
-        // 模板匹配：在指定区域查找 “下一篇” 按钮
+        // 查找 “下一篇” 按钮
         if let Some(m) = template_matching::match_template_in_region(
             &image,
-            next_button_region,
             &next_button_template,
+            Some(next_button_region),
         ) {
             println!("模板匹配分数: {:.3}", m.score);
             if m.score > 0.75 {
-                let Point2D {
-                    x: click_x,
-                    y: click_y,
-                } = next_button_region.center();
-                input.click(Contact::Left, click_x as i32, click_y as i32)?;
-            } else {
-                input.click(Contact::Left, 1244, 360)?;
+                input.click(Contact::Left, next_button_region.center().cast())?;
+            } else if let Some(m) = template_matching::match_template_in_region(
+                &image,
+                &arrow_right_template,
+                Some(arrow_right_region),
+            ) {
+                println!("模板匹配分数: {:.3}", m.score);
+                if m.score > 0.75 {
+                    input.click(Contact::Left, arrow_right_region.center().cast())?;
+                } else {
+                    break;
+                }
             }
         }
 

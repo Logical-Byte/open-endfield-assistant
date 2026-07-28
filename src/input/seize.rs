@@ -13,6 +13,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::input::{base::InputBase, input_utils::Contact};
+use crate::utils::point::Point2D;
 use crate::window::ensure_foreground_and_topmost;
 
 pub struct SeizeInput {
@@ -28,6 +29,119 @@ impl Drop for SeizeInput {
 }
 
 impl SeizeInput {
+    fn new(hwnd: HWND, block_input: bool) -> Self {
+        Self {
+            hwnd,
+            block_input,
+            last_pos: None,
+        }
+    }
+
+    fn touch_down(&mut self, contact: Contact, x: i32, y: i32) -> Result<()> {
+        let mut point = POINT { x, y };
+
+        if !self.hwnd.is_invalid() {
+            self.ensure_foreground()?;
+            unsafe { ClientToScreen(self.hwnd, &mut point) }.ok()?;
+        }
+
+        unsafe { SetCursorPos(point.x, point.y) }?;
+
+        let flags = contact.to_mouse_down_flags();
+
+        let input = INPUT {
+            r#type: INPUT_MOUSE,
+            Anonymous: INPUT_0 {
+                mi: MOUSEINPUT {
+                    mouseData: flags.button_data,
+                    dwFlags: flags.flags,
+                    ..Default::default()
+                },
+            },
+        };
+
+        let written = unsafe { SendInput(&[input], std::mem::size_of::<INPUT>() as i32) };
+        if written != 1 {
+            bail!("SendInput failed for touch_down");
+        }
+
+        self.last_pos = Some((x, y));
+
+        Ok(())
+    }
+
+    fn touch_move(&mut self, _contact: Contact, x: i32, y: i32) -> Result<()> {
+        let mut point = POINT { x, y };
+
+        if !self.hwnd.is_invalid() {
+            self.ensure_foreground()?;
+            unsafe { ClientToScreen(self.hwnd, &mut point) }.ok()?;
+        }
+
+        // 使用 SendInput + MOUSEEVENTF_MOVE + MOUSEEVENTF_ABSOLUTE 移动光标
+        // 需要将屏幕坐标转换为 0-65535 范围的归一化坐标
+        let screen_width = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+        let screen_height = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+        if screen_width <= 0 || screen_height <= 0 {
+            bail!(
+                "GetSystemMetrics returned invalid screen size: {}×{}",
+                screen_width,
+                screen_height,
+            );
+        }
+
+        let input = INPUT {
+            r#type: INPUT_MOUSE,
+            Anonymous: INPUT_0 {
+                mi: MOUSEINPUT {
+                    dx: (point.x * 65535) / screen_width,
+                    dy: (point.y * 65535) / screen_height,
+                    dwFlags: MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+                    ..Default::default()
+                },
+            },
+        };
+
+        let written = unsafe { SendInput(&[input], std::mem::size_of::<INPUT>() as i32) };
+        if written != 1 {
+            bail!("SendInput failed for touch_move");
+        }
+
+        self.last_pos = Some((x, y));
+
+        Ok(())
+    }
+
+    fn touch_up(&mut self, contact: Contact, _x: i32, _y: i32) -> Result<()> {
+        if !self.hwnd.is_invalid() {
+            self.ensure_foreground()?;
+        }
+
+        defer! {
+            let _ = self.unblock_input();
+        }
+
+        let flags = contact.to_mouse_up_flags();
+
+        let input = INPUT {
+            r#type: INPUT_MOUSE,
+            Anonymous: INPUT_0 {
+                mi: MOUSEINPUT {
+                    mouseData: flags.button_data,
+                    dwFlags: flags.flags,
+                    ..Default::default()
+                },
+            },
+        };
+
+        let written = unsafe { SendInput(&[input], std::mem::size_of::<INPUT>() as i32) };
+        if written != 1 {
+            bail!("SendInput failed for touch_up");
+        }
+
+        Ok(())
+    }
+
     fn ensure_foreground(&self) -> Result<()> {
         ensure_foreground_and_topmost(self.hwnd)
     }
@@ -219,115 +333,18 @@ impl SeizeInput {
 
 impl InputBase for SeizeInput {
     fn new(hwnd: HWND, block_input: bool) -> Self {
-        Self {
-            hwnd,
-            block_input,
-            last_pos: None,
-        }
+        Self::new(hwnd, block_input)
     }
 
-    fn touch_down(&mut self, contact: Contact, x: i32, y: i32) -> Result<()> {
-        let mut point = POINT { x, y };
-
-        if !self.hwnd.is_invalid() {
-            self.ensure_foreground()?;
-            unsafe { ClientToScreen(self.hwnd, &mut point) }.ok()?;
-        }
-
-        unsafe { SetCursorPos(point.x, point.y) }?;
-
-        let flags = contact.to_mouse_down_flags();
-
-        let input = INPUT {
-            r#type: INPUT_MOUSE,
-            Anonymous: INPUT_0 {
-                mi: MOUSEINPUT {
-                    mouseData: flags.button_data,
-                    dwFlags: flags.flags,
-                    ..Default::default()
-                },
-            },
-        };
-
-        let written = unsafe { SendInput(&[input], std::mem::size_of::<INPUT>() as i32) };
-        if written != 1 {
-            bail!("SendInput failed for touch_down");
-        }
-
-        self.last_pos = Some((x, y));
-
-        Ok(())
+    fn touch_down(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
+        self.touch_down(contact, point.x, point.y)
     }
 
-    fn touch_move(&mut self, _contact: Contact, x: i32, y: i32) -> Result<()> {
-        let mut point = POINT { x, y };
-
-        if !self.hwnd.is_invalid() {
-            self.ensure_foreground()?;
-            unsafe { ClientToScreen(self.hwnd, &mut point) }.ok()?;
-        }
-
-        // 使用 SendInput + MOUSEEVENTF_MOVE + MOUSEEVENTF_ABSOLUTE 移动光标
-        // 需要将屏幕坐标转换为 0-65535 范围的归一化坐标
-        let screen_width = unsafe { GetSystemMetrics(SM_CXSCREEN) };
-        let screen_height = unsafe { GetSystemMetrics(SM_CYSCREEN) };
-        if screen_width <= 0 || screen_height <= 0 {
-            bail!(
-                "GetSystemMetrics returned invalid screen size: {}×{}",
-                screen_width,
-                screen_height,
-            );
-        }
-
-        let input = INPUT {
-            r#type: INPUT_MOUSE,
-            Anonymous: INPUT_0 {
-                mi: MOUSEINPUT {
-                    dx: (point.x * 65535) / screen_width,
-                    dy: (point.y * 65535) / screen_height,
-                    dwFlags: MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-                    ..Default::default()
-                },
-            },
-        };
-
-        let written = unsafe { SendInput(&[input], std::mem::size_of::<INPUT>() as i32) };
-        if written != 1 {
-            bail!("SendInput failed for touch_move");
-        }
-
-        self.last_pos = Some((x, y));
-
-        Ok(())
+    fn touch_move(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
+        self.touch_move(contact, point.x, point.y)
     }
 
-    fn touch_up(&mut self, contact: Contact, _x: i32, _y: i32) -> Result<()> {
-        if !self.hwnd.is_invalid() {
-            self.ensure_foreground()?;
-        }
-
-        defer! {
-            let _ = self.unblock_input();
-        }
-
-        let flags = contact.to_mouse_up_flags();
-
-        let input = INPUT {
-            r#type: INPUT_MOUSE,
-            Anonymous: INPUT_0 {
-                mi: MOUSEINPUT {
-                    mouseData: flags.button_data,
-                    dwFlags: flags.flags,
-                    ..Default::default()
-                },
-            },
-        };
-
-        let written = unsafe { SendInput(&[input], std::mem::size_of::<INPUT>() as i32) };
-        if written != 1 {
-            bail!("SendInput failed for touch_up");
-        }
-
-        Ok(())
+    fn touch_up(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
+        self.touch_up(contact, point.x, point.y)
     }
 }

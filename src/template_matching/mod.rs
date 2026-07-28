@@ -32,9 +32,12 @@ pub struct MatchResult {
 /// 使用 CCOEFF_NORMED（Pearson 相关系数）
 pub fn match_template_in_region(
     image: &RgbImage,
-    search_region: Region2D<u32>,
     template: &RgbImage,
+    search_region: Option<Region2D<u32>>,
 ) -> Option<MatchResult> {
+    let search_region =
+        search_region.unwrap_or_else(|| Region2D::from_ltwh(0, 0, image.width(), image.height()));
+
     let search_img = &imageops::crop_imm(
         image,
         search_region.x0(),

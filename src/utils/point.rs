@@ -10,6 +10,18 @@ pub struct Point2D<T> {
     pub y: T,
 }
 
+impl<T, U> Cast<Point2D<U>> for Point2D<T>
+where
+    T: Cast<U>,
+{
+    fn cast(self) -> Point2D<U> {
+        Point2D {
+            x: self.x.cast(),
+            y: self.y.cast(),
+        }
+    }
+}
+
 impl<T> From<POINT> for Point2D<T>
 where
     i32: Cast<T>,
@@ -203,6 +215,18 @@ impl<T> Region2D<T> {
         T: Copy + Add<Output = T> + Sub<Output = T>,
     {
         self.apply_padding_ltrb(padding, padding, padding, padding)
+    }
+}
+
+impl<T, U> Cast<Region2D<U>> for Region2D<T>
+where
+    T: Cast<U>,
+{
+    fn cast(self) -> Region2D<U> {
+        Region2D {
+            p0: self.p0.cast(),
+            p1: self.p1.cast(),
+        }
     }
 }
 
