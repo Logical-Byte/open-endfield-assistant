@@ -59,4 +59,9 @@ impl HotkeyListener {
     pub fn stop_requested(&self) -> bool {
         self.stop_flag.load(Ordering::Relaxed)
     }
+
+    /// 获取停止标志的 Arc，可传递给 Session 用于在操作中轮询
+    pub fn stop_flag(&self) -> Arc<AtomicBool> {
+        self.stop_flag.clone()
+    }
 }

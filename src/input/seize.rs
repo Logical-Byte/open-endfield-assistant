@@ -347,4 +347,11 @@ impl InputBase for SeizeInput {
     fn touch_up(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
         self.touch_up(contact, point.x, point.y)
     }
+
+    fn press_key(&mut self, vk_code: u32) -> Result<()> {
+        self.key_down(vk_code as i32)?;
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        self.key_up(vk_code as i32)?;
+        Ok(())
+    }
 }

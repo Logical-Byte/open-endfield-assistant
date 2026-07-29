@@ -60,3 +60,13 @@ pub fn init() -> WorkerGuard {
 
     guard
 }
+
+/// 记录一条 SUCCESS 级别的日志（基于 tracing INFO 级别，但标记为 SUCCESS）。
+///
+/// 用于输出扫描到的档案标题等关键业务结果。
+#[macro_export]
+macro_rules! success {
+    ($($arg:tt)*) => {
+        tracing::info!("SUCCESS: {}", format!($($arg)*))
+    };
+}

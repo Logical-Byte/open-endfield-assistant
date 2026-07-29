@@ -8,7 +8,9 @@ use crate::utils::point::Point2D;
 use super::input_utils::Contact;
 
 pub trait InputBase {
-    fn new(hwnd: HWND, block_input: bool) -> Self;
+    fn new(hwnd: HWND, block_input: bool) -> Self
+    where
+        Self: Sized;
 
     fn touch_down(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()>;
 
@@ -29,4 +31,7 @@ pub trait InputBase {
         self.touch_up(contact, p1)?;
         Ok(())
     }
+
+    /// 按下并释放键盘按键（虚拟键码）。例如 ESC 键为 0x1B。
+    fn press_key(&mut self, vk_code: u32) -> Result<()>;
 }

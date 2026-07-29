@@ -29,7 +29,7 @@ impl<T> Region2D<T> {
         }
     }
 
-    pub fn from_ltrb(left: T, top: T, right: T, bottom: T) -> Self {
+    pub const fn from_ltrb(left: T, top: T, right: T, bottom: T) -> Self {
         Self {
             p0: Point2D { x: left, y: top },
             p1: Point2D {
@@ -214,4 +214,20 @@ impl From<Region2D<i32>> for RECT {
             bottom: region.p1.y,
         }
     }
+}
+
+/// 以 ltwh 格式创建 `Region2D<u32>` 的 const 友好宏。
+///
+/// `from_ltwh` 因泛型 trait bound 无法标记为 `const fn`，
+/// 此宏展开为 `from_ltrb(x, y, x + w, y + h)`，所有参数在编译期求值。
+///
+/// # 示例
+/// ```
+/// const ROI: Region2D<u32> = ltwh!(180, 120, 60, 36);
+/// ```
+#[macro_export]
+macro_rules! ltwh {
+    ($x:expr, $y:expr, $w:expr, $h:expr) => {
+        $crate::utils::region::Region2D::from_ltrb($x, $y, $x + $w, $y + $h)
+    };
 }

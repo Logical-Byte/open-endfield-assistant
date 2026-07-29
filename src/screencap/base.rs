@@ -5,7 +5,7 @@ use windows::Win32::Foundation::HWND;
 use crate::utils::region::Region2D;
 
 pub trait ScreencapBase {
-    fn new(hwnd: HWND) -> Self;
+    fn new(hwnd: HWND) -> Self where Self: Sized;
 
     fn screencap(&mut self) -> Result<RgbaImage>;
 
