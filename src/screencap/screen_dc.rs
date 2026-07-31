@@ -25,7 +25,7 @@ impl ScreenDCScreencap {
         let mut client_rect = RECT::default();
         unsafe { GetClientRect(self.hwnd, &mut client_rect) }?;
 
-        self.screencap_region(Region2D::from(client_rect).cast())
+        self.screencap_region(Region2D::from(client_rect))
     }
 
     pub fn screencap_region(&mut self, region: Region2D<i32>) -> Result<RgbaImage> {

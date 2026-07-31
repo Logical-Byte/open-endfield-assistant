@@ -25,7 +25,7 @@ impl GdiScreencap {
         unsafe {
             GetClientRect(self.hwnd, &mut rect)?;
         }
-        self.screencap_region(Region2D::from(rect).cast())
+        self.screencap_region(Region2D::from(rect))
     }
 
     pub fn screencap_region(&mut self, region: Region2D<i32>) -> Result<RgbaImage> {
