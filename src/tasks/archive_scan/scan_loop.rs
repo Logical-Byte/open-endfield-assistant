@@ -9,7 +9,7 @@ use anyhow::Result;
 use tracing::debug;
 
 use crate::{
-    ltwh,
+    from_ltwh,
     scene::{SceneId, scene_manager::SceneManager},
     session::Session,
     success,
@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// OCR 识别区域（720p 基准 ltwh）：档案标题位置
-const OCR_ROI: Region2D<u32> = ltwh!(350, 58, 578, 42);
+const OCR_ROI: Region2D<u32> = from_ltwh!(350, 58, 578, 42);
 
 /// "下一篇" 按钮搜索区域（720p 基准 ltrb）
 const NEXT_BUTTON_ROI: Region2D<u32> = Region2D::from_ltrb(762, 654, 925, 711);

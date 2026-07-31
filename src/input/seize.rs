@@ -112,7 +112,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    fn touch_up(&mut self, contact: Contact, _x: i32, _y: i32) -> Result<()> {
+    fn touch_up(&self, contact: Contact, _x: i32, _y: i32) -> Result<()> {
         if !self.hwnd.is_invalid() {
             self.ensure_foreground()?;
         }
@@ -174,7 +174,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    pub fn inactive(&self) -> Result<()> {
+    fn inactive(&self) -> Result<()> {
         self.unblock_input()?;
         if !self.hwnd.is_invalid() {
             unsafe {
@@ -192,7 +192,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    pub fn relative_move(&mut self, dx: i32, dy: i32) -> Result<()> {
+    fn relative_move(&mut self, dx: i32, dy: i32) -> Result<()> {
         if dx == 0 && dy == 0 {
             return Ok(());
         }
@@ -216,7 +216,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    pub fn input_text(&self, text: &str) -> Result<()> {
+    fn input_text(&self, text: &str) -> Result<()> {
         self.ensure_foreground()?;
 
         let u16_text: Vec<u16> = text.encode_utf16().collect();
@@ -249,7 +249,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    pub fn key_down(&self, key: i32) -> Result<()> {
+    fn key_down(&self, key: i32) -> Result<()> {
         self.ensure_foreground()?;
 
         let mut input: INPUT = unsafe { std::mem::zeroed() };
@@ -264,7 +264,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    pub fn key_up(&self, key: i32) -> Result<()> {
+    fn key_up(&self, key: i32) -> Result<()> {
         self.ensure_foreground()?;
 
         let mut input: INPUT = unsafe { std::mem::zeroed() };
@@ -280,7 +280,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    pub fn scroll(&mut self, dx: i32, dy: i32) -> Result<()> {
+    fn scroll(&self, dx: i32, dy: i32) -> Result<()> {
         self.ensure_foreground()?;
 
         self.check_and_block_input()?;
@@ -337,21 +337,32 @@ impl InputBase for SeizeInput {
     }
 
     fn touch_down(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
-        self.touch_down(contact, point.x, point.y)
+        Self::touch_down(self, contact, point.x, point.y)
     }
 
     fn touch_move(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
-        self.touch_move(contact, point.x, point.y)
+        Self::touch_move(self, contact, point.x, point.y)
     }
 
     fn touch_up(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
-        self.touch_up(contact, point.x, point.y)
+        Self::touch_up(self, contact, point.x, point.y)
     }
 
-    fn press_key(&mut self, vk_code: u32) -> Result<()> {
-        self.key_down(vk_code as i32)?;
-        std::thread::sleep(std::time::Duration::from_millis(80));
-        self.key_up(vk_code as i32)?;
-        Ok(())
+    // click 方法使用默认实现
+
+    // swipe 方法使用默认实现
+
+    fn scroll(&mut self, delta: Point2D<i32>) -> Result<()> {
+        Self::scroll(self, delta.x, delta.y)
     }
+
+    fn key_down(&mut self, vk_code: i32) -> Result<()> {
+        Self::key_down(self, vk_code)
+    }
+
+    fn key_up(&mut self, vk_code: i32) -> Result<()> {
+        Self::key_up(self, vk_code)
+    }
+
+    // press_key 方法使用默认实现
 }

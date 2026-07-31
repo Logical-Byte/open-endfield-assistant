@@ -4,7 +4,11 @@
 //! 1. 场景检测：自动判断当前处于哪个游戏界面
 //! 2. 场景导航：从任意受支持场景自动跳转到目标场景（BFS 最短路径）
 
-use std::collections::{HashMap, VecDeque};
+use std::{
+    collections::{HashMap, VecDeque},
+    thread,
+    time::Duration,
+};
 
 use anyhow::{Result, bail};
 use tracing::{debug, info, warn};
@@ -133,7 +137,7 @@ impl SceneManager {
                 "等待场景: 当前 {:?}, 期望 {:?} (第{i}/{max_retries})",
                 current, expected
             );
-            std::thread::sleep(std::time::Duration::from_millis(200));
+            thread::sleep(Duration::from_millis(200));
         }
         Ok(false)
     }
@@ -185,7 +189,7 @@ impl SceneManager {
             // 等待并验证结果
             let mut step_ok = false;
             for retry in 0..MAX_RETRIES_PER_STEP {
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                thread::sleep(Duration::from_millis(500));
                 let after = self.detect_current_scene(session)?;
                 if after == to {
                     debug!("导航步骤 {i} 成功，已到达 {:?}", to);

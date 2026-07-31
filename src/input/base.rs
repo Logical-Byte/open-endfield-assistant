@@ -32,6 +32,16 @@ pub trait InputBase {
         Ok(())
     }
 
-    /// 按下并释放键盘按键（虚拟键码）。例如 ESC 键为 0x1B。
-    fn press_key(&mut self, vk_code: u32) -> Result<()>;
+    fn scroll(&mut self, delta: Point2D<i32>) -> Result<()>;
+
+    fn key_down(&mut self, vk_code: i32) -> Result<()>;
+
+    fn key_up(&mut self, vk_code: i32) -> Result<()>;
+
+    fn press_key(&mut self, vk_code: i32) -> Result<()> {
+        self.key_down(vk_code)?;
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        self.key_up(vk_code)?;
+        Ok(())
+    }
 }

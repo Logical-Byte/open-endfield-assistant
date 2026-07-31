@@ -6,6 +6,8 @@
 mod scan_loop;
 pub mod scenes;
 
+use std::{thread, time::Duration};
+
 use anyhow::Result;
 use tracing::info;
 
@@ -13,6 +15,7 @@ use crate::{
     scene::{SceneId, SubSceneKind, scene_manager::SceneManager},
     session::Session,
     task::Task,
+    utils::region::Region2D,
 };
 
 use self::scan_loop::scan_current_sub_scene;
@@ -128,7 +131,7 @@ impl Task for ArchiveScanTask {
                 }
 
                 // 等待界面稳定
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                thread::sleep(Duration::from_millis(500));
 
                 // 扫描该子界面中的所有档案
                 info!("开始扫描 {:?} 中的档案...", sub_scene);
@@ -160,16 +163,10 @@ impl ArchiveScanTask {
         // 截图并搜索入口按钮
         let screenshot = session.screencap_for_recognition()?;
         let roi = match step.first_sub_scene {
-            SubSceneKind::音像存档_多媒体 => {
-                crate::utils::region::Region2D::from_ltrb(692, 371, 959, 601)
-            }
-            SubSceneKind::见闻辑录_纸质记录 => {
-                crate::utils::region::Region2D::from_ltrb(957, 135, 1221, 371)
-            }
-            SubSceneKind::中枢档案_中枢档案 => {
-                crate::utils::region::Region2D::from_ltrb(958, 369, 1220, 601)
-            }
-            _ => crate::utils::region::Region2D::from_ltrb(692, 371, 959, 601), // fallback
+            SubSceneKind::音像存档_多媒体 => Region2D::from_ltrb(692, 371, 959, 601),
+            SubSceneKind::见闻辑录_纸质记录 => Region2D::from_ltrb(957, 135, 1221, 371),
+            SubSceneKind::中枢档案_中枢档案 => Region2D::from_ltrb(958, 369, 1220, 601),
+            _ => Region2D::from_ltrb(692, 371, 959, 601), // fallback
         };
 
         let found = session.find_and_click_template(&screenshot, step.entry_template, roi, 0.75)?;
@@ -178,7 +175,7 @@ impl ArchiveScanTask {
         }
 
         // 等待跳转完成
-        std::thread::sleep(std::time::Duration::from_millis(800));
+        thread::sleep(Duration::from_millis(800));
 
         // 验证是否进入了目标子界面
         let target_id = SceneId::档案库子界面(step.first_sub_scene);
@@ -212,7 +209,7 @@ impl ArchiveScanTask {
         session.click_at_720p(cx, cy)?;
 
         // 等待界面切换
-        std::thread::sleep(std::time::Duration::from_millis(800));
+        thread::sleep(Duration::from_millis(800));
 
         Ok(())
     }

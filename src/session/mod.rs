@@ -5,6 +5,8 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::Duration;
 
 use anyhow::{Result, bail};
 use image::{DynamicImage, RgbaImage, imageops};
@@ -119,7 +121,7 @@ impl Session {
         };
         self.input.click(Contact::Left, point)?;
         // 点击后回中，避免按钮 hover 变化
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        thread::sleep(Duration::from_millis(50));
         self.move_mouse_to_safe_position()?;
         Ok(())
     }
@@ -150,7 +152,7 @@ impl Session {
 
     /// 按下键盘按键（虚拟键码），委托给 InputBase 实现。
     /// 例如 ESC 键为 0x1B。
-    pub fn press_key(&mut self, vk_code: u32) -> Result<()> {
+    pub fn press_key(&mut self, vk_code: i32) -> Result<()> {
         self.check_stop()?;
         self.input.press_key(vk_code)
     }
@@ -176,7 +178,7 @@ impl Session {
         threshold: f32,
     ) -> Result<Option<MatchResult>> {
         // 将 RgbaImage 转换为 RgbImage 用于模板匹配
-        let rgb_screenshot = image::DynamicImage::ImageRgba8(screenshot.clone()).to_rgb8();
+        let rgb_screenshot = DynamicImage::ImageRgba8(screenshot.clone()).to_rgb8();
         // 根据模板名称选择对应的 TemplateManager
         let result = if let Some(sub_name) = template_name.strip_prefix("情报档案库/") {
             self.templates_档案库

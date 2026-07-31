@@ -5,17 +5,29 @@ use windows::Win32::Foundation::RECT;
 
 use crate::utils::point::Point2D;
 
+/// 泛型二维矩形区域结构体，由左上角 `p0` 和右下角 `p1` 两个点定义。
+///
+/// 约定 `p0` 为区域左上角（left, top），`p1` 为区域右下角（right, bottom）。
+/// 支持 ltrb（left/top/right/bottom）与 ltwh（left/top/width/height）两种构造方式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Region2D<T> {
+    /// 区域左上角坐标
     p0: Point2D<T>,
+    /// 区域右下角坐标
     p1: Point2D<T>,
 }
 
 impl<T> Region2D<T> {
+    /// 由两个点构造 [`Region2D<T>`]。
+    ///
+    /// `p0` 应为左上角，`p1` 应为右下角。
     pub fn from_points(p0: Point2D<T>, p1: Point2D<T>) -> Self {
         Self { p0, p1 }
     }
 
+    /// 以 ltwh（left, top, width, height）格式构造 [`Region2D<T>`]。
+    ///
+    /// 内部转换为 ltrb 表示：`right = left + width`，`bottom = top + height`。
     pub fn from_ltwh(x: T, y: T, width: T, height: T) -> Self
     where
         T: Copy + Add<Output = T>,
@@ -29,6 +41,9 @@ impl<T> Region2D<T> {
         }
     }
 
+    /// 以 ltrb（left, top, right, bottom）格式构造 [`Region2D<T>`]。
+    ///
+    /// 此方法为 `const fn`，可用于编译期常量声明。
     pub const fn from_ltrb(left: T, top: T, right: T, bottom: T) -> Self {
         Self {
             p0: Point2D { x: left, y: top },
@@ -39,6 +54,7 @@ impl<T> Region2D<T> {
         }
     }
 
+    /// 返回区域左上角点 `p0`。
     pub fn p0(&self) -> Point2D<T>
     where
         T: Copy,
@@ -46,6 +62,7 @@ impl<T> Region2D<T> {
         self.p0
     }
 
+    /// 返回区域右下角点 `p1`。
     pub fn p1(&self) -> Point2D<T>
     where
         T: Copy,
@@ -53,6 +70,7 @@ impl<T> Region2D<T> {
         self.p1
     }
 
+    /// 返回左上角 x 坐标（等同于 [`left`](Self::left)）。
     pub fn x0(&self) -> T
     where
         T: Copy,
@@ -60,6 +78,7 @@ impl<T> Region2D<T> {
         self.p0.x
     }
 
+    /// 返回左上角 y 坐标（等同于 [`top`](Self::top)）。
     pub fn y0(&self) -> T
     where
         T: Copy,
@@ -67,6 +86,7 @@ impl<T> Region2D<T> {
         self.p0.y
     }
 
+    /// 返回右下角 x 坐标（等同于 [`right`](Self::right)）。
     pub fn x1(&self) -> T
     where
         T: Copy,
@@ -74,6 +94,7 @@ impl<T> Region2D<T> {
         self.p1.x
     }
 
+    /// 返回右下角 y 坐标（等同于 [`bottom`](Self::bottom)）。
     pub fn y1(&self) -> T
     where
         T: Copy,
@@ -81,6 +102,7 @@ impl<T> Region2D<T> {
         self.p1.y
     }
 
+    /// 返回区域左边界 x 坐标（等同于 [`x0`](Self::x0)）。
     pub fn left(&self) -> T
     where
         T: Copy,
@@ -88,6 +110,7 @@ impl<T> Region2D<T> {
         self.p0.x
     }
 
+    /// 返回区域上边界 y 坐标（等同于 [`y0`](Self::y0)）。
     pub fn top(&self) -> T
     where
         T: Copy,
@@ -95,6 +118,7 @@ impl<T> Region2D<T> {
         self.p0.y
     }
 
+    /// 返回区域右边界 x 坐标（等同于 [`x1`](Self::x1)）。
     pub fn right(&self) -> T
     where
         T: Copy,
@@ -102,6 +126,7 @@ impl<T> Region2D<T> {
         self.p1.x
     }
 
+    /// 返回区域下边界 y 坐标（等同于 [`y1`](Self::y1)）。
     pub fn bottom(&self) -> T
     where
         T: Copy,
@@ -109,6 +134,7 @@ impl<T> Region2D<T> {
         self.p1.y
     }
 
+    /// 返回区域宽度 `right - left`。
     pub fn width(&self) -> T
     where
         T: Copy + Sub<Output = T>,
@@ -116,6 +142,7 @@ impl<T> Region2D<T> {
         self.p1.x - self.p0.x
     }
 
+    /// 返回区域高度 `bottom - top`。
     pub fn height(&self) -> T
     where
         T: Copy + Sub<Output = T>,
@@ -123,6 +150,7 @@ impl<T> Region2D<T> {
         self.p1.y - self.p0.y
     }
 
+    /// 返回区域中心点 x 坐标 `(left + right) / 2`。
     pub fn x_center(&self) -> T
     where
         T: Copy + Add<Output = T> + Div<Output = T> + One,
@@ -131,6 +159,7 @@ impl<T> Region2D<T> {
         (self.p0.x + self.p1.x) / two
     }
 
+    /// 返回区域中心点 y 坐标 `(top + bottom) / 2`。
     pub fn y_center(&self) -> T
     where
         T: Copy + Add<Output = T> + Div<Output = T> + One,
@@ -139,6 +168,7 @@ impl<T> Region2D<T> {
         (self.p0.y + self.p1.y) / two
     }
 
+    /// 返回区域中心点坐标 `(x_center, y_center)`。
     pub fn center(&self) -> Point2D<T>
     where
         T: Copy + Add<Output = T> + Div<Output = T> + One,
@@ -149,6 +179,7 @@ impl<T> Region2D<T> {
         }
     }
 
+    /// 返回区域面积 `width * height`。
     pub fn area(&self) -> T
     where
         T: Copy + Sub<Output = T> + Mul<Output = T>,
@@ -156,18 +187,31 @@ impl<T> Region2D<T> {
         self.width() * self.height()
     }
 
-    pub fn apply_padding_ltrb(&self, pl: T, pt: T, pr: T, pb: T) -> Self
+    /// 分别对四条边应用不同的 padding（向外扩展）。
+    ///
+    /// 正值向外扩展，负值向内收缩。
+    /// 参数顺序为 `(padding_left, padding_top, padding_right, padding_bottom)`。
+    pub fn apply_padding_ltrb(
+        &self,
+        padding_left: T,
+        padding_top: T,
+        padding_right: T,
+        padding_bottom: T,
+    ) -> Self
     where
         T: Copy + Add<Output = T> + Sub<Output = T>,
     {
         Self::from_ltrb(
-            self.left() - pl,
-            self.top() - pt,
-            self.right() + pr,
-            self.bottom() + pb,
+            self.left() - padding_left,
+            self.top() - padding_top,
+            self.right() + padding_right,
+            self.bottom() + padding_bottom,
         )
     }
 
+    /// 四条边应用相同的 padding（向外扩展）。
+    ///
+    /// 正值向外扩展，负值向内收缩。
     pub fn apply_padding(&self, padding: T) -> Self
     where
         T: Copy + Add<Output = T> + Sub<Output = T>,
@@ -191,6 +235,7 @@ impl<T> Region2D<T> {
 }
 
 impl From<RECT> for Region2D<i32> {
+    /// 将 Windows API 的 [`RECT`] 结构转换为 [`Region2D<i32>`]。
     fn from(rect: RECT) -> Self {
         Self {
             p0: Point2D {
@@ -206,6 +251,7 @@ impl From<RECT> for Region2D<i32> {
 }
 
 impl From<Region2D<i32>> for RECT {
+    /// 将 [`Region2D<i32>`] 转换为 Windows API 的 [`RECT`] 结构。
     fn from(region: Region2D<i32>) -> Self {
         Self {
             left: region.p0.x,
@@ -223,10 +269,10 @@ impl From<Region2D<i32>> for RECT {
 ///
 /// # 示例
 /// ```
-/// const ROI: Region2D<u32> = ltwh!(180, 120, 60, 36);
+/// const ROI: Region2D<u32> = from_ltwh!(180, 120, 60, 36);
 /// ```
 #[macro_export]
-macro_rules! ltwh {
+macro_rules! from_ltwh {
     ($x:expr, $y:expr, $w:expr, $h:expr) => {
         $crate::utils::region::Region2D::from_ltrb($x, $y, $x + $w, $y + $h)
     };

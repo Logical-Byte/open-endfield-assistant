@@ -3,9 +3,12 @@ use imageproc::contrast::{ThresholdType, threshold};
 
 use crate::utils::region::Region2D;
 
-/// 检测单行连续文字（黑底白字）。
+/// 检测单行连续文字（黑底白字或白底黑字）。
 ///
-/// 简化版：只扫描全图找出所有白色像素的整体包围框，不做连通域分析和合并。
+/// 黑底白字时，阈值类型使用 [`ThresholdType::Binary`]；
+/// 白底黑字时，阈值类型使用 [`ThresholdType::BinaryInverted`]。
+///
+/// 简化版：二值化后扫描全图找出所有白色像素的整体包围框，不做连通域分析和合并。
 /// 适用于保证只有单行连续文字的场景。
 pub fn detect_single_line(
     image: &RgbImage,
@@ -197,16 +200,4 @@ fn apply_padding(region: Region2D<u32>, padding: u32, img_w: u32, img_h: u32) ->
     let bottom = (region.y1() + padding).min(img_h);
 
     Region2D::from_ltrb(left, top, right, bottom)
-}
-
-/// 根据 Region2D 从原图中裁剪出子图
-pub fn crop_region(image: &RgbImage, region: Region2D<u32>) -> RgbImage {
-    imageops::crop_imm(
-        image,
-        region.x0(),
-        region.y0(),
-        region.width(),
-        region.height(),
-    )
-    .to_image()
 }

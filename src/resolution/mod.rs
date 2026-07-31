@@ -5,7 +5,10 @@
 //! 仅支持 16:9 分辨率。
 
 use anyhow::{Result, bail};
-use image::{RgbaImage, imageops};
+use image::{
+    RgbaImage,
+    imageops::{self, FilterType},
+};
 
 /// 游戏窗口分辨率（仅支持 16:9）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,6 +88,6 @@ impl GameResolution {
         if self.width == 1280 && self.height == 720 {
             return image.clone();
         }
-        imageops::resize(image, 1280, 720, imageops::FilterType::Lanczos3)
+        imageops::resize(image, 1280, 720, FilterType::Lanczos3)
     }
 }

@@ -6,6 +6,7 @@
 pub mod scene_manager;
 
 use anyhow::Result;
+use image::RgbaImage;
 
 use crate::{session::Session, utils::region::Region2D};
 
@@ -68,7 +69,7 @@ pub enum SceneAction {
     /// `roi_index`: 0-based，对应 ltwh(180, 120+64*i, 60, 36)
     ClickSubTab { roi_index: usize },
     /// 按下键盘按键（虚拟键码）
-    PressKey { vk_code: u32 },
+    PressKey { vk_code: i32 },
 }
 
 // ============================================================================
@@ -135,7 +136,7 @@ impl SceneAction {
     /// # 参数
     /// - `session`: 会话上下文
     /// - `screenshot`: 当前 720p 截图（用于模板匹配）
-    pub fn execute(&self, session: &mut Session, screenshot: &image::RgbaImage) -> Result<()> {
+    pub fn execute(&self, session: &mut Session, screenshot: &RgbaImage) -> Result<()> {
         match self {
             SceneAction::FindAndClickTemplate {
                 template_name,
