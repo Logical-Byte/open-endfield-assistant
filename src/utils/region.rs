@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-use num_traits::{AsPrimitive, One};
+use az::{Cast, CheckedCast, OverflowingCast, SaturatingCast, StrictCast, WrappingCast};
 use windows::Win32::Foundation::RECT;
 
 use crate::utils::point::Point2D;
@@ -153,25 +153,26 @@ impl<T> Region2D<T> {
     /// 返回区域中心点 x 坐标 `(left + right) / 2`。
     pub fn x_center(&self) -> T
     where
-        T: Copy + Add<Output = T> + Div<Output = T> + One,
+        T: Copy + Add<Output = T> + Div<Output = T>,
+        u8: Cast<T>,
     {
-        let two = T::one() + T::one();
-        (self.p0.x + self.p1.x) / two
+        (self.p0.x + self.p1.x) / 2.cast()
     }
 
     /// 返回区域中心点 y 坐标 `(top + bottom) / 2`。
     pub fn y_center(&self) -> T
     where
-        T: Copy + Add<Output = T> + Div<Output = T> + One,
+        T: Copy + Add<Output = T> + Div<Output = T>,
+        u8: Cast<T>,
     {
-        let two: T = T::one() + T::one();
-        (self.p0.y + self.p1.y) / two
+        (self.p0.y + self.p1.y) / 2.cast()
     }
 
     /// 返回区域中心点坐标 `(x_center, y_center)`。
     pub fn center(&self) -> Point2D<T>
     where
-        T: Copy + Add<Output = T> + Div<Output = T> + One,
+        T: Copy + Add<Output = T> + Div<Output = T>,
+        u8: Cast<T>,
     {
         Point2D {
             x: self.x_center(),
@@ -220,17 +221,80 @@ impl<T> Region2D<T> {
     }
 }
 
-impl<T> Region2D<T> {
-    /// 将 Region2D 转换为另一种数值类型。
-    pub fn cast<U>(self) -> Region2D<U>
-    where
-        T: AsPrimitive<U>,
-        U: 'static + Copy,
-    {
+impl<T, U> Cast<Region2D<U>> for Region2D<T>
+where
+    T: Cast<U>,
+{
+    /// 将 [`Region2D<T>`] 转换为 [`Region2D<U>`]，其中 `T` 可以转换为 `U`。
+    fn cast(self) -> Region2D<U> {
         Region2D {
             p0: self.p0.cast(),
             p1: self.p1.cast(),
         }
+    }
+}
+
+impl<T, U> CheckedCast<Region2D<U>> for Region2D<T>
+where
+    T: CheckedCast<U>,
+{
+    /// 尝试将 [`Region2D<T>`] 转换为 [`Region2D<U>`]，如果 `T` 无法转换为 `U`，则返回 `None`。
+    fn checked_cast(self) -> Option<Region2D<U>> {
+        Some(Region2D {
+            p0: self.p0.checked_cast()?,
+            p1: self.p1.checked_cast()?,
+        })
+    }
+}
+
+impl<T, U> StrictCast<Region2D<U>> for Region2D<T>
+where
+    T: StrictCast<U>,
+{
+    /// 将 [`Region2D<T>`] 严格转换为 [`Region2D<U>`]，如果 `T` 无法严格转换为 `U`，则会 panic。
+    fn strict_cast(self) -> Region2D<U> {
+        Region2D {
+            p0: self.p0.strict_cast(),
+            p1: self.p1.strict_cast(),
+        }
+    }
+}
+
+impl<T, U> SaturatingCast<Region2D<U>> for Region2D<T>
+where
+    T: SaturatingCast<U>,
+{
+    /// 将 [`Region2D<T>`] 饱和转换为 [`Region2D<U>`]，如果 `T` 超出 `U` 的范围，则会返回 `U` 的边界值。
+    fn saturating_cast(self) -> Region2D<U> {
+        Region2D {
+            p0: self.p0.saturating_cast(),
+            p1: self.p1.saturating_cast(),
+        }
+    }
+}
+
+impl<T, U> WrappingCast<Region2D<U>> for Region2D<T>
+where
+    T: WrappingCast<U>,
+{
+    /// 将 [`Region2D<T>`] 环绕转换为 [`Region2D<U>`]，如果 `T` 超出 `U` 的范围，则会环绕回 `U` 的范围内。
+    fn wrapping_cast(self) -> Region2D<U> {
+        Region2D {
+            p0: self.p0.wrapping_cast(),
+            p1: self.p1.wrapping_cast(),
+        }
+    }
+}
+
+impl<T, U> OverflowingCast<Region2D<U>> for Region2D<T>
+where
+    T: OverflowingCast<U>,
+{
+    /// 将 [`Region2D<T>`] 溢出转换为 [`Region2D<U>`]，如果 `T` 超出 `U` 的范围，则会返回溢出标志。
+    fn overflowing_cast(self) -> (Region2D<U>, bool) {
+        let (p0, p0_overflow) = self.p0.overflowing_cast();
+        let (p1, p1_overflow) = self.p1.overflowing_cast();
+        (Region2D { p0, p1 }, p0_overflow || p1_overflow)
     }
 }
 

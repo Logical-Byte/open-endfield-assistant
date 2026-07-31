@@ -5,10 +5,10 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.104"
+az = "1.3.0"
 chrono = "0.4.45"
 image = "0.25.10"
 imageproc = "0.27.0"
-num-traits = "0.2.19"
 rapidocr-core = { version = "0.2.2", default-features = false }
 scopeguard = "1.2.0"
 tracing = "0.1.44"

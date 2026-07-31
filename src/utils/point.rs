@@ -1,4 +1,4 @@
-use num_traits::AsPrimitive;
+use az::{Cast, CheckedCast, OverflowingCast, SaturatingCast, StrictCast, WrappingCast};
 use windows::Win32::Foundation::POINT;
 
 /// 泛型二维点结构体，表示平面上的一个坐标 `(x, y)`。
@@ -27,17 +27,80 @@ impl<T> From<Point2D<T>> for (T, T) {
     }
 }
 
-impl<T> Point2D<T> {
+impl<T, U> Cast<Point2D<U>> for Point2D<T>
+where
+    T: Cast<U>,
+{
     /// 将 [`Point2D<T>`] 转换为 [`Point2D<U>`]，其中 `T` 可以转换为 `U`。
-    pub fn cast<U>(self) -> Point2D<U>
-    where
-        T: AsPrimitive<U>,
-        U: 'static + Copy,
-    {
+    fn cast(self) -> Point2D<U> {
         Point2D {
-            x: self.x.as_(),
-            y: self.y.as_(),
+            x: self.x.cast(),
+            y: self.y.cast(),
         }
+    }
+}
+
+impl<T, U> CheckedCast<Point2D<U>> for Point2D<T>
+where
+    T: CheckedCast<U>,
+{
+    /// 尝试将 [`Point2D<T>`] 转换为 [`Point2D<U>`]，如果 `T` 无法转换为 `U`，则返回 `None`。
+    fn checked_cast(self) -> Option<Point2D<U>> {
+        Some(Point2D {
+            x: self.x.checked_cast()?,
+            y: self.y.checked_cast()?,
+        })
+    }
+}
+
+impl<T, U> StrictCast<Point2D<U>> for Point2D<T>
+where
+    T: StrictCast<U>,
+{
+    /// 将 [`Point2D<T>`] 严格转换为 [`Point2D<U>`]，如果 `T` 无法严格转换为 `U`，则会 panic。
+    fn strict_cast(self) -> Point2D<U> {
+        Point2D {
+            x: self.x.strict_cast(),
+            y: self.y.strict_cast(),
+        }
+    }
+}
+
+impl<T, U> SaturatingCast<Point2D<U>> for Point2D<T>
+where
+    T: SaturatingCast<U>,
+{
+    /// 将 [`Point2D<T>`] 饱和转换为 [`Point2D<U>`]，如果 `T` 超出 `U` 的范围，则会返回 `U` 的边界值。
+    fn saturating_cast(self) -> Point2D<U> {
+        Point2D {
+            x: self.x.saturating_cast(),
+            y: self.y.saturating_cast(),
+        }
+    }
+}
+
+impl<T, U> WrappingCast<Point2D<U>> for Point2D<T>
+where
+    T: WrappingCast<U>,
+{
+    /// 将 [`Point2D<T>`] 环绕转换为 [`Point2D<U>`]，如果 `T` 超出 `U` 的范围，则会环绕回 `U` 的范围内。
+    fn wrapping_cast(self) -> Point2D<U> {
+        Point2D {
+            x: self.x.wrapping_cast(),
+            y: self.y.wrapping_cast(),
+        }
+    }
+}
+
+impl<T, U> OverflowingCast<Point2D<U>> for Point2D<T>
+where
+    T: OverflowingCast<U>,
+{
+    /// 将 [`Point2D<T>`] 溢出转换为 [`Point2D<U>`]，如果 `T` 超出 `U` 的范围，则会返回溢出标志。
+    fn overflowing_cast(self) -> (Point2D<U>, bool) {
+        let (x, x_overflow) = self.x.overflowing_cast();
+        let (y, y_overflow) = self.y.overflowing_cast();
+        (Point2D { x, y }, x_overflow || y_overflow)
     }
 }
 
