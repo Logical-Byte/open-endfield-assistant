@@ -24,17 +24,16 @@ impl HotkeyListener {
 
         thread::spawn(move || {
             let hotkey_id = 1i32;
-            unsafe {
-                if RegisterHotKey(None, hotkey_id, modifiers, vk).is_err() {
-                    error!("热键注册失败（可能已被占用）");
-                    return;
-                }
+
+            if unsafe { RegisterHotKey(None, hotkey_id, modifiers, vk) }.is_err() {
+                error!("热键注册失败（可能已被占用）");
+                return;
             }
             defer! {
-                unsafe { let _ = UnregisterHotKey(None, hotkey_id); }
+                let _ = unsafe { UnregisterHotKey(None, hotkey_id) };
             }
 
-            let mut msg: MSG = unsafe { std::mem::zeroed() };
+            let mut msg = MSG::default();
             loop {
                 let ret = unsafe { GetMessageW(&mut msg, None, 0, 0) };
                 if ret.0 == 0 || ret.0 == -1 {

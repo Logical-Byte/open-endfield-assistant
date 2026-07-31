@@ -3,9 +3,8 @@ use std::{thread, time::Duration};
 use anyhow::Result;
 use windows::Win32::Foundation::HWND;
 
-use crate::utils::point::Point2D;
-
 use super::input_utils::Contact;
+use crate::utils::point::Point2D;
 
 pub trait InputBase {
     fn new(hwnd: HWND, block_input: bool) -> Self
@@ -40,7 +39,7 @@ pub trait InputBase {
 
     fn press_key(&mut self, vk_code: i32) -> Result<()> {
         self.key_down(vk_code)?;
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        thread::sleep(Duration::from_millis(10));
         self.key_up(vk_code)?;
         Ok(())
     }

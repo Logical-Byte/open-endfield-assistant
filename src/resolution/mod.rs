@@ -40,11 +40,7 @@ impl GameResolution {
         }
         // 允许 1 像素的误差（因为某些窗口 API 可能返回奇数尺寸）
         let expected_height = self.width * 9 / 16;
-        let diff = if self.height > expected_height {
-            self.height - expected_height
-        } else {
-            expected_height - self.height
-        };
+        let diff = self.height.abs_diff(expected_height);
         if diff > 1 {
             bail!(
                 "不支持的分辨率 {}×{}，仅支持 16:9 (预期高度约 {})",

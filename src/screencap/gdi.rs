@@ -83,7 +83,7 @@ impl GdiScreencap {
         unsafe { BitBlt(mem_dc, 0, 0, width, height, Some(hdc), x0, y0, SRCCOPY) }?;
 
         let mut mat = vec![0u8; (width * height * 4) as usize];
-        if unsafe { GetBitmapBits(bitmap, width * height * 4 , mat.as_mut_ptr() as *mut _) } == 0 {
+        if unsafe { GetBitmapBits(bitmap, width * height * 4, mat.as_mut_ptr() as *mut _) } == 0 {
             bail!("GetBitmapBits failed, error code: {:?}", unsafe {
                 GetLastError()
             });
@@ -102,7 +102,7 @@ impl ScreencapBase for GdiScreencap {
         self.screencap()
     }
 
-    fn screencap_region(&mut self, relative_region: Region2D<u32>) -> Result<RgbaImage> {
-        self.screencap_region(relative_region.cast())
+    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> Result<RgbaImage> {
+        self.screencap_region(relative_region)
     }
 }

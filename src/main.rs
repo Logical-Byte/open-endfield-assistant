@@ -8,6 +8,7 @@ use dak::{
     session::Session,
     task::TaskRunner,
     tasks::archive_scan::{ArchiveScanTask, scenes::create_scene_manager},
+    window,
 };
 use rapidocr_core::config::PipelineConfig;
 use tracing::info;
@@ -15,14 +16,14 @@ use tracing::info;
 fn main() -> Result<()> {
     let _logger_guard = dak::logger::init();
 
-    dak::set_thread_dpi_awareness_context();
+    window::set_thread_dpi_awareness_context();
 
     // 1. 获取游戏窗口
-    let hwnd = dak::window::get_window_by_title("Endfield", Some("UnityWndClass"))?;
-    dak::window::ensure_foreground_and_topmost(hwnd)?;
-    dak::window::ensure_window_on_screen(hwnd)?;
+    let hwnd = window::get_window_by_title("Endfield", Some("UnityWndClass"))?;
+    window::ensure_foreground_and_topmost(hwnd)?;
+    window::ensure_window_on_screen(hwnd)?;
 
-    let client_rect = dak::window::get_client_rect(hwnd)?;
+    let client_rect = window::get_client_rect(hwnd)?;
     let resolution = GameResolution::new(client_rect.width() as u32, client_rect.height() as u32)?;
     info!("游戏分辨率: {}×{}", resolution.width, resolution.height);
 

@@ -126,10 +126,10 @@ impl ScreencapBase for ScreenDCScreencap {
     }
 
     fn screencap(&mut self) -> Result<RgbaImage> {
-        self.screencap()
+        Self::screencap(self)
     }
 
-    fn screencap_region(&mut self, relative_region: Region2D<u32>) -> Result<RgbaImage> {
-        self.screencap_region(relative_region.cast())
+    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> Result<RgbaImage> {
+        Self::screencap_region(self, relative_region)
     }
 }

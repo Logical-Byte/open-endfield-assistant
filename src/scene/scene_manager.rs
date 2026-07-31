@@ -69,7 +69,7 @@ impl SceneManager {
     /// 必须在所有场景注册完毕后调用一次。
     pub fn build_navigation_graph(&mut self) {
         self.navigation_graph.clear();
-        for (_idx, scene) in self.scenes.iter().enumerate() {
+        for scene in self.scenes.iter() {
             let from_id = scene.id();
             let edges: Vec<(SceneId, usize)> = scene
                 .transitions()
@@ -280,8 +280,8 @@ impl SceneManager {
         while let Some(current) = queue.pop_front() {
             if let Some(edges) = self.navigation_graph.get(&current) {
                 for &(next_id, _ti) in edges {
-                    if !visited.contains_key(&next_id) {
-                        visited.insert(next_id, (current, 0));
+                    if let std::collections::hash_map::Entry::Vacant(e) = visited.entry(next_id) {
+                        e.insert((current, 0));
                         if next_id == to || normalize_scene_id(next_id) == normalize_scene_id(to) {
                             // 找到目标，回溯路径
                             return Ok(self.reconstruct_path(lookup_from, next_id, &visited));
