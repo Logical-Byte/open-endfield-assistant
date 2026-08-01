@@ -10,10 +10,14 @@
 //! 5. 大世界
 //! 6. 未知（兜底）
 
+use std::sync::LazyLock;
+
 use anyhow::Result;
 
 use crate::{
-    scene::{Scene, SceneAction, SceneId, SceneTransition, SubSceneKind},
+    scene::{
+        Scene, SceneAction, SceneId, SceneTransition, SubSceneKind, scene_manager::SceneManager,
+    },
     session::Session,
     utils::region::Region2D,
 };
@@ -113,7 +117,7 @@ impl Scene for Scene档案详情页面 {
         // 1. 点击关闭按钮返回档案库子界面
         // 2. 点击"下一篇"进入下一份档案详情（由 scan_loop 处理，不在此定义）
         // 3. 点击"档案详情右箭头"进入下一份档案详情（同上）
-        static T: std::sync::LazyLock<Vec<SceneTransition>> = std::sync::LazyLock::new(|| {
+        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![SceneTransition {
                 target: SceneId::档案库子界面(SubSceneKind::音像存档_多媒体), // 占位，实际在 scan_loop 中处理
                 action: SceneAction::FindAndClickTemplate {
@@ -195,7 +199,7 @@ impl Scene for Scene档案库子界面 {
         // - 点击关闭 → 档案库主界面
         // - 点击侧边栏 tab → 同分类的其他子界面
         // - 点击第 1 份档案 (401, 182) → 档案详情页面
-        static T: std::sync::LazyLock<Vec<SceneTransition>> = std::sync::LazyLock::new(|| {
+        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![
                 SceneTransition {
                     target: SceneId::档案库主界面,
@@ -384,7 +388,7 @@ impl Scene for Scene档案库主界面 {
         // - 点击音像存档 → 音像存档-多媒体子界面
         // - 点击见闻辑录 → 见闻辑录-纸质记录子界面
         // - 点击中枢档案 → 中枢档案-中枢档案子界面
-        static T: std::sync::LazyLock<Vec<SceneTransition>> = std::sync::LazyLock::new(|| {
+        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![
                 SceneTransition {
                     target: SceneId::协议终端,
@@ -458,7 +462,7 @@ impl Scene for Scene协议终端 {
     }
 
     fn transitions(&self) -> &[SceneTransition] {
-        static T: std::sync::LazyLock<Vec<SceneTransition>> = std::sync::LazyLock::new(|| {
+        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![SceneTransition {
                 target: SceneId::档案库主界面,
                 action: SceneAction::FindAndClickTemplate {
@@ -512,7 +516,7 @@ impl Scene for Scene大世界 {
 
     fn transitions(&self) -> &[SceneTransition] {
         // 从大世界按 ESC 键进入协议终端
-        static T: std::sync::LazyLock<Vec<SceneTransition>> = std::sync::LazyLock::new(|| {
+        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![SceneTransition {
                 target: SceneId::协议终端,
                 action: SceneAction::PressKey { vk_code: 0x1B }, // VK_ESCAPE
@@ -546,7 +550,7 @@ impl Scene for Scene未知 {
 
     fn transitions(&self) -> &[SceneTransition] {
         // 未知场景无法跳转
-        static T: std::sync::LazyLock<Vec<SceneTransition>> = std::sync::LazyLock::new(Vec::new);
+        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(Vec::new);
         &T
     }
 }
@@ -558,9 +562,7 @@ impl Scene for Scene未知 {
 /// 创建并配置好所有档案库相关场景的 SceneManager。
 ///
 /// 场景按从具体到笼统的顺序注册，确保更具体的场景优先被检测到。
-pub fn create_scene_manager() -> crate::scene::scene_manager::SceneManager {
-    use crate::scene::scene_manager::SceneManager;
-
+pub fn create_scene_manager() -> SceneManager {
     let mut sm = SceneManager::new();
 
     // 注册顺序很重要：越具体的场景越先注册

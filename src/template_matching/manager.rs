@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use image::RgbImage;
@@ -53,13 +53,10 @@ pub struct TemplateManager {
 }
 
 impl TemplateManager {
-    /// 创建 `TemplateManager`，`folder` 为模板图片所在的文件夹路径。
-    pub fn new<P>(folder: P) -> Self
-    where
-        P: AsRef<Path>,
-    {
+    /// 创建 [`TemplateManager`]，`folder` 为模板图片所在的文件夹路径。
+    pub fn new(folder: impl Into<PathBuf>) -> Self {
         Self {
-            folder: folder.as_ref().to_path_buf(),
+            folder: folder.into(),
             cache: HashMap::new(),
         }
     }

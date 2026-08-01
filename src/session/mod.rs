@@ -24,8 +24,6 @@ use crate::{
 
 /// 模板资源根目录
 const TEMPLATES_ROOT: &str = "resources/templates";
-/// 情报档案库模板子目录
-const TEMPLATES_档案库: &str = "resources/templates/情报档案库";
 
 /// 脚本会话，聚合所有底层能力。
 ///
@@ -40,10 +38,8 @@ pub struct Session {
     input: Box<dyn InputBase>,
     /// OCR 引擎
     ocr: OcrEngine,
-    /// 模板匹配管理器（根目录，存放协议终端、档案库等通用模板）
-    templates_root: TemplateManager,
-    /// 模板匹配管理器（情报档案库子目录）
-    templates_档案库: TemplateManager,
+    /// 模板匹配管理器，管理所有模板图片（含子目录），按需懒加载并缓存。
+    templates: TemplateManager,
     /// 游戏实际分辨率
     pub resolution: GameResolution,
     /// 停止标志（来自热键监听器），每次操作前检查
@@ -68,16 +64,13 @@ impl Session {
         resolution: GameResolution,
         stop_flag: Arc<AtomicBool>,
     ) -> Self {
-        // 从两个目录加载模板：
-        // - templates_root: 协议终端.png、档案库.png（与档案库无关的通用模板）
-        // - templates_档案库: 情报档案库下的所有模板
+        // 从根目录加载所有模板（含情报档案库子目录）
         Self {
             hwnd,
             screencap,
             input,
             ocr,
-            templates_root: TemplateManager::new(TEMPLATES_ROOT),
-            templates_档案库: TemplateManager::new(TEMPLATES_档案库),
+            templates: TemplateManager::new(TEMPLATES_ROOT),
             resolution,
             stop_flag,
         }
@@ -179,14 +172,9 @@ impl Session {
     ) -> Result<Option<MatchResult>> {
         // 将 RgbaImage 转换为 RgbImage 用于模板匹配
         let rgb_screenshot = DynamicImage::ImageRgba8(screenshot.clone()).to_rgb8();
-        // 根据模板名称选择对应的 TemplateManager
-        let result = if let Some(sub_name) = template_name.strip_prefix("情报档案库/") {
-            self.templates_档案库
-                .match_template_in_region(&rgb_screenshot, sub_name, Some(roi))
-        } else {
-            self.templates_root
-                .match_template_in_region(&rgb_screenshot, template_name, Some(roi))
-        };
+        let result =
+            self.templates
+                .match_template_in_region(&rgb_screenshot, template_name, Some(roi));
 
         match result {
             Ok(m) if m.score >= threshold => Ok(Some(m)),
