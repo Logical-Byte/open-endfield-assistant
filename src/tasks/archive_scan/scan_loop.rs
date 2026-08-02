@@ -9,27 +9,12 @@ use anyhow::Result;
 use tracing::debug;
 
 use crate::{
-    from_ltwh,
     scene::{SceneId, scene_manager::SceneManager},
     session::Session,
     success,
-    utils::region::Region2D,
 };
 
-/// OCR 识别区域（720p 基准 ltwh）：档案标题位置
-const OCR_ROI: Region2D<u32> = from_ltwh!(350, 58, 578, 42);
-
-/// "下一篇" 按钮搜索区域（720p 基准 ltrb）
-const NEXT_BUTTON_ROI: Region2D<u32> = Region2D::from_ltrb(762, 654, 925, 711);
-
-/// "档案详情右箭头" 搜索区域（720p 基准 ltrb）
-const ARROW_RIGHT_ROI: Region2D<u32> = Region2D::from_ltrb(1206, 313, 1276, 423);
-
-/// "档案详情关闭" 按钮搜索区域（720p 基准 ltrb）
-const CLOSE_BUTTON_ROI: Region2D<u32> = Region2D::from_ltrb(1180, 0, 1280, 100);
-
-/// 模板匹配阈值
-const THRESHOLD: f32 = 0.75;
+use super::constants::{ARROW_RIGHT_ROI, CLOSE_BUTTON_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
 
 /// 扫描当前子界面中的所有档案。
 ///

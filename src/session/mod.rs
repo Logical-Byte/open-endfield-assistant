@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use image::{DynamicImage, RgbaImage, imageops};
 use imageproc::contrast::ThresholdType;
 use windows::Win32::Foundation::HWND;
@@ -18,6 +18,7 @@ use crate::{
     ocr::{OcrEngine, text_detection},
     resolution::GameResolution,
     screencap::ScreencapBase,
+    task::TaskStopped,
     template_matching::{MatchResult, TemplateManager},
     utils::{point::Point2D, region::Region2D},
 };
@@ -76,12 +77,20 @@ impl Session {
         }
     }
 
-    /// 检查是否收到停止信号，如果收到则返回错误中断执行。
+    /// 检查是否收到停止信号，如果收到则返回 [`TaskStopped`] 错误中断执行。
+    ///
+    /// 停止不是"任务出错"，上层应将其与真正的错误区分开（见 [`crate::task::TaskStopped`]）。
     fn check_stop(&self) -> Result<()> {
         if self.stop_flag.load(Ordering::Relaxed) {
-            bail!("收到停止信号 (Alt+Delete)，任务已中断");
+            Err(TaskStopped.into())
+        } else {
+            Ok(())
         }
-        Ok(())
+    }
+
+    /// 清除停止标志（启动新任务或单次扫描前调用，避免上一次的停止信号残留）。
+    pub fn reset_stop(&mut self) {
+        self.stop_flag.store(false, Ordering::Relaxed);
     }
 
     // ========== 截图相关 ==========

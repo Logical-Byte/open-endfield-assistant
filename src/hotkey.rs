@@ -1,66 +1,194 @@
+//! 全局快捷键监听模块。
+//!
+//! 在独立线程中注册并持续监听多个热键，将热键事件通过 [`std::sync::mpsc`] 通道
+//! 发送给主线程。空闲时主线程通过 [`HotkeyListener::wait_event`] 阻塞等待事件；
+//! 当主任务正在运行时，主线程忙于执行任务而无法读取通道，此时再按"切换主任务"
+//! 或"退出程序"热键会直接设置停止标志，由任务内部轮询该标志实现优雅停止。
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
 use std::thread;
 
+use anyhow::{Result, anyhow};
 use scopeguard::defer;
-use tracing::error;
+use tracing::{error, info};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    HOT_KEY_MODIFIERS, MOD_ALT, MOD_NOREPEAT, RegisterHotKey, UnregisterHotKey, VK_DELETE,
+    HOT_KEY_MODIFIERS, RegisterHotKey, UnregisterHotKey,
 };
 use windows::Win32::UI::WindowsAndMessaging::{GetMessageW, MSG, WM_HOTKEY};
 
+/// 热键触发的事件。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HotkeyEvent {
+    /// 切换主任务运行状态（引号键 `'`）：
+    /// - 空闲时按下 → 启动主任务
+    /// - 主任务运行时按下 → 请求停止主任务
+    ToggleMainTask,
+    /// 单次扫描当前档案详情（分号键 `;`）：仅截屏识别，不做任何输入操作。
+    ScanSingleArchive,
+    /// 退出程序（Alt+Delete 键）：优雅停止主任务后退出脚本。
+    ExitProgram,
+}
+
+/// 单个热键绑定：虚拟键码 + 修饰符 → 触发的事件。
+#[derive(Clone, Copy)]
+pub struct HotkeyBinding {
+    /// 虚拟键码（如 `VK_OEM_1`、`VK_OEM_7`）
+    pub vk: u32,
+    /// 修饰键（如 `MOD_ALT`），无修饰符时传 `HOT_KEY_MODIFIERS(0)`
+    pub modifiers: HOT_KEY_MODIFIERS,
+    /// 触发的事件
+    pub event: HotkeyEvent,
+}
+
 /// 全局快捷键监听器。
-/// 在独立线程中注册并监听热键，按下时设置停止标志。
+///
+/// 注册热键后，后台线程持续监听消息队列：
+/// - 主任务空闲时，热键事件通过通道发送给主线程；
+/// - 主任务运行时，按"切换主任务"热键直接设置停止标志（主线程无法读取通道），
+///   由任务内部轮询停止标志实现优雅停止；
+/// - 主任务运行时忽略"单次扫描"热键，避免命令积压到任务结束后才被执行。
 pub struct HotkeyListener {
+    /// 事件接收端（主线程等待热键事件）
+    rx: mpsc::Receiver<HotkeyEvent>,
+    /// 停止标志：主任务运行时，热键线程设置此标志请求停止
     stop_flag: Arc<AtomicBool>,
+    /// 主任务是否正在运行（热键线程据此决定"切换"热键的行为）
+    main_running: Arc<AtomicBool>,
 }
 
 impl HotkeyListener {
-    /// 创建并启动热键监听。
-    /// `modifiers` 如 `MOD_ALT`，`vk` 如 `VK_DELETE`。
-    pub fn new(modifiers: HOT_KEY_MODIFIERS, vk: u32) -> Self {
+    /// 注册一组热键并启动后台监听线程。
+    ///
+    /// # 参数
+    /// - `bindings`: 热键绑定列表，每个热键在注册时分配唯一的内部 ID。
+    pub fn new(bindings: &[HotkeyBinding]) -> Result<Self> {
+        let (tx, rx) = mpsc::channel();
         let stop_flag = Arc::new(AtomicBool::new(false));
+        let main_running = Arc::new(AtomicBool::new(false));
         let flag = stop_flag.clone();
+        let running = main_running.clone();
+        // 转为拥有所有权的数据，以便安全移入监听线程
+        let bindings = bindings.to_vec();
 
         thread::spawn(move || {
-            let hotkey_id = 1i32;
+            // 依次注册所有热键，记录成功注册的 (id, event)
+            let mut registered: Vec<(i32, HotkeyEvent)> = Vec::new();
+            for (idx, binding) in bindings.iter().enumerate() {
+                // 热键 ID 从 1 开始，WM_HOTKEY 消息的 wParam 携带此 ID
+                let id = (idx + 1) as i32;
+                match unsafe { RegisterHotKey(None, id, binding.modifiers, binding.vk) } {
+                    Ok(()) => {
+                        info!("热键注册成功: {:?} (VK=0x{:X})", binding.event, binding.vk);
+                        registered.push((id, binding.event));
+                    }
+                    Err(e) => {
+                        error!(
+                            "热键注册失败: {:?} (VK=0x{:X}): {e}",
+                            binding.event, binding.vk
+                        );
+                    }
+                }
+            }
 
-            if unsafe { RegisterHotKey(None, hotkey_id, modifiers, vk) }.is_err() {
-                error!("热键注册失败（可能已被占用）");
+            if registered.is_empty() {
+                error!("所有热键均注册失败，监听线程退出");
                 return;
             }
+
+            // 线程退出时自动注销所有已注册的热键
             defer! {
-                let _ = unsafe { UnregisterHotKey(None, hotkey_id) };
+                for &(id, _) in &registered {
+                    let _ = unsafe { UnregisterHotKey(None, id) };
+                }
             }
 
+            // 消息循环：持续监听热键消息
             let mut msg = MSG::default();
             loop {
                 let ret = unsafe { GetMessageW(&mut msg, None, 0, 0) };
+                // GetMessageW 返回 0（收到 WM_QUIT）或 -1（出错）时退出
                 if ret.0 == 0 || ret.0 == -1 {
                     break;
                 }
-                if msg.message == WM_HOTKEY {
-                    flag.store(true, Ordering::Relaxed);
-                    break;
+                if msg.message != WM_HOTKEY {
+                    continue;
+                }
+
+                // 通过 wParam 中的热键 ID 找到对应事件
+                let id = msg.wParam.0 as i32;
+                let Some(&(_, event)) = registered.iter().find(|(rid, _)| *rid == id) else {
+                    continue;
+                };
+
+                match event {
+                    HotkeyEvent::ToggleMainTask => {
+                        if running.load(Ordering::Relaxed) {
+                            // 主任务运行中 → 设置停止标志，由任务内部轮询停止
+                            flag.store(true, Ordering::Relaxed);
+                            info!("收到停止请求（引号键），正在停止主任务...");
+                        } else {
+                            // 空闲 → 通知主线程启动主任务
+                            if tx.send(HotkeyEvent::ToggleMainTask).is_err() {
+                                break; // 主线程已退出
+                            }
+                        }
+                    }
+                    HotkeyEvent::ScanSingleArchive => {
+                        // 主任务运行中忽略单次扫描，避免命令积压到任务结束后才执行
+                        if !running.load(Ordering::Relaxed) {
+                            if tx.send(HotkeyEvent::ScanSingleArchive).is_err() {
+                                break; // 主线程已退出
+                            }
+                        }
+                    }
+                    HotkeyEvent::ExitProgram => {
+                        // 主任务运行中先请求停止，任务结束后主线程再读取退出事件
+                        if running.load(Ordering::Relaxed) {
+                            flag.store(true, Ordering::Relaxed);
+                            info!("收到退出请求（Alt+Delete），正在停止主任务...");
+                        }
+                        if tx.send(HotkeyEvent::ExitProgram).is_err() {
+                            break; // 主线程已退出
+                        }
+                    }
                 }
             }
         });
 
-        Self { stop_flag }
+        Ok(Self {
+            rx,
+            stop_flag,
+            main_running,
+        })
     }
 
-    /// 停止快捷键（Alt + Delete）
-    pub fn alt_delete() -> Self {
-        Self::new(MOD_ALT | MOD_NOREPEAT, VK_DELETE.0 as u32)
+    /// 阻塞等待下一个热键事件。
+    ///
+    /// 仅当主任务空闲时调用；主任务运行时不要调用此方法
+    /// （停止请求通过 [`stop_flag`](Self::stop_flag) 传递）。
+    pub fn wait_event(&self) -> Result<HotkeyEvent> {
+        self.rx.recv().map_err(|_| anyhow!("热键监听线程已退出"))
     }
 
-    /// 检查是否触发了停止
-    pub fn stop_requested(&self) -> bool {
-        self.stop_flag.load(Ordering::Relaxed)
-    }
-
-    /// 获取停止标志的 Arc，可传递给 Session 用于在操作中轮询
+    /// 获取停止标志的 Arc 克隆，可传递给 [`crate::session::Session`] 用于操作中轮询。
     pub fn stop_flag(&self) -> Arc<AtomicBool> {
         self.stop_flag.clone()
+    }
+
+    /// 重置停止标志（启动新任务或单次扫描前调用，清除上一次的停止信号）。
+    pub fn reset_stop(&self) {
+        self.stop_flag.store(false, Ordering::Relaxed);
+    }
+
+    /// 设置主任务运行状态。
+    pub fn set_main_running(&self, running: bool) {
+        self.main_running.store(running, Ordering::Relaxed);
+    }
+
+    /// 查询主任务是否正在运行。
+    pub fn is_main_running(&self) -> bool {
+        self.main_running.load(Ordering::Relaxed)
     }
 }

@@ -10,6 +10,22 @@ use crate::{
     session::Session,
 };
 
+/// 任务被用户停止的错误信号。
+///
+/// 当热键请求停止时，[`Session`] 的识别/输入操作会返回此错误，
+/// 上层可据此区分"正常结束"与"被用户停止"，避免把停止当作异常处理
+/// 导致脚本退出。任务被停止后应回到空闲等待状态，等待下一次触发。
+#[derive(Debug)]
+pub struct TaskStopped;
+
+impl std::fmt::Display for TaskStopped {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "任务已被用户停止")
+    }
+}
+
+impl std::error::Error for TaskStopped {}
+
 /// 任务 trait：一个完整的自动化任务。
 ///
 /// 实现此 trait 的类型代表一个具体的游戏自动化任务。
@@ -45,6 +61,13 @@ impl TaskRunner {
     /// - `scene_manager`: 已注册所有场景并构建导航图的 SceneManager
     pub fn new(scene_manager: SceneManager) -> Self {
         Self { scene_manager }
+    }
+
+    /// 获取场景管理器的只读引用。
+    ///
+    /// 供任务系统之外使用（如单次扫描需要检测当前场景）。
+    pub fn scene_manager(&self) -> &SceneManager {
+        &self.scene_manager
     }
 
     /// 运行任务。

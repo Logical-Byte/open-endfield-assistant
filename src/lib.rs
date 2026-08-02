@@ -1,3 +1,4 @@
+pub mod app;
 pub mod geometry;
 pub mod hotkey;
 mod include;
