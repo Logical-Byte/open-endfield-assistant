@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 use anyhow::Result;
-use dak::{
+use app_lib::{
     screencap::{
         DesktopDupScreencap, DesktopDupWindowScreencap, FramePoolScreencap, GdiScreencap,
         PrintWindowScreencap, ScreenDCScreencap, ScreencapBase,

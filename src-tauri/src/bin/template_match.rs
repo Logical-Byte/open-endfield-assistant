@@ -1,5 +1,5 @@
 use anyhow::Result;
-use dak::utils::timeit::timeit_print;
+use app_lib::utils::timeit::timeit_print;
 use image::imageops;
 use imageproc::template_matching::{self, MatchTemplateMethod};
 
@@ -14,7 +14,7 @@ fn main() -> Result<()> {
 
         let result = timeit_print(
             || {
-                dak::template_matching::match_template_ccoeff_normed_parallel(
+                app_lib::template_matching::match_template_ccoeff_normed_parallel(
                     &gray_image,
                     &gray_template,
                 )
