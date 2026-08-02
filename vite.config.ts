@@ -18,5 +18,15 @@ export default defineConfig({
         }
       }
     })
-  ]
+  ],
+  // Vite options tailored for Tauri development
+  clearScreen: false,
+  server: {
+    port: 1420,
+    strictPort: true,
+    watch: {
+      // 忽略 Rust 后端目录，避免 Vite 监听引起不必要的重载
+      ignored: ['**/src-tauri/**']
+    }
+  }
 })
