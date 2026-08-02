@@ -11,7 +11,7 @@ use super::{SceneAction, SceneId};
 /// 借鉴 MaaFramework Pipeline 节点的设计，每个场景负责：
 /// 1. 识别自身（`try_recognize`）
 /// 2. 定义可跳转的目标场景（`transitions`）
-pub trait Scene {
+pub trait Scene: Send {
     /// 返回此场景的唯一标识符。
     fn id(&self) -> SceneId;
 

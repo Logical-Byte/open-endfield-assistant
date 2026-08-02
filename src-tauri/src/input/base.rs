@@ -6,7 +6,7 @@ use windows::Win32::Foundation::HWND;
 use super::input_utils::Contact;
 use crate::utils::point::Point2D;
 
-pub trait InputBase {
+pub trait InputBase: Send {
     fn new(hwnd: HWND, block_input: bool) -> Self
     where
         Self: Sized;

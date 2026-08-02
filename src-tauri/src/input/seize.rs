@@ -331,6 +331,9 @@ impl SeizeInput {
     }
 }
 
+// Win32 句柄（HWND 等）跨线程传递安全（访问时由调用方串行化）。
+unsafe impl Send for SeizeInput {}
+
 impl InputBase for SeizeInput {
     fn new(hwnd: HWND, block_input: bool) -> Self {
         Self::new(hwnd, block_input)

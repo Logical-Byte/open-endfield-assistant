@@ -9,11 +9,13 @@
 //! - 引号键 `'` → 启动 / 停止档案库主任务
 //! - Alt+Delete → 退出程序
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use anyhow::Result;
 use tracing::{error, info, warn};
 
 use crate::{
-    hotkey::{HotkeyEvent, HotkeyListener},
     scene::scene_manager::SceneManager,
     session::Session,
     task::{TaskRunner, TaskStopped},
@@ -23,16 +25,15 @@ use crate::{
 
 /// 应用控制器。
 ///
-/// 生命周期：
-/// 1. [`App::new`] 组装所有组件
-/// 2. [`App::run`] 进入主事件循环，由热键驱动，正常情况下不会退出
+/// 由 [`crate::app_controller::AppController`] 持有并以互斥方式驱动；
+/// 阻塞逻辑（扫描）在独立线程运行，不在 Tauri 主线程执行。
 pub struct App {
     /// 脚本会话（聚合截图、输入、OCR、模板匹配等能力）
     session: Session,
     /// 任务运行器（管理场景检测、导航与任务执行）
     task_runner: TaskRunner,
-    /// 热键监听器
-    hotkey: HotkeyListener,
+    /// 主任务是否正在运行（与热键监听器共享，原子标志）
+    running: Arc<AtomicBool>,
 }
 
 impl App {
@@ -41,54 +42,27 @@ impl App {
     /// # 参数
     /// - `session`: 已初始化的会话
     /// - `scene_manager`: 已注册所有场景并构建导航图的场景管理器
-    /// - `hotkey`: 已注册热键的监听器
-    pub fn new(session: Session, scene_manager: SceneManager, hotkey: HotkeyListener) -> Self {
+    /// - `running`: 主任务运行标志（与热键监听器共享的 `Arc<AtomicBool>`）
+    pub fn new(session: Session, scene_manager: SceneManager, running: Arc<AtomicBool>) -> Self {
         Self {
             session,
             task_runner: TaskRunner::new(scene_manager),
-            hotkey,
+            running,
         }
     }
 
-    /// 运行主事件循环。
-    ///
-    /// 空闲时阻塞等待热键事件并分发处理。单个事件处理失败只记录错误日志，
-    /// 不会中断整个脚本；收到退出事件（Alt+Delete）或热键监听线程异常退出时返回。
-    pub fn run(&mut self) -> Result<()> {
-        info!(
-            "脚本已就绪：按「;」扫描当前档案详情，按「'」启动/停止档案库扫描，按「Alt+Delete」退出程序"
-        );
-
-        loop {
-            let event = self.hotkey.wait_event()?;
-            match event {
-                // Alt+Delete：退出程序（主任务运行中的停止请求已由热键线程处理，
-                // 任务结束后这里才会收到退出事件）
-                HotkeyEvent::ExitProgram => {
-                    info!("收到退出请求，正在退出程序...");
-                    return Ok(());
-                }
-                event => {
-                    let result = match event {
-                        HotkeyEvent::ToggleMainTask => self.toggle_main_task(),
-                        HotkeyEvent::ScanSingleArchive => self.scan_single(),
-                        HotkeyEvent::ExitProgram => unreachable!(),
-                    };
-                    if let Err(e) = result {
-                        error!("处理热键事件 {:?} 失败: {e:#}", event);
-                    }
-                }
-            }
-        }
+    /// 主任务是否正在运行。
+    pub fn is_running(&self) -> bool {
+        self.running.load(Ordering::Relaxed)
     }
 
-    /// 切换主任务（扫描档案库）运行状态。
+    /// 启动主任务（扫描档案库）。
     ///
-    /// 空闲时按引号键启动；主任务运行中的停止请求由热键线程直接设置
-    /// 停止标志处理，因此这里只会收到"启动"分支。
-    fn toggle_main_task(&mut self) -> Result<()> {
-        // 防御：如果已经在运行（理论上不会发生），忽略。
-        if self.hotkey.is_main_running() {
+    /// 阻塞执行整个扫描过程；由调用方（[`crate::app_controller::AppController`]）
+    /// 在独立线程运行。期间通过停止标志（Session 轮询）支持优雅停止。
+    pub fn start_scan(&mut self) -> Result<()> {
+        // 防御：如果已经在运行，忽略。
+        if self.is_running() {
             warn!("主任务正在运行中，忽略重复的启动请求");
             return Ok(());
         }
@@ -100,17 +74,17 @@ impl App {
             warn!("无法将游戏窗口置于前台: {e:#}，继续尝试执行任务");
         }
 
-        // 重置停止标志并标记运行状态（热键线程据此响应停止请求）
+        // 清除上一次可能残留的停止标志，并标记运行状态（热键/命令据此响应停止）
         self.session.reset_stop();
-        self.hotkey.set_main_running(true);
+        self.running.store(true, Ordering::Relaxed);
 
-        // 执行主任务
+        // 执行主任务（阻塞，期间任务内部轮询停止标志）
         let result = self
             .task_runner
             .run_task(&ArchiveScanTask, &mut self.session);
 
         // 无论成功 / 被停止 / 失败，都要复位运行状态
-        self.hotkey.set_main_running(false);
+        self.running.store(false, Ordering::Relaxed);
 
         match result {
             Ok(_) => info!("========== 主任务执行完毕 =========="),
@@ -122,12 +96,12 @@ impl App {
         Ok(())
     }
 
-    /// 单次扫描当前档案详情（分号键）。
+    /// 单次扫描当前档案详情（分号键 / 前端「单次扫描」）。
     ///
     /// 仅截屏识别档案标题，不做任何鼠标键盘输入操作。
-    fn scan_single(&mut self) -> Result<()> {
+    pub fn scan_single(&mut self) -> Result<()> {
         // 防御：主任务运行中忽略（热键线程也会过滤，这里双重保险）
-        if self.hotkey.is_main_running() {
+        if self.is_running() {
             warn!("主任务正在运行中，忽略单次扫描请求");
             return Ok(());
         }

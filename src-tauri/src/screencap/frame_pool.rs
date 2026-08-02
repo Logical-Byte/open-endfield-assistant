@@ -47,6 +47,9 @@ pub struct FramePoolScreencap {
     // 存储上次的窗口大小，用于检测窗口大小变化
     last_capture_size: (i32, i32),
 }
+// Win32 句柄（HWND 等）跨线程传递安全（访问时由调用方串行化）。
+unsafe impl Send for FramePoolScreencap {}
+
 impl ScreencapBase for FramePoolScreencap {
     fn new(hwnd: HWND) -> Self {
         Self::new(hwnd)

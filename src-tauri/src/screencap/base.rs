@@ -4,7 +4,7 @@ use windows::Win32::Foundation::HWND;
 
 use crate::utils::region::Region2D;
 
-pub trait ScreencapBase {
+pub trait ScreencapBase: Send {
     fn new(hwnd: HWND) -> Self
     where
         Self: Sized;

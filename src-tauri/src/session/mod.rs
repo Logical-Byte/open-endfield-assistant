@@ -45,6 +45,9 @@ pub struct Session {
     stop_flag: Arc<AtomicBool>,
 }
 
+// Win32 句柄（HWND）跨线程传递安全；Session 始终在 AppController 的互斥锁内串行使用。
+unsafe impl Send for Session {}
+
 impl Session {
     /// 创建新的 Session。
     ///

@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc;
+use std::sync::mpsc::{self, TryRecvError};
 use std::thread;
 
 use anyhow::{Result, anyhow};
@@ -172,6 +172,18 @@ impl HotkeyListener {
         self.rx.recv().map_err(|_| anyhow!("热键监听线程已退出"))
     }
 
+    /// 非阻塞地检查是否有待处理的热键事件。
+    ///
+    /// 返回 `Ok(Some(event))` 表示有事件待处理，`Ok(None)` 表示当前无事件。
+    /// 供 Tauri 后台轮询线程使用（避免阻塞持有锁，与扫描线程死锁）。
+    pub fn try_wait_event(&self) -> Result<Option<HotkeyEvent>> {
+        match self.rx.try_recv() {
+            Ok(event) => Ok(Some(event)),
+            Err(TryRecvError::Empty) => Ok(None),
+            Err(_) => Err(anyhow!("热键监听线程已退出")),
+        }
+    }
+
     /// 获取停止标志的 Arc 克隆，可传递给 [`crate::session::Session`] 用于操作中轮询。
     pub fn stop_flag(&self) -> Arc<AtomicBool> {
         self.stop_flag.clone()
@@ -185,6 +197,11 @@ impl HotkeyListener {
     /// 设置主任务运行状态。
     pub fn set_main_running(&self, running: bool) {
         self.main_running.store(running, Ordering::Relaxed);
+    }
+
+    /// 获取主任务运行标志的 Arc 克隆（与外部共享，供 AppController 读写）。
+    pub fn main_running_flag(&self) -> Arc<AtomicBool> {
+        self.main_running.clone()
     }
 
     /// 查询主任务是否正在运行。

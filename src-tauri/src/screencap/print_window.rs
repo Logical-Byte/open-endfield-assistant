@@ -278,6 +278,9 @@ impl PrintWindowScreencap {
     }
 }
 
+// Win32 句柄（HWND 等）跨线程传递安全（访问时由调用方串行化）。
+unsafe impl Send for PrintWindowScreencap {}
+
 impl ScreencapBase for PrintWindowScreencap {
     fn new(hwnd: HWND) -> Self {
         Self::new(hwnd)
