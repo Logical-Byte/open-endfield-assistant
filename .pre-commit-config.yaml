@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+
+      - id: end-of-file-fixer
+
+      - id: check-yaml
+
+  - repo: local
+    hooks:
+      - id: backend-check
+        name: Backend Check (check, clippy, format)
+        language: system
+        entry: cargo check && cargo clippy --all-targets --all-features -- -D warnings && cargo fmt --all -- --check
+
+      - id: frontend-check
+        name: Frontend Check (type-check, lint, format)
+        language: system
+        entry: npm run check
+        pass_filenames: false

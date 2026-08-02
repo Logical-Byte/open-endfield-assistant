@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { initAppState } from '../lib/appState'
+import { initAppState } from '../lib/appState';
 
-initAppState()
+initAppState();
 </script>
 
 <template>
