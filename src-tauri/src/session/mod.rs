@@ -5,6 +5,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
@@ -35,8 +36,8 @@ pub struct Session {
     screencap: Box<dyn ScreencapBase>,
     /// 输入器
     input: Box<dyn InputBase>,
-    /// OCR 引擎
-    ocr: OcrEngine,
+    /// OCR 引擎（与会话工厂共享，跨任务复用）
+    ocr: Arc<Mutex<OcrEngine>>,
     /// 模板匹配管理器，管理所有模板图片（含子目录），按需懒加载并缓存。
     templates: TemplateManager,
     /// 游戏实际分辨率
@@ -55,7 +56,7 @@ impl Session {
     /// - `hwnd`: 游戏窗口句柄
     /// - `screencap`: 截图器实例
     /// - `input`: 输入器实例
-    /// - `ocr`: OCR 引擎实例
+    /// - `ocr`: 共享 OCR 引擎（`Arc<Mutex<_>>`，跨任务复用）
     /// - `templates_root`: 模板图片根目录（如 [`crate::app_paths::AppPaths::templates_dir`]）
     /// - `resolution`: 游戏实际分辨率
     /// - `stop_flag`: 热键停止标志，每次操作前检查
@@ -63,7 +64,7 @@ impl Session {
         hwnd: HWND,
         screencap: Box<dyn ScreencapBase>,
         input: Box<dyn InputBase>,
-        ocr: OcrEngine,
+        ocr: Arc<Mutex<OcrEngine>>,
         templates_root: impl Into<PathBuf>,
         resolution: GameResolution,
         stop_flag: Arc<AtomicBool>,
@@ -234,7 +235,7 @@ impl Session {
                 region.height(),
             )
             .to_image();
-            let output = self.ocr.ocr(&cropped)?;
+            let output = self.ocr.lock().unwrap().ocr(&cropped)?;
             let text = output
                 .lines
                 .iter()

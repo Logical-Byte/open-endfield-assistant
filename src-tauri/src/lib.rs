@@ -14,17 +14,17 @@ pub mod resolution;
 pub mod scene;
 pub mod screencap;
 pub mod session;
+pub mod session_factory;
 pub mod task;
 pub mod tasks;
 pub mod template_matching;
 pub mod utils;
 pub mod window;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use rapidocr_core::config::PipelineConfig;
 use tauri::{Manager, State};
-use tracing::info;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     HOT_KEY_MODIFIERS, MOD_ALT, MOD_NOREPEAT, VK_DELETE, VK_OEM_1, VK_OEM_7,
 };
@@ -34,11 +34,8 @@ use crate::{
     app_controller::AppController,
     app_paths::AppPaths,
     hotkey::{HotkeyBinding, HotkeyEvent, HotkeyListener},
-    input::{InputBase, SeizeInput},
     ocr::OcrEngine,
-    resolution::GameResolution,
-    screencap::PrintWindowScreencap,
-    session::Session,
+    session_factory::SessionFactory,
     tasks::archive_scan::scenes::create_scene_manager,
 };
 
@@ -94,22 +91,12 @@ pub fn run() {
 
             window::set_thread_dpi_awareness_context();
 
-            // 1. 获取游戏窗口（仅确保窗口在屏幕上，不抢占前台）
-            let hwnd = window::get_window_by_title("Endfield", Some("UnityWndClass"))?;
-            window::ensure_window_on_screen(hwnd)?;
-
-            let client_rect = window::get_client_rect(hwnd)?;
-            let resolution =
-                GameResolution::new(client_rect.width() as u32, client_rect.height() as u32)?;
-            info!("游戏分辨率: {}×{}", resolution.width, resolution.height);
-
-            // 2. 初始化底层组件（截图、输入、OCR）
-            let screencap = Box::new(PrintWindowScreencap::new(hwnd));
-            let input = Box::new(SeizeInput::new(hwnd, false));
+            // 1. 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
             let pipeline_config = PipelineConfig::recognition_only();
             let ocr_engine = OcrEngine::new(pipeline_config, &paths.models_dir)?;
+            let ocr = Arc::new(Mutex::new(ocr_engine));
 
-            // 3. 注册全局热键
+            // 2. 注册全局热键
             let hotkey = HotkeyListener::new(&[
                 HotkeyBinding {
                     vk: VK_OEM_1.0 as u32,
@@ -130,22 +117,15 @@ pub fn run() {
             let stop_flag = hotkey.stop_flag();
             let running = hotkey.main_running_flag();
 
-            // 4. 创建 Session（传入停止标志，识别 / 输入操作前会检查）
-            let session = Session::new(
-                hwnd,
-                screencap,
-                input,
-                ocr_engine,
-                paths.templates_dir(),
-                resolution,
-                stop_flag.clone(),
-            );
+            // 3. 创建会话工厂（窗口与分辨率在任务开始时才检查，避免游戏未打开时启动失败）
+            let session_factory =
+                SessionFactory::new(ocr, paths.templates_dir(), stop_flag.clone());
 
-            // 5. 构建场景管理器与应用
+            // 4. 构建场景管理器与应用
             let scene_manager = create_scene_manager();
-            let app_core = App::new(session, scene_manager, running.clone());
+            let app_core = App::new(session_factory, scene_manager, running.clone());
 
-            // 6. 组装 AppController 并托管为 State，启动后台热键轮询线程
+            // 5. 组装 AppController 并托管为 State，启动后台热键轮询线程
             let controller = Arc::new(AppController::new(
                 app_core,
                 hotkey,

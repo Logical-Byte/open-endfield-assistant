@@ -122,6 +122,8 @@ impl AppController {
                 let mut app = this.app.lock().unwrap();
                 app.start_scan()
             };
+            // 无论成功 / 失败 / 被停止，都复位运行标志（会话构建失败时也复位）
+            this.running.store(false, Ordering::Relaxed);
             if let Err(e) = result {
                 error!("主任务执行失败: {e:#}");
             }

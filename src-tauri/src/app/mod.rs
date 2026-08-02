@@ -17,7 +17,7 @@ use tracing::{error, info, warn};
 
 use crate::{
     scene::scene_manager::SceneManager,
-    session::Session,
+    session_factory::SessionFactory,
     task::{TaskRunner, TaskStopped},
     tasks::archive_scan::{ArchiveScanTask, scan_single_archive_detail},
     window,
@@ -28,8 +28,8 @@ use crate::{
 /// 由 [`crate::app_controller::AppController`] 持有并以互斥方式驱动；
 /// 阻塞逻辑（扫描）在独立线程运行，不在 Tauri 主线程执行。
 pub struct App {
-    /// 脚本会话（聚合截图、输入、OCR、模板匹配等能力）
-    session: Session,
+    /// 会话工厂（任务开始时才获取游戏窗口并构建 Session）
+    session_factory: SessionFactory,
     /// 任务运行器（管理场景检测、导航与任务执行）
     task_runner: TaskRunner,
     /// 主任务是否正在运行（与热键监听器共享，原子标志）
@@ -40,12 +40,16 @@ impl App {
     /// 创建应用控制器。
     ///
     /// # 参数
-    /// - `session`: 已初始化的会话
+    /// - `session_factory`: 会话工厂（任务开始时构建 Session）
     /// - `scene_manager`: 已注册所有场景并构建导航图的场景管理器
     /// - `running`: 主任务运行标志（与热键监听器共享的 `Arc<AtomicBool>`）
-    pub fn new(session: Session, scene_manager: SceneManager, running: Arc<AtomicBool>) -> Self {
+    pub fn new(
+        session_factory: SessionFactory,
+        scene_manager: SceneManager,
+        running: Arc<AtomicBool>,
+    ) -> Self {
         Self {
-            session,
+            session_factory,
             task_runner: TaskRunner::new(scene_manager),
             running,
         }
@@ -66,19 +70,20 @@ impl App {
     pub fn start_scan(&mut self) -> Result<()> {
         info!("========== 启动主任务：扫描档案库 ==========");
 
+        // 任务开始时才获取游戏窗口并构建会话（游戏未打开则返回错误，不 panic）
+        let mut session = self.session_factory.build_session()?;
+
         // 主任务需要点击游戏窗口，先确保窗口在前台；失败不阻断，仅警告
-        if let Err(e) = window::ensure_foreground_and_topmost(self.session.hwnd) {
+        if let Err(e) = window::ensure_foreground_and_topmost(session.hwnd) {
             warn!("无法将游戏窗口置于前台: {e:#}，继续尝试执行任务");
         }
 
         // 清除上一次可能残留的停止标志，并标记运行状态（热键/命令据此响应停止）
-        self.session.reset_stop();
+        session.reset_stop();
         self.running.store(true, Ordering::Relaxed);
 
         // 执行主任务（阻塞，期间任务内部轮询停止标志）
-        let result = self
-            .task_runner
-            .run_task(&ArchiveScanTask, &mut self.session);
+        let result = self.task_runner.run_task(&ArchiveScanTask, &mut session);
 
         // 无论成功 / 被停止 / 失败，都要复位运行状态
         self.running.store(false, Ordering::Relaxed);
@@ -103,10 +108,13 @@ impl App {
             return Ok(());
         }
 
-        // 清除上一次可能残留的停止标志，避免单次扫描被误判为停止
-        self.session.reset_stop();
+        // 任务开始时才获取游戏窗口并构建会话（游戏未打开则返回错误，不 panic）
+        let mut session = self.session_factory.build_session()?;
 
-        scan_single_archive_detail(&mut self.session, self.task_runner.scene_manager())?;
+        // 清除上一次可能残留的停止标志，避免单次扫描被误判为停止
+        session.reset_stop();
+
+        scan_single_archive_detail(&mut session, self.task_runner.scene_manager())?;
         Ok(())
     }
 }
