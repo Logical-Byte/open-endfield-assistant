@@ -90,7 +90,7 @@ pub fn run() {
         .setup(|app| {
             // 解析资源目录（resources/models/logs），不依赖运行时工作目录
             let paths = AppPaths::new()?;
-            let logger_guard = logger::init(&paths.logs_dir);
+            let (logger_guard, log_rx) = logger::init(&paths.logs_dir);
 
             window::set_thread_dpi_awareness_context();
 
@@ -154,6 +154,7 @@ pub fn run() {
                 app.handle().clone(),
                 logger_guard,
             ));
+            AppController::spawn_log_loop(log_rx, app.handle().clone());
             AppController::spawn_hotkey_loop(&controller);
             app.manage(controller);
 

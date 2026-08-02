@@ -8,6 +8,7 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
@@ -85,6 +86,17 @@ impl AppController {
                     }
                 }
                 thread::sleep(Duration::from_millis(20));
+            }
+        });
+    }
+
+    /// 启动日志转发线程：把 logger 通道里的日志逐行 emit 到前端。
+    pub fn spawn_log_loop(rx: mpsc::Receiver<String>, handle: AppHandle) {
+        thread::spawn(move || {
+            while let Ok(line) = rx.recv() {
+                if let Err(e) = handle.emit("log", &line) {
+                    eprintln!("向前端推送日志失败: {e}");
+                }
             }
         });
     }

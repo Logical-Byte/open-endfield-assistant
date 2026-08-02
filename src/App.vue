@@ -18,18 +18,14 @@ useHead({
     <UApp>
       <UHeader>
         <template #left>
-          <RouterLink to="/">
-            <AppLogo class="w-auto h-6 shrink-0" />
-          </RouterLink>
-
-          <TemplateMenu />
+          <p class="text-base font-semibold">OEA</p>
         </template>
 
         <template #right>
           <UColorModeButton />
 
           <UButton
-            to="https://github.com/nuxt-ui-templates/starter-vue"
+            to="https://github.com/Logical-Byte/open-endfield-assistant"
             target="_blank"
             icon="simple-icons:github"
             aria-label="GitHub"
