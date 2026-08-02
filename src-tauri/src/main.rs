@@ -1,6 +1,7 @@
 use anyhow::Result;
 use dak::{
     app::App,
+    app_paths::AppPaths,
     hotkey::{HotkeyBinding, HotkeyEvent, HotkeyListener},
     input::{InputBase, SeizeInput},
     ocr::OcrEngine,
@@ -17,7 +18,10 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 
 fn main() -> Result<()> {
-    let _logger_guard = dak::logger::init();
+    // 解析资源目录（resources/models/logs），不依赖运行时工作目录
+    let paths = AppPaths::new()?;
+
+    let _logger_guard = dak::logger::init(&paths.logs_dir);
 
     window::set_thread_dpi_awareness_context();
 
@@ -33,7 +37,7 @@ fn main() -> Result<()> {
     let screencap = Box::new(PrintWindowScreencap::new(hwnd));
     let input = Box::new(SeizeInput::new(hwnd, false));
     let pipeline_config = PipelineConfig::recognition_only();
-    let ocr_engine = OcrEngine::new(pipeline_config)?;
+    let ocr_engine = OcrEngine::new(pipeline_config, &paths.models_dir)?;
 
     // 3. 注册热键：
     //    - 分号键 `;`（VK_OEM_1）：单次扫描当前档案详情（仅截屏识别）
@@ -59,7 +63,15 @@ fn main() -> Result<()> {
     let stop_flag = hotkey.stop_flag();
 
     // 4. 创建 Session（传入停止标志，识别 / 输入操作前会检查）
-    let session = Session::new(hwnd, screencap, input, ocr_engine, resolution, stop_flag);
+    let session = Session::new(
+        hwnd,
+        screencap,
+        input,
+        ocr_engine,
+        paths.templates_dir(),
+        resolution,
+        stop_flag,
+    );
 
     // 5. 构建场景管理器
     let scene_manager = create_scene_manager();

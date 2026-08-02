@@ -1,4 +1,5 @@
 use std::io;
+use std::path::Path;
 
 use tracing::level_filters::LevelFilter;
 use tracing_appender::{
@@ -12,21 +13,24 @@ use tracing_subscriber::{
 /// 初始化日志系统。
 ///
 /// - 控制台输出 INFO 及以上级别（带颜色）
-/// - 文件输出所有级别（TRACE 及以上），按天轮转到 `logs/YYYY-mm-dd.log`
+/// - 文件输出所有级别（TRACE 及以上），按天轮转到 `<logs_dir>/YYYY-mm-dd.log`
 /// - `ort` 及 `onnxruntime` 模块的日志仅输出 WARN 及以上（屏蔽 ONNX Runtime 的冗余信息）
 ///
+/// # 参数
+/// - `logs_dir`: 日志输出目录（如 [`crate::app_paths::AppPaths::logs_dir`]）
+///
 /// 返回的 `WorkerGuard` 必须被持有，否则文件写入线程会在 drop 时被关闭。
-/// 通常放在 `main()` 中 `let _guard = init();` 即可。
-pub fn init() -> WorkerGuard {
+/// 通常放在 `main()` 中 `let _guard = init(&paths.logs_dir);` 即可。
+pub fn init(logs_dir: &Path) -> WorkerGuard {
     // 无需手动创建 logs 目录，tracing_appender 会自动创建
-    // let _ = fs::create_dir_all("logs");
+    // let _ = fs::create_dir_all(logs_dir);
 
-    // 按天轮转的文件写入器，输出到 logs/YYYY-mm-dd.log
+    // 按天轮转的文件写入器，输出到 logs_dir/YYYY-mm-dd.log
     let file_appender = Builder::new()
         .rotation(Rotation::DAILY)
         .filename_prefix("")
         .filename_suffix("log")
-        .build("logs")
+        .build(logs_dir)
         .expect("初始化文件日志失败");
 
     // 非阻塞文件写入（独立线程）

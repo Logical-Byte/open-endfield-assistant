@@ -3,6 +3,7 @@
 //! `Session` 是贯穿整个任务生命周期的统一上下文，聚合了截图、输入、OCR、
 //! 模板匹配、分辨率等所有底层能力。类似于 MaaFramework 中的 Tasker。
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -22,9 +23,6 @@ use crate::{
     template_matching::{MatchResult, TemplateManager},
     utils::{point::Point2D, region::Region2D},
 };
-
-/// 模板资源根目录
-const TEMPLATES_ROOT: &str = "resources/templates";
 
 /// 脚本会话，聚合所有底层能力。
 ///
@@ -55,6 +53,7 @@ impl Session {
     /// - `screencap`: 截图器实例
     /// - `input`: 输入器实例
     /// - `ocr`: OCR 引擎实例
+    /// - `templates_root`: 模板图片根目录（如 [`crate::app_paths::AppPaths::templates_dir`]）
     /// - `resolution`: 游戏实际分辨率
     /// - `stop_flag`: 热键停止标志，每次操作前检查
     pub fn new(
@@ -62,16 +61,17 @@ impl Session {
         screencap: Box<dyn ScreencapBase>,
         input: Box<dyn InputBase>,
         ocr: OcrEngine,
+        templates_root: impl Into<PathBuf>,
         resolution: GameResolution,
         stop_flag: Arc<AtomicBool>,
     ) -> Self {
-        // 从根目录加载所有模板（含情报档案库子目录）
+        // 从模板根目录加载所有模板（含情报档案库子目录）
         Self {
             hwnd,
             screencap,
             input,
             ocr,
-            templates: TemplateManager::new(TEMPLATES_ROOT),
+            templates: TemplateManager::new(templates_root),
             resolution,
             stop_flag,
         }

@@ -14,8 +14,13 @@ pub struct OcrEngine {
 }
 
 impl OcrEngine {
-    pub fn new(pipeline_config: PipelineConfig) -> Result<Self> {
-        let model_dir = Path::new("models");
+    /// 创建 OCR 引擎。
+    ///
+    /// # 参数
+    /// - `pipeline_config`: 识别管线配置
+    /// - `models_dir`: OCR 模型目录（如 [`crate::app_paths::AppPaths::models_dir`]）
+    pub fn new(pipeline_config: PipelineConfig, models_dir: &Path) -> Result<Self> {
+        let model_dir = models_dir;
         let model_set_name = DEFAULT_MODEL_SET_NAME;
         let model_set = model_set_by_name(model_set_name)
             .ok_or_else(|| anyhow!("unknown model set {model_set_name:?}"))?;

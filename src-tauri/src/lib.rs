@@ -1,4 +1,5 @@
 pub mod app;
+pub mod app_paths;
 pub mod geometry;
 pub mod hotkey;
 mod include;
