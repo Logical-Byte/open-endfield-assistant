@@ -1,80 +1,58 @@
-# Open Endfield Assistant
+# Vue Starter Template
 
-## 运行方式
+[![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
 
-脚本启动后**不会自动运行**，而是进入空闲等待状态，通过键盘快捷键控制：
+Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
 
-| 快捷键 | 功能 |
-| --- | --- |
-| `;`（分号键） | 单次扫描当前档案详情，打印档案标题。假定当前位于任意档案详情页面，否则给出警告。仅截屏识别，不产生任何鼠标键盘输入 |
-| `'`（引号键） | 启动档案库主任务（导航到档案库主界面，扫描全部 6 个子分类中的档案标题）；扫描过程中再次按下可停止 |
-| `Alt+Delete` | 退出程序。主任务运行中按下会先优雅停止主任务，随后退出脚本 |
+- [Live demo](https://starter-vue-template.nuxt.dev/)
+- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/vue)
 
-## 约定
+<a href="https://starter-vue-template.nuxt.dev/" target="_blank">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/vue/starter-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/vue/starter-light.png">
+    <img alt="Vue Starter Template" src="https://ui.nuxt.com/assets/templates/vue/starter-light.png">
+  </picture>
+</a>
 
-本文档中，如未特别说明，所有坐标均为 ltrb(x0, y0, x1, y1) 的形式，表示一个矩形区域的左上角坐标为 (x0, y0)，右下角坐标为 (x1, y1)。如果说明是 ltwh 坐标 (x0, y0, w, h)，则表示左上角坐标为 (x0, y0)，宽度为 w，高度为 h。
+> The starter template for Nuxt is on https://github.com/nuxt-ui-templates/starter.
 
-## 如何导航到档案库主界面
+## Quick Start
 
-- 如果已经在档案库主界面则不用动
-- 如果在协议终端界面，则点击档案库
-- 如果在大世界界面，则先进入协议终端
-- 如果在档案库子界面，则点击关闭按钮返回档案库主界面
-- 如果在档案详情页面，则点击关闭按钮返回档案库子界面
-- 如果在其他界面，则不受支持
+```bash [Terminal]
+npm create nuxt@latest -- --no-modules -t ui-vue
+```
 
-## 每个界面的特征和跳转关系
+## Deploy your own
 
-以下列出每个界面的特征，可以根据这些特征判断当前在什么界面：
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter-vue&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter-vue&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fvue%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-vue-template.nuxt.dev%2F&demo-title=Vue%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
 
-- 档案库主界面和每个档案库子界面在 (0, 0, 162, 76) 范围内都有 “情报档案库/情报档案库标题”
-- 档案库主界面：
-  - 有 “情报档案库/情报档案库标题”，上面已经说过了
-  - 在 (1180, 0, 1280, 100) 范围内有 “情报档案库/档案库主界面关闭” 按钮，点击它可以返回协议终端界面
-  - 在 (692, 371, 959, 601) 范围内有 “情报档案库/音像存档” 按钮，点击它可以进入 “音像存档 - 多媒体” 子界面
-  - 在 (957, 135, 1221, 371) 范围内有 “情报档案库/见闻辑录” 按钮，点击它可以进入 “见闻辑录 - 纸质记录” 子界面
-  - 在 (958, 369, 1220, 601) 范围内有 “情报档案库/中枢档案” 按钮，点击它可以进入 “中枢档案 - 中枢档案” 子界面
-- 档案库子界面：
-  - 有 “情报档案库/情报档案库标题”，上面已经说过了
-  - 音像存档相关的所有子界面在 (52, 482, 189, 618) 范围内有 “情报档案库/音像存档水印”
-  - 见闻辑录相关的所有子界面在 (52, 482, 189, 618) 范围内有 “情报档案库/见闻辑录水印”
-  - 中枢档案相关的所有子界面在 (52, 482, 189, 618) 范围内有 “情报档案库/中枢档案水印”
-  - 确定在某个分类的子界面后，可以根据颜色来判断具体在哪个子界面。
-    - 从上到下有 3 个 roi，分别是 ltwh(180, 120, 60, 36)、ltwh(180, 184, 60, 36)、ltwh(180, 248, 60, 36)，需判断这些区域的平均颜色是深色还是浅色，阈值为 128，深色表示当前在这个子界面，浅色表示不在这个子界面。
-    - 例如，如果在 “音像存档” 分类的子界面，则不需要判断颜色，因为音像存档只有一个子界面。
-    - 例如，如果在 “见闻辑录” 分类的子界面，则需要判断全部 3 个 roi，如果第 2 个 roi 是深色，说明当前在 “见闻辑录 - 电子档案” 子界面。
-    - 例如，如果在 “中枢档案” 分类的子界面，则只需要判断前 2 个 roi，如果第 1 个 roi 是深色，说明当前在 “中枢档案 - 中枢档案” 子界面。
-    - 点击对应的 roi 可以在同一分类的子界面之间切换。
-    - 例如，如果在 “见闻辑录 - 纸质记录” 子界面，则点击第 2 个 roi 可以切换到 “见闻辑录 - 电子档案” 子界面，点击第 3 个 roi 可以切换到 “见闻辑录 - 藏品” 子界面。
-- 协议终端界面的特征是：(971, 108, 1280, 700) 范围内有 “档案库” 按钮，点击它可以进入档案库
-- 大世界界面的特征是：(1180, 0, 1280, 100) 范围内有 “协议终端” 按钮，点击它可以进入协议终端
-- 档案库有多个子界面，每个子界面在 (1180, 0, 1280, 100) 范围内都有 “档案库子界面关闭” 按钮，点击它可以返回档案库主界面，子界面的说明见 [档案库有哪些子界面](#档案库有哪些子界面)
-- 档案详情页面的特征是：(356, 34, 496, 77) 范围内有 “档案详情装饰”，且 (1180, 0, 1280, 100) 范围内有 “情报档案库/档案详情关闭” 按钮，点击它可以返回档案库子界面
+## Setup
 
-## 档案库有哪些子界面
+Make sure to install the dependencies:
 
-档案库有主界面和多个子界面，子界面包括：
+```bash
+pnpm install
+```
 
-- 音像存档 - 多媒体
-- 见闻辑录 - 纸质记录
-- 见闻辑录 - 电子档案
-- 见闻辑录 - 藏品
-- 中枢档案 - 中枢档案
-- 中枢档案 - 调查报告
+## Development Server
 
-从主界面点击音像存档后，会进入 “音像存档 - 多媒体” 子界面，从主界面点击见闻辑录后，会进入 “见闻辑录 - 纸质记录” 子界面，从主界面点击中枢档案后，会进入 “中枢档案 - 中枢档案” 子界面。
+Start the development server on `http://localhost:5173`:
 
-## 如何在档案库中导航
+```bash
+pnpm dev
+```
 
-进入档案库主界面后，搜索并点击 “音像存档” 按钮，进入 “音像存档 - 多媒体” 子界面，然后点击 (401, 182)，这个坐标是第 1 份档案的坐标，点击它进入第 1 份档案的详情页面，然后根据 [如何扫描一个子分类中的所有档案](#如何扫描一个子分类中的所有档案) 中的描述，对音像存档 - 多媒体分类中的档案进行扫描。
+## Production
 
-扫描完成后，返回到音像存档 - 多媒体子界面，然后点击关闭按钮返回档案库主界面，然后在 (957, 135, 1221, 371) 范围内搜索并点击 “情报档案库/见闻辑录” 按钮，进入 “见闻辑录 - 纸质记录” 子界面，同样进入第 1 份档案的详情页面，用相同的方法扫描这个子分类中的所有档案，扫完回到 “见闻辑录 - 纸质记录” 子界面，然后进入 “见闻辑录 - 电子档案” 子界面，扫描完后进入 “见闻辑录 - 藏品” 子界面，扫描完后返回档案库主界面，然后进入 “中枢档案 - 中枢档案” 子界面，扫描完后进入 “中枢档案 - 调查报告” 子界面，扫描完后返回档案库主界面。
+Build the application for production:
 
-这样，就扫描完了全部 6 个子分类中的所有档案。结束。
+```bash
+pnpm build
+```
 
-## 如何扫描一个子分类中的所有档案
+Locally preview production build:
 
-进入一个子分类中的第 1 份档案的档案详情页面后，需要在 (350, 58, 578, 42) 范围内进行 ocr，把结果写到日志，级别为 SUCCESS。
-识别完成后，在 (762, 654, 925, 711) 范围内搜索 “下一篇” 按钮，如果找到了就点击它进入下一份档案的详情页面，并继续扫描。
-如果没找到 “下一篇” 按钮，则在 (1206, 313, 1276, 423) 范围内搜索 “情报档案库/档案详情右箭头” 按钮，如果找到了就点击它进入下一份档案的详情页面，并继续扫描。
-如果两个按钮都没找到，则说明已经扫描完了这个子分类中的所有档案，点击关闭按钮返回档案库子界面，然后导航到下一个子界面并继续。
+```bash
+pnpm preview
+```
