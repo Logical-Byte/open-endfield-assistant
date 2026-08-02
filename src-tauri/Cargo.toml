@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "oea"
 version = "0.1.0"
 description = "OEA Assistant - 明日方舟终末地 自动化助手"
 authors = ["Logical-Byte"]
@@ -11,11 +11,14 @@ rust-version = "1.85"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "app_lib"
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "oea_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.3" }
+tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 anyhow = "1.0.104"
@@ -27,8 +30,21 @@ rapidocr-core = { version = "0.2.2", default-features = false }
 scopeguard = "1.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri = { version = "2.11.3" }
+tauri = { version = "2.11.3", features = [] }
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
 tracing-subscriber = "0.3.23"
 windows = { version = "0.62.2", features = ["Foundation_Metadata", "Graphics_Capture", "Graphics_DirectX", "Graphics_DirectX_Direct3D11", "Security_Authorization_AppCapabilityAccess", "Win32_Foundation", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Gdi", "Win32_Storage_Xps", "Win32_System_SystemServices", "Win32_System_WinRT_Direct3D11", "Win32_System_WinRT_Graphics_Capture", "Win32_UI_HiDpi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.dev]
+opt-level = 1
+debug = false
+overflow-checks = false
+
+[profile.release]
+strip = "symbols"
+lto = true
+panic = "abort"
+codegen-units = 1
