@@ -191,7 +191,14 @@ impl SceneManager {
             for retry in 0..MAX_RETRIES_PER_STEP {
                 thread::sleep(Duration::from_millis(500));
                 let after = self.detect_current_scene(session)?;
-                if after == to {
+                // 从档案详情返回时会回到进入详情前的任意子界面（不确定），
+                // 因此只要到达任意档案库子界面即视为命中；其余步骤严格匹配目标场景。
+                let arrived = if from == SceneId::档案详情页面 {
+                    matches!(after, SceneId::档案库子界面(_))
+                } else {
+                    after == to
+                };
+                if arrived {
                     debug!("导航步骤 {i} 成功，已到达 {:?}", to);
                     step_ok = true;
                     break;
