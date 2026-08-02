@@ -114,6 +114,8 @@ impl AppController {
             return;
         }
         info!("收到启动主任务请求");
+        // 立即向前端推送"运行中"状态（快捷键 / 命令启动都要让界面感知）
+        self.emit_status("app-status");
         let this = self.clone();
         thread::spawn(move || {
             let result = {
@@ -123,7 +125,8 @@ impl AppController {
             if let Err(e) = result {
                 error!("主任务执行失败: {e:#}");
             }
-            this.emit_status("scan-finished");
+            // 扫描结束，向前端推送"空闲"状态
+            this.emit_status("app-status");
         });
     }
 

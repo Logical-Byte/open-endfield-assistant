@@ -35,11 +35,11 @@ export function quitApp(): Promise<void> {
 }
 
 /**
- * 监听扫描结束事件（成功 / 被停止 / 失败均触发）。
+ * 监听应用状态变更事件（启动 / 结束均触发，payload 为最新 AppStatus）。
  * 返回取消监听函数，组件卸载时应调用。
  */
-export function onScanFinished(cb: (status: AppStatus) => void): Promise<() => void> {
-  return listen<AppStatus>('scan-finished', (event) => cb(event.payload))
+export function onAppStatus(cb: (status: AppStatus) => void): Promise<() => void> {
+  return listen<AppStatus>('app-status', (event) => cb(event.payload))
 }
 
 /**
