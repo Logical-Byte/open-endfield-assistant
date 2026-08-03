@@ -14,47 +14,13 @@ useHead({
 <template>
   <Suspense>
     <UApp>
-      <UHeader>
-        <template #left>
-          <p class="text-base font-semibold">OEA</p>
-        </template>
-
-        <template #right>
-          <UColorModeButton />
-
-          <UButton
-            aria-label="GitHub"
-            color="neutral"
-            icon="simple-icons:github"
-            target="_blank"
-            to="https://github.com/Logical-Byte/open-endfield-assistant"
-            variant="ghost"
-          />
-        </template>
-      </UHeader>
+      <AppHeader />
 
       <UMain>
         <RouterView />
       </UMain>
 
-      <USeparator icon="simple-icons:vuedotjs" />
-
-      <UFooter>
-        <template #left>
-          <p class="text-sm text-muted">Built with Nuxt UI • © {{ new Date().getFullYear() }}</p>
-        </template>
-
-        <template #right>
-          <UButton
-            aria-label="GitHub"
-            color="neutral"
-            icon="simple-icons:github"
-            target="_blank"
-            to="https://github.com/nuxt-ui-templates/starter-vue"
-            variant="ghost"
-          />
-        </template>
-      </UFooter>
+      <AppFooter />
     </UApp>
   </Suspense>
 </template>

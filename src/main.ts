@@ -1,12 +1,10 @@
+import App from '@/App.vue';
 import '@/assets/css/main.css';
-
 import ui from '@nuxt/ui/vue-plugin';
 import { createHead } from '@unhead/vue/client';
 import { createApp } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import { handleHotUpdate, routes } from 'vue-router/auto-routes';
-
-import App from '@/App.vue';
 
 const app = createApp(App);
 
