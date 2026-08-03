@@ -54,11 +54,12 @@ impl DesktopDupScreencap {
     pub fn screencap(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
         // 初始化 D3D 设备和 DXGI 工厂（只需要初始化一次）
         if self.d3d_device.is_none()
-            && let Err(e) = self.init() {
-                warn!("failed to init_d3d_device: {:?}", e);
-                self.uninit();
-                return Err(e);
-            }
+            && let Err(e) = self.init()
+        {
+            warn!("failed to init_d3d_device: {:?}", e);
+            self.uninit();
+            return Err(e);
+        }
 
         // 确保输出匹配当前窗口所在的显示器（每次截图时检查，支持窗口移动）
         if !self.ensure_output_for_monitor()? {
@@ -211,20 +212,21 @@ impl DesktopDupScreencap {
 
                 // 获取输出的描述信息
                 if let Ok(output_desc) = unsafe { output.GetDesc() }
-                    && output_desc.Monitor == monitor {
-                        // 找到匹配的显示器
-                        self.dxgi_adapter = Some(adapter);
-                        self.dxgi_output = Some(
-                            output
-                                .cast::<IDXGIOutput1>()
-                                .map_err(|e| anyhow!("cast IDXGIOutput1 failed: {:?}", e))?,
-                        );
-                        debug!(
-                            "Found matching output for window monitor adapter={} output={}",
-                            adapter_index, output_index
-                        );
-                        return Ok(true);
-                    }
+                    && output_desc.Monitor == monitor
+                {
+                    // 找到匹配的显示器
+                    self.dxgi_adapter = Some(adapter);
+                    self.dxgi_output = Some(
+                        output
+                            .cast::<IDXGIOutput1>()
+                            .map_err(|e| anyhow!("cast IDXGIOutput1 failed: {:?}", e))?,
+                    );
+                    debug!(
+                        "Found matching output for window monitor adapter={} output={}",
+                        adapter_index, output_index
+                    );
+                    return Ok(true);
+                }
             }
         }
 

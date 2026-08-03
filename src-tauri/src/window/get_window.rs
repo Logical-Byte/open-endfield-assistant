@@ -1,8 +1,6 @@
 use anyhow::{Result, bail};
 use windows::Win32::Foundation::HWND;
-use windows::Win32::UI::WindowsAndMessaging::{
-    FindWindowW, GetForegroundWindow,
-};
+use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetForegroundWindow};
 use windows::core::PCWSTR;
 
 pub fn get_active_window() -> HWND {

@@ -1,8 +1,7 @@
 //! Tauri 后端接口封装：类型安全地调用 Rust 命令、监听后端事件。
 
-import { invoke, isTauri } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { openUrl } from '@tauri-apps/plugin-opener';
 
 /** 后端返回的应用状态（与 Rust 侧 `AppStatus` 对齐）。 */
 export interface AppStatus {
@@ -33,18 +32,6 @@ export function getStatus(): Promise<AppStatus> {
 /** 退出程序。 */
 export function quitApp(): Promise<void> {
   return invoke('quit');
-}
-
-/**
- * 在系统默认浏览器中打开外部链接。
- * - Tauri 环境：调用 opener 插件（`opener:default` 权限允许 http/https/mailto/tel）
- * - 浏览器环境（如 `vite dev`）：降级为 `window.open` 打开新标签页
- */
-export async function openExternal(url: string): Promise<Window | null | void> {
-  if (isTauri()) {
-    return await openUrl(url);
-  }
-  return window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 /**
