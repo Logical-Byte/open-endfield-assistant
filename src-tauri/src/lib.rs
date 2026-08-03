@@ -100,6 +100,10 @@ fn get_oea_hwnd(app: &tauri::App) -> Result<HWND> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // WebView2 默认通过 raw input 接收键盘输入，当 OEA 窗口聚焦时会导致
+        // WH_KEYBOARD_LL 低级键盘钩子收不到按键（tauri-apps/tauri#13919）。
+        // Always = 移除 raw input 注册，让 LL 钩子全局都能收到按键。
+        .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             start_scan,
