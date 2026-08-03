@@ -174,6 +174,7 @@ impl SeizeInput {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn inactive(&self) -> Result<()> {
         self.unblock_input()?;
         if !self.hwnd.is_invalid() {
@@ -192,6 +193,7 @@ impl SeizeInput {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn relative_move(&mut self, dx: i32, dy: i32) -> Result<()> {
         if dx == 0 && dy == 0 {
             return Ok(());
@@ -216,6 +218,7 @@ impl SeizeInput {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn input_text(&self, text: &str) -> Result<()> {
         self.ensure_foreground()?;
 
