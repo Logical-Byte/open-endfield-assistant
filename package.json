@@ -1,19 +1,24 @@
 {
-  "name": "nuxt-ui-template-starter-vue",
+  "name": "oea",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "typecheck": "vue-tsc -p ./tsconfig.app.json",
     "lint": "eslint src",
-    "typecheck": "vue-tsc -p ./tsconfig.app.json"
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "vue-tsc -p ./tsconfig.app.json && eslint src && prettier --check .",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@nuxt/ui": "^4.10.0",
     "@tauri-apps/api": "^2.11.1",
     "@unhead/vue": "^2.1.16",
-    "@vueuse/core": "^14.3.0",
+    "@vueuse/core": "^14.4.0",
     "tailwindcss": "^4.3.3",
     "vue": "^3.5.40",
     "vue-router": "^5.2.0"
@@ -30,7 +35,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vite": "^7.3.6",
-    "vue-tsc": "^3.3.8"
+    "vite-plugin-html": "^3.2.2",
+    "vue-tsc": "^3.3.9"
   },
   "packageManager": "pnpm@11.17.0"
 }

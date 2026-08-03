@@ -29,8 +29,5 @@
     "leave-active-class",
     "leave-to-class"
   ],
-  "tailwindCSS.experimental.classRegex": [["ui:\\s*{([^)]*)\\s*}", "(?:'|\"|`)([^']*)(?:'|\"|`)"]],
-
-  "css.validate": false,
-  "stylelint.validate": ["css", "tailwindcss", "vue", "html"]
+  "tailwindCSS.experimental.classRegex": [["ui:\\s*{([^)]*)\\s*}", "(?:'|\"|`)([^']*)(?:'|\"|`)"]]
 }
