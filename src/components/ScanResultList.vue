@@ -25,6 +25,11 @@ initScanResults();
       暂无扫描结果，启动扫描后识别到的档案将在此处以卡片形式展示。
     </p>
 
-    <ScanResultCard v-for="result in scanResults" :key="result.index" v-bind="result" />
+    <ScanResultCard
+      v-for="result in scanResults"
+      :key="result.index"
+      v-bind="result"
+      v-model:ocr_text="result.ocr_result"
+    />
   </div>
 </template>

@@ -21,6 +21,8 @@ useHead({
       </UMain>
 
       <AppFooter />
+
+      <AppImagePreview />
     </UApp>
   </Suspense>
 </template>

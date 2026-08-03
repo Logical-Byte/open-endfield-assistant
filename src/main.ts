@@ -6,7 +6,7 @@ import { createApp } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import { handleHotUpdate, routes } from 'vue-router/auto-routes';
 
-const app = createApp(App);
+export const app = createApp(App);
 
 const head = createHead();
 const router = createRouter({
