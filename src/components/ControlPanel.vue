@@ -1,17 +1,9 @@
 <script setup lang="ts">
 import { running } from '@/lib/appState';
-import { quitApp, scanSingle, startScan, stopScan } from '@/lib/tauri';
+import { scanSingle, startScan, stopScan } from '@/lib/tauri';
 
 async function handleToggle() {
-  running.value = running.value ? (await stopScan()).running : (await startScan()).running;
-}
-
-async function handleScanSingle() {
-  await scanSingle();
-}
-
-async function handleQuit() {
-  await quitApp();
+  return running.value ? await stopScan() : await startScan();
 }
 </script>
 
@@ -31,14 +23,7 @@ async function handleQuit() {
       label="单次扫描"
       size="lg"
       variant="outline"
-      @click="handleScanSingle"
-    />
-    <UButton
-      color="neutral"
-      icon="i-lucide-power"
-      label="退出程序"
-      variant="ghost"
-      @click="handleQuit"
+      @click="scanSingle"
     />
   </div>
 </template>
