@@ -27,6 +27,7 @@ chrono = "0.4.45"
 image = "0.25.10"
 imageproc = "0.27.0"
 rapidocr-core = { version = "0.2.2", default-features = false }
+raw-window-handle = "0.6.2"
 scopeguard = "1.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

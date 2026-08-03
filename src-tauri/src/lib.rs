@@ -21,12 +21,20 @@ pub mod template_matching;
 pub mod utils;
 pub mod window;
 
-use std::sync::{Arc, Mutex};
+use std::{
+    ffi::c_void,
+    sync::{Arc, Mutex},
+};
 
+use anyhow::{Result, anyhow, bail};
 use rapidocr_core::config::PipelineConfig;
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri::{Manager, State};
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    HOT_KEY_MODIFIERS, MOD_ALT, MOD_NOREPEAT, VK_DELETE, VK_OEM_1, VK_OEM_7,
+use windows::Win32::{
+    Foundation::HWND,
+    UI::Input::KeyboardAndMouse::{
+        HOT_KEY_MODIFIERS, MOD_ALT, MOD_NOREPEAT, VK_DELETE, VK_OEM_1, VK_OEM_7,
+    },
 };
 
 use crate::{
@@ -37,6 +45,7 @@ use crate::{
     ocr::OcrEngine,
     session_factory::SessionFactory,
     tasks::archive_scan::scenes::create_scene_manager,
+    window::ForegroundGuard,
 };
 
 // ============ Tauri 命令 ============
@@ -74,6 +83,18 @@ fn quit(state: State<'_, Arc<AppController>>) {
     state.inner().quit();
 }
 
+/// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
+fn get_oea_hwnd(app: &tauri::App) -> Result<HWND> {
+    let webview = app
+        .get_webview_window("main")
+        .ok_or_else(|| anyhow!("未找到 OEA 主窗口"))?;
+    let raw = webview.window_handle()?.as_raw();
+    match raw {
+        RawWindowHandle::Win32(handle) => Ok(HWND(handle.hwnd.get() as *mut c_void)),
+        _ => bail!("非 Windows 平台，无法获取 OEA 窗口句柄"),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -98,23 +119,28 @@ pub fn run() {
             let ocr = Arc::new(Mutex::new(ocr_engine));
 
             // 2. 注册全局热键
-            let hotkey = HotkeyListener::new(&[
-                HotkeyBinding {
-                    vk: VK_OEM_1.0 as u32,
-                    modifiers: HOT_KEY_MODIFIERS(0),
-                    event: HotkeyEvent::ScanSingleArchive,
-                },
-                HotkeyBinding {
-                    vk: VK_OEM_7.0 as u32,
-                    modifiers: HOT_KEY_MODIFIERS(0),
-                    event: HotkeyEvent::ToggleMainTask,
-                },
-                HotkeyBinding {
-                    vk: VK_DELETE.0 as u32,
-                    modifiers: MOD_ALT | MOD_NOREPEAT,
-                    event: HotkeyEvent::ExitProgram,
-                },
-            ])?;
+            // 分号/引号仅在前台为 OEA 或终末地窗口时响应；Alt+Delete 退出全局生效
+            let foreground = ForegroundGuard::new(get_oea_hwnd(app)?);
+            let hotkey = HotkeyListener::new(
+                &[
+                    HotkeyBinding {
+                        vk: VK_OEM_1.0 as u32,
+                        modifiers: HOT_KEY_MODIFIERS::default(),
+                        event: HotkeyEvent::ScanSingleArchive,
+                    },
+                    HotkeyBinding {
+                        vk: VK_OEM_7.0 as u32,
+                        modifiers: HOT_KEY_MODIFIERS::default(),
+                        event: HotkeyEvent::ToggleMainTask,
+                    },
+                    HotkeyBinding {
+                        vk: VK_DELETE.0 as u32,
+                        modifiers: MOD_ALT | MOD_NOREPEAT,
+                        event: HotkeyEvent::ExitProgram,
+                    },
+                ],
+                foreground,
+            )?;
             let stop_flag = hotkey.stop_flag();
             let running = hotkey.main_running_flag();
 

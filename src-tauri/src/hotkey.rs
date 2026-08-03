@@ -4,6 +4,9 @@
 //! 发送给主线程。空闲时主线程通过 [`HotkeyListener::wait_event`] 阻塞等待事件；
 //! 当主任务正在运行时，主线程忙于执行任务而无法读取通道，此时再按"切换主任务"
 //! 或"退出程序"热键会直接设置停止标志，由任务内部轮询该标志实现优雅停止。
+//!
+//! 前台窗口规则：分号 / 引号热键仅在 OEA 窗口或终末地游戏窗口位于前台时响应，
+//! 其它窗口位于前台时仅打印日志而不响应；`Alt+Delete` 退出热键全局生效。
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -17,6 +20,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     HOT_KEY_MODIFIERS, RegisterHotKey, UnregisterHotKey,
 };
 use windows::Win32::UI::WindowsAndMessaging::{GetMessageW, MSG, WM_HOTKEY};
+
+use crate::window::ForegroundGuard;
 
 /// 热键触发的事件。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,7 +68,8 @@ impl HotkeyListener {
     ///
     /// # 参数
     /// - `bindings`: 热键绑定列表，每个热键在注册时分配唯一的内部 ID。
-    pub fn new(bindings: &[HotkeyBinding]) -> Result<Self> {
+    /// - `foreground`: 前台窗口守卫，分号 / 引号热键仅在 OEA 或终末地窗口位于前台时响应。
+    pub fn new(bindings: &[HotkeyBinding], foreground: ForegroundGuard) -> Result<Self> {
         let (tx, rx) = mpsc::channel();
         let stop_flag = Arc::new(AtomicBool::new(false));
         let main_running = Arc::new(AtomicBool::new(false));
@@ -71,6 +77,8 @@ impl HotkeyListener {
         let running = main_running.clone();
         // 转为拥有所有权的数据，以便安全移入监听线程
         let bindings = bindings.to_vec();
+        // 前台窗口守卫移入监听线程（热键线程独占访问）
+        let foreground = foreground;
 
         thread::spawn(move || {
             // 依次注册所有热键，记录成功注册的 (id, event)
@@ -124,7 +132,10 @@ impl HotkeyListener {
 
                 match event {
                     HotkeyEvent::ToggleMainTask => {
-                        if running.load(Ordering::Relaxed) {
+                        // 仅当 OEA 或终末地窗口位于前台时才响应，否则只打印日志
+                        if !foreground.is_foreground_eligible() {
+                            info!("忽略热键 {:?}：前台窗口不是 OEA 或终末地窗口", event);
+                        } else if running.load(Ordering::Relaxed) {
                             // 主任务运行中 → 设置停止标志，由任务内部轮询停止
                             flag.store(true, Ordering::Relaxed);
                             info!("收到停止请求（引号键），正在停止主任务...");
@@ -136,14 +147,18 @@ impl HotkeyListener {
                         }
                     }
                     HotkeyEvent::ScanSingleArchive => {
-                        // 主任务运行中忽略单次扫描，避免命令积压到任务结束后才执行
-                        if !running.load(Ordering::Relaxed) {
+                        // 仅当 OEA 或终末地窗口位于前台时才响应，否则只打印日志
+                        if !foreground.is_foreground_eligible() {
+                            info!("忽略热键 {:?}：前台窗口不是 OEA 或终末地窗口", event);
+                        } else if !running.load(Ordering::Relaxed) {
+                            // 主任务运行中忽略单次扫描，避免命令积压到任务结束后才执行
                             if tx.send(HotkeyEvent::ScanSingleArchive).is_err() {
                                 break; // 主线程已退出
                             }
                         }
                     }
                     HotkeyEvent::ExitProgram => {
+                        // 退出热键全局生效，不受前台窗口限制
                         // 主任务运行中先请求停止，任务结束后主线程再读取退出事件
                         if running.load(Ordering::Relaxed) {
                             flag.store(true, Ordering::Relaxed);

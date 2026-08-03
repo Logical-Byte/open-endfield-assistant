@@ -60,7 +60,10 @@ impl SessionFactory {
     /// 记录日志并提示用户，而不是使程序 panic。
     pub fn build_session(&self) -> Result<Session> {
         // 1. 获取游戏窗口（仅确保窗口在屏幕上，不抢占前台）
-        let hwnd = window::get_window_by_title("Endfield", Some("UnityWndClass"))?;
+        let hwnd = window::get_window_by_title(
+            window::ENDFIELD_WINDOW_TITLE,
+            Some(window::ENDFIELD_WINDOW_CLASS),
+        )?;
         window::ensure_window_on_screen(hwnd)?;
 
         let client_rect = window::get_client_rect(hwnd)?;
