@@ -129,7 +129,7 @@ impl Task for ArchiveScanTask {
 
                 // 扫描该子界面中的所有档案
                 info!("开始扫描 {:?} 中的档案...", sub_scene);
-                scan_current_sub_scene(session, scene_manager)?;
+                scan_current_sub_scene(session, scene_manager, category_of(step.first_sub_scene))?;
                 info!("完成扫描 {:?}", sub_scene);
             }
 
@@ -140,6 +140,17 @@ impl Task for ArchiveScanTask {
 
         info!("全部 6 个子分类扫描完毕！");
         Ok(())
+    }
+}
+
+/// 子界面所属的档案库分类名称（扫描结果卡片的 category 字段）。
+fn category_of(sub_scene: SubSceneKind) -> &'static str {
+    match sub_scene {
+        SubSceneKind::音像存档_多媒体 => "音像存档",
+        SubSceneKind::见闻辑录_纸质记录
+        | SubSceneKind::见闻辑录_电子档案
+        | SubSceneKind::见闻辑录_藏品 => "见闻辑录",
+        SubSceneKind::中枢档案_中枢档案 | SubSceneKind::中枢档案_调查报告 => "中枢档案",
     }
 }
 

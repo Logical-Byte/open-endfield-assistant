@@ -6,6 +6,7 @@ use anyhow::Result;
 use tracing::warn;
 
 use crate::{
+    scan_result::{ScanResult, encode_png_data_url},
     scene::{SceneId, scene_manager::SceneManager},
     session::Session,
     success,
@@ -35,18 +36,35 @@ pub fn scan_single_archive_detail(
 
     // 2. OCR 识别档案标题并记录日志
     let screenshot = session.screencap_for_recognition()?;
-    match session.ocr_in_roi(&screenshot, OCR_ROI) {
+    let ocr_text = match session.ocr_in_roi(&screenshot, OCR_ROI) {
         Ok(text) if !text.trim().is_empty() => {
             success!("当前档案标题：{}", text.trim());
+            text.trim().to_string()
         }
         Ok(_) => {
             success!("当前档案标题：（空）");
+            String::new()
         }
         Err(e) => {
             // OCR 失败不中断，记录警告并给出提示
             warn!("OCR 识别失败: {e:#}");
             success!("当前档案标题：（OCR 识别失败）");
+            String::new()
         }
-    }
+    };
+
+    // 3. 把识别结果推送给前端（单次扫描无法确定具体分类，标记为"未知"）
+    let status = if ocr_text.is_empty() {
+        "failed"
+    } else {
+        "success"
+    };
+    session.emit_scan_result(ScanResult {
+        status: status.to_string(),
+        index: session.next_scan_index(),
+        category: "未知".to_string(),
+        image: encode_png_data_url(&screenshot),
+        ocr_result: ocr_text,
+    });
     Ok(())
 }

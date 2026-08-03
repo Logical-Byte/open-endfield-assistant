@@ -11,6 +11,7 @@ pub mod input;
 pub mod logger;
 pub mod ocr;
 pub mod resolution;
+pub mod scan_result;
 pub mod scene;
 pub mod screencap;
 pub mod session;
@@ -23,7 +24,7 @@ pub mod window;
 
 use std::{
     ffi::c_void,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, mpsc},
 };
 
 use anyhow::{Result, anyhow, bail};
@@ -43,6 +44,7 @@ use crate::{
     app_paths::AppPaths,
     hotkey::{HotkeyBinding, HotkeyEvent, HotkeyListener},
     ocr::OcrEngine,
+    scan_result::ScanResult,
     session_factory::SessionFactory,
     tasks::archive_scan::scenes::create_scene_manager,
     window::ForegroundGuard,
@@ -113,6 +115,9 @@ pub fn run() {
 
             window::set_thread_dpi_awareness_context();
 
+            // 0. 扫描结果通道：任务线程产生 → 转发线程 emit 给前端
+            let (scan_result_tx, scan_result_rx) = mpsc::channel::<ScanResult>();
+
             // 1. 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
             let pipeline_config = PipelineConfig::recognition_only();
             let ocr_engine = OcrEngine::new(pipeline_config, &paths.models_dir)?;
@@ -145,8 +150,12 @@ pub fn run() {
             let running = hotkey.main_running_flag();
 
             // 3. 创建会话工厂（窗口与分辨率在任务开始时才检查，避免游戏未打开时启动失败）
-            let session_factory =
-                SessionFactory::new(ocr, paths.templates_dir(), stop_flag.clone());
+            let session_factory = SessionFactory::new(
+                ocr,
+                paths.templates_dir(),
+                stop_flag.clone(),
+                scan_result_tx.clone(),
+            );
 
             // 4. 构建场景管理器与应用
             let scene_manager = create_scene_manager();
@@ -162,6 +171,7 @@ pub fn run() {
                 logger_guard,
             ));
             AppController::spawn_log_loop(log_rx, app.handle().clone());
+            AppController::spawn_scan_result_loop(scan_result_rx, app.handle().clone());
             AppController::spawn_hotkey_loop(&controller);
             app.manage(controller);
 

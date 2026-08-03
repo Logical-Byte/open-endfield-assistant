@@ -6,7 +6,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
@@ -19,6 +20,7 @@ use crate::{
     input::{Contact, InputBase},
     ocr::{OcrEngine, text_detection},
     resolution::GameResolution,
+    scan_result::ScanResult,
     screencap::ScreencapBase,
     task::TaskStopped,
     template_matching::{MatchResult, TemplateManager},
@@ -44,6 +46,10 @@ pub struct Session {
     pub resolution: GameResolution,
     /// 停止标志（来自热键监听器），每次操作前检查
     stop_flag: Arc<AtomicBool>,
+    /// 扫描结果推送通道（扫描到档案后发送给前端展示）
+    scan_result_tx: mpsc::Sender<ScanResult>,
+    /// 全局扫描序号（跨分类 / 单次扫描连续递增）
+    scan_index: Arc<AtomicU32>,
 }
 
 // Win32 句柄（HWND）跨线程传递安全；Session 始终在 AppController 的互斥锁内串行使用。
@@ -60,6 +66,8 @@ impl Session {
     /// - `templates_root`: 模板图片根目录（如 [`crate::app_paths::AppPaths::templates_dir`]）
     /// - `resolution`: 游戏实际分辨率
     /// - `stop_flag`: 热键停止标志，每次操作前检查
+    /// - `scan_result_tx`: 扫描结果推送通道（任务扫描到档案后发送给前端）
+    /// - `scan_index`: 全局扫描序号（与其它任务共享，保证序号连续）
     pub fn new(
         hwnd: HWND,
         screencap: Box<dyn ScreencapBase>,
@@ -68,6 +76,8 @@ impl Session {
         templates_root: impl Into<PathBuf>,
         resolution: GameResolution,
         stop_flag: Arc<AtomicBool>,
+        scan_result_tx: mpsc::Sender<ScanResult>,
+        scan_index: Arc<AtomicU32>,
     ) -> Self {
         // 从模板根目录加载所有模板（含情报档案库子目录）
         Self {
@@ -78,6 +88,8 @@ impl Session {
             templates: TemplateManager::new(templates_root),
             resolution,
             stop_flag,
+            scan_result_tx,
+            scan_index,
         }
     }
 
@@ -95,6 +107,18 @@ impl Session {
     /// 清除停止标志（启动新任务或单次扫描前调用，避免上一次的停止信号残留）。
     pub fn reset_stop(&mut self) {
         self.stop_flag.store(false, Ordering::Relaxed);
+    }
+
+    // ========== 扫描结果推送 ==========
+
+    /// 推送一份扫描结果到前端。
+    pub fn emit_scan_result(&self, result: ScanResult) {
+        let _ = self.scan_result_tx.send(result);
+    }
+
+    /// 取下一个全局扫描序号（从 1 开始，跨分类 / 单次扫描连续递增）。
+    pub fn next_scan_index(&self) -> u32 {
+        self.scan_index.fetch_add(1, Ordering::Relaxed) + 1
     }
 
     // ========== 截图相关 ==========

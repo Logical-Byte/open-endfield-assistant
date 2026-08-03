@@ -19,6 +19,7 @@ use tracing::{error, info, warn};
 use crate::{
     app::App,
     hotkey::{HotkeyEvent, HotkeyListener},
+    scan_result::ScanResult,
 };
 
 /// 推送给前端的应用状态。
@@ -96,6 +97,17 @@ impl AppController {
             while let Ok(line) = rx.recv() {
                 if let Err(e) = handle.emit("log", &line) {
                     eprintln!("向前端推送日志失败: {e}");
+                }
+            }
+        });
+    }
+
+    /// 启动扫描结果转发线程：把扫描结果通道里的结果逐个 emit 到前端。
+    pub fn spawn_scan_result_loop(rx: mpsc::Receiver<ScanResult>, handle: AppHandle) {
+        thread::spawn(move || {
+            while let Ok(result) = rx.recv() {
+                if let Err(e) = handle.emit("scan-result", &result) {
+                    eprintln!("向前端推送扫描结果失败: {e}");
                 }
             }
         });

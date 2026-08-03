@@ -7,7 +7,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU32};
+use std::sync::mpsc;
 
 use anyhow::Result;
 use tracing::info;
@@ -16,6 +17,7 @@ use crate::{
     input::{InputBase, SeizeInput},
     ocr::OcrEngine,
     resolution::GameResolution,
+    scan_result::ScanResult,
     screencap::PrintWindowScreencap,
     session::Session,
     window,
@@ -30,6 +32,10 @@ pub struct SessionFactory {
     templates_root: PathBuf,
     /// 停止标志（来自热键监听器）
     stop_flag: Arc<AtomicBool>,
+    /// 扫描结果推送通道发送端（克隆进每个 Session）
+    scan_result_tx: mpsc::Sender<ScanResult>,
+    /// 全局扫描序号（跨 Session / 单次扫描连续递增）
+    scan_index: Arc<AtomicU32>,
 }
 
 impl SessionFactory {
@@ -39,15 +45,19 @@ impl SessionFactory {
     /// - `ocr`: 已初始化的 OCR 引擎（不依赖游戏窗口）
     /// - `templates_root`: 模板图片根目录（如 [`crate::app_paths::AppPaths::templates_dir`]）
     /// - `stop_flag`: 热键停止标志，每次操作前检查
+    /// - `scan_result_tx`: 扫描结果推送通道（克隆进每个 Session，供任务上报识别结果）
     pub fn new(
         ocr: Arc<Mutex<OcrEngine>>,
         templates_root: impl Into<PathBuf>,
         stop_flag: Arc<AtomicBool>,
+        scan_result_tx: mpsc::Sender<ScanResult>,
     ) -> Self {
         Self {
             ocr,
             templates_root: templates_root.into(),
             stop_flag,
+            scan_result_tx,
+            scan_index: Arc::new(AtomicU32::new(0)),
         }
     }
 
@@ -84,6 +94,8 @@ impl SessionFactory {
             &self.templates_root,
             resolution,
             self.stop_flag.clone(),
+            self.scan_result_tx.clone(),
+            self.scan_index.clone(),
         );
         Ok(session)
     }

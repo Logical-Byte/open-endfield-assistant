@@ -9,6 +9,7 @@ use anyhow::Result;
 use tracing::debug;
 
 use crate::{
+    scan_result::{ScanResult, encode_png_data_url},
     scene::{SceneId, scene_manager::SceneManager},
     session::Session,
     success,
@@ -20,12 +21,17 @@ use super::constants::{ARROW_RIGHT_ROI, CLOSE_BUTTON_ROI, NEXT_BUTTON_ROI, OCR_R
 ///
 /// # 前置条件
 /// - `session` 当前处于档案库子界面
+/// - `category` 为该子界面所属的档案库分类（音像存档 / 见闻辑录 / 中枢档案）
 ///
 /// # 工作流程
 /// 1. 点击第 1 份档案 (401, 182) 进入档案详情页面
-/// 2. 循环：OCR 标题 → 翻到下一篇 → 直到翻不动
+/// 2. 循环：OCR 标题 → 上报扫描结果 → 翻到下一篇 → 直到翻不动
 /// 3. 点击关闭返回子界面
-pub fn scan_current_sub_scene(session: &mut Session, scene_manager: &SceneManager) -> Result<()> {
+pub fn scan_current_sub_scene(
+    session: &mut Session,
+    scene_manager: &SceneManager,
+    category: &'static str,
+) -> Result<()> {
     // 1. 点击第 1 份档案进入档案详情页面
     debug!("点击第 1 份档案 (401, 182)");
     session.click_at_720p(401, 182)?;
@@ -46,21 +52,39 @@ pub fn scan_current_sub_scene(session: &mut Session, scene_manager: &SceneManage
 
         // 2a. OCR 识别档案标题
         let screenshot = session.screencap_for_recognition()?;
-        match session.ocr_in_roi(&screenshot, OCR_ROI) {
+        let ocr_text = match session.ocr_in_roi(&screenshot, OCR_ROI) {
             Ok(text) if !text.trim().is_empty() => {
                 success!("第 {} 份档案标题：{}", archive_count, text.trim());
+                text.trim().to_string()
             }
             Ok(_) => {
                 success!("第 {} 份档案标题：（空）", archive_count);
+                String::new()
             }
             Err(e) => {
                 // OCR 失败不中断流程，记录日志继续
                 debug!("OCR 识别失败（第 {archive_count} 份）: {e:#}");
                 success!("第 {} 份档案标题：（OCR 识别失败）", archive_count);
+                String::new()
             }
-        }
+        };
 
-        // 2b. 尝试翻到下一篇
+        // 2b. 把识别结果推送给前端（卡片展示：状态 / 序号 / 分类 / 详情截图 / 可编辑文本）
+        // 目前只要 OCR 结果非空就视为识别成功
+        let status = if ocr_text.is_empty() {
+            "failed"
+        } else {
+            "success"
+        };
+        session.emit_scan_result(ScanResult {
+            status: status.to_string(),
+            index: session.next_scan_index(),
+            category: category.to_string(),
+            image: encode_png_data_url(&screenshot),
+            ocr_result: ocr_text,
+        });
+
+        // 2c. 尝试翻到下一篇
         let screenshot = session.screencap_for_recognition()?;
 
         // 先尝试 "下一篇" 按钮

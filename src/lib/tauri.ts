@@ -9,6 +9,20 @@ export interface AppStatus {
   running: boolean;
 }
 
+/** 单份档案的扫描结果（与 Rust 侧 `ScanResult` 对齐）。 */
+export interface ScanResult {
+  /** 识别状态：success（OCR 结果非空）| failed（OCR 结果为空） */
+  status: 'success' | 'failed';
+  /** 全局序号（从 1 开始，跨分类连续递增） */
+  index: number;
+  /** 档案库分类：音像存档 / 见闻辑录 / 中枢档案 */
+  category: string;
+  /** 档案详情页面截图（base64 PNG data URL） */
+  image: string;
+  /** OCR 识别结果（前端可编辑） */
+  ocr_result: string;
+}
+
 /** 启动档案库主任务（后端在后台线程执行，立即返回当前状态）。 */
 export function startScan(): Promise<AppStatus> {
   return invoke('start_scan');
@@ -48,4 +62,12 @@ export function onAppStatus(cb: (status: AppStatus) => void): Promise<() => void
  */
 export function onLog(cb: (line: string) => void): Promise<() => void> {
   return listen<string>('log', (event) => cb(event.payload));
+}
+
+/**
+ * 监听后端扫描结果事件（扫描进度中每识别一份档案触发一次）。
+ * 返回取消监听函数，组件卸载时应调用。
+ */
+export function onScanResult(cb: (result: ScanResult) => void): Promise<() => void> {
+  return listen<ScanResult>('scan-result', (event) => cb(event.payload));
 }
