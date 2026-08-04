@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "OEA",
-        "width": 1280,
-        "height": 720,
+        "width": 1024,
+        "height": 640,
         "resizable": true,
         "fullscreen": false
       }
