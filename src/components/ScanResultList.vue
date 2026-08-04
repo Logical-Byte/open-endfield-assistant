@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { clearScanResults, initScanResults, scanResults } from '@/lib/scanResults';
+import {
+  clearScanResults,
+  initScanResults,
+  pushMockScanResult,
+  scanResults,
+} from '@/lib/scanResults';
 
 initScanResults();
 </script>
@@ -10,6 +15,14 @@ initScanResults();
       <h2 class="text-sm font-medium">扫描结果</h2>
       <div class="flex items-center gap-3">
         <span class="text-xs text-muted">共 {{ scanResults.length }} 条</span>
+        <UButton
+          color="neutral"
+          icon="i-lucide-flask-conical"
+          label="模拟数据"
+          size="xs"
+          variant="ghost"
+          @click="pushMockScanResult()"
+        />
         <UButton
           color="neutral"
           icon="i-lucide-trash-2"
