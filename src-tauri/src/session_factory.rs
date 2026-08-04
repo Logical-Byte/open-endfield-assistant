@@ -43,7 +43,7 @@ impl SessionFactory {
     ///
     /// # 参数
     /// - `ocr`: 已初始化的 OCR 引擎（不依赖游戏窗口）
-    /// - `templates_root`: 模板图片根目录（如 [`crate::app_paths::AppPaths::templates_dir`]）
+    /// - `templates_root`: 模板图片根目录（如 [`crate::app_paths::AppPaths::templates_dir()`]）
     /// - `stop_flag`: 热键停止标志，每次操作前检查
     /// - `scan_result_tx`: 扫描结果推送通道（克隆进每个 Session，供任务上报识别结果）
     pub fn new(

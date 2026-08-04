@@ -99,7 +99,7 @@ fn quit(state: State<'_, Arc<AppController>>) {
 fn open_log_dir() -> Result<(), String> {
     let logs_dir = AppPaths::new()
         .map_err(|e| format!("无法定位日志目录: {e}"))?
-        .logs_dir;
+        .logs_dir();
     fs::create_dir_all(&logs_dir).map_err(|e| format!("无法创建日志目录: {e}"))?;
     tauri_plugin_opener::open_path(&logs_dir, None::<&str>)
         .map_err(|e| format!("无法打开日志目录: {e}"))
@@ -141,16 +141,16 @@ pub fn run() {
             // %LOCALAPPDATA%\<identifier>），保证所有磁盘写入都限定在应用目录内。
             // 注意：tauri.conf.json 的 userDataFolder 只能配相对路径且会被解析到
             // %LOCALAPPDATA% 下，因此必须在构建窗口时用绝对路径指定。
-            fs::create_dir_all(&paths.webview_data_dir)?;
+            fs::create_dir_all(paths.webview_data_dir())?;
             let _main_window =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                     .title("OEA")
                     .inner_size(1024.0, 640.0)
                     .resizable(true)
-                    .data_directory(paths.webview_data_dir.clone())
+                    .data_directory(paths.webview_data_dir())
                     .build()?;
 
-            let (logger_guard, log_rx) = logger::init(&paths.logs_dir);
+            let (logger_guard, log_rx) = logger::init(&paths.logs_dir());
 
             window::set_thread_dpi_awareness_context();
 
@@ -159,7 +159,7 @@ pub fn run() {
 
             // 1. 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
             let pipeline_config = PipelineConfig::recognition_only();
-            let ocr_engine = OcrEngine::new(pipeline_config, &paths.models_dir)?;
+            let ocr_engine = OcrEngine::new(pipeline_config, &paths.models_dir())?;
             let ocr = Arc::new(Mutex::new(ocr_engine));
 
             // 2. 注册全局热键

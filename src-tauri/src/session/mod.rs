@@ -63,7 +63,7 @@ impl Session {
     /// - `screencap`: 截图器实例
     /// - `input`: 输入器实例
     /// - `ocr`: 共享 OCR 引擎（`Arc<Mutex<_>>`，跨任务复用）
-    /// - `templates_root`: 模板图片根目录（如 [`crate::app_paths::AppPaths::templates_dir`]）
+    /// - `templates_root`: 模板图片根目录（如 [`crate::app_paths::AppPaths::templates_dir()`]）
     /// - `resolution`: 游戏实际分辨率
     /// - `stop_flag`: 热键停止标志，每次操作前检查
     /// - `scan_result_tx`: 扫描结果推送通道（任务扫描到档案后发送给前端）

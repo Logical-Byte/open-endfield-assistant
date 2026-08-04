@@ -54,7 +54,7 @@ impl<'a> fmt::MakeWriter<'a> for ChannelWriter {
 /// - `ort` 及 `onnxruntime` 模块的日志仅输出 WARN 及以上（屏蔽 ONNX Runtime 的冗余信息）
 ///
 /// # 参数
-/// - `logs_dir`: 日志输出目录（如 [`crate::app_paths::AppPaths::logs_dir`]）
+/// - `logs_dir`: 日志输出目录（如 [`crate::app_paths::AppPaths::logs_dir()`]）
 ///
 /// 返回 `(WorkerGuard, mpsc::Receiver<String>)`：
 /// - `WorkerGuard` 必须被持有，否则文件写入线程会在 drop 时被关闭；
