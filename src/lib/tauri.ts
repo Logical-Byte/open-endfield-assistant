@@ -48,7 +48,7 @@ export async function quitApp(): Promise<void> {
   return await invoke('quit');
 }
 
-/** 在系统文件管理器中打开日志目录。 */
+/** 在系统文件管理器中打开日志目录（后端通过 opener 插件执行）。 */
 export async function openLogDir(): Promise<void> {
   await invoke('open_log_dir');
 }
