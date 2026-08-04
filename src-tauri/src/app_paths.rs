@@ -54,7 +54,7 @@ fn get_root_dir_for_release() -> Result<PathBuf> {
 #[derive(Debug, Clone)]
 pub struct AppPaths {
     /// 应用根目录
-    root: PathBuf,
+    root_dir: PathBuf,
 }
 
 impl AppPaths {
@@ -64,34 +64,38 @@ impl AppPaths {
     /// - debug 构建（`tauri dev` / `cargo run`）：`CARGO_MANIFEST_DIR` 的上一级 = 项目根；
     /// - release 构建（`tauri build` / `cargo build --release`）：exe 所在目录。
     pub fn new() -> Result<Self> {
-        Ok(Self {
-            root: get_root_dir()?,
-        })
+        Ok(Self::with_root_dir(get_root_dir()?))
+    }
+
+    pub fn with_root_dir(root_dir: impl Into<PathBuf>) -> Self {
+        Self {
+            root_dir: root_dir.into(),
+        }
     }
 
     /// 应用根目录。
     pub fn root_dir(&self) -> &Path {
-        &self.root
+        &self.root_dir
     }
 
     /// 共享资源目录（前后端共用，submodule）。
     pub fn resources_dir(&self) -> PathBuf {
-        self.root.join("resources")
+        self.root_dir.join("resources")
     }
 
     /// OCR 模型目录。
     pub fn models_dir(&self) -> PathBuf {
-        self.root.join("models")
+        self.root_dir.join("models")
     }
 
     /// 运行日志目录。
     pub fn logs_dir(&self) -> PathBuf {
-        self.root.join("logs")
+        self.root_dir.join("logs")
     }
 
     /// WebView2 用户数据目录（绿色便携：不写入 `%LOCALAPPDATA%`）。
     pub fn webview_data_dir(&self) -> PathBuf {
-        self.root.join("webview-data")
+        self.root_dir.join("webview-data")
     }
 
     /// 模板图片根目录（`resources/templates`）。

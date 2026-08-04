@@ -18,6 +18,7 @@ pub mod session;
 pub mod session_factory;
 pub mod task;
 pub mod tasks;
+pub mod tauri_commands;
 pub mod template_matching;
 pub mod utils;
 pub mod window;
@@ -31,7 +32,7 @@ use std::{
 use anyhow::{Result, anyhow, bail};
 use rapidocr_core::config::PipelineConfig;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-use tauri::{Manager, State};
+use tauri::Manager;
 use windows::Win32::{
     Foundation::HWND,
     UI::Input::KeyboardAndMouse::{
@@ -50,60 +51,6 @@ use crate::{
     tasks::archive_scan::scenes::create_scene_manager,
     window::ForegroundGuard,
 };
-
-// ============ Tauri 命令 ============
-
-/// 启动档案库主任务（在后台线程执行，立即返回当前状态）。
-#[tauri::command]
-fn start_scan(state: State<'_, Arc<AppController>>) -> app_controller::AppStatus {
-    state.inner().start_scan();
-    state.inner().get_status()
-}
-
-/// 请求停止主任务。
-#[tauri::command]
-fn stop_scan(state: State<'_, Arc<AppController>>) -> app_controller::AppStatus {
-    state.inner().stop_scan();
-    state.inner().get_status()
-}
-
-/// 单次扫描当前档案详情。
-#[tauri::command]
-fn scan_single(state: State<'_, Arc<AppController>>) -> app_controller::AppStatus {
-    state.inner().scan_single();
-    state.inner().get_status()
-}
-
-/// 查询当前应用状态。
-#[tauri::command]
-fn get_status(state: State<'_, Arc<AppController>>) -> app_controller::AppStatus {
-    state.inner().get_status()
-}
-
-/// 退出程序。
-#[tauri::command]
-fn quit(state: State<'_, Arc<AppController>>) {
-    state.inner().quit();
-}
-
-/// 在系统文件管理器中打开日志目录（不存在时先创建）。
-///
-/// 由于根目录为
-///   - 开发阶段：`src-tauri/` 的上一级（项目根）
-///   - 打包阶段：exe 所在目录
-/// 一个静态 scope 无法同时表达两种模式，想要在 capabilities 放通日志目录就必须写 `**/*`，这会带来安全风险。
-/// 因此走 “前端 openPath + 精确 scope” 这条路是死的。
-/// 我们选择用后端打开文件夹，而不是前端调用 `openPath`，这样可以不用在 capabilities 里放通 `**/*`。
-/// Rust API open_path（后端直接调）完全不经过 scope 检查，路径由后端固定。
-#[tauri::command]
-fn open_log_dir() -> Result<(), String> {
-    let logs_dir = AppPaths::new()
-        .map_err(|e| format!("无法定位日志目录: {e}"))?
-        .logs_dir();
-    fs::create_dir_all(&logs_dir).map_err(|e| format!("无法创建日志目录: {e}"))?;
-    tauri_plugin_opener::open_path(&logs_dir, None::<&str>)
-        .map_err(|e| format!("无法打开日志目录: {e}"))
-}
 
 /// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
 fn get_oea_hwnd(app: &tauri::App) -> Result<HWND> {
@@ -126,31 +73,34 @@ pub fn run() {
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            start_scan,
-            stop_scan,
-            scan_single,
-            get_status,
-            quit,
-            open_log_dir
+            tauri_commands::start_scan,
+            tauri_commands::stop_scan,
+            tauri_commands::scan_single,
+            tauri_commands::get_status,
+            tauri_commands::quit,
+            tauri_commands::open_log_dir
         ])
         .setup(|app| {
             // 解析资源目录（resources/models/logs），不依赖运行时工作目录
-            let paths = AppPaths::new()?;
+            let app_paths = AppPaths::new()?;
 
             // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入
             // %LOCALAPPDATA%\<identifier>），保证所有磁盘写入都限定在应用目录内。
             // 注意：tauri.conf.json 的 userDataFolder 只能配相对路径且会被解析到
             // %LOCALAPPDATA% 下，因此必须在构建窗口时用绝对路径指定。
-            fs::create_dir_all(paths.webview_data_dir())?;
+            fs::create_dir_all(app_paths.webview_data_dir())?;
             let _main_window =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                     .title("OEA")
                     .inner_size(1024.0, 640.0)
+                    .min_inner_size(256.0, 192.0)
                     .resizable(true)
-                    .data_directory(paths.webview_data_dir())
+                    .decorations(true)
+                    .shadow(true)
+                    .data_directory(app_paths.webview_data_dir())
                     .build()?;
 
-            let (logger_guard, log_rx) = logger::init(&paths.logs_dir());
+            let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
 
             window::set_thread_dpi_awareness_context();
 
@@ -159,7 +109,7 @@ pub fn run() {
 
             // 1. 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
             let pipeline_config = PipelineConfig::recognition_only();
-            let ocr_engine = OcrEngine::new(pipeline_config, &paths.models_dir())?;
+            let ocr_engine = OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
             let ocr = Arc::new(Mutex::new(ocr_engine));
 
             // 2. 注册全局热键
@@ -191,7 +141,7 @@ pub fn run() {
             // 3. 创建会话工厂（窗口与分辨率在任务开始时才检查，避免游戏未打开时启动失败）
             let session_factory = SessionFactory::new(
                 ocr,
-                paths.templates_dir(),
+                app_paths.templates_dir(),
                 stop_flag.clone(),
                 scan_result_tx.clone(),
             );
