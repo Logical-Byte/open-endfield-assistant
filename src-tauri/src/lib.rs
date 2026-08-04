@@ -85,6 +85,23 @@ fn quit(state: State<'_, Arc<AppController>>) {
     state.inner().quit();
 }
 
+/// 在系统文件管理器中打开日志目录（不存在时先创建）。
+#[tauri::command]
+fn open_log_dir() -> Result<(), String> {
+    let logs_dir = AppPaths::new()
+        .map_err(|e| format!("无法定位日志目录: {e}"))?
+        .logs_dir;
+    std::fs::create_dir_all(&logs_dir).map_err(|e| format!("无法创建日志目录: {e}"))?;
+
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("explorer")
+        .arg(&logs_dir)
+        .spawn()
+        .map_err(|e| format!("无法打开日志目录: {e}"))?;
+
+    Ok(())
+}
+
 /// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
 fn get_oea_hwnd(app: &tauri::App) -> Result<HWND> {
     let webview = app
@@ -110,7 +127,8 @@ pub fn run() {
             stop_scan,
             scan_single,
             get_status,
-            quit
+            quit,
+            open_log_dir
         ])
         .setup(|app| {
             // 解析资源目录（resources/models/logs），不依赖运行时工作目录

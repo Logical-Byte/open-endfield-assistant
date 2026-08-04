@@ -48,6 +48,11 @@ export async function quitApp(): Promise<void> {
   return await invoke('quit');
 }
 
+/** 在系统文件管理器中打开日志目录。 */
+export async function openLogDir(): Promise<void> {
+  await invoke('open_log_dir');
+}
+
 /**
  * 监听应用状态变更事件（启动 / 结束均触发，payload 为最新 AppStatus）。
  * 返回取消监听函数，组件卸载时应调用。
