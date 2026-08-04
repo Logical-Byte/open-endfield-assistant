@@ -2,7 +2,7 @@
 import { useImagePreview } from '@/composables/image-preview/useImagePreview';
 import { app } from '@/main';
 import { openImagePreviewKey } from '@/utils/provideInject';
-import { computed, useTemplateRef } from 'vue';
+import { useTemplateRef } from 'vue';
 
 const overlayRef = useTemplateRef('overlayRef');
 
@@ -27,21 +27,6 @@ const {
   onMouseup,
   onKeydown,
 } = useImagePreview(overlayRef);
-
-function isBase64DataUrl(url: string): boolean {
-  return /^data:([a-zA-Z]+\/[a-zA-Z+.]+)?;base64,/.test(url);
-}
-
-const displayUrl = computed(() => {
-  if (!preview.value) {
-    return '';
-  }
-  if (isBase64DataUrl(preview.value.url)) {
-    return `${preview.value.url.slice(0, 32)}...`;
-  } else {
-    return preview.value.url;
-  }
-});
 
 app.provide(openImagePreviewKey, open);
 </script>
@@ -69,18 +54,21 @@ app.provide(openImagePreviewKey, open);
         <div
           class="flex shrink-0 items-center justify-end gap-4 bg-default px-4 py-2 sm:justify-between"
         >
-          <div class="hidden min-w-0 flex-col sm:flex">
+          <div class="hidden min-w-0 flex-1 flex-col sm:flex">
             <p class="truncate text-sm font-medium text-highlighted">{{ preview.name }}</p>
             <ULink
-              class="text-xs text-muted"
+              class="truncate text-xs text-muted"
               rel="noopener noreferrer"
               target="_blank"
               :to="preview.url"
             >
-              {{ displayUrl }}
+              {{ preview.url }}
             </ULink>
           </div>
-          <p v-if="naturalWidth && naturalHeight" class="hidden text-sm text-muted sm:block">
+          <p
+            v-if="naturalWidth && naturalHeight"
+            class="hidden shrink-0 text-sm whitespace-nowrap text-muted sm:block"
+          >
             {{ naturalWidth }} × {{ naturalHeight }}
           </p>
           <div class="flex shrink-0 items-center gap-1">
