@@ -28,7 +28,6 @@ import type {
   PrtsPage,
   PrtsPageType,
 } from '../../src/lib/prts';
-import type { PrtsAllItemEntry, PrtsFirstLvEntry } from '../models';
 import {
   getTranslation,
   prtsAllItemTable,
@@ -37,6 +36,7 @@ import {
   prtsPageTable,
   richContentTable,
 } from '../gameData';
+import type { PrtsAllItemEntry, PrtsFirstLvEntry } from '../models';
 
 /** 档案库页面展示顺序：音像存档、见闻辑录、中枢档案 */
 const PAGE_ORDER = ['multi_media', 'text', 'document'] as const;
@@ -181,7 +181,7 @@ export function makePrts(): PrtsData {
             entry.pageType,
             {
               name: getTranslation(entry.name, 'CN'),
-              pageType: entry.pageType as PrtsPageType,
+              pageType: entry.pageType,
               categoryIds: pageToCategoryIds[entry.pageType] ?? [],
             },
           ] as [string, PrtsPage],
@@ -200,7 +200,7 @@ export function makePrts(): PrtsData {
               categoryId: entry.categoryId,
               name: getTranslation(entry.name, 'CN'),
               order: entry.order,
-              type: categoryToPageType[entry.categoryId] as PrtsPageType,
+              type: categoryToPageType[entry.categoryId],
               firstLvIds: categoryToFirstLvIds[entry.categoryId] ?? [],
             },
           ] as [string, PrtsCategory],
@@ -229,7 +229,7 @@ export function makePrts(): PrtsData {
             itemIds: entry.itemIds,
             name,
             order: entry.order,
-            type: categoryToPageType[entry.categoryId] as PrtsPageType,
+            type: categoryToPageType[entry.categoryId],
           },
         ] as [string, PrtsFirstLv];
       })
