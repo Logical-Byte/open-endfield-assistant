@@ -19,21 +19,17 @@ onMounted(async () => {
 onUnmounted(() => {
   unlisten?.();
 });
+
+function clear(): void {
+  lines.value = [];
+}
+
+defineExpose({ clear });
 </script>
 
 <template>
   <div class="flex flex-col gap-2">
-    <div class="flex items-center justify-between">
-      <h2 class="text-sm font-medium">实时日志</h2>
-      <UButton
-        color="neutral"
-        icon="i-lucide-trash-2"
-        label="清空"
-        size="xs"
-        variant="ghost"
-        @click="lines = []"
-      />
-    </div>
+    <h2 class="text-sm font-medium">实时日志</h2>
     <div
       ref="container"
       class="h-64 overflow-y-auto rounded-md bg-default p-3 font-mono text-xs leading-relaxed"
