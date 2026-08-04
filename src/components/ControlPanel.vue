@@ -5,6 +5,11 @@ import { scanSingle, startScan, stopScan } from '@/lib/tauri';
 async function handleToggle() {
   return running.value ? await stopScan() : await startScan();
 }
+
+/** 导出扫描结果到地图集。 */
+function handleExportToAtlas() {
+  // TODO: 待实现导出逻辑
+}
 </script>
 
 <template>
@@ -24,6 +29,15 @@ async function handleToggle() {
       size="lg"
       variant="outline"
       @click="scanSingle"
+    />
+    <UButton
+      class="ms-auto"
+      color="neutral"
+      icon="i-lucide-map"
+      label="导出到地图集"
+      size="lg"
+      variant="outline"
+      @click="handleExportToAtlas"
     />
   </div>
 </template>
