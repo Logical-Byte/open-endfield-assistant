@@ -133,6 +133,20 @@ pub fn run() {
         .setup(|app| {
             // 解析资源目录（resources/models/logs），不依赖运行时工作目录
             let paths = AppPaths::new()?;
+
+            // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入
+            // %LOCALAPPDATA%\<identifier>），保证所有磁盘写入都限定在应用目录内。
+            // 注意：tauri.conf.json 的 userDataFolder 只能配相对路径且会被解析到
+            // %LOCALAPPDATA% 下，因此必须在构建窗口时用绝对路径指定。
+            std::fs::create_dir_all(&paths.webview_data_dir)?;
+            let _main_window =
+                tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
+                    .title("OEA")
+                    .inner_size(1024.0, 640.0)
+                    .resizable(true)
+                    .data_directory(paths.webview_data_dir.clone())
+                    .build()?;
+
             let (logger_guard, log_rx) = logger::init(&paths.logs_dir);
 
             window::set_thread_dpi_awareness_context();

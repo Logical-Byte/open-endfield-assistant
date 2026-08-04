@@ -29,3 +29,6 @@ tsconfig.node.tsbuildinfo
 
 # Environment variables
 .env
+
+# Webview Data
+/webview-data

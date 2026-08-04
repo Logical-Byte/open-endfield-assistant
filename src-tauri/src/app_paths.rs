@@ -26,6 +26,8 @@ pub struct AppPaths {
     pub models_dir: PathBuf,
     /// 运行日志目录
     pub logs_dir: PathBuf,
+    /// WebView2 用户数据目录（绿色便携：不写入 `%LOCALAPPDATA%`）
+    pub webview_data_dir: PathBuf,
 }
 
 impl AppPaths {
@@ -45,6 +47,7 @@ impl AppPaths {
             resources_dir: root.join("resources"),
             models_dir: root.join("models"),
             logs_dir: root.join("logs"),
+            webview_data_dir: root.join("webview-data"),
             root,
         }
     }
