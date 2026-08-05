@@ -2,9 +2,33 @@
 import type { NavigationMenuItem } from '@nuxt/ui';
 
 const navigationMenuItems: NavigationMenuItem[] = [
-  { label: '档案扫描', icon: 'i-lucide-scan-line', to: '/' },
-  { label: '日志', icon: 'i-lucide-scroll-text', to: '/log' },
-  { label: '设置', icon: 'i-lucide-settings', to: '/settings' },
+  {
+    label: '档案扫描',
+    icon: 'i-lucide-scan-line',
+    to: '/',
+  },
+  {
+    label: '日志',
+    icon: 'i-lucide-scroll-text',
+    to: '/log',
+  },
+  {
+    label: '设置',
+    icon: 'i-lucide-settings',
+    to: '/settings',
+  },
+  {
+    label: '终末地一图流',
+    icon: 'i-mdi-numeric-1-box-outline',
+    to: 'https://ef.yituliu.cn/',
+    target: '_blank',
+  },
+  {
+    label: '终末地地图集',
+    icon: 'i-lucide-map',
+    to: 'https://oem.re/',
+    target: '_blank',
+  },
 ];
 </script>
 
