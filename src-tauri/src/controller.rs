@@ -19,7 +19,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_1, 
 
 use crate::{
     connect::connect_to_game,
-    hotkey::{HotkeyBinding, HotkeyEvent},
+    hotkey::{HotkeyBinding, HotkeyEvent, HotkeyRegistry},
     ocr::OcrEngine,
     scene::SceneManager,
     task::{TaskStopped, run_task},
@@ -36,27 +36,30 @@ pub struct AppStatus {
 
 /// 应用层热键动作（键位表见 [`HOTKEY_BINDINGS`]）。
 ///
-/// `as u32` 即热键标签（基础设施层只透传标签，不关心动作语义）。
+/// 热键身份由第二层注册表内部管理（每个热键一条专属事件流），
+/// 动作无需编码为标签。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HotkeyAction {
     /// 切换主任务：空闲=启动，运行中=停止
-    ToggleMainTask = 0,
+    ToggleMainTask,
     /// 单次扫描当前档案详情
-    ScanSingle = 1,
+    ScanSingle,
     /// 退出程序
-    Exit = 2,
+    Exit,
 }
 
-impl HotkeyAction {
-    /// 从热键标签还原动作。
-    fn from_tag(tag: u32) -> Option<Self> {
-        match tag {
-            0 => Some(Self::ToggleMainTask),
-            1 => Some(Self::ScanSingle),
-            2 => Some(Self::Exit),
-            _ => None,
-        }
-    }
+/// 应用层热键规格：虚拟键码 + 修饰符 → 动作。
+///
+/// 身份不在此定义：注册时由第二层为每个热键分配一条专属事件流，
+/// 调用方无需提供 tag，也不存在"重复 tag"导致的事件混淆。
+#[derive(Clone, Copy)]
+pub struct HotkeySpec {
+    /// 虚拟键码（如 `VK_OEM_1`）
+    pub vk: u32,
+    /// 修饰键（如 `MOD_ALT`），无修饰符时传 0
+    pub modifiers: u32,
+    /// 命中该键位时执行的动作
+    pub action: HotkeyAction,
 }
 
 /// 应用层键位表：虚拟键码 + 修饰符 → 动作。
@@ -66,21 +69,21 @@ impl HotkeyAction {
 /// - Alt+Delete → 退出
 ///
 /// 按住自动重复已在第一层过滤（等价 `MOD_NOREPEAT` 语义），无需在绑定里声明。
-pub const HOTKEY_BINDINGS: &[HotkeyBinding] = &[
-    HotkeyBinding {
+pub const HOTKEY_BINDINGS: &[HotkeySpec] = &[
+    HotkeySpec {
         vk: VK_OEM_1.0 as u32,
         modifiers: 0,
-        tag: HotkeyAction::ScanSingle as u32,
+        action: HotkeyAction::ScanSingle,
     },
-    HotkeyBinding {
+    HotkeySpec {
         vk: VK_OEM_7.0 as u32,
         modifiers: 0,
-        tag: HotkeyAction::ToggleMainTask as u32,
+        action: HotkeyAction::ToggleMainTask,
     },
-    HotkeyBinding {
+    HotkeySpec {
         vk: VK_DELETE.0 as u32,
         modifiers: MOD_ALT.0,
-        tag: HotkeyAction::Exit as u32,
+        action: HotkeyAction::Exit,
     },
 ];
 
@@ -291,19 +294,34 @@ impl Controller {
 
     // ========== 后台线程 ==========
 
+    /// 注册应用层全部热键并启动各自消费线程（第三层）。
+    ///
+    /// 每个热键独立注册（第二层），各自一条专属事件流 → 一条消费线程；
+    /// 动作在注册时固定，无需 tag。
+    pub fn spawn_hotkey_loops(self: &Arc<Self>, hotkeys: &HotkeyRegistry) {
+        for spec in HOTKEY_BINDINGS {
+            let binding = HotkeyBinding {
+                vk: spec.vk,
+                modifiers: spec.modifiers,
+            };
+            let rx = hotkeys.register_hotkey(binding);
+            Self::spawn_hotkey_loop(rx, spec.action, Arc::clone(self));
+        }
+    }
+
     /// 启动热键消费线程（第三层：应用层过滤 + 分发）。
     ///
-    /// 阻塞接收热键事件，先做应用层放行过滤（前台窗口规则），再分发动作。
+    /// 每个已注册热键各自一条事件流 → 一条消费线程；动作在注册时固定。
+    /// 线程阻塞接收事件，先做应用层放行过滤（前台窗口规则），再分发动作。
     /// 过滤逻辑不属于热键本身：第一 / 二层在按键按下时立即发事件，
     /// "该不该响应"由本层决定。
-    pub fn spawn_hotkey_loop(rx: mpsc::Receiver<HotkeyEvent>, this: Arc<Self>) {
+    pub fn spawn_hotkey_loop(
+        rx: mpsc::Receiver<HotkeyEvent>,
+        action: HotkeyAction,
+        this: Arc<Self>,
+    ) {
         thread::spawn(move || {
-            while let Ok(HotkeyEvent { tag }) = rx.recv() {
-                let Some(action) = HotkeyAction::from_tag(tag) else {
-                    warn!("未知热键标签: {tag}");
-                    continue;
-                };
-
+            while rx.recv().is_ok() {
                 // 应用层过滤：退出全局生效；分号 / 引号仅在前台为 OEA 或终末地时响应
                 if action != HotkeyAction::Exit && !this.foreground.is_foreground_eligible() {
                     info!("忽略热键 {action:?}：前台窗口不满足放行条件");
