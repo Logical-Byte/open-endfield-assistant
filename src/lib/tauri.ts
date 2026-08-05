@@ -23,6 +23,19 @@ export interface ScanResult {
   ocr_result: string;
 }
 
+/** 后端日志等级（与 Rust 侧 `tracing::Level` 对齐）。 */
+export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+
+/** 后端推送的单条日志（与 Rust 侧 `LogEntry` 对齐）。 */
+export interface LogEntry {
+  /** 时间（本地时间，`MM-dd HH:MM:SS`） */
+  time: string;
+  /** 日志等级：TRACE / DEBUG / INFO / WARN / ERROR */
+  level: LogLevel;
+  /** 格式化后的日志文本 */
+  message: string;
+}
+
 /** 启动档案库主任务（后端在后台线程执行，立即返回当前状态）。 */
 export async function startScan(): Promise<AppStatus> {
   return await invoke('start_scan');
@@ -62,11 +75,11 @@ export async function onAppStatus(cb: (status: AppStatus) => void): Promise<() =
 }
 
 /**
- * 监听后端实时日志（每行一个字符串）。
+ * 监听后端实时日志（每条含等级与文本）。
  * 返回取消监听函数，组件卸载时应调用。
  */
-export async function onLog(cb: (line: string) => void): Promise<() => void> {
-  return await listen<string>('log', (event) => cb(event.payload));
+export async function onLog(cb: (entry: LogEntry) => void): Promise<() => void> {
+  return await listen<LogEntry>('log', (event) => cb(event.payload));
 }
 
 /**

@@ -62,7 +62,7 @@ pub fn run() {
             // 解析资源目录（resources/models/logs），不依赖运行时工作目录
             let app_paths = AppPaths::new()?;
 
-            // 初始化日志系统：控制台输出 INFO+，文件输出 TRACE+，前端转发 TRACE+。
+            // 初始化日志系统：控制台输出 DEBUG+，文件输出 TRACE+，前端转发 TRACE+（界面可过滤等级）。
             let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
 
             // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。

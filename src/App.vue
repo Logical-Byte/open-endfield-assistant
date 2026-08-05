@@ -25,7 +25,7 @@ initLogState();
         <RouterView />
       </UMain>
 
-      <AppFooter />
+      <!-- <AppFooter /> -->
 
       <AppImagePreview />
     </UApp>

@@ -20,6 +20,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_1, 
 use crate::{
     connect::connect_to_game,
     hotkey::KeyEvent,
+    logger::LogEntry,
     ocr::OcrEngine,
     scene::SceneManager,
     task::{TaskStopped, run_task},
@@ -266,11 +267,11 @@ impl Controller {
         });
     }
 
-    /// 启动日志转发线程：把 logger 通道里的日志逐行 emit 到前端。
-    pub fn spawn_log_loop(rx: mpsc::Receiver<String>, handle: AppHandle) {
+    /// 启动日志转发线程：把 logger 通道里的日志逐条 emit 到前端。
+    pub fn spawn_log_loop(rx: mpsc::Receiver<LogEntry>, handle: AppHandle) {
         thread::spawn(move || {
-            while let Ok(line) = rx.recv() {
-                if let Err(e) = handle.emit("log", &line) {
+            while let Ok(log_entry) = rx.recv() {
+                if let Err(e) = handle.emit("log", &log_entry) {
                     error!("向前端推送日志失败: {e}");
                 }
             }
