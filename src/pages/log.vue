@@ -25,7 +25,9 @@ const levelOptions: { label: string; value: LogLevel }[] = [
 ];
 
 const text = computed(() =>
-  filteredLogLines.value.map((entry) => `${entry.time} ${entry.level} ${entry.message}`).join('\n'),
+  filteredLogLines.value
+    .map((entry) => `${entry.time} [${entry.level}] ${entry.message}`)
+    .join('\n'),
 );
 
 function getTextarea(): HTMLTextAreaElement | null {

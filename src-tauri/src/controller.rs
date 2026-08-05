@@ -141,44 +141,47 @@ impl Controller {
         self.emit_status();
 
         let this = Arc::clone(self);
-        thread::spawn(move || {
-            // 游戏操作串行门：与单次扫描互斥
-            let _gate = this.op_lock.lock().unwrap();
+        thread::Builder::new()
+            .name("oea-scan".to_string())
+            .spawn(move || {
+                // 游戏操作串行门：与单次扫描互斥
+                let _gate = this.op_lock.lock().unwrap();
 
-            // 任务开始时才连接游戏（游戏未打开则报错并复位）
-            let mut session =
-                match connect_to_game(&this.ocr, &this.templates_root, this.stop.clone()) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        error!("连接游戏失败: {e:#}");
-                        this.finish_scan();
-                        return;
-                    }
-                };
+                // 任务开始时才连接游戏（游戏未打开则报错并复位）
+                let mut session =
+                    match connect_to_game(&this.ocr, &this.templates_root, this.stop.clone()) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            error!("连接游戏失败: {e:#}");
+                            this.finish_scan();
+                            return;
+                        }
+                    };
 
-            // 主任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）
-            if let Err(e) = window::ensure_foreground_and_topmost(session.hwnd) {
-                warn!("无法将游戏窗口置于前台: {e:#}，继续尝试执行任务");
-            }
-
-            // 清除上一次可能残留的停止信号
-            session.reset_stop();
-
-            // 执行主任务（阻塞，期间任务内部轮询停止标志）
-            let task = ArchiveScanTask::new(this.reporter());
-            let result = run_task(&task, &mut session, &this.scenes);
-
-            // 区分"被停止"与"出错"
-            match result {
-                Ok(_) => info!("========== 主任务执行完毕 =========="),
-                Err(e) if e.downcast_ref::<TaskStopped>().is_some() => {
-                    info!("主任务已被用户停止");
+                // 主任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）
+                if let Err(e) = window::ensure_foreground_and_topmost(session.hwnd) {
+                    warn!("无法将游戏窗口置于前台: {e:#}，继续尝试执行任务");
                 }
-                Err(e) => error!("主任务执行失败: {e:#}"),
-            }
 
-            this.finish_scan();
-        });
+                // 清除上一次可能残留的停止信号
+                session.reset_stop();
+
+                // 执行主任务（阻塞，期间任务内部轮询停止标志）
+                let task = ArchiveScanTask::new(this.reporter());
+                let result = run_task(&task, &mut session, &this.scenes);
+
+                // 区分"被停止"与"出错"
+                match result {
+                    Ok(_) => info!("========== 主任务执行完毕 =========="),
+                    Err(e) if e.downcast_ref::<TaskStopped>().is_some() => {
+                        info!("主任务已被用户停止");
+                    }
+                    Err(e) => error!("主任务执行失败: {e:#}"),
+                }
+
+                this.finish_scan();
+            })
+            .expect("启动主任务线程失败");
     }
 
     /// 复位运行标志并推送"空闲"状态。
@@ -246,47 +249,56 @@ impl Controller {
     pub fn spawn_hotkey_loop(self: &Arc<Self>, rx: mpsc::Receiver<KeyEvent>) {
         let self_cloned = Arc::clone(self);
 
-        thread::spawn(move || {
-            while let Ok(key_event) = rx.recv() {
-                if key_event == EXIT_HOTKEY {
-                    self_cloned.quit();
-                } else if key_event == SCAN_SINGLE_HOTKEY {
-                    if self_cloned.foreground.is_foreground_eligible() {
-                        self_cloned.scan_single();
-                    } else {
-                        debug!("前台窗口不是终末地或者 OEA，忽略热键");
-                    }
-                } else if key_event == TOGGLE_MAIN_TASK_HOTKEY {
-                    if self_cloned.foreground.is_foreground_eligible() {
-                        self_cloned.toggle_scan();
-                    } else {
-                        debug!("前台窗口不是终末地或者 OEA，忽略热键");
+        thread::Builder::new()
+            .name("oea-hotkey".to_string())
+            .spawn(move || {
+                while let Ok(key_event) = rx.recv() {
+                    if key_event == EXIT_HOTKEY {
+                        self_cloned.quit();
+                    } else if key_event == SCAN_SINGLE_HOTKEY {
+                        if self_cloned.foreground.is_foreground_eligible() {
+                            self_cloned.scan_single();
+                        } else {
+                            debug!("前台窗口不是终末地或者 OEA，忽略热键");
+                        }
+                    } else if key_event == TOGGLE_MAIN_TASK_HOTKEY {
+                        if self_cloned.foreground.is_foreground_eligible() {
+                            self_cloned.toggle_scan();
+                        } else {
+                            debug!("前台窗口不是终末地或者 OEA，忽略热键");
+                        }
                     }
                 }
-            }
-        });
+            })
+            .expect("启动热键消费线程失败");
     }
 
     /// 启动日志转发线程：把 logger 通道里的日志逐条 emit 到前端。
     pub fn spawn_log_loop(rx: mpsc::Receiver<LogEntry>, handle: AppHandle) {
-        thread::spawn(move || {
-            while let Ok(log_entry) = rx.recv() {
-                if let Err(e) = handle.emit("log", &log_entry) {
-                    error!("向前端推送日志失败: {e}");
+        thread::Builder::new()
+            .name("oea-log".to_string())
+            .spawn(move || {
+                while let Ok(log_entry) = rx.recv() {
+                    if let Err(e) = handle.emit("log", &log_entry) {
+                        error!("向前端推送日志失败: {e}");
+                    }
                 }
-            }
-        });
+            })
+            .expect("启动日志转发线程失败");
     }
 
     /// 启动扫描结果转发线程：把结果通道里的结果逐个 emit 到前端。
     pub fn spawn_scan_result_loop(rx: mpsc::Receiver<ScanResult>, handle: AppHandle) {
-        thread::spawn(move || {
-            while let Ok(result) = rx.recv() {
-                if let Err(e) = handle.emit("scan-result", &result) {
-                    error!("向前端推送扫描结果失败: {e}");
+        thread::Builder::new()
+            .name("oea-result".to_string())
+            .spawn(move || {
+                while let Ok(result) = rx.recv() {
+                    if let Err(e) = handle.emit("scan-result", &result) {
+                        error!("向前端推送扫描结果失败: {e}");
+                    }
                 }
-            }
-        });
+            })
+            .expect("启动扫描结果转发线程失败");
     }
 
     /// 向前端推送当前状态。

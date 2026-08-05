@@ -145,18 +145,21 @@ unsafe extern "system" fn keyboard_hook_proc(
 pub fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
     let (tx, rx) = mpsc::channel();
 
-    thread::spawn(move || {
-        // 安装低级键盘钩子（统一感知所有按键，不拦截任何按键）。
-        // 钩子回调运行在安装线程的消息泵中，故用线程本地存储传递状态。
-        let listener_state = ListenerState {
-            tx,
-            pressed: Vec::new(),
-            mods: 0,
-        };
-        LISTENER_STATE.with(|cell| *cell.borrow_mut() = Some(listener_state));
+    thread::Builder::new()
+        .name("oea-keyboard".to_string())
+        .spawn(move || {
+            // 安装低级键盘钩子（统一感知所有按键，不拦截任何按键）。
+            // 钩子回调运行在安装线程的消息泵中，故用线程本地存储传递状态。
+            let listener_state = ListenerState {
+                tx,
+                pressed: Vec::new(),
+                mods: 0,
+            };
+            LISTENER_STATE.with(|cell| *cell.borrow_mut() = Some(listener_state));
 
-        let hook =
-            match unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), None, 0) } {
+            let hook = match unsafe {
+                SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), None, 0)
+            } {
                 Ok(hook) => {
                     info!("键盘监听钩子安装成功");
                     Some(hook)
@@ -166,26 +169,27 @@ pub fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
                     None
                 }
             };
-        let Some(hook) = hook else {
-            LISTENER_STATE.with(|cell| *cell.borrow_mut() = None);
-            return;
-        };
+            let Some(hook) = hook else {
+                LISTENER_STATE.with(|cell| *cell.borrow_mut() = None);
+                return;
+            };
 
-        // 线程退出时自动清理：卸载钩子、清空线程本地状态
-        defer! {
-            let _ = unsafe { UnhookWindowsHookEx(hook) };
-            LISTENER_STATE.with(|cell| *cell.borrow_mut() = None);
-        }
-
-        // 消息循环：泵出低级键盘钩子消息（回调由系统在此线程的消息泵中调用）
-        let mut msg = MSG::default();
-        loop {
-            let ret = unsafe { GetMessageW(&mut msg, None, 0, 0) };
-            if ret.0 == 0 || ret.0 == -1 {
-                break;
+            // 线程退出时自动清理：卸载钩子、清空线程本地状态
+            defer! {
+                let _ = unsafe { UnhookWindowsHookEx(hook) };
+                LISTENER_STATE.with(|cell| *cell.borrow_mut() = None);
             }
-        }
-    });
+
+            // 消息循环：泵出低级键盘钩子消息（回调由系统在此线程的消息泵中调用）
+            let mut msg = MSG::default();
+            loop {
+                let ret = unsafe { GetMessageW(&mut msg, None, 0, 0) };
+                if ret.0 == 0 || ret.0 == -1 {
+                    break;
+                }
+            }
+        })
+        .expect("启动键盘监听线程失败");
 
     Ok(rx)
 }

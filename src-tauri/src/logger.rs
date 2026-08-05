@@ -1,13 +1,12 @@
-use std::io;
-use std::path::Path;
-use std::sync::mpsc;
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, mpsc};
 
+use chrono::{Local, NaiveDate};
 use serde::Serialize;
 use tracing::{Event, Subscriber, level_filters::LevelFilter};
-use tracing_appender::{
-    non_blocking::WorkerGuard,
-    rolling::{Builder, Rotation},
-};
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
     Layer,
     filter::Targets,
@@ -28,6 +27,60 @@ pub struct LogEntry {
     pub level: String,
     /// 格式化后的日志文本（事件字段，不含时间 / 等级 / 调用者）
     pub message: String,
+}
+
+/// 按本地日期每日轮换的文件写入器（tracing-appender 本身仅按 UTC 轮换，故自定义）。
+struct DailyRotatingWriter {
+    inner: Arc<Mutex<DailyState>>,
+}
+
+/// 每日轮换状态：当前打开的日志文件与所属本地日期。
+struct DailyState {
+    dir: PathBuf,
+    current_date: Option<NaiveDate>,
+    file: Option<File>,
+}
+
+impl DailyRotatingWriter {
+    fn new(dir: PathBuf) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(DailyState {
+                dir,
+                current_date: None,
+                file: None,
+            })),
+        }
+    }
+
+    /// 确保 `date` 对应的日志文件已打开；日期变化时切换到新文件。
+    fn ensure_file(state: &mut DailyState, date: NaiveDate) -> io::Result<()> {
+        if state.current_date == Some(date) {
+            return Ok(());
+        }
+        fs::create_dir_all(&state.dir)?;
+        let path = state.dir.join(format!("{}.log", date.format("%Y-%m-%d")));
+        let file = OpenOptions::new().create(true).append(true).open(path)?;
+        state.file = Some(file);
+        state.current_date = Some(date);
+        Ok(())
+    }
+}
+
+impl Write for DailyRotatingWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let date = Local::now().date_naive();
+        let mut state = self.inner.lock().unwrap();
+        Self::ensure_file(&mut state, date)?;
+        state.file.as_mut().expect("日志文件已打开").write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        let mut state = self.inner.lock().unwrap();
+        if let Some(file) = state.file.as_mut() {
+            file.flush()?;
+        }
+        Ok(())
+    }
 }
 
 /// 前端日志写入层：把每个事件格式化为 `LogEntry` 并通过通道发送。
@@ -71,11 +124,11 @@ where
 
 /// 初始化日志系统。
 ///
-/// - 控制台输出 DEBUG 及以上级别（带颜色），显示 `MM-dd HH:MM:SS`、等级、调用者与信息
-/// - 文件输出所有级别（TRACE 及以上），信息最完整（完整时间戳、等级、调用者、字段），
-///   按天轮转到 `<logs_dir>/YYYY-mm-dd.log`
+/// - 控制台输出 DEBUG 及以上级别（带颜色），显示 `MM-dd HH:MM:SS`、等级、调用者、行号与信息
+/// - 文件输出所有级别（TRACE 及以上），信息最完整：本地时间（含时区偏移）、等级、调用者、
+///   源文件位置、行号、线程名 / ID 与全部字段，按**本地日期**轮转到 `<logs_dir>/YYYY-mm-dd.log`
 /// - 前端转发所有级别（TRACE 及以上），以 `LogEntry`（时间 + 等级 + 文本）逐条发送，
-///   供 Tauri 界面展示 `MM-dd HH:MM:SS`、等级与信息，并可按等级过滤
+///   供 Tauri 界面展示 `MM-dd HH:MM:SS [等级] 信息`，并可按等级过滤
 /// - `ort` 及 `onnxruntime` 模块的日志仅输出 WARN 及以上（屏蔽 ONNX Runtime 的冗余信息）
 ///
 /// # 参数
@@ -88,26 +141,22 @@ pub fn init(logs_dir: &Path) -> (WorkerGuard, mpsc::Receiver<LogEntry>) {
     // 前端转发通道
     let (tx, rx) = mpsc::channel();
 
-    // 按天轮转的文件写入器，输出到 logs_dir/YYYY-mm-dd.log
-    let file_appender = Builder::new()
-        .rotation(Rotation::DAILY)
-        .filename_prefix("")
-        .filename_suffix("log")
-        .build(logs_dir)
-        .expect("初始化文件日志失败");
+    // 按本地日期每日轮换的文件写入器，输出到 logs_dir/YYYY-mm-dd.log
+    let file_writer = DailyRotatingWriter::new(logs_dir.to_path_buf());
 
     // 非阻塞文件写入（独立线程）
-    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_writer);
 
     // 控制台过滤器：默认 DEBUG，ort 只记录 WARN 及以上
     let console_filter = Targets::new()
         .with_default(LevelFilter::DEBUG)
         .with_target("ort", LevelFilter::WARN);
 
-    // 输出到 stderr：DEBUG 及以上（带颜色），格式为 `MM-dd HH:MM:SS 等级 调用者: 信息`
+    // 输出到 stderr：DEBUG 及以上（带颜色），格式为 `MM-dd HH:MM:SS 等级 调用者: 行号: 信息`
     let console_layer = fmt::layer()
         .with_writer(io::stderr)
         .with_timer(ChronoLocal::new("%m-%d %H:%M:%S".to_string()))
+        .with_line_number(true)
         .with_filter(console_filter);
 
     // 文件/前端过滤器：默认 TRACE，ort 只记录 WARN 及以上
@@ -115,9 +164,14 @@ pub fn init(logs_dir: &Path) -> (WorkerGuard, mpsc::Receiver<LogEntry>) {
         .with_default(LevelFilter::TRACE)
         .with_target("ort", LevelFilter::WARN);
 
-    // 输出到文件：去掉颜色（文件中 ANSI 转义序列无意义）
+    // 输出到文件：事无巨细——本地时间（含时区偏移）、等级、调用者、源文件位置、行号、线程与字段
     let file_layer = fmt::layer()
         .with_ansi(false)
+        .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S%.6f%:z".to_string()))
+        .with_file(true)
+        .with_line_number(true)
+        .with_thread_ids(true)
+        .with_thread_names(true)
         .with_writer(non_blocking)
         .with_filter(frontend_filter.clone());
 
