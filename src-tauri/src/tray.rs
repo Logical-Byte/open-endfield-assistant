@@ -11,19 +11,22 @@ use std::sync::{
 };
 
 use tauri::{
-    AppHandle, Manager, Wry,
+    AppHandle, Listener, Manager, Wry,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
 };
 use tracing::info;
 
-use crate::controller::Controller;
+use crate::controller::{AppStatus, Controller};
 
 /// 关闭窗口时是否最小化到托盘（默认开启，托盘菜单提供"退出"入口）。
 static MINIMIZE_TO_TRAY: AtomicBool = AtomicBool::new(true);
 
 /// 全局托盘图标引用，供后续动态更新图标 / tooltip。
 static TRAY_ICON: OnceLock<Mutex<Option<TrayIcon>>> = OnceLock::new();
+
+/// 全局"开始/停止扫描"菜单项引用，随主任务运行状态动态切换文案。
+static TRAY_TOGGLE_ITEM: OnceLock<Mutex<Option<MenuItem<Wry>>>> = OnceLock::new();
 
 /// 设置"关闭窗口时最小化到托盘"。
 pub fn set_minimize_to_tray(enabled: bool) {
@@ -59,15 +62,32 @@ pub fn handle_close_requested(app: &AppHandle) -> bool {
     }
 }
 
+/// 更新"开始/停止扫描"菜单项文案，使其与主任务运行状态同步。
+fn update_toggle_item(running: bool) {
+    let text = if running {
+        "停止扫描"
+    } else {
+        "开始扫描"
+    };
+    let Some(toggle) = TRAY_TOGGLE_ITEM.get() else {
+        return;
+    };
+    let Ok(guard) = toggle.lock() else {
+        return;
+    };
+    if let Some(item) = guard.as_ref() {
+        let _ = item.set_text(text);
+    }
+}
+
 /// 初始化系统托盘（在 `setup` 中、`Controller` 托管之后调用）。
 pub fn init_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    // 托盘菜单项
+    // 托盘菜单项：开始/停止扫描合并为一个动态切换项
     let show_i = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
-    let start_i = MenuItem::with_id(app, "start", "开始任务", true, None::<&str>)?;
-    let stop_i = MenuItem::with_id(app, "stop", "停止任务", true, None::<&str>)?;
+    let toggle_i = MenuItem::with_id(app, "toggle", "开始扫描", true, None::<&str>)?;
     let quit_i = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
 
-    let menu = Menu::with_items(app, &[&show_i, &start_i, &stop_i, &quit_i])?;
+    let menu = Menu::with_items(app, &[&show_i, &toggle_i, &quit_i])?;
 
     // 图标：复用应用图标（tauri.conf.json 的 bundle.icon）
     let icon = app
@@ -83,14 +103,9 @@ pub fn init_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => show_main_window(app),
-            "start" => {
+            "toggle" => {
                 if let Some(controller) = app.try_state::<Arc<Controller>>() {
-                    controller.start_scan();
-                }
-            }
-            "stop" => {
-                if let Some(controller) = app.try_state::<Arc<Controller>>() {
-                    controller.stop_scan();
+                    controller.toggle_scan();
                 }
             }
             "quit" => {
@@ -116,9 +131,31 @@ pub fn init_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         .build(app)?;
 
     // 保存托盘引用，供后续动态更新
-    let tray_mutex = TRAY_ICON.get_or_init(|| Mutex::new(None));
-    let mut guard = tray_mutex.lock().map_err(|_| "托盘图标互斥锁中毒")?;
-    *guard = Some(tray);
+    {
+        let tray_mutex = TRAY_ICON.get_or_init(|| Mutex::new(None));
+        let mut guard = tray_mutex.lock().map_err(|_| "托盘图标互斥锁中毒")?;
+        *guard = Some(tray);
+    }
+
+    // 保存"开始/停止扫描"菜单项引用，用于随运行状态切换文案。
+    // 注意：guard 必须在此作用域内释放，否则下方 update_toggle_item 在同一线程
+    // 重入 lock 同一个非重入 Mutex 会死锁（曾导致窗口打开即未响应）。
+    {
+        let toggle_mutex = TRAY_TOGGLE_ITEM.get_or_init(|| Mutex::new(None));
+        let mut toggle_guard = toggle_mutex.lock().map_err(|_| "托盘菜单项互斥锁中毒")?;
+        *toggle_guard = Some(toggle_i);
+    }
+
+    // 订阅运行状态事件：主任务启动 / 结束都会推送，据此切换菜单文案
+    app.listen("app-status", |event| {
+        if let Ok(status) = serde_json::from_str::<AppStatus>(event.payload()) {
+            update_toggle_item(status.running);
+        }
+    });
+    // 同步初始状态（启动时未运行，菜单已显示"开始扫描"）
+    if let Some(controller) = app.try_state::<Arc<Controller>>() {
+        update_toggle_item(controller.get_status().running);
+    }
 
     info!("系统托盘初始化完成");
     Ok(())

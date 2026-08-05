@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use tracing::{debug, error, info, warn};
 use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_1, VK_OEM_7};
@@ -29,7 +29,7 @@ use crate::{
 };
 
 /// 推送给前端的应用状态。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppStatus {
     /// 主任务是否正在运行
     pub running: bool,
