@@ -15,15 +15,17 @@ pub const ENDFIELD_WINDOW_CLASS: &str = "UnityWndClass";
 
 /// 前台窗口守卫。
 ///
-/// 仅持有窗口句柄（裸指针封装），访问被串行化到热键监听线程；
-/// 与 [`crate::screencap`] 中其它持有 HWND 的类型采用相同的 Send 约定。
+/// 仅持有窗口句柄（裸指针封装），且只读、不修改窗口。访问被串行化到热键
+/// 消费线程（`Controller::spawn_hotkey_loop`），与 [`crate::screencap`] 中
+/// 其它持有 HWND 的类型采用相同的 Send/Sync 约定。
 pub struct ForegroundGuard {
     /// OEA 自身主窗口句柄
     oea_hwnd: HWND,
 }
 
-// HWND 为 `*mut c_void` 封装，本身非 Send，需手动声明（调用方串行化访问）
+// HWND 为 `*mut c_void` 封装，本身非 Send/Sync，需手动声明（调用方串行化访问）
 unsafe impl Send for ForegroundGuard {}
+unsafe impl Sync for ForegroundGuard {}
 
 impl ForegroundGuard {
     /// 创建守卫，绑定 OEA 自身主窗口句柄。

@@ -31,8 +31,8 @@ use windows::Win32::Foundation::HWND;
 
 use crate::{
     app_paths::AppPaths,
-    controller::{Controller, HOTKEY_BINDINGS, HotkeyAction},
-    hotkey::{HotkeyFilter, register_hotkey},
+    controller::{Controller, HOTKEY_BINDINGS},
+    hotkey::register_hotkey,
     ocr::OcrEngine,
     scene::create_scene_manager,
     tasks::archive_scan::ScanResult,
@@ -40,8 +40,8 @@ use crate::{
 };
 
 /// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
-fn get_oea_hwnd(app: &tauri::App) -> Result<HWND> {
-    let window = app
+fn get_oea_hwnd(app_handle: &tauri::AppHandle) -> Result<HWND> {
+    let window = app_handle
         .get_webview_window("main")
         .ok_or_else(|| anyhow!("未找到 OEA 主窗口"))?;
     Ok(window.hwnd()?)
@@ -99,17 +99,14 @@ pub fn run() {
             // 场景管理器（本游戏全部场景，注册顺序即识别优先级）
             let scenes = Arc::new(create_scene_manager());
 
-            // 全局热键：基础设施注册器 + 应用层键位 / 前台规则
+            // 全局热键：三层结构
+            // - 第一层 hotkey::listener 监听所有键盘消息（过滤按住自动重复）
+            // - 第二层 hotkey::register_hotkey 注册键位，命中即发事件（不做过滤）
+            // - 第三层 Controller::spawn_hotkey_loop 做前台窗口过滤并分发动作
             // 分号 / 引号仅在前台为 OEA 或终末地窗口时响应；Alt+Delete 退出全局生效
-            let oea_hwnd = get_oea_hwnd(app)?;
+            let oea_hwnd = get_oea_hwnd(&app.handle())?;
             let foreground = ForegroundGuard::new(oea_hwnd);
-            let filter: Option<HotkeyFilter> = Some(Box::new(move |tag| {
-                if tag == HotkeyAction::Exit as u32 {
-                    return true; // 退出全局生效
-                }
-                foreground.is_foreground_eligible()
-            }));
-            let hotkey_rx = register_hotkey(HOTKEY_BINDINGS, filter)?;
+            let hotkey_rx = register_hotkey(HOTKEY_BINDINGS)?;
 
             // 状态标志（Controller 唯一归属）
             let stop = Arc::new(AtomicBool::new(false));
@@ -124,6 +121,7 @@ pub fn run() {
                 running,
                 scan_tx,
                 scan_index,
+                foreground,
                 app.handle().clone(),
                 logger_guard,
             ));

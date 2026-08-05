@@ -1,10 +1,16 @@
 //! 全局热键模块。
 //!
-//! 拆分为两层：
-//! - **基础设施层** [`registry`]：通用"注册 / 监听 / 过滤"（`WH_KEYBOARD_LL`，只感知不拦截），
-//!   不知道按下后要干什么；
-//! - **应用层**：键位 → 动作的绑定表与分发逻辑在 [`crate::controller`]。
+//! 拆为三层，职责严格分离（过滤逻辑不属于热键本身）：
+//! - **第一层** [`listener`]：原始键盘监听（`WH_KEYBOARD_LL`，只感知不拦截），
+//!   过滤按住自动重复（等价 `MOD_NOREPEAT` 语义），只发"按下 / 弹起"事件；
+//! - **第二层** [`registry`]：热键注册器，把按键流与绑定表匹配，命中即发事件，
+//!   不做任何放行过滤；
+//! - **第三层**（应用层，见 [`crate::controller`]）：做前台窗口过滤与动作分发。
+//!
+//! 前两层在按键按下时立即做事（监听 / 匹配发事件）；"该不该响应"由应用层决定。
 
+mod listener;
 mod registry;
 
-pub use registry::{HotkeyBinding, HotkeyEvent, HotkeyFilter, register_hotkey};
+pub use listener::{KeyEvent, listen};
+pub use registry::{HotkeyBinding, HotkeyEvent, register_hotkey};

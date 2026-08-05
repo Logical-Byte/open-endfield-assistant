@@ -2,8 +2,8 @@
 //!
 //! 职责边界：
 //! - **状态机**：`running`（CAS 防重入启动）与 `stop`（秒停）两个原子标志的**唯一归属**；
-//! - **线程编排**：主任务扫描线程、热键轮询线程、日志 / 结果转发线程；
-//! - **热键动作分发**（应用层）：键位 → 动作的绑定表 + 前台规则 + [`handle_hotkey`]；
+//! - **线程编排**：主任务扫描线程、热键消费线程、日志 / 结果转发线程；
+//! - **热键动作分发**（第三层）：键位 → 动作的绑定表 + 前台窗口过滤 + [`handle_hotkey`]；
 //!
 //! 依赖方向：应用层 → 领域层（connect/session/scene/task）→ 基础设施层。
 
@@ -15,9 +15,7 @@ use std::thread;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tracing::{error, info, warn};
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    MOD_ALT, MOD_NOREPEAT, VK_DELETE, VK_OEM_1, VK_OEM_7,
-};
+use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_1, VK_OEM_7};
 
 use crate::{
     connect::connect_to_game,
@@ -26,7 +24,7 @@ use crate::{
     scene::SceneManager,
     task::{TaskStopped, run_task},
     tasks::archive_scan::{ArchiveScanTask, ScanReporter, ScanResult, single_scan},
-    window,
+    window::{self, ForegroundGuard},
 };
 
 /// 推送给前端的应用状态。
@@ -66,6 +64,8 @@ impl HotkeyAction {
 /// - 分号 `;` → 单次扫描
 /// - 引号 `'` → 切换主任务
 /// - Alt+Delete → 退出
+///
+/// 按住自动重复已在第一层过滤（等价 `MOD_NOREPEAT` 语义），无需在绑定里声明。
 pub const HOTKEY_BINDINGS: &[HotkeyBinding] = &[
     HotkeyBinding {
         vk: VK_OEM_1.0 as u32,
@@ -79,7 +79,7 @@ pub const HOTKEY_BINDINGS: &[HotkeyBinding] = &[
     },
     HotkeyBinding {
         vk: VK_DELETE.0 as u32,
-        modifiers: MOD_ALT.0 | MOD_NOREPEAT.0,
+        modifiers: MOD_ALT.0,
         tag: HotkeyAction::Exit as u32,
     },
 ];
@@ -102,6 +102,8 @@ pub struct Controller {
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
     /// 全局扫描序号（跨主任务 / 单次扫描连续递增）
     scan_index: Arc<AtomicU32>,
+    /// 前台窗口守卫（第三层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
+    foreground: ForegroundGuard,
     /// Tauri 应用句柄（向前端 emit 事件）
     handle: AppHandle,
     /// 日志写入线程守卫（保活）
@@ -119,6 +121,7 @@ impl Controller {
         running: Arc<AtomicBool>,
         scan_tx: mpsc::Sender<ScanResult>,
         scan_index: Arc<AtomicU32>,
+        foreground: ForegroundGuard,
         handle: AppHandle,
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
     ) -> Self {
@@ -131,6 +134,7 @@ impl Controller {
             op_lock: Mutex::new(()),
             scan_tx: Mutex::new(scan_tx),
             scan_index,
+            foreground,
             handle,
             _logger_guard,
         }
@@ -287,14 +291,26 @@ impl Controller {
 
     // ========== 后台线程 ==========
 
-    /// 启动热键消费线程：阻塞接收事件并立即分发（消息驱动，无轮询）。
+    /// 启动热键消费线程（第三层：应用层过滤 + 分发）。
+    ///
+    /// 阻塞接收热键事件，先做应用层放行过滤（前台窗口规则），再分发动作。
+    /// 过滤逻辑不属于热键本身：第一 / 二层在按键按下时立即发事件，
+    /// "该不该响应"由本层决定。
     pub fn spawn_hotkey_loop(rx: mpsc::Receiver<HotkeyEvent>, this: Arc<Self>) {
         thread::spawn(move || {
             while let Ok(HotkeyEvent { tag }) = rx.recv() {
-                match HotkeyAction::from_tag(tag) {
-                    Some(action) => this.handle_hotkey(action),
-                    None => warn!("未知热键标签: {tag}"),
+                let Some(action) = HotkeyAction::from_tag(tag) else {
+                    warn!("未知热键标签: {tag}");
+                    continue;
+                };
+
+                // 应用层过滤：退出全局生效；分号 / 引号仅在前台为 OEA 或终末地时响应
+                if action != HotkeyAction::Exit && !this.foreground.is_foreground_eligible() {
+                    info!("忽略热键 {action:?}：前台窗口不满足放行条件");
+                    continue;
                 }
+
+                this.handle_hotkey(action);
             }
         });
     }
