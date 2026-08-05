@@ -332,3 +332,9 @@ impl SceneManager {
         scene.execute_transition(to, session)
     }
 }
+
+impl Default for SceneManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -16,7 +16,9 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tracing::{error, info, warn};
-use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, MOD_NOREPEAT, VK_DELETE, VK_OEM_1, VK_OEM_7};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    MOD_ALT, MOD_NOREPEAT, VK_DELETE, VK_OEM_1, VK_OEM_7,
+};
 
 use crate::{
     connect::connect_to_game,
@@ -148,7 +150,10 @@ impl Controller {
 
     /// 创建扫描结果上报器（每次游戏操作一个，序号全局连续）。
     fn reporter(&self) -> ScanReporter {
-        ScanReporter::new(self.scan_tx.lock().unwrap().clone(), self.scan_index.clone())
+        ScanReporter::new(
+            self.scan_tx.lock().unwrap().clone(),
+            self.scan_index.clone(),
+        )
     }
 
     // ========== 启动 / 停止 / 单扫 / 退出 ==========
@@ -294,12 +299,10 @@ impl Controller {
         thread::spawn(move || {
             loop {
                 match this.hotkey.lock().unwrap().try_next() {
-                    Ok(Some(HotkeyEvent { tag })) => {
-                        match HotkeyAction::from_tag(tag) {
-                            Some(action) => this.handle_hotkey(action),
-                            None => warn!("未知热键标签: {tag}"),
-                        }
-                    }
+                    Ok(Some(HotkeyEvent { tag })) => match HotkeyAction::from_tag(tag) {
+                        Some(action) => this.handle_hotkey(action),
+                        None => warn!("未知热键标签: {tag}"),
+                    },
                     Ok(None) => {}
                     Err(e) => {
                         error!("热键监听线程异常退出: {e}");

@@ -118,8 +118,13 @@ impl Session {
     pub fn click_at_720p(&mut self, x: u32, y: u32) -> Result<()> {
         self.check_stop()?;
         let (sx, sy) = self.resolution.scale_point(x, y);
-        self.input
-            .click(Contact::Left, Point2D { x: sx as i32, y: sy as i32 })?;
+        self.input.click(
+            Contact::Left,
+            Point2D {
+                x: sx as i32,
+                y: sy as i32,
+            },
+        )?;
         thread::sleep(Duration::from_millis(50));
         self.move_mouse_to_safe_position()?;
         Ok(())
@@ -153,9 +158,9 @@ impl Session {
         threshold: f32,
     ) -> Result<Option<MatchResult>> {
         let rgb_screenshot = DynamicImage::ImageRgba8(screenshot.clone()).to_rgb8();
-        let result = self
-            .templates
-            .match_template_in_region(&rgb_screenshot, template_name, Some(roi));
+        let result =
+            self.templates
+                .match_template_in_region(&rgb_screenshot, template_name, Some(roi));
         match result {
             Ok(m) if m.score >= threshold => Ok(Some(m)),
             Ok(_) => Ok(None),

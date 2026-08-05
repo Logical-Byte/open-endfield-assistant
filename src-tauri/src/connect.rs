@@ -40,8 +40,7 @@ pub fn connect_to_game(
 
     // 2. 检测分辨率
     let client_rect = window::get_client_rect(hwnd)?;
-    let resolution =
-        GameResolution::new(client_rect.width() as u32, client_rect.height() as u32)?;
+    let resolution = GameResolution::new(client_rect.width() as u32, client_rect.height() as u32)?;
     info!("游戏分辨率: {}×{}", resolution.width, resolution.height);
 
     // 3. 创建截图器与输入器

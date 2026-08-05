@@ -200,18 +200,18 @@ impl HotkeyRegistry {
             };
             HOOK_STATE.with(|cell| *cell.borrow_mut() = Some(hook_state));
 
-            let hook =
-                match unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), None, 0) }
-                {
-                    Ok(hook) => {
-                        info!("低级键盘钩子安装成功");
-                        Some(hook)
-                    }
-                    Err(e) => {
-                        error!("低级键盘钩子安装失败: {e}");
-                        None
-                    }
-                };
+            let hook = match unsafe {
+                SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), None, 0)
+            } {
+                Ok(hook) => {
+                    info!("低级键盘钩子安装成功");
+                    Some(hook)
+                }
+                Err(e) => {
+                    error!("低级键盘钩子安装失败: {e}");
+                    None
+                }
+            };
             let Some(hook) = hook else {
                 HOOK_STATE.with(|cell| *cell.borrow_mut() = None);
                 return;

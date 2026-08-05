@@ -31,7 +31,7 @@ use windows::Win32::Foundation::HWND;
 
 use crate::{
     app_paths::AppPaths,
-    controller::{Controller, HotkeyAction, HOTKEY_BINDINGS},
+    controller::{Controller, HOTKEY_BINDINGS, HotkeyAction},
     hotkey::{HotkeyFilter, HotkeyRegistry},
     ocr::OcrEngine,
     scene::create_scene_manager,

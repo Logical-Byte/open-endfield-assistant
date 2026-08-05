@@ -5,7 +5,10 @@ use std::{fs, sync::Arc};
 use anyhow::Result;
 use tauri::State;
 
-use crate::{app_paths::AppPaths, controller::{AppStatus, Controller}};
+use crate::{
+    app_paths::AppPaths,
+    controller::{AppStatus, Controller},
+};
 
 /// 启动档案库主任务（在后台线程执行，立即返回当前状态）。
 #[tauri::command]

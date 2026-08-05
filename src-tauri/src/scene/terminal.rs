@@ -27,12 +27,7 @@ impl Scene for Scene协议终端 {
         let screenshot = session.screencap_for_recognition()?;
 
         let found = session
-            .find_template_in_roi(
-                &screenshot,
-                "档案库.png",
-                ROI_档案库按钮,
-                DEFAULT_THRESHOLD,
-            )?
+            .find_template_in_roi(&screenshot, "档案库.png", ROI_档案库按钮, DEFAULT_THRESHOLD)?
             .is_some();
 
         Ok(if found {

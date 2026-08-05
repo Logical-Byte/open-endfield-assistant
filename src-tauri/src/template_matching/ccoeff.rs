@@ -38,6 +38,11 @@ impl CcoeffNormalized {
         }
     }
 
+    /// 计算单个像素位置的归一化互相关分数。
+    ///
+    /// 参数均为模板匹配算法的必需输入（位置 / 模板尺寸 / 积分图 / 互相关图），
+    /// 故允许较长的签名。
+    #[allow(clippy::too_many_arguments)]
     fn score_at(
         &self,
         x: u32,

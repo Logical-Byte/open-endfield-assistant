@@ -15,7 +15,9 @@ use windows::Win32::Graphics::Direct3D11::{
     D3D11_USAGE_STAGING, D3D11CreateDevice, D3D11CreateDeviceAndSwapChain, ID3D11Device,
     ID3D11DeviceContext, ID3D11Texture2D,
 };
-use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
+use windows::Win32::Graphics::Dxgi::Common::{
+    DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_MODE_DESC, DXGI_SAMPLE_DESC,
+};
 use windows::Win32::Graphics::Dxgi::{
     DXGI_SWAP_CHAIN_DESC, DXGI_USAGE_RENDER_TARGET_OUTPUT, IDXGIDevice, IDXGISwapChain,
 };
@@ -221,13 +223,21 @@ impl FramePoolScreencap {
             bail!("hwnd_ is nullptr");
         }
 
-        let mut swap_chain_desc: DXGI_SWAP_CHAIN_DESC = DXGI_SWAP_CHAIN_DESC::default();
-        swap_chain_desc.BufferCount = 1;
-        swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-        swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        swap_chain_desc.OutputWindow = self.hwnd;
-        swap_chain_desc.SampleDesc.Count = 1;
-        swap_chain_desc.Windowed = true.into();
+        let swap_chain_desc: DXGI_SWAP_CHAIN_DESC = DXGI_SWAP_CHAIN_DESC {
+            BufferCount: 1,
+            BufferDesc: DXGI_MODE_DESC {
+                Format: DXGI_FORMAT_B8G8R8A8_UNORM,
+                ..Default::default()
+            },
+            BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
+            OutputWindow: self.hwnd,
+            SampleDesc: DXGI_SAMPLE_DESC {
+                Count: 1,
+                ..Default::default()
+            },
+            Windowed: true.into(),
+            ..Default::default()
+        };
 
         unsafe {
             D3D11CreateDeviceAndSwapChain(
