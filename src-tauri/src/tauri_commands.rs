@@ -57,3 +57,16 @@ pub fn open_log_dir() -> Result<(), String> {
     tauri_plugin_opener::open_path(&logs_dir, None::<&str>)
         .map_err(|e| format!("无法打开日志目录: {e}"))
 }
+
+/// 设置"关闭窗口时最小化到托盘"（返回设置后的值，供前端设置界面使用）。
+#[tauri::command]
+pub fn set_minimize_to_tray(enabled: bool) -> bool {
+    crate::tray::set_minimize_to_tray(enabled);
+    crate::tray::get_minimize_to_tray()
+}
+
+/// 查询"关闭窗口时最小化到托盘"。
+#[tauri::command]
+pub fn get_minimize_to_tray() -> bool {
+    crate::tray::get_minimize_to_tray()
+}

@@ -16,6 +16,7 @@ pub mod task;
 pub mod tasks;
 pub mod tauri_commands;
 pub mod template_matching;
+pub mod tray;
 pub mod utils;
 pub mod window;
 
@@ -56,8 +57,18 @@ pub fn run() {
             tauri_commands::scan_single,
             tauri_commands::get_status,
             tauri_commands::quit,
-            tauri_commands::open_log_dir
+            tauri_commands::open_log_dir,
+            tauri_commands::set_minimize_to_tray,
+            tauri_commands::get_minimize_to_tray
         ])
+        .on_window_event(|window, event| {
+            // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if tray::handle_close_requested(window.app_handle()) {
+                    api.prevent_close();
+                }
+            }
+        })
         .setup(|app| {
             // 解析资源目录（resources/models/logs），不依赖运行时工作目录
             let app_paths = AppPaths::new()?;
@@ -120,6 +131,9 @@ pub fn run() {
             Controller::spawn_scan_result_loop(scan_rx, app.handle().clone());
             controller.spawn_hotkey_loop(hotkey_rx);
             app.manage(controller);
+
+            // 初始化系统托盘（依赖已托管的 Controller，托盘菜单事件直接驱动它）
+            tray::init_tray(app.handle())?;
 
             info!("OEA 后端初始化完成");
             Ok(())

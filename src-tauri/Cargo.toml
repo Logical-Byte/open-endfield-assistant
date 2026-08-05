@@ -31,7 +31,7 @@ rapidocr-core = { version = "0.2.2", default-features = false }
 scopeguard = "1.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri = { version = "2.11.3", features = [] }
+tauri = { version = "2.11.3", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
