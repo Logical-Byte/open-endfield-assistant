@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { initAppState } from '@/lib/appState';
+import { initLogState } from '@/lib/logState';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';
 import { computed } from 'vue';
@@ -12,6 +13,7 @@ useHead({
 });
 
 initAppState();
+initLogState();
 </script>
 
 <template>
