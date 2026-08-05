@@ -52,7 +52,7 @@ pub fn connect_to_game(
         hwnd,
         screencap,
         input,
-        ocr.clone(),
+        Arc::clone(ocr),
         templates_root,
         resolution,
         stop,

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use image::RgbImage;
+use image::{GenericImageView, Pixel, RgbImage};
 
 use super::MatchResult;
 use crate::utils::region::Region2D;
@@ -50,12 +50,16 @@ impl TemplateManager {
     /// 在 `image` 的 `search_region` 区域内搜索名为 `template_name` 的模板。
     ///
     /// 模板会在第一次使用时自动从 `folder` 文件夹中加载并缓存。
-    pub fn match_template_in_region(
+    pub fn match_template_in_region<I>(
         &mut self,
-        image: &RgbImage,
+        image: &I,
         template_name: &str,
         search_region: Option<Region2D<u32>>,
-    ) -> Result<MatchResult> {
+    ) -> Result<MatchResult>
+    where
+        I: GenericImageView,
+        I::Pixel: Pixel<Subpixel = u8>,
+    {
         let template = self.ensure_template(template_name)?;
         super::match_template_in_region(image, template, search_region)
     }

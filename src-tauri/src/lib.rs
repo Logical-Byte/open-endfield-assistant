@@ -51,7 +51,7 @@ fn get_oea_hwnd(app: &tauri::App) -> Result<HWND> {
 pub fn run() {
     tauri::Builder::default()
         // WebView2 默认通过 raw input 接收键盘输入，当 OEA 窗口聚焦时会导致
-        // WH_KEYBOARD_LL 低级键盘钩子收不到按键（tauri-apps/tauri#13919）。
+        // WH_KEYBOARD_LL 低级键盘钩子收不到按键（[`tauri-apps/tauri#13919`](https://github.com/tauri-apps/tauri/issues/13919)）。
         // Always = 移除 raw input 注册，让 LL 钩子全局都能收到按键。
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(tauri_plugin_opener::init())
@@ -67,9 +67,12 @@ pub fn run() {
             // 解析资源目录（resources/models/logs），不依赖运行时工作目录
             let app_paths = AppPaths::new()?;
 
-            // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入
-            // %LOCALAPPDATA%\<identifier>），保证所有磁盘写入都限定在应用目录内。
+            // 初始化日志系统：控制台输出 INFO+，文件输出 TRACE+，前端转发 TRACE+。
+            let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
+
+            // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。
             fs::create_dir_all(app_paths.webview_data_dir())?;
+            // 在 Rust 里动态创建 webview 窗口，而不在 `tauri.conf.json` 里声明窗口，否则无法更改 WebView2 用户数据目录。
             let _main_window =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                     .title("OEA")
@@ -81,7 +84,7 @@ pub fn run() {
                     .data_directory(app_paths.webview_data_dir())
                     .build()?;
 
-            let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
+            // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
             window::set_thread_dpi_awareness_context();
 
             // 扫描结果通道：任务线程产生 → 转发线程 emit 给前端

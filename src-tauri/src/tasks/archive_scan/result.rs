@@ -28,7 +28,7 @@ pub struct ScanResult {
 }
 
 /// 截图编码为 data URL 前的最大宽度（等比缩小，控制事件体积与内存占用）。
-const MAX_IMAGE_WIDTH: u32 = 640;
+const MAX_IMAGE_WIDTH: u32 = 1280;
 
 /// 把 720p 截图编码为 base64 PNG data URL（供前端 `<img>` 直接显示）。
 ///

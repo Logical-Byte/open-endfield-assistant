@@ -157,10 +157,10 @@ impl Session {
         roi: Region2D<u32>,
         threshold: f32,
     ) -> Result<Option<MatchResult>> {
-        let rgb_screenshot = DynamicImage::ImageRgba8(screenshot.clone()).to_rgb8();
-        let result =
-            self.templates
-                .match_template_in_region(&rgb_screenshot, template_name, Some(roi));
+        // 直接传 RgbaImage 引用：泛型接口内部灰度化，无需克隆 / 颜色转换。
+        let result = self
+            .templates
+            .match_template_in_region(screenshot, template_name, Some(roi));
         match result {
             Ok(m) if m.score >= threshold => Ok(Some(m)),
             Ok(_) => Ok(None),

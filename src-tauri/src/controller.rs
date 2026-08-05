@@ -152,7 +152,7 @@ impl Controller {
     fn reporter(&self) -> ScanReporter {
         ScanReporter::new(
             self.scan_tx.lock().unwrap().clone(),
-            self.scan_index.clone(),
+            Arc::clone(&self.scan_index),
         )
     }
 
@@ -171,7 +171,7 @@ impl Controller {
         info!("收到启动主任务请求");
         self.emit_status();
 
-        let this = self.clone();
+        let this = Arc::clone(self);
         thread::spawn(move || {
             // 游戏操作串行门：与单次扫描互斥
             let _gate = this.op_lock.lock().unwrap();
@@ -283,7 +283,6 @@ impl Controller {
             }
             HotkeyAction::Exit => {
                 if self.running.load(Ordering::Relaxed) {
-                    self.stop.store(true, Ordering::Relaxed);
                     info!("收到退出请求（热键），正在停止主任务...");
                 }
                 self.quit();
