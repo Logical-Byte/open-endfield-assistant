@@ -11,7 +11,10 @@ use super::{SceneAction, SceneId};
 /// 借鉴 MaaFramework Pipeline 节点的设计，每个场景负责：
 /// 1. 识别自身（`try_recognize`）
 /// 2. 定义可跳转的目标场景（`transitions`）
-pub trait Scene: Send {
+///
+/// `Send + Sync`：场景实现均为零大小结构体，自动满足；
+/// 同时允许 `Arc<SceneManager>` 跨线程共享（扫描线程 / 命令线程共用）。
+pub trait Scene: Send + Sync {
     /// 返回此场景的唯一标识符。
     fn id(&self) -> SceneId;
 

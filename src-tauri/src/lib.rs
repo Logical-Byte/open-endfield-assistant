@@ -43,8 +43,8 @@ use crate::{
     hotkey::{HotkeyBinding, HotkeyEvent, HotkeyListener},
     ocr::OcrEngine,
     scan_result::ScanResult,
+    scene::create_scene_manager,
     session_factory::SessionFactory,
-    tasks::archive_scan::scenes::create_scene_manager,
     window::ForegroundGuard,
 };
 

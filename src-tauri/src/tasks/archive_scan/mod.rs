@@ -6,7 +6,6 @@
 
 mod constants;
 mod scan_loop;
-pub mod scenes;
 mod single_scan;
 pub mod task;
 

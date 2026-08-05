@@ -1,33 +1,19 @@
-//! 档案库相关场景的识别实现。
+//! 档案库相关场景：主界面 / 子界面 / 详情页面。
 //!
-//! 每个场景实现 [`Scene`] trait，负责自我识别和定义跳转关系。
-//!
-//! 场景识别优先级（从具体到笼统，按此顺序注册到 SceneManager）：
-//! 1. 档案详情页面（最具体）
-//! 2. 档案库子界面
-//! 3. 档案库主界面
-//! 4. 协议终端
-//! 5. 大世界
-//! 6. 未知（兜底）
+//! 识别优先级（具体 → 笼统）由 `scene::create_scene_manager` 的注册顺序决定，
+//! 本模块内部三个场景的相对顺序：档案详情页面 > 档案库子界面 > 档案库主界面。
 
 use std::sync::LazyLock;
 
 use anyhow::Result;
 
-use crate::{
-    scene::{
-        Scene, SceneAction, SceneId, SceneTransition, scene_manager::SceneManager, 档案库SubSceneId,
-    },
-    session::Session,
-    utils::region::Region2D,
-};
+use super::{DEFAULT_THRESHOLD, Scene, SceneAction, SceneId, SceneTransition, 档案库SubSceneId};
+use crate::session::Session;
+use crate::utils::region::Region2D;
 
 // ============================================================================
 // 常用 ROI 和阈值常量（720p 基准）
 // ============================================================================
-
-/// 模板匹配默认阈值
-const DEFAULT_THRESHOLD: f32 = 0.75;
 
 /// 档案库标题 ROI
 const ROI_档案库标题: Region2D<u32> = Region2D::from_ltrb(0, 0, 162, 76);
@@ -40,12 +26,6 @@ const ROI_水印: Region2D<u32> = Region2D::from_ltrb(52, 482, 189, 618);
 
 /// 档案详情装饰 ROI (356, 34, 496, 77)
 const ROI_档案详情装饰: Region2D<u32> = Region2D::from_ltrb(356, 34, 496, 77);
-
-/// 协议终端按钮 ROI (1180, 0, 1280, 100)
-const ROI_协议终端按钮: Region2D<u32> = Region2D::from_ltrb(1180, 0, 1280, 100);
-
-/// 档案库按钮 ROI (971, 108, 1280, 700)
-const ROI_档案库按钮: Region2D<u32> = Region2D::from_ltrb(971, 108, 1280, 700);
 
 /// 音像存档按钮 ROI (692, 371, 959, 601)
 const ROI_音像存档按钮: Region2D<u32> = Region2D::from_ltrb(692, 371, 959, 601);
@@ -91,7 +71,6 @@ impl Scene for Scene档案详情页面 {
                 DEFAULT_THRESHOLD,
             )?
             .is_some();
-
         if !has_decoration {
             return Ok(None);
         }
@@ -105,21 +84,19 @@ impl Scene for Scene档案详情页面 {
             )?
             .is_some();
 
-        if has_close {
-            Ok(Some(SceneId::档案详情页面))
+        Ok(if has_close {
+            Some(SceneId::档案详情页面)
         } else {
-            Ok(None)
-        }
+            None
+        })
     }
 
     fn transitions(&self) -> &[SceneTransition] {
-        // 从档案详情页面可以：
-        // 1. 点击关闭按钮返回档案库子界面
-        // 2. 点击"下一篇"进入下一份档案详情（由 scan_loop 处理，不在此定义）
-        // 3. 点击"档案详情右箭头"进入下一份档案详情（同上）
+        // 点击关闭按钮返回档案库子界面。
+        // （"下一篇"/右箭头由 scan_loop 直接处理，不在此定义。）
         static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![SceneTransition {
-                target: SceneId::档案库子界面(档案库SubSceneId::音像存档_多媒体), // 占位，实际在 scan_loop 中处理
+                target: SceneId::档案库子界面(档案库SubSceneId::音像存档_多媒体), // 占位，实际返回任意子界面
                 action: SceneAction::FindAndClickTemplate {
                     template_name: "情报档案库/档案详情关闭.png",
                     roi: ROI_右上角关闭,
@@ -135,18 +112,18 @@ impl Scene for Scene档案详情页面 {
 // 档案库子界面场景
 // ============================================================================
 
-/// 档案库子界面：音像存档/见闻辑录/中枢档案的子界面。
+/// 档案库子界面：音像存档 / 见闻辑录 / 中枢档案 的子界面。
 ///
 /// 识别特征：
 /// - (0, 0, 162, 76) 范围内有 "情报档案库标题"
-/// - (52, 482, 189, 618) 范围内有水印（音像/见闻/中枢）
+/// - (52, 482, 189, 618) 范围内有水印（区分三大分类）
 /// - (1180, 0, 1280, 100) 范围内有 "档案库子界面关闭" 按钮
-/// - 通过颜色 ROI 判断具体是哪个子界面
+/// - 通过侧边栏 tab 的颜色 ROI 判断具体是哪个子界面
 pub struct Scene档案库子界面;
 
 impl Scene for Scene档案库子界面 {
     fn id(&self) -> SceneId {
-        // 子界面返回一个通用的 ID，实际识别时 try_recognize 返回更具体的
+        // 导航图只注册一个"子界面"节点（子界面变体之间互达），故统一返回此 ID
         SceneId::档案库子界面(档案库SubSceneId::音像存档_多媒体)
     }
 
@@ -184,12 +161,11 @@ impl Scene for Scene档案库子界面 {
         }
 
         // 3. 判断属于哪个分类（通过水印）
-        let category = self.detect_category(session, &screenshot)?;
-        let Some(category) = category else {
+        let Some(category) = self.detect_category(session, &screenshot)? else {
             return Ok(None);
         };
 
-        // 4. 判断具体是哪个子界面（通过颜色 ROI）
+        // 4. 判断具体是哪个子界面（通过 tab 颜色 ROI）
         let sub_scene = self.detect_sub_scene(session, category)?;
         Ok(Some(SceneId::档案库子界面(sub_scene)))
     }
@@ -197,8 +173,8 @@ impl Scene for Scene档案库子界面 {
     fn transitions(&self) -> &[SceneTransition] {
         // 档案库子界面的跳转：
         // - 点击关闭 → 档案库主界面
-        // - 点击侧边栏 tab → 同分类的其他子界面
         // - 点击第 1 份档案 (401, 182) → 档案详情页面
+        // - 点击侧边栏 tab → 同分类的其他子界面（由任务层用 ClickSubTab 处理）
         static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![
                 SceneTransition {
@@ -220,13 +196,12 @@ impl Scene for Scene档案库子界面 {
 }
 
 impl Scene档案库子界面 {
-    /// 通过水印判断属于哪个分类（音像存档/见闻辑录/中枢档案）。
+    /// 通过水印判断属于哪个分类（音像存档 / 见闻辑录 / 中枢档案）。
     fn detect_category(
         &self,
         session: &mut Session,
         screenshot: &image::RgbaImage,
     ) -> Result<Option<&'static str>> {
-        // 按顺序检测水印
         let categories = [
             ("音像存档", "情报档案库/音像存档水印.png"),
             ("见闻辑录", "情报档案库/见闻辑录水印.png"),
@@ -245,20 +220,16 @@ impl Scene档案库子界面 {
         Ok(None)
     }
 
-    /// 通过颜色 ROI 判断具体是哪个子界面。
+    /// 通过 tab 颜色 ROI 判断具体是哪个子界面。
     ///
-    /// 颜色 ROI：从上到下 3 个，ltwh 分别为：
-    /// - (180, 120, 60, 36) — tab 0
-    /// - (180, 184, 60, 36) — tab 1
-    /// - (180, 248, 60, 36) — tab 2
-    ///
-    /// 深色（灰度 < 128）表示当前在此子界面。
+    /// 颜色 ROI 从上到下：ltwh 为 (180, 120, 60, 36)、(180, 184, 60, 36)、(180, 248, 60, 36)；
+    /// 深色（灰度 < 阈值）表示当前选中该 tab。
     fn detect_sub_scene(
         &self,
         session: &mut Session,
         category: &str,
     ) -> Result<档案库SubSceneId> {
-        // 注意：需要重新截图（因为前面多用了 find_template_in_roi 可能消耗了截图）
+        // 需要重新截图（前面的模板匹配可能消耗了原图）
         let screenshot = session.screencap_for_recognition()?;
 
         let tab0_dark = session.is_roi_dark_ltwh(&screenshot, 180, 120, 60, 36, DARK_THRESHOLD);
@@ -267,11 +238,10 @@ impl Scene档案库子界面 {
 
         match category {
             "音像存档" => {
-                // 音像存档只有一个子界面，不需要判断颜色
+                // 音像存档只有一个子界面，无需判断颜色
                 Ok(档案库SubSceneId::音像存档_多媒体)
             }
             "见闻辑录" => {
-                // 见闻辑录有 3 个子界面，需要判断全部 3 个 roi
                 if tab0_dark {
                     Ok(档案库SubSceneId::见闻辑录_纸质记录)
                 } else if tab1_dark {
@@ -284,7 +254,6 @@ impl Scene档案库子界面 {
                 }
             }
             "中枢档案" => {
-                // 中枢档案有 2 个子界面，只需要判断前 2 个 roi
                 if tab0_dark {
                     Ok(档案库SubSceneId::中枢档案_中枢档案)
                 } else if tab1_dark {
@@ -294,10 +263,7 @@ impl Scene档案库子界面 {
                     Ok(档案库SubSceneId::中枢档案_中枢档案)
                 }
             }
-            _ => {
-                // 无法识别的分类
-                anyhow::bail!("未知的档案库子界面分类: {category}");
-            }
+            _ => anyhow::bail!("未知的档案库子界面分类: {category}"),
         }
     }
 }
@@ -311,7 +277,7 @@ impl Scene档案库子界面 {
 /// 识别特征：
 /// - (0, 0, 162, 76) 范围内有 "情报档案库标题"
 /// - (1180, 0, 1280, 100) 范围内有 "档案库主界面关闭" 按钮
-/// - 能找到三个入口按钮（音像存档/见闻辑录/中枢档案）中的至少一个
+/// - 能找到三个入口按钮中的至少一个
 pub struct Scene档案库主界面;
 
 impl Scene for Scene档案库主界面 {
@@ -349,7 +315,7 @@ impl Scene for Scene档案库主界面 {
             )?
             .is_some();
         if !has_main_close {
-            // 如果不是主界面关闭按钮，可能是子界面（有不同按钮）
+            // 如果不是主界面关闭按钮，可能是子界面（按钮不同）
             return Ok(None);
         }
 
@@ -379,11 +345,11 @@ impl Scene for Scene档案库主界面 {
                 )?
                 .is_some();
 
-        if has_any_entry {
-            Ok(Some(SceneId::档案库主界面))
+        Ok(if has_any_entry {
+            Some(SceneId::档案库主界面)
         } else {
-            Ok(None)
-        }
+            None
+        })
     }
 
     fn transitions(&self) -> &[SceneTransition] {
@@ -430,153 +396,4 @@ impl Scene for Scene档案库主界面 {
         });
         &T
     }
-}
-
-// ============================================================================
-// 协议终端界面场景
-// ============================================================================
-
-/// 协议终端界面。
-///
-/// 识别特征：
-/// - (971, 108, 1280, 700) 范围内有 "档案库" 按钮
-pub struct Scene协议终端;
-
-impl Scene for Scene协议终端 {
-    fn id(&self) -> SceneId {
-        SceneId::协议终端
-    }
-
-    fn name(&self) -> &'static str {
-        "协议终端"
-    }
-
-    fn try_recognize(&self, session: &mut Session) -> Result<Option<SceneId>> {
-        let screenshot = session.screencap_for_recognition()?;
-
-        let found = session
-            .find_template_in_roi(&screenshot, "档案库.png", ROI_档案库按钮, DEFAULT_THRESHOLD)?
-            .is_some();
-
-        if found {
-            Ok(Some(SceneId::协议终端))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn transitions(&self) -> &[SceneTransition] {
-        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
-            vec![SceneTransition {
-                target: SceneId::档案库主界面,
-                action: SceneAction::FindAndClickTemplate {
-                    template_name: "档案库.png",
-                    roi: ROI_档案库按钮,
-                    threshold: DEFAULT_THRESHOLD,
-                },
-            }]
-        });
-        &T
-    }
-}
-
-// ============================================================================
-// 大世界界面场景
-// ============================================================================
-
-/// 大世界界面。
-///
-/// 识别特征：
-/// - (1180, 0, 1280, 100) 范围内有 "协议终端" 按钮
-pub struct Scene大世界;
-
-impl Scene for Scene大世界 {
-    fn id(&self) -> SceneId {
-        SceneId::大世界
-    }
-
-    fn name(&self) -> &'static str {
-        "大世界"
-    }
-
-    fn try_recognize(&self, session: &mut Session) -> Result<Option<SceneId>> {
-        let screenshot = session.screencap_for_recognition()?;
-
-        let found = session
-            .find_template_in_roi(
-                &screenshot,
-                "协议终端.png",
-                ROI_协议终端按钮,
-                DEFAULT_THRESHOLD,
-            )?
-            .is_some();
-
-        if found {
-            Ok(Some(SceneId::大世界))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn transitions(&self) -> &[SceneTransition] {
-        // 从大世界按 ESC 键进入协议终端
-        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
-            vec![SceneTransition {
-                target: SceneId::协议终端,
-                action: SceneAction::PressKey { vk_code: 0x1B }, // VK_ESCAPE
-            }]
-        });
-        &T
-    }
-}
-
-// ============================================================================
-// 未知界面场景（兜底）
-// ============================================================================
-
-/// 未知界面：当所有场景都无法识别时使用。
-/// 这只是一个占位，不允许在此场景执行导航。
-pub struct Scene未知;
-
-impl Scene for Scene未知 {
-    fn id(&self) -> SceneId {
-        SceneId::未知
-    }
-
-    fn name(&self) -> &'static str {
-        "未知界面"
-    }
-
-    fn try_recognize(&self, _session: &mut Session) -> Result<Option<SceneId>> {
-        // 未知场景总是返回自身（作为兜底）
-        Ok(Some(SceneId::未知))
-    }
-
-    fn transitions(&self) -> &[SceneTransition] {
-        // 未知场景无法跳转
-        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(Vec::new);
-        &T
-    }
-}
-
-// ============================================================================
-// 辅助函数：创建 SceneManager 并注册所有场景
-// ============================================================================
-
-/// 创建并配置好所有档案库相关场景的 SceneManager。
-///
-/// 场景按从具体到笼统的顺序注册，确保更具体的场景优先被检测到。
-pub fn create_scene_manager() -> SceneManager {
-    let mut sm = SceneManager::new();
-
-    // 注册顺序很重要：越具体的场景越先注册
-    sm.register(Box::new(Scene档案详情页面)); // 1. 最具体
-    sm.register(Box::new(Scene档案库子界面)); // 2. 子界面
-    sm.register(Box::new(Scene档案库主界面)); // 3. 主界面
-    sm.register(Box::new(Scene协议终端)); // 4. 协议终端
-    sm.register(Box::new(Scene大世界)); // 5. 大世界
-    sm.register(Box::new(Scene未知)); // 6. 兜底
-
-    sm.build_navigation_graph();
-    sm
 }
