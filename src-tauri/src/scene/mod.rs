@@ -9,5 +9,5 @@ pub mod scene_manager;
 pub mod scene_trait;
 
 pub use scene_action::SceneAction;
-pub use scene_id::{SceneId, SubSceneKind};
+pub use scene_id::{SceneId, 档案库SubSceneId};
 pub use scene_trait::{Scene, SceneTransition};

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 use anyhow::{Result, anyhow};
 use image::RgbImage;
@@ -48,7 +48,19 @@ impl OcrEngine {
     }
 
     pub fn ocr(&mut self, image: &RgbImage) -> Result<OcrOutput> {
+        let start_time = Instant::now();
         let output = self.ocr.run_image(image)?;
+        let elapsed = start_time.elapsed();
+        tracing::trace!(
+            "OCR completed in {:.2?}, output: {:?}",
+            elapsed,
+            output
+                .lines
+                .iter()
+                .map(|l| l.text.as_str())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        );
         Ok(output)
     }
 }

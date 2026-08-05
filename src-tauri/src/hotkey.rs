@@ -248,8 +248,6 @@ impl HotkeyListener {
         let running = main_running.clone();
         // 转为拥有所有权的数据，以便安全移入监听线程
         let bindings = bindings.to_vec();
-        // 前台窗口守卫移入监听线程（热键线程独占访问）
-        let foreground = foreground;
 
         thread::spawn(move || {
             // 安装低级键盘钩子（统一感知所有热键，不拦截任何按键）。

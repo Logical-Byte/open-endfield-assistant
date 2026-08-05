@@ -6,7 +6,7 @@ use anyhow::Result;
 use tracing::info;
 
 use crate::{
-    scene::{SceneId, SubSceneKind, scene_manager::SceneManager},
+    scene::{SceneId, scene_manager::SceneManager, 档案库SubSceneId},
     session::Session,
     task::Task,
     utils::region::Region2D,
@@ -23,12 +23,12 @@ struct ScanStep {
     /// 从档案库主界面点击此模板进入该子分类
     entry_template: &'static str,
     /// 进入后的初始子界面
-    first_sub_scene: SubSceneKind,
+    first_sub_scene: 档案库SubSceneId,
     /// 该分类下需要扫描的所有子界面（按 tab 顺序排列）
     /// 音像存档: [多媒体]
     /// 见闻辑录: [纸质记录, 电子档案, 藏品]
     /// 中枢档案: [中枢档案, 调查报告]
-    sub_scenes: &'static [SubSceneKind],
+    sub_scenes: &'static [档案库SubSceneId],
 }
 
 /// 6 个子分类的完整扫描计划。
@@ -36,26 +36,26 @@ const SCAN_PLAN: &[ScanStep] = &[
     ScanStep {
         // 音像存档 — 只有 1 个子界面
         entry_template: "情报档案库/音像存档.png",
-        first_sub_scene: SubSceneKind::音像存档_多媒体,
-        sub_scenes: &[SubSceneKind::音像存档_多媒体],
+        first_sub_scene: 档案库SubSceneId::音像存档_多媒体,
+        sub_scenes: &[档案库SubSceneId::音像存档_多媒体],
     },
     ScanStep {
         // 见闻辑录 — 有 3 个子界面（纸质记录、电子档案、藏品）
         entry_template: "情报档案库/见闻辑录.png",
-        first_sub_scene: SubSceneKind::见闻辑录_纸质记录,
+        first_sub_scene: 档案库SubSceneId::见闻辑录_纸质记录,
         sub_scenes: &[
-            SubSceneKind::见闻辑录_纸质记录,
-            SubSceneKind::见闻辑录_电子档案,
-            SubSceneKind::见闻辑录_藏品,
+            档案库SubSceneId::见闻辑录_纸质记录,
+            档案库SubSceneId::见闻辑录_电子档案,
+            档案库SubSceneId::见闻辑录_藏品,
         ],
     },
     ScanStep {
         // 中枢档案 — 有 2 个子界面（中枢档案、调查报告）
         entry_template: "情报档案库/中枢档案.png",
-        first_sub_scene: SubSceneKind::中枢档案_中枢档案,
+        first_sub_scene: 档案库SubSceneId::中枢档案_中枢档案,
         sub_scenes: &[
-            SubSceneKind::中枢档案_中枢档案,
-            SubSceneKind::中枢档案_调查报告,
+            档案库SubSceneId::中枢档案_中枢档案,
+            档案库SubSceneId::中枢档案_调查报告,
         ],
     },
 ];
@@ -80,7 +80,7 @@ impl Task for ArchiveScanTask {
         // - 档案库子界面（任意分类）→ 自动导航到 档案库主界面
         // - 档案详情页面 → 自动导航到 档案库子界面 → 档案库主界面
         static ENTRIES: std::sync::LazyLock<Vec<SceneId>> = std::sync::LazyLock::new(|| {
-            use SubSceneKind::*;
+            use 档案库SubSceneId::*;
             vec![
                 SceneId::大世界,
                 SceneId::协议终端,
@@ -144,13 +144,15 @@ impl Task for ArchiveScanTask {
 }
 
 /// 子界面所属的档案库分类名称（扫描结果卡片的 category 字段）。
-fn category_of(sub_scene: SubSceneKind) -> &'static str {
+fn category_of(sub_scene: 档案库SubSceneId) -> &'static str {
     match sub_scene {
-        SubSceneKind::音像存档_多媒体 => "音像存档",
-        SubSceneKind::见闻辑录_纸质记录
-        | SubSceneKind::见闻辑录_电子档案
-        | SubSceneKind::见闻辑录_藏品 => "见闻辑录",
-        SubSceneKind::中枢档案_中枢档案 | SubSceneKind::中枢档案_调查报告 => "中枢档案",
+        档案库SubSceneId::音像存档_多媒体 => "音像存档",
+        档案库SubSceneId::见闻辑录_纸质记录
+        | 档案库SubSceneId::见闻辑录_电子档案
+        | 档案库SubSceneId::见闻辑录_藏品 => "见闻辑录",
+        档案库SubSceneId::中枢档案_中枢档案 | 档案库SubSceneId::中枢档案_调查报告 => {
+            "中枢档案"
+        }
     }
 }
 
@@ -168,9 +170,13 @@ impl ArchiveScanTask {
         // 截图并搜索入口按钮
         let screenshot = session.screencap_for_recognition()?;
         let roi = match step.first_sub_scene {
-            SubSceneKind::音像存档_多媒体 => Region2D::from_ltrb(692, 371, 959, 601),
-            SubSceneKind::见闻辑录_纸质记录 => Region2D::from_ltrb(957, 135, 1221, 371),
-            SubSceneKind::中枢档案_中枢档案 => Region2D::from_ltrb(958, 369, 1220, 601),
+            档案库SubSceneId::音像存档_多媒体 => Region2D::from_ltrb(692, 371, 959, 601),
+            档案库SubSceneId::见闻辑录_纸质记录 => {
+                Region2D::from_ltrb(957, 135, 1221, 371)
+            }
+            档案库SubSceneId::中枢档案_中枢档案 => {
+                Region2D::from_ltrb(958, 369, 1220, 601)
+            }
             _ => Region2D::from_ltrb(692, 371, 959, 601), // fallback
         };
 

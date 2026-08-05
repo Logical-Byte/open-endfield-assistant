@@ -434,7 +434,7 @@ impl FramePoolScreencap {
             }
         };
 
-        let access_result = match op.join() {
+        let access_result = match op.get() {
             Ok(r) => r,
             Err(e) => {
                 warn!("RequestAccessAsync did not complete: {:?}", e);

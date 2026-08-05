@@ -13,7 +13,7 @@ use std::{
 use anyhow::{Result, bail};
 use tracing::{debug, info, warn};
 
-use super::{Scene, SceneId, SubSceneKind};
+use super::{Scene, SceneId, 档案库SubSceneId};
 use crate::session::Session;
 
 /// SceneManager 内部使用的规范化场景 ID。
@@ -25,7 +25,7 @@ use crate::session::Session;
 fn normalize_scene_id(id: SceneId) -> SceneId {
     match id {
         SceneId::档案库子界面(_) => {
-            SceneId::档案库子界面(SubSceneKind::音像存档_多媒体)
+            SceneId::档案库子界面(档案库SubSceneId::音像存档_多媒体)
         }
         other => other,
     }

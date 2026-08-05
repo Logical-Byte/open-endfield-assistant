@@ -10,7 +10,7 @@ pub enum SceneId {
     /// 档案库主界面
     档案库主界面,
     /// 档案库子界面（带具体分类）
-    档案库子界面(SubSceneKind),
+    档案库子界面(档案库SubSceneId),
     /// 档案详情页面（查看单份档案内容）
     档案详情页面,
     /// 未知界面（无法识别的界面）
@@ -19,8 +19,8 @@ pub enum SceneId {
 
 /// 档案库子界面的具体分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SubSceneKind {
-    /// 音像存档 - 多媒体（只有这一个子界面）
+pub enum 档案库SubSceneId {
+    /// 音像存档 - 多媒体
     音像存档_多媒体,
     /// 见闻辑录 - 纸质记录
     见闻辑录_纸质记录,

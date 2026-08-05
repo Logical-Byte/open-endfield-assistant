@@ -1,6 +1,5 @@
 //! OEA Assistant - 明日方舟终末地 自动化助手（Tauri 后端）。
 
-// ============ 业务模块（原 dak 逻辑） ============
 pub mod app;
 pub mod app_controller;
 pub mod app_paths;
@@ -24,14 +23,12 @@ pub mod utils;
 pub mod window;
 
 use std::{
-    ffi::c_void,
     fs,
     sync::{Arc, Mutex, mpsc},
 };
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use rapidocr_core::config::PipelineConfig;
-use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri::Manager;
 use windows::Win32::{
     Foundation::HWND,
@@ -54,21 +51,17 @@ use crate::{
 
 /// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
 fn get_oea_hwnd(app: &tauri::App) -> Result<HWND> {
-    let webview = app
+    let window = app
         .get_webview_window("main")
         .ok_or_else(|| anyhow!("未找到 OEA 主窗口"))?;
-    let raw = webview.window_handle()?.as_raw();
-    match raw {
-        RawWindowHandle::Win32(handle) => Ok(HWND(handle.hwnd.get() as *mut c_void)),
-        _ => bail!("非 Windows 平台，无法获取 OEA 窗口句柄"),
-    }
+    Ok(window.hwnd()?)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         // WebView2 默认通过 raw input 接收键盘输入，当 OEA 窗口聚焦时会导致
-        // WH_KEYBOARD_LL 低级键盘钩子收不到按键（tauri-apps/tauri#13919）。
+        // WH_KEYBOARD_LL 低级键盘钩子收不到按键（[`tauri-apps/tauri#13919`](https://github.com/tauri-apps/tauri/issues/13919)）。
         // Always = 移除 raw input 注册，让 LL 钩子全局都能收到按键。
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(tauri_plugin_opener::init())
@@ -166,6 +159,10 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            let (_, _) = (app_handle, event);
+            // dbg!(app_handle, event);
+        });
 }

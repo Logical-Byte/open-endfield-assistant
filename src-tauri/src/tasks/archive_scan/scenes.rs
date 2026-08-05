@@ -16,7 +16,7 @@ use anyhow::Result;
 
 use crate::{
     scene::{
-        Scene, SceneAction, SceneId, SceneTransition, SubSceneKind, scene_manager::SceneManager,
+        Scene, SceneAction, SceneId, SceneTransition, scene_manager::SceneManager, 档案库SubSceneId,
     },
     session::Session,
     utils::region::Region2D,
@@ -119,7 +119,7 @@ impl Scene for Scene档案详情页面 {
         // 3. 点击"档案详情右箭头"进入下一份档案详情（同上）
         static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![SceneTransition {
-                target: SceneId::档案库子界面(SubSceneKind::音像存档_多媒体), // 占位，实际在 scan_loop 中处理
+                target: SceneId::档案库子界面(档案库SubSceneId::音像存档_多媒体), // 占位，实际在 scan_loop 中处理
                 action: SceneAction::FindAndClickTemplate {
                     template_name: "情报档案库/档案详情关闭.png",
                     roi: ROI_右上角关闭,
@@ -147,7 +147,7 @@ pub struct Scene档案库子界面;
 impl Scene for Scene档案库子界面 {
     fn id(&self) -> SceneId {
         // 子界面返回一个通用的 ID，实际识别时 try_recognize 返回更具体的
-        SceneId::档案库子界面(SubSceneKind::音像存档_多媒体)
+        SceneId::档案库子界面(档案库SubSceneId::音像存档_多媒体)
     }
 
     fn name(&self) -> &'static str {
@@ -253,7 +253,11 @@ impl Scene档案库子界面 {
     /// - (180, 248, 60, 36) — tab 2
     ///
     /// 深色（灰度 < 128）表示当前在此子界面。
-    fn detect_sub_scene(&self, session: &mut Session, category: &str) -> Result<SubSceneKind> {
+    fn detect_sub_scene(
+        &self,
+        session: &mut Session,
+        category: &str,
+    ) -> Result<档案库SubSceneId> {
         // 注意：需要重新截图（因为前面多用了 find_template_in_roi 可能消耗了截图）
         let screenshot = session.screencap_for_recognition()?;
 
@@ -264,30 +268,30 @@ impl Scene档案库子界面 {
         match category {
             "音像存档" => {
                 // 音像存档只有一个子界面，不需要判断颜色
-                Ok(SubSceneKind::音像存档_多媒体)
+                Ok(档案库SubSceneId::音像存档_多媒体)
             }
             "见闻辑录" => {
                 // 见闻辑录有 3 个子界面，需要判断全部 3 个 roi
                 if tab0_dark {
-                    Ok(SubSceneKind::见闻辑录_纸质记录)
+                    Ok(档案库SubSceneId::见闻辑录_纸质记录)
                 } else if tab1_dark {
-                    Ok(SubSceneKind::见闻辑录_电子档案)
+                    Ok(档案库SubSceneId::见闻辑录_电子档案)
                 } else if tab2_dark {
-                    Ok(SubSceneKind::见闻辑录_藏品)
+                    Ok(档案库SubSceneId::见闻辑录_藏品)
                 } else {
                     // 默认当作纸质记录（刚进入时的初始状态）
-                    Ok(SubSceneKind::见闻辑录_纸质记录)
+                    Ok(档案库SubSceneId::见闻辑录_纸质记录)
                 }
             }
             "中枢档案" => {
                 // 中枢档案有 2 个子界面，只需要判断前 2 个 roi
                 if tab0_dark {
-                    Ok(SubSceneKind::中枢档案_中枢档案)
+                    Ok(档案库SubSceneId::中枢档案_中枢档案)
                 } else if tab1_dark {
-                    Ok(SubSceneKind::中枢档案_调查报告)
+                    Ok(档案库SubSceneId::中枢档案_调查报告)
                 } else {
                     // 默认当作中枢档案
-                    Ok(SubSceneKind::中枢档案_中枢档案)
+                    Ok(档案库SubSceneId::中枢档案_中枢档案)
                 }
             }
             _ => {
@@ -399,7 +403,7 @@ impl Scene for Scene档案库主界面 {
                     },
                 },
                 SceneTransition {
-                    target: SceneId::档案库子界面(SubSceneKind::音像存档_多媒体),
+                    target: SceneId::档案库子界面(档案库SubSceneId::音像存档_多媒体),
                     action: SceneAction::FindAndClickTemplate {
                         template_name: "情报档案库/音像存档.png",
                         roi: ROI_音像存档按钮,
@@ -407,7 +411,7 @@ impl Scene for Scene档案库主界面 {
                     },
                 },
                 SceneTransition {
-                    target: SceneId::档案库子界面(SubSceneKind::见闻辑录_纸质记录),
+                    target: SceneId::档案库子界面(档案库SubSceneId::见闻辑录_纸质记录),
                     action: SceneAction::FindAndClickTemplate {
                         template_name: "情报档案库/见闻辑录.png",
                         roi: ROI_见闻辑录按钮,
@@ -415,7 +419,7 @@ impl Scene for Scene档案库主界面 {
                     },
                 },
                 SceneTransition {
-                    target: SceneId::档案库子界面(SubSceneKind::中枢档案_中枢档案),
+                    target: SceneId::档案库子界面(档案库SubSceneId::中枢档案_中枢档案),
                     action: SceneAction::FindAndClickTemplate {
                         template_name: "情报档案库/中枢档案.png",
                         roi: ROI_中枢档案按钮,
