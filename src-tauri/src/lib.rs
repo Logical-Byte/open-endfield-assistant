@@ -3,7 +3,6 @@
 pub mod app;
 pub mod app_controller;
 pub mod app_paths;
-pub mod geometry;
 pub mod hotkey;
 mod include;
 pub mod input;

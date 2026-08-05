@@ -7,45 +7,6 @@ use image::RgbImage;
 use super::MatchResult;
 use crate::utils::region::Region2D;
 
-// pub struct ImageTemplate<'a> {
-//     path: &'a Path,
-//     image: Option<RgbImage>,
-// }
-
-// impl<'a> ImageTemplate<'a> {
-//     pub fn new<P>(path: &'a P) -> Self
-//     where
-//         P: AsRef<Path> + ?Sized,
-//     {
-//         Self {
-//             path: path.as_ref(),
-//             image: None,
-//         }
-//     }
-
-//     pub fn load_template(&mut self) -> Result<&RgbImage> {
-//         let image = image::open(self.path)?.to_rgb8();
-//         self.image = Some(image);
-//         Ok(self.image.as_ref().unwrap())
-//     }
-
-//     pub fn ensure_template(&mut self) -> Result<&RgbImage> {
-//         if self.image.is_none() {
-//             self.load_template()?;
-//         }
-//         Ok(self.image.as_ref().unwrap())
-//     }
-
-//     pub fn match_template_in_region(
-//         &mut self,
-//         image: &RgbImage,
-//         search_region: Option<Region2D<u32>>,
-//     ) -> Result<MatchResult> {
-//         let template = self.ensure_template()?;
-//         super::match_template_in_region(image, template, search_region)
-//     }
-// }
-
 /// 模板管理器，管理一个文件夹下的所有模板图片，按需懒加载并缓存。
 pub struct TemplateManager {
     folder: PathBuf,
