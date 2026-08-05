@@ -3,7 +3,7 @@
 //! 职责边界：
 //! - **状态机**：`running`（CAS 防重入启动）与 `stop`（秒停）两个原子标志的**唯一归属**；
 //! - **线程编排**：主任务扫描线程、热键消费线程、日志 / 结果转发线程；
-//! - **热键动作分发**（第三层）：键位 → 动作的绑定表 + 前台窗口过滤 + [`handle_hotkey`]；
+//! - **热键动作分发**（应用层）：键位常量（[`SCAN_SINGLE_HOTKEY`] / [`TOGGLE_MAIN_TASK_HOTKEY`] / [`EXIT_HOTKEY`]）+ 前台窗口过滤 + [`Controller::spawn_hotkey_loop`]；
 //!
 //! 依赖方向：应用层 → 领域层（connect/session/scene/task）→ 基础设施层。
 
@@ -14,12 +14,13 @@ use std::thread;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_1, VK_OEM_7};
 
+use crate::hotkey::{self, KeyEvent};
 use crate::{
     connect::connect_to_game,
-    hotkey::{HotkeyBinding, HotkeyEvent, HotkeyRegistry},
+    hotkey::HotkeyBinding,
     ocr::OcrEngine,
     scene::SceneManager,
     task::{TaskStopped, run_task},
@@ -34,58 +35,21 @@ pub struct AppStatus {
     pub running: bool,
 }
 
-/// 应用层热键动作（键位表见 [`HOTKEY_BINDINGS`]）。
-///
-/// 热键身份由第二层注册表内部管理（每个热键一条专属事件流），
-/// 动作无需编码为标签。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HotkeyAction {
-    /// 切换主任务：空闲=启动，运行中=停止
-    ToggleMainTask,
-    /// 单次扫描当前档案详情
-    ScanSingle,
-    /// 退出程序
-    Exit,
-}
-
-/// 应用层热键规格：虚拟键码 + 修饰符 → 动作。
-///
-/// 身份不在此定义：注册时由第二层为每个热键分配一条专属事件流，
-/// 调用方无需提供 tag，也不存在"重复 tag"导致的事件混淆。
-#[derive(Clone, Copy)]
-pub struct HotkeySpec {
-    /// 虚拟键码（如 `VK_OEM_1`）
-    pub vk: u32,
-    /// 修饰键（如 `MOD_ALT`），无修饰符时传 0
-    pub modifiers: u32,
-    /// 命中该键位时执行的动作
-    pub action: HotkeyAction,
-}
-
-/// 应用层键位表：虚拟键码 + 修饰符 → 动作。
-///
-/// - 分号 `;` → 单次扫描
-/// - 引号 `'` → 切换主任务
-/// - Alt+Delete → 退出
-///
-/// 按住自动重复已在第一层过滤（等价 `MOD_NOREPEAT` 语义），无需在绑定里声明。
-pub const HOTKEY_BINDINGS: &[HotkeySpec] = &[
-    HotkeySpec {
-        vk: VK_OEM_1.0 as u32,
-        modifiers: 0,
-        action: HotkeyAction::ScanSingle,
-    },
-    HotkeySpec {
-        vk: VK_OEM_7.0 as u32,
-        modifiers: 0,
-        action: HotkeyAction::ToggleMainTask,
-    },
-    HotkeySpec {
-        vk: VK_DELETE.0 as u32,
-        modifiers: MOD_ALT.0,
-        action: HotkeyAction::Exit,
-    },
-];
+/// 分号 `;` → 单次扫描
+pub const SCAN_SINGLE_HOTKEY: HotkeyBinding = HotkeyBinding {
+    vk: VK_OEM_1.0 as u32,
+    modifiers: 0,
+};
+/// 引号 `'` → 切换主任务
+pub const TOGGLE_MAIN_TASK_HOTKEY: HotkeyBinding = HotkeyBinding {
+    vk: VK_OEM_7.0 as u32,
+    modifiers: 0,
+};
+/// Alt+Delete → 退出
+pub const EXIT_HOTKEY: HotkeyBinding = HotkeyBinding {
+    vk: VK_DELETE.0 as u32,
+    modifiers: MOD_ALT.0,
+};
 
 /// 应用控制器（Tauri 托管状态，以 `Arc` 共享）。
 pub struct Controller {
@@ -105,7 +69,7 @@ pub struct Controller {
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
     /// 全局扫描序号（跨主任务 / 单次扫描连续递增）
     scan_index: Arc<AtomicU32>,
-    /// 前台窗口守卫（第三层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
+    /// 前台窗口守卫（应用层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
     foreground: ForegroundGuard,
     /// Tauri 应用句柄（向前端 emit 事件）
     handle: AppHandle,
@@ -230,6 +194,14 @@ impl Controller {
         info!("收到停止请求，正在停止主任务...");
     }
 
+    pub fn toggle_scan(self: &Arc<Self>) {
+        if self.running.load(Ordering::Relaxed) {
+            self.stop_scan();
+        } else {
+            self.start_scan();
+        }
+    }
+
     /// 单次扫描当前档案详情（在调用线程同步执行）。
     pub fn scan_single(&self) {
         if self.running.load(Ordering::Relaxed) {
@@ -265,70 +237,28 @@ impl Controller {
         self.handle.exit(0);
     }
 
-    // ========== 热键动作分发（应用层） ==========
-
-    /// 处理一个热键动作（运行中 / 空闲分派收敛于此）。
-    fn handle_hotkey(self: &Arc<Self>, action: HotkeyAction) {
-        match action {
-            HotkeyAction::ToggleMainTask => {
-                if self.running.load(Ordering::Relaxed) {
-                    self.stop.store(true, Ordering::Relaxed);
-                    info!("收到停止请求（热键），正在停止主任务...");
-                } else {
-                    self.start_scan();
-                }
-            }
-            HotkeyAction::ScanSingle => {
-                if !self.running.load(Ordering::Relaxed) {
-                    self.scan_single();
-                }
-            }
-            HotkeyAction::Exit => {
-                if self.running.load(Ordering::Relaxed) {
-                    info!("收到退出请求（热键），正在停止主任务...");
-                }
-                self.quit();
-            }
-        }
-    }
-
     // ========== 后台线程 ==========
 
-    /// 注册应用层全部热键并启动各自消费线程（第三层）。
-    ///
-    /// 每个热键独立注册（第二层），各自一条专属事件流 → 一条消费线程；
-    /// 动作在注册时固定，无需 tag。
-    pub fn spawn_hotkey_loops(self: &Arc<Self>, hotkeys: &HotkeyRegistry) {
-        for spec in HOTKEY_BINDINGS {
-            let binding = HotkeyBinding {
-                vk: spec.vk,
-                modifiers: spec.modifiers,
-            };
-            let rx = hotkeys.register_hotkey(binding);
-            Self::spawn_hotkey_loop(rx, spec.action, Arc::clone(self));
-        }
-    }
+    /// 启动热键消费线程（应用层：前台窗口过滤 + 动作分发）。
+    pub fn spawn_hotkey_loop(self: &Arc<Self>, rx: mpsc::Receiver<KeyEvent>) {
+        let self_cloned = Arc::clone(self);
 
-    /// 启动热键消费线程（第三层：应用层过滤 + 分发）。
-    ///
-    /// 每个已注册热键各自一条事件流 → 一条消费线程；动作在注册时固定。
-    /// 线程阻塞接收事件，先做应用层放行过滤（前台窗口规则），再分发动作。
-    /// 过滤逻辑不属于热键本身：第一 / 二层在按键按下时立即发事件，
-    /// "该不该响应"由本层决定。
-    pub fn spawn_hotkey_loop(
-        rx: mpsc::Receiver<HotkeyEvent>,
-        action: HotkeyAction,
-        this: Arc<Self>,
-    ) {
         thread::spawn(move || {
-            while rx.recv().is_ok() {
-                // 应用层过滤：退出全局生效；分号 / 引号仅在前台为 OEA 或终末地时响应
-                if action != HotkeyAction::Exit && !this.foreground.is_foreground_eligible() {
-                    info!("忽略热键 {action:?}：前台窗口不满足放行条件");
+            while let Ok(key_event) = rx.recv() {
+                // Alt+Delete 退出全局生效；分号 / 引号仅在前台为 OEA 或终末地时响应
+                if hotkey::binding_matches(&key_event, &EXIT_HOTKEY) {
+                    self_cloned.quit();
                     continue;
                 }
-
-                this.handle_hotkey(action);
+                if !self_cloned.foreground.is_foreground_eligible() {
+                    debug!("终末地或者 OEA 不在前台，忽略热键");
+                    continue;
+                }
+                if hotkey::binding_matches(&key_event, &SCAN_SINGLE_HOTKEY) {
+                    self_cloned.scan_single();
+                } else if hotkey::binding_matches(&key_event, &TOGGLE_MAIN_TASK_HOTKEY) {
+                    self_cloned.toggle_scan();
+                }
             }
         });
     }
@@ -338,7 +268,7 @@ impl Controller {
         thread::spawn(move || {
             while let Ok(line) = rx.recv() {
                 if let Err(e) = handle.emit("log", &line) {
-                    eprintln!("向前端推送日志失败: {e}");
+                    error!("向前端推送日志失败: {e}");
                 }
             }
         });
@@ -349,7 +279,7 @@ impl Controller {
         thread::spawn(move || {
             while let Ok(result) = rx.recv() {
                 if let Err(e) = handle.emit("scan-result", &result) {
-                    eprintln!("向前端推送扫描结果失败: {e}");
+                    error!("向前端推送扫描结果失败: {e}");
                 }
             }
         });

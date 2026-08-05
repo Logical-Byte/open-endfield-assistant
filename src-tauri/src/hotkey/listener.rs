@@ -25,10 +25,10 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 /// 修饰键状态位（私有；`KeyEvent::mods` 的位布局与 `RegisterHotKey` 的
 /// `MOD_*` 常量一致：Alt=1、Ctrl=2、Shift=4、Win=8，便于上层直接比较）。
-const MOD_ALT: u8 = 1 << 0;
-const MOD_CTRL: u8 = 1 << 1;
-const MOD_SHIFT: u8 = 1 << 2;
-const MOD_WIN: u8 = 1 << 3;
+const MOD_ALT: u32 = 1 << 0;
+const MOD_CTRL: u32 = 1 << 1;
+const MOD_SHIFT: u32 = 1 << 2;
+const MOD_WIN: u32 = 1 << 3;
 
 /// 一次原始键盘事件。
 ///
@@ -42,7 +42,7 @@ pub struct KeyEvent {
     pub down: bool,
     /// 修饰键状态快照：位 0=Alt、位 1=Ctrl、位 2=Shift、位 3=Win
     /// （位布局与 `MOD_*` 常量一致，可直接比较）
-    pub mods: u8,
+    pub mods: u32,
 }
 
 /// 钩子线程本地状态（回调由系统在安装钩子的线程消息泵中调用，无并发访问）。
@@ -52,7 +52,7 @@ struct ListenerState {
     /// 当前按住未弹起的虚拟键码（抑制按住时的自动重复）
     pressed: Vec<u32>,
     /// 修饰键按下状态（基于钩子事件流自跟踪）
-    mods: u8,
+    mods: u32,
 }
 
 thread_local! {
@@ -64,14 +64,14 @@ thread_local! {
 /// Alt 用钩子自带的 `LLKHF_ALTDOWN` 标志（系统直接给出，最可靠），并辅以自跟踪
 /// 状态兜底；Ctrl/Shift/Win 用钩子事件流自跟踪的状态（`GetAsyncKeyState` 在钩子
 /// 回调中不可靠）。
-fn mods_snapshot(kb: &KBDLLHOOKSTRUCT, tracked: u8) -> u8 {
+fn mods_snapshot(kb: &KBDLLHOOKSTRUCT, tracked: u32) -> u32 {
     let alt = kb.flags.0 & LLKHF_ALTDOWN.0 != 0 || tracked & MOD_ALT != 0;
     (if alt { MOD_ALT } else { 0 }) | (tracked & (MOD_CTRL | MOD_SHIFT | MOD_WIN))
 }
 
 /// 根据 keydown / keyup 更新修饰键跟踪状态。
-fn track_modifier(mods: &mut u8, vk: u32, down: bool) {
-    let bit: u8 = match vk {
+fn track_modifier(mods: &mut u32, vk: u32, down: bool) {
+    let bit: u32 = match vk {
         v if v == VK_MENU.0 as u32 => MOD_ALT,     // Alt
         v if v == VK_CONTROL.0 as u32 => MOD_CTRL, // Ctrl
         v if v == VK_SHIFT.0 as u32 => MOD_SHIFT,  // Shift

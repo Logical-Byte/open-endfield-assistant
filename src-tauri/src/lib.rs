@@ -30,8 +30,8 @@ use tracing::info;
 use windows::Win32::Foundation::HWND;
 
 use crate::{
-    app_paths::AppPaths, controller::Controller, hotkey::HotkeyRegistry, ocr::OcrEngine,
-    scene::create_scene_manager, tasks::archive_scan::ScanResult, window::ForegroundGuard,
+    app_paths::AppPaths, controller::Controller, ocr::OcrEngine, scene::create_scene_manager,
+    window::ForegroundGuard,
 };
 
 /// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
@@ -83,7 +83,7 @@ pub fn run() {
             window::set_thread_dpi_awareness_context();
 
             // 扫描结果通道：任务线程产生 → 转发线程 emit 给前端
-            let (scan_tx, scan_rx) = mpsc::channel::<ScanResult>();
+            let (scan_tx, scan_rx) = mpsc::channel();
             let scan_index = Arc::new(AtomicU32::new(0));
 
             // 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
@@ -94,14 +94,10 @@ pub fn run() {
             // 场景管理器（本游戏全部场景，注册顺序即识别优先级）
             let scenes = Arc::new(create_scene_manager());
 
-            // 全局热键：三层结构
-            // - 第一层 hotkey::listener 监听所有键盘消息（过滤按住自动重复）
-            // - 第二层 HotkeyRegistry 共享一条监听，逐个注册热键（不做过滤）
-            // - 第三层 Controller::spawn_hotkey_loops 做前台窗口过滤并分发动作
-            // 分号 / 引号仅在前台为 OEA 或终末地窗口时响应；Alt+Delete 退出全局生效
+            // 开始监听热键
             let oea_hwnd = get_oea_hwnd(app.handle())?;
             let foreground = ForegroundGuard::new(oea_hwnd);
-            let hotkeys = HotkeyRegistry::new()?;
+            let hotkey_rx = hotkey::listen()?;
 
             // 状态标志（Controller 唯一归属）
             let stop = Arc::new(AtomicBool::new(false));
@@ -122,8 +118,7 @@ pub fn run() {
             ));
             Controller::spawn_log_loop(log_rx, app.handle().clone());
             Controller::spawn_scan_result_loop(scan_rx, app.handle().clone());
-            // 每个热键独立注册（共享一条监听），各自一条事件流 → 一条消费线程
-            controller.spawn_hotkey_loops(&hotkeys);
+            controller.spawn_hotkey_loop(hotkey_rx);
             app.manage(controller);
 
             info!("OEA 后端初始化完成");

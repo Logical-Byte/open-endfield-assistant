@@ -61,7 +61,7 @@ impl<'a> fmt::MakeWriter<'a> for ChannelWriter {
 /// - `Receiver` 每收到一行日志，即由上层转发给 Tauri 前端。
 pub fn init(logs_dir: &Path) -> (WorkerGuard, mpsc::Receiver<String>) {
     // 前端转发通道
-    let (tx, rx) = mpsc::channel::<String>();
+    let (tx, rx) = mpsc::channel();
 
     // 按天轮转的文件写入器，输出到 logs_dir/YYYY-mm-dd.log
     let file_appender = Builder::new()
