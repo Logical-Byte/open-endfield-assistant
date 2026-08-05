@@ -1,13 +1,19 @@
-//! 脚本会话模块。
+//! 游戏会话（纯门面）。
 //!
-//! `Session` 是贯穿整个任务生命周期的统一上下文，聚合了截图、输入、OCR、
-//! 模板匹配、分辨率等所有底层能力。类似于 MaaFramework 中的 Tasker。
+//! 把基础设施层的原始能力统一翻译成 **720p 基准** 的任务 API：
+//! - 识别操作：先截图并缩放到 1280×720 基准；
+//! - 输入操作：先把 720p 坐标缩放到实际分辨率。
+//!
+//! 职责边界：
+//! - ✅ 只做薄委托与坐标缩放，**不含任何业务逻辑**（不识别场景、不导航、不扫描）；
+//! - ✅ **不依赖前端**（结果上报由任务层通过 [`crate::tasks::archive_scan::ScanReporter`] 完成）；
+//! - ✅ 只依赖基础设施层。
+//!
+//! 会话贯穿一次游戏操作（主任务 / 单次扫描），由调用方以 `&mut` 串行使用。
 
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -20,54 +26,44 @@ use crate::{
     input::{Contact, InputBase},
     ocr::{OcrEngine, text_detection},
     resolution::GameResolution,
-    scan_result::ScanResult,
     screencap::ScreencapBase,
     task::TaskStopped,
     template_matching::{MatchResult, TemplateManager},
     utils::{point::Point2D, region::Region2D},
 };
 
-/// 脚本会话，聚合所有底层能力。
-///
-/// 所有识别操作在 720p 基准分辨率上进行（截图自动缩放），
-/// 所有点击操作自动将坐标从 720p 缩放到实际分辨率。
-pub struct Session {
-    /// 游戏窗口句柄
-    pub hwnd: HWND,
-    /// 截图器
-    screencap: Box<dyn ScreencapBase>,
-    /// 输入器
-    input: Box<dyn InputBase>,
-    /// OCR 引擎（与会话工厂共享，跨任务复用）
-    ocr: Arc<Mutex<OcrEngine>>,
-    /// 模板匹配管理器，管理所有模板图片（含子目录），按需懒加载并缓存。
-    templates: TemplateManager,
-    /// 游戏实际分辨率
-    pub resolution: GameResolution,
-    /// 停止标志（来自热键监听器），每次操作前检查
-    stop_flag: Arc<AtomicBool>,
-    /// 扫描结果推送通道（扫描到档案后发送给前端展示）
-    scan_result_tx: mpsc::Sender<ScanResult>,
-    /// 全局扫描序号（跨分类 / 单次扫描连续递增）
-    scan_index: Arc<AtomicU32>,
-}
+/// 停止令牌：热键 / 命令通过它请求中断，Session 每次操作前轮询。
+pub type StopToken = Arc<AtomicBool>;
 
-// Win32 句柄（HWND）跨线程传递安全；Session 始终在 AppController 的互斥锁内串行使用。
+/// 游戏会话：一次游戏操作（主任务 / 单次扫描）的统一上下文。
+///
+/// # Send 安全性
+/// `Session` 持有 Win32 句柄（`HWND` 内部为裸指针），不自动 `Send`。
+/// 窗口句柄在 OS 层面对线程无亲和性，且本类型始终由调用方以 `&mut`
+/// 串行使用（同一时刻仅一个线程访问），因此跨线程移动是安全的。
+/// 若未来有人破坏"单线程串行使用"这一前提，本 unsafe 承诺即失效。
 unsafe impl Send for Session {}
 
+pub struct Session {
+    /// 游戏窗口句柄（前台判定 / 日志用）
+    pub hwnd: HWND,
+    /// 游戏实际分辨率（仅支持 16:9）
+    pub resolution: GameResolution,
+    /// 截图器（可运行时替换，扩展点）
+    screencap: Box<dyn ScreencapBase>,
+    /// 输入器（可运行时替换，扩展点）
+    input: Box<dyn InputBase>,
+    /// 共享 OCR 引擎（跨会话复用模型加载）
+    ocr: Arc<Mutex<OcrEngine>>,
+    /// 模板匹配管理器（懒加载 + 缓存）
+    templates: TemplateManager,
+    /// 停止令牌
+    stop: StopToken,
+}
+
 impl Session {
-    /// 创建新的 Session。
-    ///
-    /// # 参数
-    /// - `hwnd`: 游戏窗口句柄
-    /// - `screencap`: 截图器实例
-    /// - `input`: 输入器实例
-    /// - `ocr`: 共享 OCR 引擎（`Arc<Mutex<_>>`，跨任务复用）
-    /// - `templates_root`: 模板图片根目录（如 [`crate::app_paths::AppPaths::templates_dir()`]）
-    /// - `resolution`: 游戏实际分辨率
-    /// - `stop_flag`: 热键停止标志，每次操作前检查
-    /// - `scan_result_tx`: 扫描结果推送通道（任务扫描到档案后发送给前端）
-    /// - `scan_index`: 全局扫描序号（与其它任务共享，保证序号连续）
+    /// 创建会话（由 [`crate::connect::connect_to_game`] 组装）。
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         hwnd: HWND,
         screencap: Box<dyn ScreencapBase>,
@@ -75,11 +71,8 @@ impl Session {
         ocr: Arc<Mutex<OcrEngine>>,
         templates_root: impl Into<PathBuf>,
         resolution: GameResolution,
-        stop_flag: Arc<AtomicBool>,
-        scan_result_tx: mpsc::Sender<ScanResult>,
-        scan_index: Arc<AtomicU32>,
+        stop: StopToken,
     ) -> Self {
-        // 从模板根目录加载所有模板（含情报档案库子目录）
         Self {
             hwnd,
             screencap,
@@ -87,119 +80,71 @@ impl Session {
             ocr,
             templates: TemplateManager::new(templates_root),
             resolution,
-            stop_flag,
-            scan_result_tx,
-            scan_index,
+            stop,
         }
     }
 
-    /// 检查是否收到停止信号，如果收到则返回 [`TaskStopped`] 错误中断执行。
+    // ========== 停止 ==========
+
+    /// 检查是否收到停止信号，收到则返回 [`TaskStopped`] 中断执行。
     ///
-    /// 停止不是"任务出错"，上层应将其与真正的错误区分开（见 [`crate::task::TaskStopped`]）。
+    /// 停止不是"任务出错"：上层用 `downcast_ref::<TaskStopped>()` 区分。
     fn check_stop(&self) -> Result<()> {
-        if self.stop_flag.load(Ordering::Relaxed) {
+        if self.stop.load(Ordering::Relaxed) {
             Err(TaskStopped.into())
         } else {
             Ok(())
         }
     }
 
-    /// 清除停止标志（启动新任务或单次扫描前调用，避免上一次的停止信号残留）。
+    /// 清除停止信号（启动任务 / 单次扫描前调用，避免上次残留误伤后续操作）。
     pub fn reset_stop(&mut self) {
-        self.stop_flag.store(false, Ordering::Relaxed);
+        self.stop.store(false, Ordering::Relaxed);
     }
 
-    // ========== 扫描结果推送 ==========
+    // ========== 截图（统一 720p 基准） ==========
 
-    /// 推送一份扫描结果到前端。
-    pub fn emit_scan_result(&self, result: ScanResult) {
-        let _ = self.scan_result_tx.send(result);
-    }
-
-    /// 取下一个全局扫描序号（从 1 开始，跨分类 / 单次扫描连续递增）。
-    pub fn next_scan_index(&self) -> u32 {
-        self.scan_index.fetch_add(1, Ordering::Relaxed) + 1
-    }
-
-    // ========== 截图相关 ==========
-
-    /// 截图并缩放到 720p 基准分辨率，用于识别。
-    ///
-    /// 所有模板匹配、OCR、颜色判断都应使用此方法获取截图。
+    /// 截图并缩放到 720p 基准分辨率，供识别使用（模板 / OCR / 颜色判断均用此图）。
     pub fn screencap_for_recognition(&mut self) -> Result<RgbaImage> {
         self.check_stop()?;
         let raw = self.screencap.screencap()?;
         Ok(self.resolution.scale_screenshot_to_base(&raw))
     }
 
-    /// 截图保持原始分辨率（用于调试/保存）。
-    #[allow(dead_code)]
-    pub fn screencap_raw(&mut self) -> Result<RgbaImage> {
-        self.screencap.screencap()
-    }
+    // ========== 输入（统一 720p → 实际分辨率缩放） ==========
 
-    // ========== 输入相关 ==========
-
-    /// 点击 720p 基准坐标系中的点（自动缩放到实际分辨率）。
-    /// 点击完成后自动将鼠标移回窗口中心，避免 hover 效果干扰后续识别。
+    /// 点击 720p 基准坐标点（自动缩放），点击后鼠标回到窗口中心，
+    /// 避免按钮 hover 变化干扰后续识别。
     pub fn click_at_720p(&mut self, x: u32, y: u32) -> Result<()> {
         self.check_stop()?;
         let (sx, sy) = self.resolution.scale_point(x, y);
-        let point = Point2D {
-            x: sx as i32,
-            y: sy as i32,
-        };
-        self.input.click(Contact::Left, point)?;
-        // 点击后回中，避免按钮 hover 变化
+        self.input
+            .click(Contact::Left, Point2D { x: sx as i32, y: sy as i32 })?;
         thread::sleep(Duration::from_millis(50));
         self.move_mouse_to_safe_position()?;
         Ok(())
     }
 
-    /// 在 720p 基准矩形区域内随机取一点点击（越靠近中心概率越高）。
-    /// 主要用于点击 ROI 匹配到的模板中心。
-    #[allow(dead_code)]
-    pub fn click_in_720p_region(
-        &mut self,
-        left: u32,
-        top: u32,
-        right: u32,
-        bottom: u32,
-    ) -> Result<()> {
-        // 取区域中心点击
-        let cx = (left + right) / 2;
-        let cy = (top + bottom) / 2;
-        self.click_at_720p(cx, cy)
-    }
-
-    /// 将鼠标移动到安全位置（窗口中心），避免 hover 效果干扰识别。
-    pub fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+    /// 将鼠标移动到安全位置（窗口中心），避免 hover 干扰识别。
+    fn move_mouse_to_safe_position(&mut self) -> Result<()> {
         let cx = self.resolution.width as i32 / 2;
         let cy = self.resolution.height as i32 / 2;
-        let point = Point2D { x: cx, y: cy };
-        self.input.touch_move(Contact::Left, point)
+        self.input
+            .touch_move(Contact::Left, Point2D { x: cx, y: cy })
     }
 
-    /// 按下键盘按键（虚拟键码），委托给 InputBase 实现。
-    /// 例如 ESC 键为 0x1B。
+    /// 按下并松开键盘按键（虚拟键码），如 ESC=0x1B。
     pub fn press_key(&mut self, vk_code: i32) -> Result<()> {
         self.check_stop()?;
         self.input.press_key(vk_code)
     }
 
-    // ========== 模板匹配相关 ==========
+    // ========== 模板匹配 ==========
 
-    /// 在 720p 基准截图的指定 ROI 内搜索模板。
+    /// 在 720p 截图的指定 ROI 内搜索模板。
     ///
-    /// # 参数
-    /// - `screenshot`: 已缩放到 720p 的截图（由 `screencap_for_recognition` 获取）
-    /// - `template_name`: 模板文件名。如果在 `情报档案库/` 子目录中，需要带 `情报档案库/` 前缀
-    /// - `roi`: 720p 基准的搜索区域
-    /// - `threshold`: 匹配阈值（0.0 ~ 1.0），低于此分数视为未匹配
-    ///
-    /// # 返回
-    /// - `Ok(Some(MatchResult))`: 匹配成功
-    /// - `Ok(None)`: 未匹配（低于阈值或模板不存在）
+    /// 模板名需带子目录前缀（如 `"情报档案库/下一篇.png"`）。
+    /// 返回 `Ok(Some(MatchResult))` 命中、`Ok(None)` 未命中 / 分数过低 / 模板缺失。
     pub fn find_template_in_roi(
         &mut self,
         screenshot: &RgbaImage,
@@ -207,22 +152,18 @@ impl Session {
         roi: Region2D<u32>,
         threshold: f32,
     ) -> Result<Option<MatchResult>> {
-        // 将 RgbaImage 转换为 RgbImage 用于模板匹配
         let rgb_screenshot = DynamicImage::ImageRgba8(screenshot.clone()).to_rgb8();
-        let result =
-            self.templates
-                .match_template_in_region(&rgb_screenshot, template_name, Some(roi));
-
+        let result = self
+            .templates
+            .match_template_in_region(&rgb_screenshot, template_name, Some(roi));
         match result {
             Ok(m) if m.score >= threshold => Ok(Some(m)),
-            Ok(_) => Ok(None),  // 匹配到了但分数太低
-            Err(_) => Ok(None), // 模板文件不存在等情况
+            Ok(_) => Ok(None),
+            Err(_) => Ok(None),
         }
     }
 
-    /// 在 720p 截图指定 ROI 内搜索模板，找到后点击其中心（720p 基准坐标，自动缩放）。
-    ///
-    /// 返回 `true` 表示找到并点击成功，`false` 表示未找到。
+    /// 在 720p 截图指定 ROI 内搜索模板，找到后点击其中心（自动缩放）。
     pub fn find_and_click_template(
         &mut self,
         screenshot: &RgbaImage,
@@ -239,11 +180,9 @@ impl Session {
         }
     }
 
-    // ========== OCR 相关 ==========
+    // ========== OCR ==========
 
-    /// 在 720p 截图的指定 ROI 内进行 OCR 识别，返回识别到的文本。
-    ///
-    /// 自动将 ROI 裁剪出来并转为 RGB 格式进行识别。
+    /// 对 720p 截图 ROI 区域做 OCR，返回识别文本（自动裁剪 + 单行检测）。
     pub fn ocr_in_roi(&mut self, screenshot: &RgbaImage, roi: Region2D<u32>) -> Result<String> {
         let cropped = imageops::crop_imm(screenshot, roi.x0(), roi.y0(), roi.width(), roi.height())
             .to_image();
@@ -272,26 +211,9 @@ impl Session {
         }
     }
 
-    // ========== 颜色判断相关 ==========
+    // ========== 颜色判断 ==========
 
-    /// 判断 720p 截图中指定 ROI 区域的平均灰度值是否低于阈值（即为深色）。
-    ///
-    /// 用于判断档案库子界面的侧边栏 tab 是否处于选中状态。
-    /// 注意：screenshot 需要是 RgbImage 格式（由 `screencap_for_recognition` 返回的 RgbaImage 转换而来）。
-    pub fn is_roi_dark(&self, screenshot: &RgbaImage, roi: Region2D<u32>, threshold: u8) -> bool {
-        let cropped = imageops::crop_imm(screenshot, roi.x0(), roi.y0(), roi.width(), roi.height());
-        let gray = imageops::grayscale(&cropped.to_image());
-        let total: u64 = gray.pixels().map(|p| p.0[0] as u64).sum();
-        let pixel_count = (roi.width() * roi.height()) as u64;
-        if pixel_count == 0 {
-            return false;
-        }
-        let avg = (total / pixel_count) as u8;
-        avg < threshold
-    }
-
-    /// 判断 720p 截图中指定 ltwh ROI 区域是否为深色。
-    #[allow(dead_code)]
+    /// 判断 720p 截图 ROI（ltwh）区域平均灰度是否低于阈值（即深色 / 选中态）。
     pub fn is_roi_dark_ltwh(
         &self,
         screenshot: &RgbaImage,
@@ -301,19 +223,29 @@ impl Session {
         h: u32,
         threshold: u8,
     ) -> bool {
-        let roi = Region2D::from_ltwh(x, y, w, h);
-        self.is_roi_dark(screenshot, roi, threshold)
+        self.is_roi_dark(screenshot, Region2D::from_ltwh(x, y, w, h), threshold)
     }
 
-    // ========== 截图器/输入器切换 ==========
+    /// 判断 720p 截图 ROI 区域平均灰度是否低于阈值。
+    fn is_roi_dark(&self, screenshot: &RgbaImage, roi: Region2D<u32>, threshold: u8) -> bool {
+        let cropped = imageops::crop_imm(screenshot, roi.x0(), roi.y0(), roi.width(), roi.height());
+        let gray = imageops::grayscale(&cropped.to_image());
+        let total: u64 = gray.pixels().map(|p| p.0[0] as u64).sum();
+        let pixel_count = (roi.width() * roi.height()) as u64;
+        if pixel_count == 0 {
+            return false;
+        }
+        ((total / pixel_count) as u8) < threshold
+    }
 
-    /// 替换截图器（运行时切换）。
+    // ========== 截图器 / 输入器切换（扩展点） ==========
+
+    /// 替换截图器（运行时切换，为未来多种截图器铺路）。
     pub fn set_screencap(&mut self, screencap: Box<dyn ScreencapBase>) {
         self.screencap = screencap;
     }
 
-    /// 替换输入器（运行时切换）。
-    #[allow(dead_code)]
+    /// 替换输入器（运行时切换，为未来多种输入器铺路）。
     pub fn set_input(&mut self, input: Box<dyn InputBase>) {
         self.input = input;
     }

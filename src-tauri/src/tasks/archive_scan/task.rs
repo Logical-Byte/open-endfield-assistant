@@ -1,6 +1,7 @@
-//! 档案库扫描任务定义与扫描计划。
+//! 档案库扫描任务定义。
 
-use std::{thread, time::Duration};
+use std::thread;
+use std::time::Duration;
 
 use anyhow::Result;
 use tracing::info;
@@ -12,60 +13,24 @@ use crate::{
     utils::region::Region2D,
 };
 
+use super::plan::{SCAN_PLAN, ScanStep, category_of};
+use super::result::ScanReporter;
 use super::scan_loop::scan_current_sub_scene;
 
-// ============================================================================
-// 扫描计划：定义 6 个子分类的遍历顺序
-// ============================================================================
-
-/// 一个扫描步骤：从档案库主界面点击哪个按钮进入哪个子分类，该分类下有哪些子界面需要扫描。
-struct ScanStep {
-    /// 从档案库主界面点击此模板进入该子分类
-    entry_template: &'static str,
-    /// 进入后的初始子界面
-    first_sub_scene: 档案库SubSceneId,
-    /// 该分类下需要扫描的所有子界面（按 tab 顺序排列）
-    /// 音像存档: [多媒体]
-    /// 见闻辑录: [纸质记录, 电子档案, 藏品]
-    /// 中枢档案: [中枢档案, 调查报告]
-    sub_scenes: &'static [档案库SubSceneId],
+/// 扫描档案库任务：扫描全部 6 个子分类的档案。
+///
+/// 扫描结果上报器在构造时由调用方（[`crate::controller::Controller`]）注入，
+/// 使 `Task` trait 保持通用、不耦合档案上报。
+pub struct ArchiveScanTask {
+    reporter: ScanReporter,
 }
 
-/// 6 个子分类的完整扫描计划。
-const SCAN_PLAN: &[ScanStep] = &[
-    ScanStep {
-        // 音像存档 — 只有 1 个子界面
-        entry_template: "情报档案库/音像存档.png",
-        first_sub_scene: 档案库SubSceneId::音像存档_多媒体,
-        sub_scenes: &[档案库SubSceneId::音像存档_多媒体],
-    },
-    ScanStep {
-        // 见闻辑录 — 有 3 个子界面（纸质记录、电子档案、藏品）
-        entry_template: "情报档案库/见闻辑录.png",
-        first_sub_scene: 档案库SubSceneId::见闻辑录_纸质记录,
-        sub_scenes: &[
-            档案库SubSceneId::见闻辑录_纸质记录,
-            档案库SubSceneId::见闻辑录_电子档案,
-            档案库SubSceneId::见闻辑录_藏品,
-        ],
-    },
-    ScanStep {
-        // 中枢档案 — 有 2 个子界面（中枢档案、调查报告）
-        entry_template: "情报档案库/中枢档案.png",
-        first_sub_scene: 档案库SubSceneId::中枢档案_中枢档案,
-        sub_scenes: &[
-            档案库SubSceneId::中枢档案_中枢档案,
-            档案库SubSceneId::中枢档案_调查报告,
-        ],
-    },
-];
-
-// ============================================================================
-// ArchiveScanTask
-// ============================================================================
-
-/// 扫描档案库任务：扫描所有档案的子分类和档案详情。
-pub struct ArchiveScanTask;
+impl ArchiveScanTask {
+    /// 创建任务。
+    pub fn new(reporter: ScanReporter) -> Self {
+        Self { reporter }
+    }
+}
 
 impl Task for ArchiveScanTask {
     fn name(&self) -> &str {
@@ -117,11 +82,10 @@ impl Task for ArchiveScanTask {
             // 2b. 遍历该分类下的所有子界面
             for (sub_idx, &sub_scene) in step.sub_scenes.iter().enumerate() {
                 if sub_idx > 0 {
-                    // 不是第一个子界面，需要点击侧边栏 tab 切换
-                    // tab 索引: 0=第1个, 1=第2个, 2=第3个
-                    let tab_index = sub_idx; // 子界面的索引就是 tab 索引
+                    // 不是第一个子界面，需要点击侧边栏 tab 切换（索引即 tab 序号）
+                    let tab_index = sub_idx;
                     info!("切换到子界面: {:?} (点击 tab #{})", sub_scene, tab_index);
-                    self.switch_sub_tab(session, scene_manager, tab_index)?;
+                    self.switch_sub_tab(session, tab_index)?;
                 }
 
                 // 等待界面稳定
@@ -129,7 +93,12 @@ impl Task for ArchiveScanTask {
 
                 // 扫描该子界面中的所有档案
                 info!("开始扫描 {:?} 中的档案...", sub_scene);
-                scan_current_sub_scene(session, scene_manager, category_of(step.first_sub_scene))?;
+                scan_current_sub_scene(
+                    session,
+                    scene_manager,
+                    category_of(step.first_sub_scene),
+                    &self.reporter,
+                )?;
                 info!("完成扫描 {:?}", sub_scene);
             }
 
@@ -140,19 +109,6 @@ impl Task for ArchiveScanTask {
 
         info!("全部 6 个子分类扫描完毕！");
         Ok(())
-    }
-}
-
-/// 子界面所属的档案库分类名称（扫描结果卡片的 category 字段）。
-fn category_of(sub_scene: 档案库SubSceneId) -> &'static str {
-    match sub_scene {
-        档案库SubSceneId::音像存档_多媒体 => "音像存档",
-        档案库SubSceneId::见闻辑录_纸质记录
-        | 档案库SubSceneId::见闻辑录_电子档案
-        | 档案库SubSceneId::见闻辑录_藏品 => "见闻辑录",
-        档案库SubSceneId::中枢档案_中枢档案 | 档案库SubSceneId::中枢档案_调查报告 => {
-            "中枢档案"
-        }
     }
 }
 
@@ -199,13 +155,8 @@ impl ArchiveScanTask {
     }
 
     /// 在同一分类内切换子界面（点击侧边栏 tab）。
-    fn switch_sub_tab(
-        &self,
-        session: &mut Session,
-        _scene_manager: &SceneManager,
-        tab_index: usize,
-    ) -> Result<()> {
-        // 颜色 ROI 的 ltwh 坐标
+    fn switch_sub_tab(&self, session: &mut Session, tab_index: usize) -> Result<()> {
+        // 颜色 ROI 的 ltwh 坐标（从上到下 3 个 tab）
         const TAB_ROIS: [(u32, u32, u32, u32); 3] = [
             (180, 120, 60, 36), // tab 0
             (180, 184, 60, 36), // tab 1

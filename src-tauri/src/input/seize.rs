@@ -29,7 +29,8 @@ impl Drop for SeizeInput {
 }
 
 impl SeizeInput {
-    fn new(hwnd: HWND, block_input: bool) -> Self {
+    /// 创建输入器（物理输入，`block_input` 为是否在操作期间屏蔽真实键盘鼠标）。
+    pub fn new(hwnd: HWND, block_input: bool) -> Self {
         Self {
             hwnd,
             block_input,

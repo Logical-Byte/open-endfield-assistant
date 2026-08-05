@@ -1,4 +1,4 @@
-//! 单次扫描当前档案详情（分号键触发）。
+//! 单次扫描当前档案详情（分号键 / 前端「单次扫描」触发）。
 //!
 //! 仅截屏识别当前档案详情的标题并记录日志，**不做任何鼠标键盘输入操作**。
 
@@ -6,23 +6,21 @@ use anyhow::Result;
 use tracing::warn;
 
 use crate::{
-    scan_result::{ScanResult, encode_png_data_url},
     scene::{SceneId, scene_manager::SceneManager},
     session::Session,
     success,
 };
 
 use super::constants::OCR_ROI;
+use super::result::{ScanReporter, encode_png_data_url};
 
 /// 扫描当前档案详情的标题。
 ///
-/// # 前置条件
-/// 假定当前位于任意档案详情页面。
-///
 /// 如果检测到不在档案详情页面，仅记录警告并返回，不做任何操作。
-pub fn scan_single_archive_detail(
+pub fn single_scan(
     session: &mut Session,
     scene_manager: &SceneManager,
+    reporter: &ScanReporter,
 ) -> Result<()> {
     // 1. 检测当前场景是否为档案详情页面
     let current = scene_manager.detect_current_scene(session)?;
@@ -53,18 +51,12 @@ pub fn scan_single_archive_detail(
         }
     };
 
-    // 3. 把识别结果推送给前端（单次扫描无法确定具体分类，标记为"未知"）
+    // 3. 上报结果（单次扫描无法确定具体分类，标记为"未知"）
     let status = if ocr_text.is_empty() {
         "failed"
     } else {
         "success"
     };
-    session.emit_scan_result(ScanResult {
-        status: status.to_string(),
-        index: session.next_scan_index(),
-        category: "未知".to_string(),
-        image: encode_png_data_url(&screenshot),
-        ocr_result: ocr_text,
-    });
+    reporter.report(status, "未知", encode_png_data_url(&screenshot), ocr_text);
     Ok(())
 }

@@ -1,9 +1,11 @@
 //! 任务系统模块。
 //!
-//! 提供 `Task` trait 和 `TaskRunner`，用于定义和执行自动化任务。
-//! 每个具体任务（如"扫描档案库"）实现 `Task` trait，由 `TaskRunner` 统一调度。
+//! `Task` trait 是脚本的扩展点：每个自动化脚本（扫描档案库、刷战令……）实现一个 Task。
+//! [`run_task`] 提供通用启动流程：检测当前场景 → 不在入口列表则导航到第一个入口 → 执行任务。
+//!
+//! 任务运行中的导航一律委托 [`crate::scene::SceneManager`]，Task 只写业务节奏。
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 
 use crate::{
     scene::{SceneId, scene_manager::SceneManager},
@@ -12,9 +14,8 @@ use crate::{
 
 /// 任务被用户停止的错误信号。
 ///
-/// 当热键请求停止时，[`Session`] 的识别/输入操作会返回此错误，
-/// 上层可据此区分"正常结束"与"被用户停止"，避免把停止当作异常处理
-/// 导致脚本退出。任务被停止后应回到空闲等待状态，等待下一次触发。
+/// 停止不是"任务出错"：上层用 `downcast_ref::<TaskStopped>()` 区分
+/// "被停止"与"出错"，避免把停止当作异常处理。
 #[derive(Debug)]
 pub struct TaskStopped;
 
@@ -26,81 +27,53 @@ impl std::fmt::Display for TaskStopped {
 
 impl std::error::Error for TaskStopped {}
 
-/// 任务 trait：一个完整的自动化任务。
+/// 任务 trait：一个完整的自动化脚本。
 ///
-/// 实现此 trait 的类型代表一个具体的游戏自动化任务。
+/// 任务对象在扫描线程内本地构造使用（无需 Send/Sync 约束）。
 pub trait Task {
     /// 任务名称（用于日志）。
     fn name(&self) -> &str;
 
     /// 任务支持的入口场景列表。
     ///
-    /// 任务可以从这些场景中的任意一个开始执行（TaskRunner 会自动导航到起始场景）。
+    /// 任务可以从这些场景中的任意一个开始执行；不在列表中时 [`run_task`]
+    /// 会导航到第一个入口场景。
     fn supported_entry_scenes(&self) -> &[SceneId];
 
     /// 执行任务主逻辑。
     ///
-    /// # 参数
-    /// - `session`: 会话上下文
-    /// - `scene_manager`: 场景管理器（用于场景检测和导航）
-    fn run(&self, session: &mut Session, scene_manager: &SceneManager) -> Result<()>;
+    /// 运行过程中的临时导航（如进入 / 返回某个界面）委托 `scenes` 完成。
+    fn run(&self, session: &mut Session, scenes: &SceneManager) -> Result<()>;
 }
 
-/// 任务运行器。
-///
-/// 负责管理场景、检测当前界面、导航到任务入口、执行任务。
-pub struct TaskRunner {
-    /// 场景管理器
-    pub scene_manager: SceneManager,
-}
+/// 运行任务：检测当前场景 → 不在入口列表则导航到第一个入口 → 执行任务。
+pub fn run_task(task: &dyn Task, session: &mut Session, scenes: &SceneManager) -> Result<()> {
+    tracing::info!("========== 开始执行任务: {} ==========", task.name());
 
-impl TaskRunner {
-    /// 创建新的 TaskRunner。
-    ///
-    /// # 参数
-    /// - `scene_manager`: 已注册所有场景并构建导航图的 SceneManager
-    pub fn new(scene_manager: SceneManager) -> Self {
-        Self { scene_manager }
-    }
+    // 1. 检测当前场景
+    let current = scenes.detect_current_scene(session)?;
 
-    /// 获取场景管理器的只读引用。
-    ///
-    /// 供任务系统之外使用（如单次扫描需要检测当前场景）。
-    pub fn scene_manager(&self) -> &SceneManager {
-        &self.scene_manager
-    }
-
-    /// 运行任务。
-    ///
-    /// 自动检测当前场景，如果不在任务支持的入口场景中则报错，
-    /// 否则导航到第一个支持的入口场景并执行任务。
-    pub fn run_task(&mut self, task: &dyn Task, session: &mut Session) -> Result<()> {
-        tracing::info!("========== 开始执行任务: {} ==========", task.name());
-
-        // 1. 检测当前场景
-        let current = self.scene_manager.detect_current_scene(session)?;
-
-        // 2. 检查是否在受支持的入口场景中
-        let entries = task.supported_entry_scenes();
-        if !entries.contains(&current) {
-            // 尝试找到最近的受支持场景并导航过去
-            // 先尝试导航到第一个入口场景
-            let target = entries.first().copied().unwrap_or(SceneId::未知);
-            if target == SceneId::未知 {
-                anyhow::bail!("任务 {} 无有效入口场景", task.name());
-            }
-            tracing::info!(
-                "当前场景 {:?} 不在任务入口列表中，导航到 {:?}",
-                current,
-                target
-            );
-            self.scene_manager.navigate_to(target, session)?;
+    // 2. 不在支持的入口场景中则导航到第一个入口
+    if !task.supported_entry_scenes().contains(&current) {
+        let target = task
+            .supported_entry_scenes()
+            .first()
+            .copied()
+            .unwrap_or(SceneId::未知);
+        if target == SceneId::未知 {
+            bail!("任务 {} 无有效入口场景", task.name());
         }
-
-        // 3. 执行任务
-        task.run(session, &self.scene_manager)?;
-
-        tracing::info!("========== 任务 {} 执行完毕 ==========", task.name());
-        Ok(())
+        tracing::info!(
+            "当前场景 {:?} 不在任务入口列表中，导航到 {:?}",
+            current,
+            target
+        );
+        scenes.navigate_to(target, session)?;
     }
+
+    // 3. 执行任务
+    task.run(session, scenes)?;
+
+    tracing::info!("========== 任务 {} 执行完毕 ==========", task.name());
+    Ok(())
 }

@@ -1,21 +1,21 @@
 //! 单子分类内扫描档案的循环逻辑。
 //!
 //! 进入一个子分类后，依次扫描该分类中的所有档案：
-//! 1. OCR 识别档案标题 → 记录 SUCCESS 日志
+//! 1. OCR 识别档案标题 → 记录 SUCCESS 日志并上报结果
 //! 2. 尝试翻到下一份档案（"下一篇"按钮 或 "档案详情右箭头"按钮）
-//! 3. 两个都翻不动 → 扫描完毕
+//! 3. 两个都翻不动 → 扫描完毕，关闭返回子界面
 
 use anyhow::Result;
 use tracing::debug;
 
 use crate::{
-    scan_result::{ScanResult, encode_png_data_url},
     scene::{SceneId, scene_manager::SceneManager},
     session::Session,
     success,
 };
 
 use super::constants::{ARROW_RIGHT_ROI, CLOSE_BUTTON_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
+use super::result::{ScanReporter, encode_png_data_url};
 
 /// 扫描当前子界面中的所有档案。
 ///
@@ -31,6 +31,7 @@ pub fn scan_current_sub_scene(
     session: &mut Session,
     scene_manager: &SceneManager,
     category: &'static str,
+    reporter: &ScanReporter,
 ) -> Result<()> {
     // 1. 点击第 1 份档案进入档案详情页面
     debug!("点击第 1 份档案 (401, 182)");
@@ -69,20 +70,14 @@ pub fn scan_current_sub_scene(
             }
         };
 
-        // 2b. 把识别结果推送给前端（卡片展示：状态 / 序号 / 分类 / 详情截图 / 可编辑文本）
+        // 2b. 上报识别结果（前端卡片展示：状态 / 序号 / 分类 / 详情截图 / 可编辑文本）
         // 目前只要 OCR 结果非空就视为识别成功
         let status = if ocr_text.is_empty() {
             "failed"
         } else {
             "success"
         };
-        session.emit_scan_result(ScanResult {
-            status: status.to_string(),
-            index: session.next_scan_index(),
-            category: category.to_string(),
-            image: encode_png_data_url(&screenshot),
-            ocr_result: ocr_text,
-        });
+        reporter.report(status, category, encode_png_data_url(&screenshot), ocr_text);
 
         // 2c. 尝试翻到下一篇
         let screenshot = session.screencap_for_recognition()?;
