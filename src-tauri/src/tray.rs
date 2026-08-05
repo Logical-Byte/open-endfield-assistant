@@ -6,14 +6,14 @@
 //! - 窗口关闭请求由 [`handle_close_requested`] 决定是否隐藏到托盘。
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Mutex, OnceLock,
+    atomic::{AtomicBool, Ordering},
 };
 
 use tauri::{
+    AppHandle, Manager, Wry,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Wry,
 };
 use tracing::info;
 

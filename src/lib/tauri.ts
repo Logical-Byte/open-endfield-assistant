@@ -66,6 +66,16 @@ export async function openLogDir(): Promise<void> {
   await invoke('open_log_dir');
 }
 
+/** 查询"关闭窗口时最小化到托盘"。 */
+export async function getMinimizeToTray(): Promise<boolean> {
+  return await invoke('get_minimize_to_tray');
+}
+
+/** 设置"关闭窗口时最小化到托盘"（返回设置后的实际值）。 */
+export async function setMinimizeToTray(enabled: boolean): Promise<boolean> {
+  return await invoke('set_minimize_to_tray', { enabled });
+}
+
 /**
  * 监听应用状态变更事件（启动 / 结束均触发，payload 为最新 AppStatus）。
  * 返回取消监听函数，组件卸载时应调用。
