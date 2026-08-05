@@ -7,7 +7,7 @@ use anyhow::Result;
 use tracing::info;
 
 use crate::{
-    scene::{SceneId, scene_manager::SceneManager, 档案库SubSceneId},
+    scene::{SceneAction, SceneId, scene_manager::SceneManager, 档案库SubSceneId},
     session::Session,
     task::Task,
     utils::region::Region2D,
@@ -155,20 +155,15 @@ impl ArchiveScanTask {
     }
 
     /// 在同一分类内切换子界面（点击侧边栏 tab）。
+    ///
+    /// 点击逻辑与 tab 坐标单点维护在 [`SceneAction::ClickSubTab`]（scene_action.rs），
+    /// 此处只构造动作并执行，避免坐标重复。
     fn switch_sub_tab(&self, session: &mut Session, tab_index: usize) -> Result<()> {
-        // 颜色 ROI 的 ltwh 坐标（从上到下 3 个 tab）
-        const TAB_ROIS: [(u32, u32, u32, u32); 3] = [
-            (180, 120, 60, 36), // tab 0
-            (180, 184, 60, 36), // tab 1
-            (180, 248, 60, 36), // tab 2
-        ];
-
-        let (x, y, w, h) = TAB_ROIS
-            .get(tab_index)
-            .ok_or_else(|| anyhow::anyhow!("无效的 tab 索引: {tab_index}"))?;
-        let cx = x + w / 2;
-        let cy = y + h / 2;
-        session.click_at_720p(cx, cy)?;
+        let screenshot = session.screencap_for_recognition()?;
+        SceneAction::ClickSubTab {
+            roi_index: tab_index,
+        }
+        .execute(session, &screenshot)?;
 
         // 等待界面切换
         thread::sleep(Duration::from_millis(800));
