@@ -7,4 +7,4 @@
 
 mod registry;
 
-pub use registry::{HotkeyBinding, HotkeyEvent, HotkeyFilter, HotkeyRegistry};
+pub use registry::{HotkeyBinding, HotkeyEvent, HotkeyFilter, register_hotkey};

@@ -7,10 +7,10 @@
 //! 钩子只感知按键、从不拦截（一律透传，不影响其它程序打字）。
 
 use std::cell::RefCell;
-use std::sync::mpsc::{self, TryRecvError};
+use std::sync::mpsc;
 use std::thread;
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use scopeguard::defer;
 use tracing::{error, info};
 use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
@@ -172,37 +172,36 @@ unsafe extern "system" fn keyboard_hook_proc(
     next
 }
 
-/// 全局热键注册与监听器。
-pub struct HotkeyRegistry {
-    /// 事件接收端（轮询线程非阻塞读取）
-    rx: mpsc::Receiver<HotkeyEvent>,
-}
+/// 安装低级键盘钩子并启动监听线程。
+///
+/// # 参数
+/// - `bindings`: 热键绑定列表
+/// - `filter`: 可选的放行回调（如前台窗口过滤）
+///
+/// # 返回
+/// 事件接收端 `Receiver`：由调用方 move 进消费线程，用阻塞 `recv`
+/// 接收事件（消息驱动，无轮询、无锁）。
+pub fn register_hotkey(
+    bindings: &[HotkeyBinding],
+    filter: Option<HotkeyFilter>,
+) -> Result<mpsc::Receiver<HotkeyEvent>> {
+    let (tx, rx) = mpsc::channel();
+    let bindings = bindings.to_vec();
 
-impl HotkeyRegistry {
-    /// 安装低级键盘钩子并启动监听线程。
-    ///
-    /// # 参数
-    /// - `bindings`: 热键绑定列表
-    /// - `filter`: 可选的放行回调（如前台窗口过滤）
-    pub fn new(bindings: &[HotkeyBinding], filter: Option<HotkeyFilter>) -> Result<Self> {
-        let (tx, rx) = mpsc::channel();
-        let bindings = bindings.to_vec();
+    thread::spawn(move || {
+        // 安装低级键盘钩子（统一感知所有热键，不拦截任何按键）。
+        // 钩子回调运行在安装线程的消息泵中，故用线程本地存储传递状态。
+        let hook_state = HookState {
+            tx,
+            bindings,
+            filter,
+            pressed: Vec::new(),
+            mods: 0,
+        };
+        HOOK_STATE.with(|cell| *cell.borrow_mut() = Some(hook_state));
 
-        thread::spawn(move || {
-            // 安装低级键盘钩子（统一感知所有热键，不拦截任何按键）。
-            // 钩子回调运行在安装线程的消息泵中，故用线程本地存储传递状态。
-            let hook_state = HookState {
-                tx,
-                bindings,
-                filter,
-                pressed: Vec::new(),
-                mods: 0,
-            };
-            HOOK_STATE.with(|cell| *cell.borrow_mut() = Some(hook_state));
-
-            let hook = match unsafe {
-                SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), None, 0)
-            } {
+        let hook =
+            match unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), None, 0) } {
                 Ok(hook) => {
                     info!("低级键盘钩子安装成功");
                     Some(hook)
@@ -212,36 +211,26 @@ impl HotkeyRegistry {
                     None
                 }
             };
-            let Some(hook) = hook else {
-                HOOK_STATE.with(|cell| *cell.borrow_mut() = None);
-                return;
-            };
+        let Some(hook) = hook else {
+            HOOK_STATE.with(|cell| *cell.borrow_mut() = None);
+            return;
+        };
 
-            // 线程退出时自动清理：卸载钩子、清空线程本地状态
-            defer! {
-                let _ = unsafe { UnhookWindowsHookEx(hook) };
-                HOOK_STATE.with(|cell| *cell.borrow_mut() = None);
-            }
-
-            // 消息循环：泵出低级键盘钩子消息（回调由系统在此线程的消息泵中调用）
-            let mut msg = MSG::default();
-            loop {
-                let ret = unsafe { GetMessageW(&mut msg, None, 0, 0) };
-                if ret.0 == 0 || ret.0 == -1 {
-                    break;
-                }
-            }
-        });
-
-        Ok(Self { rx })
-    }
-
-    /// 非阻塞地取下一个热键事件。
-    pub fn try_next(&self) -> Result<Option<HotkeyEvent>> {
-        match self.rx.try_recv() {
-            Ok(event) => Ok(Some(event)),
-            Err(TryRecvError::Empty) => Ok(None),
-            Err(_) => Err(anyhow!("热键监听线程已退出")),
+        // 线程退出时自动清理：卸载钩子、清空线程本地状态
+        defer! {
+            let _ = unsafe { UnhookWindowsHookEx(hook) };
+            HOOK_STATE.with(|cell| *cell.borrow_mut() = None);
         }
-    }
+
+        // 消息循环：泵出低级键盘钩子消息（回调由系统在此线程的消息泵中调用）
+        let mut msg = MSG::default();
+        loop {
+            let ret = unsafe { GetMessageW(&mut msg, None, 0, 0) };
+            if ret.0 == 0 || ret.0 == -1 {
+                break;
+            }
+        }
+    });
+
+    Ok(rx)
 }

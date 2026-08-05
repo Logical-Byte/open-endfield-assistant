@@ -11,7 +11,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
-use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
@@ -22,7 +21,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 
 use crate::{
     connect::connect_to_game,
-    hotkey::{HotkeyBinding, HotkeyEvent, HotkeyRegistry},
+    hotkey::{HotkeyBinding, HotkeyEvent},
     ocr::OcrEngine,
     scene::SceneManager,
     task::{TaskStopped, run_task},
@@ -93,8 +92,6 @@ pub struct Controller {
     templates_root: PathBuf,
     /// 场景管理器（本游戏全部场景，跨线程共享只读）
     scenes: Arc<SceneManager>,
-    /// 热键注册器（`Mutex` 仅为满足 Sync：`Receiver` 非 Sync，轮询线程短暂加锁）
-    hotkey: Mutex<HotkeyRegistry>,
     /// 停止标志（独立于锁：命令 / 热键均可快速请求停止，任务内部轮询）
     stop: Arc<AtomicBool>,
     /// 主任务运行标志（CAS 占用防重入）
@@ -118,7 +115,6 @@ impl Controller {
         ocr: Arc<Mutex<OcrEngine>>,
         templates_root: PathBuf,
         scenes: Arc<SceneManager>,
-        hotkey: HotkeyRegistry,
         stop: Arc<AtomicBool>,
         running: Arc<AtomicBool>,
         scan_tx: mpsc::Sender<ScanResult>,
@@ -130,7 +126,6 @@ impl Controller {
             ocr,
             templates_root,
             scenes,
-            hotkey: Mutex::new(hotkey),
             stop,
             running,
             op_lock: Mutex::new(()),
@@ -292,23 +287,14 @@ impl Controller {
 
     // ========== 后台线程 ==========
 
-    /// 启动热键轮询线程（每 20ms 非阻塞取事件并分发）。
-    pub fn spawn_hotkey_loop(self: &Arc<Self>) {
-        let this = self.clone();
+    /// 启动热键消费线程：阻塞接收事件并立即分发（消息驱动，无轮询）。
+    pub fn spawn_hotkey_loop(rx: mpsc::Receiver<HotkeyEvent>, this: Arc<Self>) {
         thread::spawn(move || {
-            loop {
-                match this.hotkey.lock().unwrap().try_next() {
-                    Ok(Some(HotkeyEvent { tag })) => match HotkeyAction::from_tag(tag) {
-                        Some(action) => this.handle_hotkey(action),
-                        None => warn!("未知热键标签: {tag}"),
-                    },
-                    Ok(None) => {}
-                    Err(e) => {
-                        error!("热键监听线程异常退出: {e}");
-                        break;
-                    }
+            while let Ok(HotkeyEvent { tag }) = rx.recv() {
+                match HotkeyAction::from_tag(tag) {
+                    Some(action) => this.handle_hotkey(action),
+                    None => warn!("未知热键标签: {tag}"),
                 }
-                thread::sleep(Duration::from_millis(20));
             }
         });
     }

@@ -32,7 +32,7 @@ use windows::Win32::Foundation::HWND;
 use crate::{
     app_paths::AppPaths,
     controller::{Controller, HOTKEY_BINDINGS, HotkeyAction},
-    hotkey::{HotkeyFilter, HotkeyRegistry},
+    hotkey::{HotkeyFilter, register_hotkey},
     ocr::OcrEngine,
     scene::create_scene_manager,
     tasks::archive_scan::ScanResult,
@@ -109,7 +109,7 @@ pub fn run() {
                 }
                 foreground.is_foreground_eligible()
             }));
-            let hotkey = HotkeyRegistry::new(HOTKEY_BINDINGS, filter)?;
+            let hotkey_rx = register_hotkey(HOTKEY_BINDINGS, filter)?;
 
             // 状态标志（Controller 唯一归属）
             let stop = Arc::new(AtomicBool::new(false));
@@ -120,7 +120,6 @@ pub fn run() {
                 ocr,
                 app_paths.templates_dir(),
                 scenes,
-                hotkey,
                 stop,
                 running,
                 scan_tx,
@@ -130,7 +129,7 @@ pub fn run() {
             ));
             Controller::spawn_log_loop(log_rx, app.handle().clone());
             Controller::spawn_scan_result_loop(scan_rx, app.handle().clone());
-            Controller::spawn_hotkey_loop(&controller);
+            Controller::spawn_hotkey_loop(hotkey_rx, Arc::clone(&controller));
             app.manage(controller);
 
             info!("OEA 后端初始化完成");
