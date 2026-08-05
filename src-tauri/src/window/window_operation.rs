@@ -8,8 +8,8 @@ use windows::Win32::UI::HiDpi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetForegroundWindow, GetWindowRect, HWND_TOP, IsIconic, IsWindow, IsZoomed,
-    SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW,
-    SetForegroundWindow, SetWindowPos,
+    SW_RESTORE, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    SWP_SHOWWINDOW, SetForegroundWindow, SetWindowPos, ShowWindow,
 };
 
 /// 设置当前线程的 DPI 感知上下文为 Per Monitor v2
@@ -41,6 +41,22 @@ pub fn ensure_foreground_and_topmost(hwnd: HWND) -> Result<()> {
 
         // 尝试设置为前台窗口
         unsafe { SetForegroundWindow(hwnd) }.ok()?;
+    }
+
+    Ok(())
+}
+
+/// 若窗口处于最小化状态则恢复（取消最小化）。
+///
+/// 连接游戏时调用：窗口最小化时 [`ensure_window_on_screen`] 会跳过调整，
+/// 需先恢复窗口才能正确获取并调整客户区。
+pub fn restore_window_if_minimized(hwnd: HWND) -> Result<()> {
+    if hwnd.is_invalid() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
+        bail!("Invalid window handle");
+    }
+
+    if unsafe { IsIconic(hwnd) }.as_bool() {
+        unsafe { ShowWindow(hwnd, SW_RESTORE) }.ok()?;
     }
 
     Ok(())

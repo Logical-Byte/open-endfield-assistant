@@ -22,7 +22,7 @@ use crate::{
 /// 连接游戏窗口并组装会话。
 ///
 /// # 流程
-/// 1. 按标题/类名查找终末地窗口（仅确保在屏幕上，不抢占前台）；
+/// 1. 按标题/类名查找终末地窗口，若被最小化则恢复（仅确保在屏幕上，不抢占前台）；
 /// 2. 检测客户端分辨率（仅支持 16:9）；
 /// 3. 创建截图器与输入器；
 /// 4. 组装 [`Session`]（复用共享 OCR 引擎与模板目录）。
@@ -36,6 +36,8 @@ pub fn connect_to_game(
         window::ENDFIELD_WINDOW_TITLE,
         Some(window::ENDFIELD_WINDOW_CLASS),
     )?;
+    // 若窗口被最小化则先恢复，否则 `ensure_window_on_screen` 会跳过调整
+    window::restore_window_if_minimized(hwnd)?;
     window::ensure_window_on_screen(hwnd)?;
 
     // 2. 检测分辨率
