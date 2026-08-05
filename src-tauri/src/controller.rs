@@ -17,10 +17,9 @@ use tauri::{AppHandle, Emitter};
 use tracing::{debug, error, info, warn};
 use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_1, VK_OEM_7};
 
-use crate::hotkey::{self, KeyEvent};
 use crate::{
     connect::connect_to_game,
-    hotkey::HotkeyBinding,
+    hotkey::KeyEvent,
     ocr::OcrEngine,
     scene::SceneManager,
     task::{TaskStopped, run_task},
@@ -36,18 +35,21 @@ pub struct AppStatus {
 }
 
 /// 分号 `;` → 单次扫描
-pub const SCAN_SINGLE_HOTKEY: HotkeyBinding = HotkeyBinding {
+pub const SCAN_SINGLE_HOTKEY: KeyEvent = KeyEvent {
     vk: VK_OEM_1.0 as u32,
+    down: true,
     modifiers: 0,
 };
 /// 引号 `'` → 切换主任务
-pub const TOGGLE_MAIN_TASK_HOTKEY: HotkeyBinding = HotkeyBinding {
+pub const TOGGLE_MAIN_TASK_HOTKEY: KeyEvent = KeyEvent {
     vk: VK_OEM_7.0 as u32,
+    down: true,
     modifiers: 0,
 };
 /// Alt+Delete → 退出
-pub const EXIT_HOTKEY: HotkeyBinding = HotkeyBinding {
+pub const EXIT_HOTKEY: KeyEvent = KeyEvent {
     vk: VK_DELETE.0 as u32,
+    down: true,
     modifiers: MOD_ALT.0,
 };
 
@@ -245,19 +247,20 @@ impl Controller {
 
         thread::spawn(move || {
             while let Ok(key_event) = rx.recv() {
-                // Alt+Delete 退出全局生效；分号 / 引号仅在前台为 OEA 或终末地时响应
-                if hotkey::binding_matches(&key_event, &EXIT_HOTKEY) {
+                if key_event == EXIT_HOTKEY {
                     self_cloned.quit();
-                    continue;
-                }
-                if !self_cloned.foreground.is_foreground_eligible() {
-                    debug!("终末地或者 OEA 不在前台，忽略热键");
-                    continue;
-                }
-                if hotkey::binding_matches(&key_event, &SCAN_SINGLE_HOTKEY) {
-                    self_cloned.scan_single();
-                } else if hotkey::binding_matches(&key_event, &TOGGLE_MAIN_TASK_HOTKEY) {
-                    self_cloned.toggle_scan();
+                } else if key_event == SCAN_SINGLE_HOTKEY {
+                    if self_cloned.foreground.is_foreground_eligible() {
+                        self_cloned.scan_single();
+                    } else {
+                        debug!("前台窗口不是终末地或者 OEA，忽略热键");
+                    }
+                } else if key_event == TOGGLE_MAIN_TASK_HOTKEY {
+                    if self_cloned.foreground.is_foreground_eligible() {
+                        self_cloned.toggle_scan();
+                    } else {
+                        debug!("前台窗口不是终末地或者 OEA，忽略热键");
+                    }
                 }
             }
         });
