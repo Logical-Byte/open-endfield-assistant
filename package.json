@@ -13,7 +13,8 @@
     "format:check": "prettier --check .",
     "check": "vue-tsc -p ./tsconfig.app.json && eslint src && prettier --check .",
     "tauri": "tauri",
-    "makedata": "jiti scripts/makeAllData.ts"
+    "makedata": "jiti scripts/makeAllData.ts",
+    "package": "tauri build --no-bundle && jiti scripts/package.ts"
   },
   "dependencies": {
     "@nuxt/ui": "^4.10.0",

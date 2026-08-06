@@ -1,7 +1,7 @@
 [package]
 name = "oea"
-version = "0.1.0"
-description = "OEA Assistant - 明日方舟终末地 自动化助手"
+# version = "0.1.0"
+description = "OEA - 明日方舟终末地自动化助手"
 authors = ["Logical-Byte"]
 license = ""
 repository = ""
@@ -47,7 +47,7 @@ debug = false
 overflow-checks = false
 
 [profile.release]
-strip = "symbols"
-lto = true
-panic = "abort"
-codegen-units = 1
+# strip = "symbols"
+# lto = true
+# panic = "abort"
+# codegen-units = 1
