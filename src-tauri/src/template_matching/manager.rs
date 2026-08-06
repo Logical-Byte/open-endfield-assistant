@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use image::{GenericImageView, Pixel, RgbImage};
 
 use super::MatchResult;
@@ -25,7 +25,10 @@ impl TemplateManager {
     /// 加载指定名称的模板图片（仅首次使用时加载）。
     fn load_template(&mut self, template_name: &str) -> Result<&RgbImage> {
         let path = self.folder.join(template_name);
-        let image = image::open(&path)?.to_rgb8();
+        // 加载失败时附加完整路径，便于上层（场景识别）定位是哪个模板缺失
+        let image = image::open(&path)
+            .with_context(|| format!("加载模板图片失败: {}", path.display()))?
+            .to_rgb8();
         self.cache.insert(template_name.to_string(), image);
         Ok(self.cache.get(template_name).unwrap())
     }

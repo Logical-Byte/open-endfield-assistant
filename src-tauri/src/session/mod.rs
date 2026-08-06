@@ -149,7 +149,8 @@ impl Session {
     /// 在 720p 截图的指定 ROI 内搜索模板。
     ///
     /// 模板名需带子目录前缀（如 `"情报档案库/下一篇.png"`）。
-    /// 返回 `Ok(Some(MatchResult))` 命中、`Ok(None)` 未命中 / 分数过低 / 模板缺失。
+    /// 返回 `Ok(Some(MatchResult))` 命中、`Ok(None)` 未命中 / 分数过低；
+    /// 模板加载失败等错误会向上传播（`Err`），由上层记录日志，避免"模板缺失但毫无提示"。
     pub fn find_template_in_roi(
         &mut self,
         screenshot: &RgbaImage,
@@ -158,13 +159,14 @@ impl Session {
         threshold: f32,
     ) -> Result<Option<MatchResult>> {
         // 直接传 RgbaImage 引用：泛型接口内部灰度化，无需克隆 / 颜色转换。
-        let result = self
+        // 错误（如模板加载失败）用 ? 向上传播，交由上层记录日志。
+        let m = self
             .templates
-            .match_template_in_region(screenshot, template_name, Some(roi));
-        match result {
-            Ok(m) if m.score >= threshold => Ok(Some(m)),
-            Ok(_) => Ok(None),
-            Err(_) => Ok(None),
+            .match_template_in_region(screenshot, template_name, Some(roi))?;
+        if m.score >= threshold {
+            Ok(Some(m))
+        } else {
+            Ok(None)
         }
     }
 
