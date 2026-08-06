@@ -16,14 +16,3 @@ pub use correction::{Corrected, CorrectionIndex};
 pub use result::{ScanReporter, ScanResult};
 pub use single_scan::single_scan;
 pub use task::ArchiveScanTask;
-
-/// 记录一条 SUCCESS 级别的日志（基于 tracing INFO 级别，但标记为 SUCCESS）。
-///
-/// 业务语义（扫描到档案标题等关键结果）归任务层，不属于通用日志库。
-/// 通过 `#[macro_export]` 在 crate 根可见，调用点无需改动。
-#[macro_export]
-macro_rules! success {
-    ($($arg:tt)*) => {
-        tracing::info!("SUCCESS: {}", format!($($arg)*))
-    };
-}

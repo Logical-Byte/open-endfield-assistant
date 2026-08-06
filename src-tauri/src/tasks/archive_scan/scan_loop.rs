@@ -6,12 +6,11 @@
 //! 3. 两个都翻不动 → 扫描完毕，关闭返回子界面
 
 use anyhow::Result;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::{
     scene::{SceneId, scene_manager::SceneManager, 档案库SubSceneId},
     session::Session,
-    success,
 };
 
 use super::constants::{ARROW_RIGHT_ROI, CLOSE_BUTTON_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
@@ -58,17 +57,17 @@ pub fn scan_current_sub_scene(
         let screenshot = session.screencap_for_recognition()?;
         let ocr_text = match session.ocr_in_roi(&screenshot, OCR_ROI) {
             Ok(text) if !text.trim().is_empty() => {
-                success!("第 {} 份档案标题：{}", archive_count, text.trim());
+                info!("第 {} 份档案标题：{}", archive_count, text.trim());
                 text.trim().to_string()
             }
             Ok(_) => {
-                success!("第 {} 份档案标题：（空）", archive_count);
+                info!("第 {} 份档案标题：（空）", archive_count);
                 String::new()
             }
             Err(e) => {
                 // OCR 失败不中断流程，记录日志继续
                 debug!("OCR 识别失败（第 {archive_count} 份）: {e:#}");
-                success!("第 {} 份档案标题：（OCR 识别失败）", archive_count);
+                info!("第 {} 份档案标题：（OCR 识别失败）", archive_count);
                 String::new()
             }
         };
@@ -77,14 +76,14 @@ pub fn scan_current_sub_scene(
         let category_id = category_id_of(sub_scene);
         let corrected = correction.correct(category_id, &ocr_text);
         match &corrected {
-            Some(c) => success!(
+            Some(c) => info!(
                 "第 {} 份档案纠错为：{}（id: {}）",
                 archive_count,
                 c.title,
                 c.item_ids.join(", ")
             ),
             None if !ocr_text.is_empty() => {
-                success!("第 {} 份档案标题无法识别", archive_count);
+                info!("第 {} 份档案标题无法识别", archive_count);
             }
             None => {}
         }

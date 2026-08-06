@@ -3,12 +3,11 @@
 //! 仅截屏识别当前档案详情的标题并记录日志，**不做任何鼠标键盘输入操作**。
 
 use anyhow::Result;
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::{
     scene::{SceneId, scene_manager::SceneManager},
     session::Session,
-    success,
 };
 
 use super::constants::OCR_ROI;
@@ -36,17 +35,17 @@ pub fn single_scan(
     let screenshot = session.screencap_for_recognition()?;
     let ocr_text = match session.ocr_in_roi(&screenshot, OCR_ROI) {
         Ok(text) if !text.trim().is_empty() => {
-            success!("当前档案标题：{}", text.trim());
+            info!("当前档案标题：{}", text.trim());
             text.trim().to_string()
         }
         Ok(_) => {
-            success!("当前档案标题：（空）");
+            info!("当前档案标题：（空）");
             String::new()
         }
         Err(e) => {
             // OCR 失败不中断，记录警告并给出提示
             warn!("OCR 识别失败: {e:#}");
-            success!("当前档案标题：（OCR 识别失败）");
+            info!("当前档案标题：（OCR 识别失败）");
             String::new()
         }
     };
