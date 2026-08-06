@@ -14,15 +14,17 @@ useHead({
 <template>
   <Suspense>
     <UApp>
-      <AppHeader />
+      <div class="flex h-full flex-col">
+        <AppHeader class="static z-auto backdrop-blur-none" />
 
-      <UMain>
-        <RouterView />
-      </UMain>
+        <UMain class="flex min-h-0 flex-1">
+          <RouterView />
+        </UMain>
 
-      <!-- <AppFooter /> -->
+        <!-- <AppFooter /> -->
 
-      <AppImagePreview />
+        <AppImagePreview />
+      </div>
     </UApp>
   </Suspense>
 </template>

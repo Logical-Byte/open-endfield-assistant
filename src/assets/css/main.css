@@ -3,6 +3,29 @@
 
 :root {
   --chinese-font: 'HarmonyOS Sans SC', '鸿蒙黑体', 'Source Han Sans SC', '思源黑体', 'Noto Sans SC';
+  --ui-header-height: 3rem;
+}
+
+html,
+body,
+#app {
+  @apply m-0 h-full p-0;
+}
+
+::-webkit-scrollbar {
+  @apply w-1.75;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-(--ui-text-dimmed)/50;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-(--ui-text-dimmed)/90;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
 }
 
 @theme static {

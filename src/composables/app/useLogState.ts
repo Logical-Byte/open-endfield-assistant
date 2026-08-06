@@ -12,6 +12,15 @@ const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
   ERROR: 4,
 };
 
+/** 日志等级过滤选项（显示该等级及以上）。 */
+const levelOptions: { label: string; value: LogLevel }[] = [
+  { label: 'TRACE', value: 'TRACE' },
+  { label: 'DEBUG', value: 'DEBUG' },
+  { label: 'INFO', value: 'INFO' },
+  { label: 'WARN', value: 'WARN' },
+  { label: 'ERROR', value: 'ERROR' },
+] as const;
+
 /** 日志行列表（后端实时追加，全局唯一缓冲） */
 const logLines = ref<LogEntry[]>([]);
 
@@ -47,6 +56,7 @@ export function useLogState() {
   }
 
   return {
+    levelOptions,
     logLines,
     logLevelFilter,
     filteredLogLines,

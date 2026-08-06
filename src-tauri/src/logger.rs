@@ -21,7 +21,7 @@ use tracing_subscriber::{
 /// 推送给前端的日志条目（时间 + 等级 + 格式化文本）。
 #[derive(Debug, Clone, Serialize)]
 pub struct LogEntry {
-    /// 时间（本地时间，`MM-dd HH:MM:SS`）
+    /// 时间（本地时间，ISO 8601 字符串，含微秒与时区偏移，如 `2026-08-06T12:34:56.123456+08:00`）
     pub time: String,
     /// 日志等级：TRACE / DEBUG / INFO / WARN / ERROR
     pub level: String,
@@ -86,7 +86,7 @@ impl Write for DailyRotatingWriter {
 /// 前端日志写入层：把每个事件格式化为 `LogEntry` 并通过通道发送。
 struct ChannelLayer {
     tx: mpsc::Sender<LogEntry>,
-    /// 时间格式器（与控制台共用同一 `MM-dd HH:MM:SS` 本地时间格式）
+    /// 时间格式器（本地时间 ISO 8601，含微秒与时区偏移，精度与文件日志一致）
     timer: ChronoLocal,
 }
 
@@ -94,7 +94,7 @@ impl ChannelLayer {
     fn new(tx: mpsc::Sender<LogEntry>) -> Self {
         Self {
             tx,
-            timer: ChronoLocal::new("%m-%d %H:%M:%S".to_string()),
+            timer: ChronoLocal::new("%Y-%m-%dT%H:%M:%S%.6f%:z".to_string()),
         }
     }
 }
@@ -128,7 +128,7 @@ where
 /// - 文件输出所有级别（TRACE 及以上），信息最完整：本地时间（含时区偏移）、等级、调用者、
 ///   源文件位置、行号、线程名 / ID 与全部字段，按**本地日期**轮转到 `<logs_dir>/YYYY-mm-dd.log`
 /// - 前端转发所有级别（TRACE 及以上），以 `LogEntry`（时间 + 等级 + 文本）逐条发送，
-///   供 Tauri 界面展示 `MM-dd HH:MM:SS [等级] 信息`，并可按等级过滤
+///   时间为本地 ISO 8601 字符串（含微秒与时区偏移），由前端自行格式化展示，并可按等级过滤
 /// - `ort` 及 `onnxruntime` 模块的日志仅输出 WARN 及以上（屏蔽 ONNX Runtime 的冗余信息）
 ///
 /// # 参数
@@ -147,10 +147,11 @@ pub fn init(logs_dir: &Path) -> (WorkerGuard, mpsc::Receiver<LogEntry>) {
     // 非阻塞文件写入（独立线程）
     let (non_blocking, guard) = tracing_appender::non_blocking(file_writer);
 
-    // 控制台过滤器：默认 DEBUG，ort 只记录 WARN 及以上
+    // 控制台过滤器：默认 DEBUG，其他模块只记录 WARN 及以上
     let console_filter = Targets::new()
         .with_default(LevelFilter::DEBUG)
-        .with_target("ort", LevelFilter::WARN);
+        .with_target("ort", LevelFilter::WARN)
+        .with_target("tao", LevelFilter::WARN);
 
     // 输出到 stderr：DEBUG 及以上（带颜色），格式为 `MM-dd HH:MM:SS 等级 调用者: 行号: 信息`
     let console_layer = fmt::layer()
@@ -159,12 +160,13 @@ pub fn init(logs_dir: &Path) -> (WorkerGuard, mpsc::Receiver<LogEntry>) {
         .with_line_number(true)
         .with_filter(console_filter);
 
-    // 文件/前端过滤器：默认 TRACE，ort 只记录 WARN 及以上
+    // 文件/前端过滤器：默认 TRACE，其他模块只记录 WARN 及以上
     let frontend_filter = Targets::new()
         .with_default(LevelFilter::TRACE)
-        .with_target("ort", LevelFilter::WARN);
+        .with_target("ort", LevelFilter::WARN)
+        .with_target("tao", LevelFilter::WARN);
 
-    // 输出到文件：事无巨细——本地时间（含时区偏移）、等级、调用者、源文件位置、行号、线程与字段
+    // 输出到文件：本地时间（含时区偏移）、等级、调用者、源文件位置、行号、线程与字段
     let file_layer = fmt::layer()
         .with_ansi(false)
         .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S%.6f%:z".to_string()))
