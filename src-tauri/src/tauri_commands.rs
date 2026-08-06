@@ -40,8 +40,8 @@ pub fn get_status(state: State<'_, Arc<Controller>>) -> AppStatus {
 
 /// 返回 prts.json 完整数据（前端用于分类中文名映射与自动补全候选）。
 #[tauri::command]
-pub fn get_prts_data(state: State<'_, Arc<Controller>>) -> PrtsData {
-    (*state.inner().prts_data()).clone()
+pub fn get_prts_data(state: State<'_, Arc<Controller>>) -> Arc<PrtsData> {
+    state.inner().prts_data()
 }
 
 /// 退出程序。
