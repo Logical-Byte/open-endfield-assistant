@@ -27,7 +27,7 @@ import type {
   PrtsFirstLv,
   PrtsPage,
   PrtsPageType,
-} from '../../src/lib/prts';
+} from '../../src/types/prts';
 import {
   getTranslation,
   prtsAllItemTable,

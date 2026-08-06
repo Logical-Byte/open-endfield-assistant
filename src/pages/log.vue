@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { clearLogs, filteredLogLines, logLevelFilter } from '@/lib/logState';
-import type { LogLevel } from '@/lib/tauri';
-import { openLogDir } from '@/lib/tauri';
+import { useLogState } from '@/composables/app/useLogState';
+import type { LogLevel } from '@/types/log';
+import { openLogDir } from '@/utils/tauri';
 import { computed, nextTick, onMounted, useTemplateRef, watch } from 'vue';
+
+const { clearLogs, filteredLogLines, logLevelFilter } = useLogState();
 
 function openLogDirectory(): void {
   void openLogDir();

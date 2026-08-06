@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { categoryName, initPrtsData, pageName, titlesOfCategory } from '@/lib/prtsData';
-import type { ScanResult } from '@/lib/tauri';
+import { usePrtsData } from '@/composables/app/usePrtsData';
+import type { ScanResult } from '@/types/scanResult';
 import { openImagePreviewKey } from '@/utils/provideInject';
 import { computed, inject } from 'vue';
 
@@ -9,8 +9,8 @@ const { index, status, category, sub_category, image, corrected_title, item_ids 
 const ocr_text = defineModel<string>('ocr_text');
 
 // 自动补全候选：当前子分类下所有档案标题（prts 数据加载幂等）
-initPrtsData();
-const candidates = computed(() => titlesOfCategory(sub_category));
+const { getCategoryTitles, getPageName, getCategoryName } = usePrtsData();
+const candidates = computed(() => getCategoryTitles(sub_category));
 
 /** 基准分辨率（16:9，实际分辨率不同时按此等比例缩放） */
 const BASE_WIDTH = 1280;
@@ -58,11 +58,11 @@ const openImagePreview = inject(openImagePreviewKey, () => {
     <div class="flex flex-col items-center gap-4 sm:flex-row">
       <div class="flex flex-col items-center gap-1">
         <div class="font-semibold">#{{ index }}</div>
-        <UBadge v-if="category" color="neutral" :label="pageName(category)" variant="outline" />
+        <UBadge v-if="category" color="neutral" :label="getPageName(category)" variant="outline" />
         <UBadge
           v-if="sub_category"
           color="secondary"
-          :label="categoryName(sub_category)"
+          :label="getCategoryName(sub_category)"
           variant="outline"
         />
         <UBadge v-if="corrected_title" color="success" label="已纠错" variant="soft" />

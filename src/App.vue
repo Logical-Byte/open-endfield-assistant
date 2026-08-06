@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { initAppState } from '@/lib/appState';
-import { initLogState } from '@/lib/logState';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';
 import { computed } from 'vue';
@@ -11,9 +9,6 @@ const themeColor = computed(() => (colorMode.value === 'dark' ? '#18181b' : '#ff
 useHead({
   meta: [{ name: 'theme-color', content: themeColor }],
 });
-
-initAppState();
-initLogState();
 </script>
 
 <template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getMinimizeToTray, setMinimizeToTray } from '@/lib/tauri';
+import { getMinimizeToTray, setMinimizeToTray } from '@/utils/tauri';
 import { onMounted, ref } from 'vue';
 
 /** 关闭窗口时是否最小化到托盘（与后端状态同步）。 */

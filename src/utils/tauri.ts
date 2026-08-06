@@ -1,47 +1,11 @@
 //! Tauri 后端接口封装：类型安全地调用 Rust 命令、监听后端事件。
 
-import type { PrtsData } from '@/lib/prts';
+import type { AppStatus } from '@/types/appStatus';
+import type { LogEntry } from '@/types/log';
+import type { PrtsData } from '@/types/prts';
+import type { ScanResult } from '@/types/scanResult';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-
-/** 后端返回的应用状态（与 Rust 侧 `AppStatus` 对齐）。 */
-export interface AppStatus {
-  /** 主任务是否正在运行 */
-  running: boolean;
-}
-
-/** 单份档案的扫描结果（与 Rust 侧 `ScanResult` 对齐）。 */
-export interface ScanResult {
-  /** 识别状态：success（纠错成功）| unrecognized（识别到文本但无法纠错）| failed（OCR 为空） */
-  status: 'success' | 'unrecognized' | 'failed';
-  /** 全局序号（从 1 开始，跨分类连续递增） */
-  index: number;
-  /** 档案库大类 id（pageType：multi_media / text / document，单次扫描为空） */
-  category: string;
-  /** 档案库小类 id（categoryId，单次扫描为空） */
-  sub_category: string;
-  /** 档案详情页面截图（base64 PNG data URL） */
-  image: string;
-  /** OCR 识别结果（前端可编辑） */
-  ocr_result: string;
-  /** 纠错后的档案标题（无法识别或单次扫描时为 null） */
-  corrected_title: string | null;
-  /** 纠错命中的档案 id（allItems 的 id，同标题多条时返回全部） */
-  item_ids: string[];
-}
-
-/** 后端日志等级（与 Rust 侧 `tracing::Level` 对齐）。 */
-export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
-
-/** 后端推送的单条日志（与 Rust 侧 `LogEntry` 对齐）。 */
-export interface LogEntry {
-  /** 时间（本地时间，`MM-dd HH:MM:SS`） */
-  time: string;
-  /** 日志等级：TRACE / DEBUG / INFO / WARN / ERROR */
-  level: LogLevel;
-  /** 格式化后的日志文本 */
-  message: string;
-}
 
 /** 启动档案库主任务（后端在后台线程执行，立即返回当前状态）。 */
 export async function startScan(): Promise<AppStatus> {

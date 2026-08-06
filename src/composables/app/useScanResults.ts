@@ -1,10 +1,10 @@
 //! 共享扫描结果状态（模块级单例 ref，多个组件共享）。
-import type { ScanResult } from '@/lib/tauri';
-import { onScanResult } from '@/lib/tauri';
+import type { ScanResult } from '@/types/scanResult';
+import { onScanResult } from '@/utils/tauri';
 import { ref } from 'vue';
 
 /** 扫描结果列表（随扫描进度实时追加，按序号排序） */
-export const scanResults = ref<ScanResult[]>([]);
+const scanResults = ref<ScanResult[]>([]);
 
 /** 模拟数据用到的档案库大类 id（pageType，循环使用） */
 const MOCK_PAGE_TYPES = ['multi_media', 'text', 'document'] as const;
@@ -70,7 +70,7 @@ function createMockImage(index: number): string {
  * 生成一条假的扫描结果并追加到列表（仅前端，不经过后端），便于本地测试。
  * 类别按序号循环，每 3 条生成一条 failed、每 5 条生成一条 unrecognized 以覆盖不同状态。
  */
-export function pushMockScanResult(): void {
+function pushMockScanResult(): void {
   const index = scanResults.value.reduce((max, r) => Math.max(max, r.index), 0) + 1;
   const category = MOCK_PAGE_TYPES[(index - 1) % MOCK_PAGE_TYPES.length];
   const subCategory = MOCK_SUB_CATEGORIES[(index - 1) % MOCK_SUB_CATEGORIES.length];
@@ -92,24 +92,29 @@ export function pushMockScanResult(): void {
   scanResults.value.sort((a, b) => a.index - b.index);
 }
 
-/** 初始化：订阅后端扫描结果事件（幂等，全局只需调用一次）。 */
-export async function initScanResults(): Promise<void> {
-  if (initialized) {
-    return;
-  }
-  initialized = true;
-  await onScanResult((result) => {
-    // 展示值优先取纠错后的标题（无法识别时保留 OCR 原文供用户手动编辑）
-    scanResults.value.push({
-      ...result,
-      ocr_result: result.corrected_title ?? result.ocr_result,
-    });
-    // 按序号排序，防止事件乱序导致展示错乱
-    scanResults.value.sort((a, b) => a.index - b.index);
-  });
+/** 清空扫描结果列表。 */
+function clearScanResults(): void {
+  scanResults.value = [];
 }
 
-/** 清空扫描结果列表。 */
-export function clearScanResults(): void {
-  scanResults.value = [];
+export function useScanResults() {
+  if (!initialized) {
+    initialized = true;
+
+    onScanResult((result) => {
+      // 展示值优先取纠错后的标题（无法识别时保留 OCR 原文供用户手动编辑）
+      scanResults.value.push({
+        ...result,
+        ocr_result: result.corrected_title ?? result.ocr_result,
+      });
+      // 按序号排序，防止事件乱序导致展示错乱
+      scanResults.value.sort((a, b) => a.index - b.index);
+    });
+  }
+
+  return {
+    scanResults,
+    pushMockScanResult,
+    clearScanResults,
+  };
 }

@@ -1,12 +1,7 @@
 <script setup lang="ts">
-import {
-  clearScanResults,
-  initScanResults,
-  pushMockScanResult,
-  scanResults,
-} from '@/lib/scanResults';
+import { useScanResults } from '@/composables/app/useScanResults';
 
-initScanResults();
+const { scanResults, pushMockScanResult, clearScanResults } = useScanResults();
 </script>
 
 <template>

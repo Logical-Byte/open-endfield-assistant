@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { running } from '@/lib/appState';
-import { scanSingle, startScan, stopScan } from '@/lib/tauri';
+import { useAppState } from '@/composables/app/useAppState';
+import { scanSingle, startScan, stopScan } from '@/utils/tauri';
+
+const { appStatus } = useAppState();
 
 async function handleToggle() {
-  return running.value ? await stopScan() : await startScan();
+  return appStatus.value.running ? await stopScan() : await startScan();
 }
 
 /** 导出扫描结果到地图集。 */
@@ -15,15 +17,15 @@ function handleExportToAtlas() {
 <template>
   <div class="flex flex-wrap gap-2">
     <UButton
-      :color="running ? 'error' : 'success'"
-      :icon="running ? 'i-lucide-square' : 'i-lucide-play'"
-      :label="running ? '停止扫描' : '启动扫描'"
+      :color="appStatus.running ? 'error' : 'success'"
+      :icon="appStatus.running ? 'i-lucide-square' : 'i-lucide-play'"
+      :label="appStatus.running ? '停止扫描' : '启动扫描'"
       size="lg"
       @click="handleToggle"
     />
     <UButton
       color="neutral"
-      :disabled="running"
+      :disabled="appStatus.running"
       icon="i-lucide-scan"
       label="单次扫描"
       size="lg"
