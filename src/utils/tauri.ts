@@ -4,6 +4,7 @@ import type { AppStatus } from '@/types/appStatus';
 import type { LogEntry } from '@/types/log';
 import type { PrtsData } from '@/types/prts';
 import type { ScanResult } from '@/types/scanResult';
+import type { ScreenshotFormat } from '@/types/screenshot';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -45,6 +46,18 @@ export async function getMinimizeToTray(): Promise<boolean> {
 /** 设置"关闭窗口时最小化到托盘"（返回设置后的实际值）。 */
 export async function setMinimizeToTray(enabled: boolean): Promise<boolean> {
   return await invoke('set_minimize_to_tray', { enabled });
+}
+
+/**
+ * 截取游戏窗口画面：按指定尺寸缩放并编码为指定格式，返回 base64 图片数据
+ * （不含 data URL 前缀，调用方自行拼接）。帧率控制等轮询逻辑由前端负责。
+ */
+export async function screenshot(
+  width: number,
+  height: number,
+  format: ScreenshotFormat,
+): Promise<string> {
+  return await invoke<string>('screenshot', { width, height, format });
 }
 
 /**

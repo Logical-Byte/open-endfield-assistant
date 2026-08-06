@@ -60,7 +60,8 @@ pub fn run() {
             tauri_commands::quit,
             tauri_commands::open_log_dir,
             tauri_commands::set_minimize_to_tray,
-            tauri_commands::get_minimize_to_tray
+            tauri_commands::get_minimize_to_tray,
+            tauri_commands::screenshot,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用

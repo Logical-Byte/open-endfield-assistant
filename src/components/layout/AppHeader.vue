@@ -13,6 +13,11 @@ const navigationMenuItems: NavigationMenuItem[] = [
     to: '/log',
   },
   {
+    label: '监控',
+    icon: 'i-lucide-monitor-play',
+    to: '/monitor',
+  },
+  {
     label: '设置',
     icon: 'i-lucide-settings',
     to: '/settings',
