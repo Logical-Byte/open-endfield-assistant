@@ -80,8 +80,8 @@ function handleClose(): void {
         type="button"
         @click="handleToggleMaximize"
       >
-        <WindowRestoreIcon v-if="isMaximized" class="size-3 rotate-180" />
-        <WindowMaximizeIcon v-else class="size-3" />
+        <WindowRestoreIcon v-if="isMaximized" class="size-4" />
+        <WindowMaximizeIcon v-else class="size-4" />
       </button>
       <button
         class="flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-red-500 hover:text-white"
