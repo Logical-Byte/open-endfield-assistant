@@ -9,7 +9,7 @@
 //! - ✅ **不依赖前端**（结果上报由任务层通过 [`crate::tasks::archive_scan::ScanReporter`] 完成）；
 //! - ✅ 只依赖基础设施层。
 //!
-//! 会话贯穿一次游戏操作（主任务），由调用方以 `&mut` 串行使用。
+//! 会话贯穿一次游戏操作（扫描档案库任务），由调用方以 `&mut` 串行使用。
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -35,7 +35,7 @@ use crate::{
 /// 停止令牌：热键 / 命令通过它请求中断，Session 每次操作前轮询。
 pub type StopToken = Arc<AtomicBool>;
 
-/// 游戏会话：一次游戏操作（主任务）的统一上下文。
+/// 游戏会话：一次游戏操作（扫描档案库任务）的统一上下文。
 ///
 /// # Send 安全性
 /// `Session` 持有 Win32 句柄（`HWND` 内部为裸指针），不自动 `Send`。

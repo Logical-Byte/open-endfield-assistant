@@ -7,12 +7,12 @@ import type { ScanResult } from '@/types/scanResult';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-/** 启动档案库主任务（后端在后台线程执行，立即返回当前状态）。 */
+/** 启动扫描档案库任务（后端在后台线程执行，立即返回当前状态）。 */
 export async function startScan(): Promise<AppStatus> {
   return await invoke('start_scan');
 }
 
-/** 请求停止主任务（优雅停止）。 */
+/** 请求停止扫描档案库任务（优雅停止）。 */
 export async function stopScan(): Promise<AppStatus> {
   return await invoke('stop_scan');
 }

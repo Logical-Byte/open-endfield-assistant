@@ -2,7 +2,7 @@
 import { getStatus, onAppStatus } from '@/utils/tauri';
 import { ref } from 'vue';
 
-/** 主任务是否正在运行 */
+/** 扫描档案库任务是否正在运行 */
 const appStatus = ref({ running: false });
 
 let initialized = false;

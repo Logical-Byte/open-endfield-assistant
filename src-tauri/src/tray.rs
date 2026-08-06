@@ -25,7 +25,7 @@ static MINIMIZE_TO_TRAY: AtomicBool = AtomicBool::new(true);
 /// 全局托盘图标引用，供后续动态更新图标 / tooltip。
 static TRAY_ICON: OnceLock<Mutex<Option<TrayIcon>>> = OnceLock::new();
 
-/// 全局"开始/停止扫描"菜单项引用，随主任务运行状态动态切换文案。
+/// 全局"开始/停止扫描"菜单项引用，随扫描档案库任务运行状态动态切换文案。
 static TRAY_TOGGLE_ITEM: OnceLock<Mutex<Option<MenuItem<Wry>>>> = OnceLock::new();
 
 /// 设置"关闭窗口时最小化到托盘"。
@@ -62,7 +62,7 @@ pub fn handle_close_requested(app: &AppHandle) -> bool {
     }
 }
 
-/// 更新"开始/停止扫描"菜单项文案，使其与主任务运行状态同步。
+/// 更新"开始/停止扫描"菜单项文案，使其与扫描档案库任务运行状态同步。
 fn update_toggle_item(running: bool) {
     let text = if running {
         "停止扫描"
@@ -146,7 +146,7 @@ pub fn init_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         *toggle_guard = Some(toggle_i);
     }
 
-    // 订阅运行状态事件：主任务启动 / 结束都会推送，据此切换菜单文案
+    // 订阅运行状态事件：扫描档案库任务启动 / 结束都会推送，据此切换菜单文案
     app.listen("app-status", |event| {
         if let Ok(status) = serde_json::from_str::<AppStatus>(event.payload()) {
             update_toggle_item(status.running);

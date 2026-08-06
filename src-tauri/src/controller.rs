@@ -2,7 +2,7 @@
 //!
 //! 职责边界：
 //! - **状态机**：`running`（CAS 防重入启动）与 `stop`（秒停）两个原子标志的**唯一归属**；
-//! - **线程编排**：主任务扫描线程、热键消费线程、日志 / 结果转发线程；
+//! - **线程编排**：扫描档案库任务线程、热键消费线程、日志 / 结果转发线程；
 //! - **热键动作分发**（应用层）：键位常量（[`TOGGLE_MAIN_TASK_HOTKEY`] / [`EXIT_HOTKEY`]）+ 前台窗口过滤 + [`Controller::spawn_hotkey_loop`]；
 //!
 //! 依赖方向：应用层 → 领域层（connect/session/scene/task）→ 基础设施层。
@@ -32,11 +32,11 @@ use crate::{
 /// 推送给前端的应用状态。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppStatus {
-    /// 主任务是否正在运行
+    /// 扫描档案库任务是否正在运行
     pub running: bool,
 }
 
-/// 引号 `'` → 切换主任务
+/// 引号 `'` → 切换扫描档案库任务
 pub const TOGGLE_MAIN_TASK_HOTKEY: KeyEvent = KeyEvent {
     vk: VK_OEM_7.0 as u32,
     down: true,
@@ -59,11 +59,11 @@ pub struct Controller {
     scenes: Arc<SceneManager>,
     /// 停止标志（独立于锁：命令 / 热键均可快速请求停止，任务内部轮询）
     stop: Arc<AtomicBool>,
-    /// 主任务运行标志（CAS 占用防重入）
+    /// 扫描档案库任务运行标志（CAS 占用防重入）
     running: Arc<AtomicBool>,
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
-    /// 全局扫描序号（跨主任务连续递增）
+    /// 全局扫描序号（跨扫描档案库任务连续递增）
     scan_index: Arc<AtomicU32>,
     /// 前台窗口守卫（应用层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
     foreground: ForegroundGuard,
@@ -132,17 +132,17 @@ impl Controller {
 
     // ========== 启动 / 停止 / 退出 ==========
 
-    /// 启动主任务：CAS 占用运行标志 → 推送状态 → 后台线程执行。
+    /// 启动扫描档案库任务：CAS 占用运行标志 → 推送状态 → 后台线程执行。
     pub fn start_scan(self: &Arc<Self>) {
         if self
             .running
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_err()
         {
-            warn!("主任务正在运行中，忽略重复的启动请求");
+            warn!("扫描档案库任务正在运行中，忽略重复的启动请求");
             return;
         }
-        info!("收到启动主任务请求");
+        info!("收到启动扫描档案库任务请求");
         self.emit_status();
 
         let this = Arc::clone(self);
@@ -160,7 +160,7 @@ impl Controller {
                         }
                     };
 
-                // 主任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）
+                // 扫描档案库任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）
                 if let Err(e) = window::ensure_foreground_and_topmost(session.hwnd) {
                     warn!("无法将游戏窗口置于前台: {e:#}，继续尝试执行任务");
                 }
@@ -168,22 +168,22 @@ impl Controller {
                 // 清除上一次可能残留的停止信号
                 session.reset_stop();
 
-                // 执行主任务（阻塞，期间任务内部轮询停止标志）
+                // 执行扫描档案库任务（阻塞，期间任务内部轮询停止标志）
                 let task = ArchiveScanTask::new(this.reporter(), Arc::clone(&this.correction));
                 let result = run_task(&task, &mut session, &this.scenes);
 
                 // 区分"被停止"与"出错"
                 match result {
-                    Ok(_) => info!("========== 主任务执行完毕 =========="),
+                    Ok(_) => info!("========== 扫描档案库任务执行完毕 =========="),
                     Err(e) if e.downcast_ref::<TaskStopped>().is_some() => {
-                        info!("主任务已被用户停止");
+                        info!("扫描档案库任务已被用户停止");
                     }
-                    Err(e) => error!("主任务执行失败: {e:#}"),
+                    Err(e) => error!("扫描档案库任务执行失败: {e:#}"),
                 }
 
                 this.finish_scan();
             })
-            .expect("启动主任务线程失败");
+            .expect("启动扫描档案库任务线程失败");
     }
 
     /// 复位运行标志并推送"空闲"状态。
@@ -192,14 +192,14 @@ impl Controller {
         self.emit_status();
     }
 
-    /// 请求停止主任务（原子置位，由任务内部轮询实现优雅停止）。
+    /// 请求停止扫描档案库任务（原子置位，由任务内部轮询实现优雅停止）。
     pub fn stop_scan(&self) {
         if !self.running.load(Ordering::Relaxed) {
-            warn!("主任务未在运行，忽略停止请求");
+            warn!("扫描档案库任务未在运行，忽略停止请求");
             return;
         }
         self.stop.store(true, Ordering::Relaxed);
-        info!("收到停止请求，正在停止主任务...");
+        info!("收到停止请求，正在停止扫描档案库任务...");
     }
 
     pub fn toggle_scan(self: &Arc<Self>) {

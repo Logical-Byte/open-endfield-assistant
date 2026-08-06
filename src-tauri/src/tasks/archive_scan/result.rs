@@ -18,7 +18,7 @@ pub struct ScanResult {
     /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
     /// `failed`（OCR 结果为空）
     pub status: String,
-    /// 全局序号（从 1 开始，跨主任务连续递增）
+    /// 全局序号（从 1 开始，跨扫描档案库任务连续递增）
     pub index: u32,
     /// 档案库大类 id（pageType：multi_media / text / document）
     pub category: String,
@@ -60,7 +60,7 @@ pub fn encode_png_data_url(img: &RgbaImage) -> String {
 
 /// 扫描结果上报器：任务层 → 前端事件通道。
 ///
-/// 持有通道发送端与全局序号（跨主任务连续递增）；
+/// 持有通道发送端与全局序号（跨扫描档案库任务连续递增）；
 /// 由 [`crate::controller::Controller`] 创建并注入任务函数。
 /// 任务只负责"报了什么结果"，不关心通道如何到达前端。
 #[derive(Clone)]

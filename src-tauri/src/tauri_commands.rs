@@ -11,14 +11,14 @@ use crate::{
     types::PrtsData,
 };
 
-/// 启动档案库主任务（在后台线程执行，立即返回当前状态）。
+/// 启动扫描档案库任务（在后台线程执行，立即返回当前状态）。
 #[tauri::command]
 pub fn start_scan(state: State<'_, Arc<Controller>>) -> AppStatus {
     state.inner().start_scan();
     state.inner().get_status()
 }
 
-/// 请求停止主任务。
+/// 请求停止扫描档案库任务。
 #[tauri::command]
 pub fn stop_scan(state: State<'_, Arc<Controller>>) -> AppStatus {
     state.inner().stop_scan();
