@@ -2980,6 +2980,7 @@ dependencies = [
  "chrono",
  "image",
  "imageproc 0.27.0",
+ "indexmap 2.14.0",
  "rapidocr-core",
  "scopeguard",
  "serde",

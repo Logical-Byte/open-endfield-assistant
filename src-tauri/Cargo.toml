@@ -27,6 +27,7 @@ base64 = "0.23.0"
 chrono = "0.4.45"
 image = "0.25.10"
 imageproc = "0.27.0"
+indexmap = { version = "2.14.0", features = ["serde"] }
 rapidocr-core = { version = "0.2.2", default-features = false }
 scopeguard = "1.2.0"
 serde = { version = "1.0", features = ["derive"] }

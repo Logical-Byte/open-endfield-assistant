@@ -43,15 +43,27 @@ pub const SCAN_PLAN: &[ScanStep] = &[
     },
 ];
 
-/// 子界面所属的档案库分类名称（扫描结果卡片的 category 字段）。
-pub fn category_of(sub_scene: 档案库SubSceneId) -> &'static str {
+/// 子界面所属的档案库大类 id（pageType：multi_media / text / document）。
+pub fn page_type_of(sub_scene: 档案库SubSceneId) -> &'static str {
     match sub_scene {
-        档案库SubSceneId::音像存档_多媒体 => "音像存档",
+        档案库SubSceneId::音像存档_多媒体 => "multi_media",
         档案库SubSceneId::见闻辑录_纸质记录
         | 档案库SubSceneId::见闻辑录_电子档案
-        | 档案库SubSceneId::见闻辑录_藏品 => "见闻辑录",
+        | 档案库SubSceneId::见闻辑录_藏品 => "text",
         档案库SubSceneId::中枢档案_中枢档案 | 档案库SubSceneId::中枢档案_调查报告 => {
-            "中枢档案"
+            "document"
         }
+    }
+}
+
+/// 子界面所属的档案库小类 id（categoryId，与 `prts.json` 中 allItems 的 categoryId 一致）。
+pub fn category_id_of(sub_scene: 档案库SubSceneId) -> &'static str {
+    match sub_scene {
+        档案库SubSceneId::音像存档_多媒体 => "media",
+        档案库SubSceneId::见闻辑录_纸质记录 => "paper",
+        档案库SubSceneId::见闻辑录_电子档案 => "digital",
+        档案库SubSceneId::见闻辑录_藏品 => "collection",
+        档案库SubSceneId::中枢档案_中枢档案 => "document",
+        档案库SubSceneId::中枢档案_调查报告 => "report",
     }
 }

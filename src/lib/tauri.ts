@@ -1,5 +1,6 @@
 //! Tauri 后端接口封装：类型安全地调用 Rust 命令、监听后端事件。
 
+import type { PrtsData } from '@/lib/prts';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -11,16 +12,22 @@ export interface AppStatus {
 
 /** 单份档案的扫描结果（与 Rust 侧 `ScanResult` 对齐）。 */
 export interface ScanResult {
-  /** 识别状态：success（OCR 结果非空）| failed（OCR 结果为空） */
-  status: 'success' | 'failed';
+  /** 识别状态：success（纠错成功）| unrecognized（识别到文本但无法纠错）| failed（OCR 为空） */
+  status: 'success' | 'unrecognized' | 'failed';
   /** 全局序号（从 1 开始，跨分类连续递增） */
   index: number;
-  /** 档案库分类：音像存档 / 见闻辑录 / 中枢档案 */
+  /** 档案库大类 id（pageType：multi_media / text / document，单次扫描为空） */
   category: string;
+  /** 档案库小类 id（categoryId，单次扫描为空） */
+  sub_category: string;
   /** 档案详情页面截图（base64 PNG data URL） */
   image: string;
   /** OCR 识别结果（前端可编辑） */
   ocr_result: string;
+  /** 纠错后的档案标题（无法识别或单次扫描时为 null） */
+  corrected_title: string | null;
+  /** 纠错命中的档案 id（allItems 的 id，同标题多条时返回全部） */
+  item_ids: string[];
 }
 
 /** 后端日志等级（与 Rust 侧 `tracing::Level` 对齐）。 */
@@ -54,6 +61,11 @@ export async function scanSingle(): Promise<AppStatus> {
 /** 查询当前应用状态。 */
 export async function getStatus(): Promise<AppStatus> {
   return await invoke('get_status');
+}
+
+/** 获取 prts.json 完整数据（分类中文名映射 / 自动补全候选）。 */
+export async function getPrtsData(): Promise<PrtsData> {
+  return await invoke('get_prts_data');
 }
 
 /** 退出程序。 */

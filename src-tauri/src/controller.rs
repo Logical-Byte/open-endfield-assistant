@@ -24,7 +24,9 @@ use crate::{
     ocr::OcrEngine,
     scene::SceneManager,
     task::{TaskStopped, run_task},
-    tasks::archive_scan::{ArchiveScanTask, ScanReporter, ScanResult, single_scan},
+    tasks::archive_scan::{
+        ArchiveScanTask, CorrectionIndex, ScanReporter, ScanResult, single_scan,
+    },
     window::{self, ForegroundGuard},
 };
 
@@ -76,6 +78,10 @@ pub struct Controller {
     foreground: ForegroundGuard,
     /// Tauri 应用句柄（向前端 emit 事件）
     handle: AppHandle,
+    /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）
+    prts: Arc<serde_json::Value>,
+    /// 档案标题纠错索引（应用启动时从 prts.json 构建一次）
+    correction: Arc<CorrectionIndex>,
     /// 日志写入线程守卫（保活）
     _logger_guard: tracing_appender::non_blocking::WorkerGuard,
 }
@@ -93,6 +99,8 @@ impl Controller {
         scan_index: Arc<AtomicU32>,
         foreground: ForegroundGuard,
         handle: AppHandle,
+        prts: Arc<serde_json::Value>,
+        correction: Arc<CorrectionIndex>,
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
     ) -> Self {
         Self {
@@ -106,6 +114,8 @@ impl Controller {
             scan_index,
             foreground,
             handle,
+            prts,
+            correction,
             _logger_guard,
         }
     }
@@ -123,6 +133,11 @@ impl Controller {
             self.scan_tx.lock().unwrap().clone(),
             Arc::clone(&self.scan_index),
         )
+    }
+
+    /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
+    pub fn prts_data(&self) -> Arc<serde_json::Value> {
+        Arc::clone(&self.prts)
     }
 
     // ========== 启动 / 停止 / 单扫 / 退出 ==========
@@ -167,7 +182,7 @@ impl Controller {
                 session.reset_stop();
 
                 // 执行主任务（阻塞，期间任务内部轮询停止标志）
-                let task = ArchiveScanTask::new(this.reporter());
+                let task = ArchiveScanTask::new(this.reporter(), Arc::clone(&this.correction));
                 let result = run_task(&task, &mut session, &this.scenes);
 
                 // 区分"被停止"与"出错"

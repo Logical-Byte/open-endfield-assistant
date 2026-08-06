@@ -6,8 +6,11 @@ import { ref } from 'vue';
 /** 扫描结果列表（随扫描进度实时追加，按序号排序） */
 export const scanResults = ref<ScanResult[]>([]);
 
-/** 模拟数据用到的档案库分类（循环使用） */
-const MOCK_CATEGORIES = ['音像存档', '见闻辑录', '中枢档案'] as const;
+/** 模拟数据用到的档案库大类 id（pageType，循环使用） */
+const MOCK_PAGE_TYPES = ['multi_media', 'text', 'document'] as const;
+
+/** 模拟数据用到的档案库小类 id（categoryId，与 pageType 对应） */
+const MOCK_SUB_CATEGORIES = ['media', 'paper', 'digital'] as const;
 
 /** 假截图尺寸（与真实截图一致，便于测试裁剪区域） */
 const MOCK_IMAGE_WIDTH = 1280;
@@ -65,18 +68,26 @@ function createMockImage(index: number): string {
 
 /**
  * 生成一条假的扫描结果并追加到列表（仅前端，不经过后端），便于本地测试。
- * 类别按序号循环，每 3 条生成一条 failed 结果以覆盖不同状态。
+ * 类别按序号循环，每 3 条生成一条 failed、每 5 条生成一条 unrecognized 以覆盖不同状态。
  */
 export function pushMockScanResult(): void {
   const index = scanResults.value.reduce((max, r) => Math.max(max, r.index), 0) + 1;
-  const category = MOCK_CATEGORIES[(index - 1) % MOCK_CATEGORIES.length];
-  const status: ScanResult['status'] = index % 3 === 0 ? 'failed' : 'success';
+  const category = MOCK_PAGE_TYPES[(index - 1) % MOCK_PAGE_TYPES.length];
+  const subCategory = MOCK_SUB_CATEGORIES[(index - 1) % MOCK_SUB_CATEGORIES.length];
+  const status: ScanResult['status'] =
+    index % 3 === 0 ? 'failed' : index % 5 === 0 ? 'unrecognized' : 'success';
+  const ocr = status === 'failed' ? '' : `模拟档案 #${index} 的 OCR 识别结果，用于前端测试。`;
+  const corrected = status === 'success' ? `纠错后的档案标题 #${index}` : null;
   scanResults.value.push({
     status,
     index,
     category,
+    sub_category: subCategory,
     image: createMockImage(index),
-    ocr_result: status === 'success' ? `模拟档案 #${index} 的 OCR 识别结果，用于前端测试。` : '',
+    // 展示值优先取纠错结果（与后端事件处理保持一致）
+    ocr_result: corrected ?? ocr,
+    corrected_title: corrected,
+    item_ids: status === 'success' ? [`mock_item_${index}`] : [],
   });
   scanResults.value.sort((a, b) => a.index - b.index);
 }
@@ -88,7 +99,11 @@ export async function initScanResults(): Promise<void> {
   }
   initialized = true;
   await onScanResult((result) => {
-    scanResults.value.push(result);
+    // 展示值优先取纠错后的标题（无法识别时保留 OCR 原文供用户手动编辑）
+    scanResults.value.push({
+      ...result,
+      ocr_result: result.corrected_title ?? result.ocr_result,
+    });
     // 按序号排序，防止事件乱序导致展示错乱
     scanResults.value.sort((a, b) => a.index - b.index);
   });

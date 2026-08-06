@@ -9,28 +9,31 @@ use anyhow::Result;
 use tracing::debug;
 
 use crate::{
-    scene::{SceneId, scene_manager::SceneManager},
+    scene::{SceneId, scene_manager::SceneManager, 档案库SubSceneId},
     session::Session,
     success,
 };
 
 use super::constants::{ARROW_RIGHT_ROI, CLOSE_BUTTON_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
+use super::correction::CorrectionIndex;
+use super::plan::{category_id_of, page_type_of};
 use super::result::{ScanReporter, encode_png_data_url};
 
 /// 扫描当前子界面中的所有档案。
 ///
 /// # 前置条件
 /// - `session` 当前处于档案库子界面
-/// - `category` 为该子界面所属的档案库分类（音像存档 / 见闻辑录 / 中枢档案）
+/// - `sub_scene` 为该子界面（用于确定所属大类 / 小类，进而纠错）
 ///
 /// # 工作流程
 /// 1. 点击第 1 份档案 (401, 182) 进入档案详情页面
-/// 2. 循环：OCR 标题 → 上报扫描结果 → 翻到下一篇 → 直到翻不动
+/// 2. 循环：OCR 标题 → 纠错 → 上报扫描结果 → 翻到下一篇 → 直到翻不动
 /// 3. 点击关闭返回子界面
 pub fn scan_current_sub_scene(
     session: &mut Session,
     scene_manager: &SceneManager,
-    category: &'static str,
+    sub_scene: 档案库SubSceneId,
+    correction: &CorrectionIndex,
     reporter: &ScanReporter,
 ) -> Result<()> {
     // 1. 点击第 1 份档案进入档案详情页面
@@ -70,14 +73,38 @@ pub fn scan_current_sub_scene(
             }
         };
 
-        // 2b. 上报识别结果（前端卡片展示：状态 / 序号 / 分类 / 详情截图 / 可编辑文本）
-        // 目前只要 OCR 结果非空就视为识别成功
+        // 2b. 纠错：在本子分类的候选标题中找最可能的档案
+        let category_id = category_id_of(sub_scene);
+        let corrected = correction.correct(category_id, &ocr_text);
+        match &corrected {
+            Some(c) => success!(
+                "第 {} 份档案纠错为：{}（id: {}）",
+                archive_count,
+                c.title,
+                c.item_ids.join(", ")
+            ),
+            None if !ocr_text.is_empty() => {
+                success!("第 {} 份档案标题无法识别", archive_count);
+            }
+            None => {}
+        }
+
+        // 2c. 上报识别结果（前端卡片展示：状态 / 序号 / 大类小类 id / 详情截图 / 可编辑文本）
         let status = if ocr_text.is_empty() {
             "failed"
-        } else {
+        } else if corrected.is_some() {
             "success"
+        } else {
+            "unrecognized"
         };
-        reporter.report(status, category, encode_png_data_url(&screenshot), ocr_text);
+        reporter.report(
+            status,
+            page_type_of(sub_scene),
+            category_id,
+            encode_png_data_url(&screenshot),
+            ocr_text,
+            corrected,
+        );
 
         // 2c. 尝试翻到下一篇
         let screenshot = session.screencap_for_recognition()?;

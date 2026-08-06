@@ -51,12 +51,19 @@ pub fn single_scan(
         }
     };
 
-    // 3. 上报结果（单次扫描无法确定具体分类，标记为"未知"）
+    // 3. 上报结果（单次扫描无法确定具体分类，大类 / 小类 id 留空、不纠错）
     let status = if ocr_text.is_empty() {
         "failed"
     } else {
         "success"
     };
-    reporter.report(status, "未知", encode_png_data_url(&screenshot), ocr_text);
+    reporter.report(
+        status,
+        "",
+        "",
+        encode_png_data_url(&screenshot),
+        ocr_text,
+        None,
+    );
     Ok(())
 }

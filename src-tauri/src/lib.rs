@@ -24,7 +24,7 @@ use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::{Arc, Mutex, mpsc};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use rapidocr_core::config::PipelineConfig;
 use tauri::Manager;
 use tracing::info;
@@ -32,7 +32,7 @@ use windows::Win32::Foundation::HWND;
 
 use crate::{
     app_paths::AppPaths, controller::Controller, ocr::OcrEngine, scene::create_scene_manager,
-    window::ForegroundGuard,
+    tasks::archive_scan::CorrectionIndex, window::ForegroundGuard,
 };
 
 /// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
@@ -56,6 +56,7 @@ pub fn run() {
             tauri_commands::stop_scan,
             tauri_commands::scan_single,
             tauri_commands::get_status,
+            tauri_commands::get_prts_data,
             tauri_commands::quit,
             tauri_commands::open_log_dir,
             tauri_commands::set_minimize_to_tray,
@@ -102,6 +103,15 @@ pub fn run() {
             let ocr_engine = OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
             let ocr = Arc::new(Mutex::new(ocr_engine));
 
+            // 加载 prts.json：一次读取，同时用于纠错索引（后端）与前端数据查询
+            let prts_path = app_paths.resources_dir().join("data/prts.json");
+            let prts_text = fs::read_to_string(&prts_path).context("读取 prts.json 失败")?;
+            let prts: serde_json::Value =
+                serde_json::from_str(&prts_text).context("解析 prts.json 失败")?;
+            let prts = Arc::new(prts);
+            let correction = Arc::new(CorrectionIndex::from_prts(&prts));
+            info!("已加载 prts.json（{} 个档案条目）", correction.len());
+
             // 场景管理器（本游戏全部场景，注册顺序即识别优先级）
             let scenes = Arc::new(create_scene_manager());
 
@@ -125,6 +135,8 @@ pub fn run() {
                 scan_index,
                 foreground,
                 app.handle().clone(),
+                prts,
+                correction,
                 logger_guard,
             ));
             Controller::spawn_log_loop(log_rx, app.handle().clone());

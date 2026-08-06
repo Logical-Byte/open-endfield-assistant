@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { categoryName, initPrtsData, pageName, titlesOfCategory } from '@/lib/prtsData';
 import type { ScanResult } from '@/lib/tauri';
 import { openImagePreviewKey } from '@/utils/provideInject';
 import { computed, inject } from 'vue';
 
-const { index, status, category, image } = defineProps<ScanResult>();
+const { index, status, category, sub_category, image, corrected_title, item_ids } =
+  defineProps<ScanResult>();
 const ocr_text = defineModel<string>('ocr_text');
+
+// 自动补全候选：当前子分类下所有档案标题（prts 数据加载幂等）
+initPrtsData();
+const candidates = computed(() => titlesOfCategory(sub_category));
 
 /** 基准分辨率（16:9，实际分辨率不同时按此等比例缩放） */
 const BASE_WIDTH = 1280;
@@ -45,12 +51,28 @@ const openImagePreview = inject(openImagePreviewKey, () => {
     class="border-l-8"
     :class="{
       'border-error': status === 'failed',
+      'border-warning': status === 'unrecognized',
       'border-success': status === 'success',
     }"
   >
     <div class="flex flex-col items-center gap-4 sm:flex-row">
-      <div class="font-semibold">#{{ index }}</div>
-      <UBadge color="neutral" :label="category" variant="outline" />
+      <div class="flex flex-col items-center gap-1">
+        <div class="font-semibold">#{{ index }}</div>
+        <UBadge v-if="category" color="neutral" :label="pageName(category)" variant="outline" />
+        <UBadge
+          v-if="sub_category"
+          color="secondary"
+          :label="categoryName(sub_category)"
+          variant="outline"
+        />
+        <UBadge v-if="corrected_title" color="success" label="已纠错" variant="soft" />
+        <UBadge
+          v-else-if="status === 'unrecognized'"
+          color="warning"
+          label="无法识别"
+          variant="soft"
+        />
+      </div>
 
       <!-- <img alt="档案详情截图" class="h-32 self-start rounded-md" :src="image" /> -->
       <!-- B：仅显示 A 的裁剪区域（坐标与基准分辨率见脚本中的常量） -->
@@ -73,16 +95,18 @@ const openImagePreview = inject(openImagePreviewKey, () => {
         />
       </ImagePreviewContainer>
       <div class="flex min-w-0 flex-1 flex-col gap-2">
-        <span class="text-xs font-medium text-muted">OCR 识别结果</span>
-        <UTextarea
+        <span class="text-xs font-medium text-muted">档案标题</span>
+        <UInputMenu
           v-model="ocr_text"
-          autoresize
           color="neutral"
-          :maxrows="8"
+          :content="{ hideWhenEmpty: true }"
+          :items="candidates"
+          mode="autocomplete"
           placeholder="识别结果为空…"
           size="sm"
           variant="subtle"
         />
+        <p v-if="item_ids.length" class="text-xs text-muted">档案 ID：{{ item_ids.join('、') }}</p>
       </div>
     </div>
   </UCard>

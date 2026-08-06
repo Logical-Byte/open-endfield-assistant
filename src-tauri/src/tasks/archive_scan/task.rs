@@ -1,5 +1,6 @@
 //! 档案库扫描任务定义。
 
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -13,22 +14,27 @@ use crate::{
     utils::region::Region2D,
 };
 
-use super::plan::{SCAN_PLAN, ScanStep, category_of};
+use super::correction::CorrectionIndex;
+use super::plan::{SCAN_PLAN, ScanStep};
 use super::result::ScanReporter;
 use super::scan_loop::scan_current_sub_scene;
 
 /// 扫描档案库任务：扫描全部 6 个子分类的档案。
 ///
-/// 扫描结果上报器在构造时由调用方（[`crate::controller::Controller`]）注入，
+/// 扫描结果上报器与纠错索引在构造时由调用方（[`crate::controller::Controller`]）注入，
 /// 使 `Task` trait 保持通用、不耦合档案上报。
 pub struct ArchiveScanTask {
     reporter: ScanReporter,
+    correction: Arc<CorrectionIndex>,
 }
 
 impl ArchiveScanTask {
     /// 创建任务。
-    pub fn new(reporter: ScanReporter) -> Self {
-        Self { reporter }
+    pub fn new(reporter: ScanReporter, correction: Arc<CorrectionIndex>) -> Self {
+        Self {
+            reporter,
+            correction,
+        }
     }
 }
 
@@ -96,7 +102,8 @@ impl Task for ArchiveScanTask {
                 scan_current_sub_scene(
                     session,
                     scene_manager,
-                    category_of(step.first_sub_scene),
+                    sub_scene,
+                    &self.correction,
                     &self.reporter,
                 )?;
                 info!("完成扫描 {:?}", sub_scene);

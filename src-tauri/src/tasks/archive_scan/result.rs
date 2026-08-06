@@ -15,16 +15,23 @@ use serde::Serialize;
 /// 单份档案的扫描结果。
 #[derive(Debug, Clone, Serialize)]
 pub struct ScanResult {
-    /// 识别状态：`success`（OCR 结果非空）或 `failed`（OCR 结果为空）
+    /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
+    /// `failed`（OCR 结果为空）
     pub status: String,
     /// 全局序号（从 1 开始，跨主任务 / 单次扫描连续递增）
     pub index: u32,
-    /// 档案库分类：音像存档 / 见闻辑录 / 中枢档案（单次扫描时为"未知"）
+    /// 档案库大类 id（pageType：multi_media / text / document，单次扫描为空）
     pub category: String,
+    /// 档案库小类 id（categoryId，单次扫描为空）
+    pub sub_category: String,
     /// 档案详情页面截图（base64 PNG data URL，已缩小以控制事件体积）
     pub image: String,
     /// OCR 识别结果（前端可编辑）
     pub ocr_result: String,
+    /// 纠错后的档案标题（无法识别或单次扫描时为 `None`）
+    pub corrected_title: Option<String>,
+    /// 纠错命中的档案 id（allItems 的 id，同标题多条时返回全部）
+    pub item_ids: Vec<String>,
 }
 
 /// 截图编码为 data URL 前的最大宽度（等比缩小，控制事件体积与内存占用）。
@@ -69,14 +76,29 @@ impl ScanReporter {
     }
 
     /// 上报一份扫描结果（序号自动递增，从 1 开始）。
-    pub fn report(&self, status: &str, category: &str, image: String, ocr_result: String) {
+    pub fn report(
+        &self,
+        status: &str,
+        category: &str,
+        sub_category: &str,
+        image: String,
+        ocr_result: String,
+        corrected: Option<super::correction::Corrected>,
+    ) {
         let index = self.index.fetch_add(1, Ordering::Relaxed) + 1;
+        let (corrected_title, item_ids) = match corrected {
+            Some(c) => (Some(c.title), c.item_ids),
+            None => (None, Vec::new()),
+        };
         let _ = self.tx.send(ScanResult {
             status: status.to_string(),
             index,
             category: category.to_string(),
+            sub_category: sub_category.to_string(),
             image,
             ocr_result,
+            corrected_title,
+            item_ids,
         });
     }
 }
