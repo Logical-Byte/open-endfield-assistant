@@ -17,6 +17,7 @@ pub mod tasks;
 pub mod tauri_commands;
 pub mod template_matching;
 pub mod tray;
+pub mod types;
 pub mod utils;
 pub mod window;
 
@@ -32,7 +33,7 @@ use windows::Win32::Foundation::HWND;
 
 use crate::{
     app_paths::AppPaths, controller::Controller, ocr::OcrEngine, scene::create_scene_manager,
-    tasks::archive_scan::CorrectionIndex, window::ForegroundGuard,
+    tasks::archive_scan::CorrectionIndex, types::PrtsData, window::ForegroundGuard,
 };
 
 /// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
@@ -106,9 +107,9 @@ pub fn run() {
             // 加载 prts.json：一次读取，同时用于纠错索引（后端）与前端数据查询
             let prts_path = app_paths.resources_dir().join("data/prts.json");
             let prts_text = fs::read_to_string(&prts_path).context("读取 prts.json 失败")?;
-            let prts: serde_json::Value =
-                serde_json::from_str(&prts_text).context("解析 prts.json 失败")?;
-            let prts = Arc::new(prts);
+            let prts = Arc::new(
+                serde_json::from_str::<PrtsData>(&prts_text).context("解析 prts.json 失败")?,
+            );
             let correction = Arc::new(CorrectionIndex::from_prts(&prts));
             info!("已加载 prts.json（{} 个档案条目）", correction.len());
 

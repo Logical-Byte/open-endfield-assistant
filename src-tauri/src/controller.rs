@@ -27,6 +27,7 @@ use crate::{
     tasks::archive_scan::{
         ArchiveScanTask, CorrectionIndex, ScanReporter, ScanResult, single_scan,
     },
+    types::PrtsData,
     window::{self, ForegroundGuard},
 };
 
@@ -79,7 +80,7 @@ pub struct Controller {
     /// Tauri 应用句柄（向前端 emit 事件）
     handle: AppHandle,
     /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）
-    prts: Arc<serde_json::Value>,
+    prts: Arc<PrtsData>,
     /// 档案标题纠错索引（应用启动时从 prts.json 构建一次）
     correction: Arc<CorrectionIndex>,
     /// 日志写入线程守卫（保活）
@@ -99,7 +100,7 @@ impl Controller {
         scan_index: Arc<AtomicU32>,
         foreground: ForegroundGuard,
         handle: AppHandle,
-        prts: Arc<serde_json::Value>,
+        prts: Arc<PrtsData>,
         correction: Arc<CorrectionIndex>,
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
     ) -> Self {
@@ -136,7 +137,7 @@ impl Controller {
     }
 
     /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
-    pub fn prts_data(&self) -> Arc<serde_json::Value> {
+    pub fn prts_data(&self) -> Arc<PrtsData> {
         Arc::clone(&self.prts)
     }
 

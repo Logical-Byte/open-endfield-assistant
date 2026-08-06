@@ -24,6 +24,8 @@
 
 use std::collections::HashMap;
 
+use crate::types::PrtsData;
+
 /// 归一化后参与比对的最大字符数（与「只识别标题第 1 行」的截断特征对齐）。
 const NORM_MAX_CHARS: usize = 15;
 
@@ -72,27 +74,16 @@ pub struct CorrectionIndex {
 
 impl CorrectionIndex {
     /// 从 `prts.json` 构建候选索引（按 `categoryId` 分组并归一化）。
-    pub fn from_prts(prts: &serde_json::Value) -> Self {
+    pub fn from_prts(prts: &PrtsData) -> Self {
         let mut candidates: HashMap<String, Vec<Candidate>> = HashMap::new();
-        let Some(all_items) = prts.get("allItems").and_then(serde_json::Value::as_object) else {
-            return Self::default();
-        };
-
-        for item in all_items.values() {
-            let (Some(id), Some(title), Some(category_id)) = (
-                item.get("id").and_then(serde_json::Value::as_str),
-                item.get("title").and_then(serde_json::Value::as_str),
-                item.get("categoryId").and_then(serde_json::Value::as_str),
-            ) else {
-                continue;
-            };
+        for item in prts.all_items.values() {
             candidates
-                .entry(category_id.to_string())
+                .entry(item.category_id.clone())
                 .or_default()
                 .push(Candidate {
-                    id: id.to_string(),
-                    title: title.to_string(),
-                    norm: normalize(title),
+                    id: item.id.clone(),
+                    title: item.title.clone(),
+                    norm: normalize(&item.title),
                 });
         }
 
@@ -286,58 +277,102 @@ mod tests {
     use serde_json::json;
 
     /// 构造一个覆盖设计文档错误案例的迷你索引。
+    ///
+    /// `allItems` 条目为 [`PrtsAllItem`] 的最小合法 JSON（含 `type` / `firstLvId` /
+    /// `name` / `order` 等必填字段），反序列化后验证纠错逻辑。
     fn test_index() -> CorrectionIndex {
         let prts = json!({
+            // 纠错只用到 allItems，其余三个部分可为空
+            "PrtsPage": {},
+            "PrtsCategory": {},
+            "firstLv": {},
             "allItems": {
                 "nar_media_map01_108_1": {
                     "id": "nar_media_map01_108_1",
                     "title": "决然工人的留声",
-                    "categoryId": "media"
+                    "name": "决然工人的留声",
+                    "categoryId": "media",
+                    "firstLvId": "media_1",
+                    "order": 1,
+                    "type": "multi_media"
                 },
                 "nar_paper_map01_122_1": {
                     "id": "nar_paper_map01_122_1",
                     "title": "工团大会预算申报宣讲草稿（第八版）",
-                    "categoryId": "paper"
+                    "name": "工团大会预算申报宣讲草稿（第八版）",
+                    "categoryId": "paper",
+                    "firstLvId": "paper_1",
+                    "order": 1,
+                    "type": "text"
                 },
                 "nar_paper_map01_110_1": {
                     "id": "nar_paper_map01_110_1",
                     "title": "《味蕾上的四号谷地：工团杂烩汤篇》",
-                    "categoryId": "paper"
+                    "name": "《味蕾上的四号谷地：工团杂烩汤篇》",
+                    "categoryId": "paper",
+                    "firstLvId": "paper_2",
+                    "order": 1,
+                    "type": "text"
                 },
                 "nar_paper_map01_116_1": {
                     "id": "nar_paper_map01_116_1",
                     "title": "《四号谷地工作指南：阿伯莉采石场篇》",
-                    "categoryId": "paper"
+                    "name": "《四号谷地工作指南：阿伯莉采石场篇》",
+                    "categoryId": "paper",
+                    "firstLvId": "paper_3",
+                    "order": 1,
+                    "type": "text"
                 },
                 "nar_report_map01_research2_4_1": {
                     "id": "nar_report_map01_research2_4_1",
                     "title": "裂地者控制区内疑似工团成员的信号分析",
-                    "categoryId": "paper"
+                    "name": "裂地者控制区内疑似工团成员的信号分析",
+                    "categoryId": "paper",
+                    "firstLvId": "paper_4",
+                    "order": 1,
+                    "type": "text"
                 },
                 "nar_paper_map01_59_1": {
                     "id": "nar_paper_map01_59_1",
                     "title": "天空观测记录（四号谷地）",
-                    "categoryId": "paper"
+                    "name": "天空观测记录（四号谷地）",
+                    "categoryId": "paper",
+                    "firstLvId": "paper_5",
+                    "order": 1,
+                    "type": "text"
                 },
                 // 与「天空观测记录（四号谷地）」仅一字之差，用于歧义测试
                 "nar_paper_map01_59_2": {
                     "id": "nar_paper_map01_59_2",
                     "title": "天空观测记录（五号谷地）",
-                    "categoryId": "paper"
+                    "name": "天空观测记录（五号谷地）",
+                    "categoryId": "paper",
+                    "firstLvId": "paper_5",
+                    "order": 2,
+                    "type": "text"
                 },
                 // 同标题多条（挂在竹子上的字条 ×2）
                 "nar_dup_1": {
                     "id": "nar_dup_1",
                     "title": "挂在竹子上的字条",
-                    "categoryId": "digital"
+                    "name": "挂在竹子上的字条",
+                    "categoryId": "digital",
+                    "firstLvId": "digital_1",
+                    "order": 1,
+                    "type": "text"
                 },
                 "nar_dup_2": {
                     "id": "nar_dup_2",
                     "title": "挂在竹子上的字条",
-                    "categoryId": "digital"
+                    "name": "挂在竹子上的字条",
+                    "categoryId": "digital",
+                    "firstLvId": "digital_1",
+                    "order": 2,
+                    "type": "text"
                 }
             }
         });
+        let prts: PrtsData = serde_json::from_value(prts).expect("测试数据解析失败");
         CorrectionIndex::from_prts(&prts)
     }
 
@@ -445,25 +480,17 @@ mod tests {
             return;
         }
         let text = std::fs::read_to_string(prts_path).expect("读取 prts.json 失败");
-        let prts: serde_json::Value = serde_json::from_str(&text).expect("解析 prts.json 失败");
+        let prts: PrtsData = serde_json::from_str(&text).expect("解析 prts.json 失败");
         let idx = CorrectionIndex::from_prts(&prts);
 
-        let all_items = prts
-            .get("allItems")
-            .and_then(serde_json::Value::as_object)
-            .unwrap();
         let mut total = 0usize;
         let mut hit = 0usize;
         let mut miss: Vec<(String, String, String)> = Vec::new();
 
-        for item in all_items.values() {
-            let (Some(id), Some(title), Some(category_id)) = (
-                item.get("id").and_then(serde_json::Value::as_str),
-                item.get("title").and_then(serde_json::Value::as_str),
-                item.get("categoryId").and_then(serde_json::Value::as_str),
-            ) else {
-                continue;
-            };
+        for item in prts.all_items.values() {
+            let id = &item.id;
+            let title = &item.title;
+            let category_id = &item.category_id;
             let normalized_title = normalize(title);
             if normalized_title.is_empty() {
                 // 打码标题归一化为空，无法纠错，跳过
@@ -488,8 +515,8 @@ mod tests {
             total += 1;
             match idx.correct(category_id, &ocr) {
                 Some(c) if c.item_ids.iter().any(|i| i == id) => hit += 1,
-                Some(c) => miss.push((id.to_string(), title.to_string(), c.title)),
-                None => miss.push((id.to_string(), title.to_string(), String::new())),
+                Some(c) => miss.push((id.clone(), title.clone(), c.title)),
+                None => miss.push((id.clone(), title.clone(), String::new())),
             }
         }
 

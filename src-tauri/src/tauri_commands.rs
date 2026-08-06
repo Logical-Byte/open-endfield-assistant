@@ -8,6 +8,7 @@ use tauri::State;
 use crate::{
     app_paths::AppPaths,
     controller::{AppStatus, Controller},
+    types::PrtsData,
 };
 
 /// 启动档案库主任务（在后台线程执行，立即返回当前状态）。
@@ -39,7 +40,7 @@ pub fn get_status(state: State<'_, Arc<Controller>>) -> AppStatus {
 
 /// 返回 prts.json 完整数据（前端用于分类中文名映射与自动补全候选）。
 #[tauri::command]
-pub fn get_prts_data(state: State<'_, Arc<Controller>>) -> serde_json::Value {
+pub fn get_prts_data(state: State<'_, Arc<Controller>>) -> PrtsData {
     (*state.inner().prts_data()).clone()
 }
 
