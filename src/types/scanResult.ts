@@ -9,15 +9,15 @@ export interface ScanResult {
   /** 档案库大类 id（pageType：multi_media / text / document） */
   category: string;
   /** 档案库小类 id（categoryId） */
-  sub_category: string;
+  subCategory: string;
   /** 档案详情页面截图（base64 PNG data URL） */
   image: string;
   /** OCR 识别结果（前端可编辑） */
-  ocr_result: string;
+  ocrResult: string;
   /** 纠错后的档案标题（无法识别时为 null） */
-  corrected_title: string | null;
+  correctedTitle: string | null;
   /** 纠错命中的档案 id（allItems 的 id，同标题多条时返回全部） */
-  item_ids: string[];
+  itemIds: string[];
 }
 
 export enum CollectType {

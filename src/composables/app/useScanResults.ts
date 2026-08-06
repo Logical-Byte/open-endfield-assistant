@@ -82,12 +82,12 @@ function pushMockScanResult(): void {
     status,
     index,
     category,
-    sub_category: subCategory,
+    subCategory,
     image: createMockImage(index),
     // 展示值优先取纠错结果（与后端事件处理保持一致）
-    ocr_result: corrected ?? ocr,
-    corrected_title: corrected,
-    item_ids: status === 'success' ? [`mock_item_${index}`] : [],
+    ocrResult: corrected ?? ocr,
+    correctedTitle: corrected,
+    itemIds: status === 'success' ? [`mock_item_${index}`] : [],
   });
   scanResults.value.sort((a, b) => a.index - b.index);
 }
@@ -105,7 +105,7 @@ export function useScanResults() {
       // 展示值优先取纠错后的标题（无法识别时保留 OCR 原文供用户手动编辑）
       scanResults.value.push({
         ...result,
-        ocr_result: result.corrected_title ?? result.ocr_result,
+        ocrResult: result.correctedTitle ?? result.ocrResult,
       });
       // 按序号排序，防止事件乱序导致展示错乱
       scanResults.value.sort((a, b) => a.index - b.index);

@@ -14,6 +14,7 @@ use serde::Serialize;
 
 /// 单份档案的扫描结果。
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScanResult {
     /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
     /// `failed`（OCR 结果为空）

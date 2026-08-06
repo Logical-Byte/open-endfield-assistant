@@ -35,32 +35,32 @@ const hideUncollectible = ref(false);
 
 const filteredScanResults = computed<ScanResultCardProps[]>(() => {
   const result: ScanResultCardProps[] = [];
-  for (const { status, category, sub_category, corrected_title, image } of scanResults.value) {
+  for (const { status, category, subCategory, correctedTitle, image } of scanResults.value) {
     if (status === 'success') {
       continue;
     }
     result.push({
       collectType: statusToCollectType(status),
       category,
-      subCategory: sub_category,
+      subCategory,
       imageUrl: image,
-      title: corrected_title ?? '',
+      title: correctedTitle ?? '',
     });
   }
 
   for (const { categoryId, id, title, type } of Object.values(prtsData.value?.allItems ?? {})) {
-    const maybeScanResult = scanResults.value.find((r) => r.item_ids.includes(id));
+    const maybeScanResult = scanResults.value.find((r) => r.itemIds.includes(id));
     if (maybeScanResult !== undefined) {
-      const { status, category, sub_category, corrected_title, image } = maybeScanResult;
+      const { status, category, subCategory, correctedTitle, image } = maybeScanResult;
       if (hideCollected.value && status === 'success') {
         continue;
       }
       result.push({
         collectType: statusToCollectType(status),
         category,
-        subCategory: sub_category,
+        subCategory,
         imageUrl: image,
-        title: corrected_title ?? title,
+        title: correctedTitle ?? title,
       });
     } else {
       result.push({
