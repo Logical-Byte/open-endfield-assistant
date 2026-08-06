@@ -55,7 +55,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             tauri_commands::start_scan,
             tauri_commands::stop_scan,
-            tauri_commands::scan_single,
             tauri_commands::get_status,
             tauri_commands::get_prts_data,
             tauri_commands::quit,

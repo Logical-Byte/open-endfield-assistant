@@ -17,11 +17,6 @@ export async function stopScan(): Promise<AppStatus> {
   return await invoke('stop_scan');
 }
 
-/** 单次扫描当前档案详情（仅截屏识别）。 */
-export async function scanSingle(): Promise<AppStatus> {
-  return await invoke('scan_single');
-}
-
 /** 查询当前应用状态。 */
 export async function getStatus(): Promise<AppStatus> {
   return await invoke('get_status');

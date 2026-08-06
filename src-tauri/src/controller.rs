@@ -3,7 +3,7 @@
 //! 职责边界：
 //! - **状态机**：`running`（CAS 防重入启动）与 `stop`（秒停）两个原子标志的**唯一归属**；
 //! - **线程编排**：主任务扫描线程、热键消费线程、日志 / 结果转发线程；
-//! - **热键动作分发**（应用层）：键位常量（[`SCAN_SINGLE_HOTKEY`] / [`TOGGLE_MAIN_TASK_HOTKEY`] / [`EXIT_HOTKEY`]）+ 前台窗口过滤 + [`Controller::spawn_hotkey_loop`]；
+//! - **热键动作分发**（应用层）：键位常量（[`TOGGLE_MAIN_TASK_HOTKEY`] / [`EXIT_HOTKEY`]）+ 前台窗口过滤 + [`Controller::spawn_hotkey_loop`]；
 //!
 //! 依赖方向：应用层 → 领域层（connect/session/scene/task）→ 基础设施层。
 
@@ -15,7 +15,7 @@ use std::thread;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use tracing::{debug, error, info, warn};
-use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_1, VK_OEM_7};
+use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_7};
 
 use crate::{
     connect::connect_to_game,
@@ -24,9 +24,7 @@ use crate::{
     ocr::OcrEngine,
     scene::SceneManager,
     task::{TaskStopped, run_task},
-    tasks::archive_scan::{
-        ArchiveScanTask, CorrectionIndex, ScanReporter, ScanResult, single_scan,
-    },
+    tasks::archive_scan::{ArchiveScanTask, CorrectionIndex, ScanReporter, ScanResult},
     types::PrtsData,
     window::{self, ForegroundGuard},
 };
@@ -38,12 +36,6 @@ pub struct AppStatus {
     pub running: bool,
 }
 
-/// 分号 `;` → 单次扫描
-pub const SCAN_SINGLE_HOTKEY: KeyEvent = KeyEvent {
-    vk: VK_OEM_1.0 as u32,
-    down: true,
-    modifiers: 0,
-};
 /// 引号 `'` → 切换主任务
 pub const TOGGLE_MAIN_TASK_HOTKEY: KeyEvent = KeyEvent {
     vk: VK_OEM_7.0 as u32,
@@ -69,11 +61,9 @@ pub struct Controller {
     stop: Arc<AtomicBool>,
     /// 主任务运行标志（CAS 占用防重入）
     running: Arc<AtomicBool>,
-    /// 游戏操作串行门：同一时刻只允许一个操作（主任务 / 单次扫描）
-    op_lock: Mutex<()>,
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
-    /// 全局扫描序号（跨主任务 / 单次扫描连续递增）
+    /// 全局扫描序号（跨主任务连续递增）
     scan_index: Arc<AtomicU32>,
     /// 前台窗口守卫（应用层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
     foreground: ForegroundGuard,
@@ -110,7 +100,6 @@ impl Controller {
             scenes,
             stop,
             running,
-            op_lock: Mutex::new(()),
             scan_tx: Mutex::new(scan_tx),
             scan_index,
             foreground,
@@ -141,7 +130,7 @@ impl Controller {
         Arc::clone(&self.prts)
     }
 
-    // ========== 启动 / 停止 / 单扫 / 退出 ==========
+    // ========== 启动 / 停止 / 退出 ==========
 
     /// 启动主任务：CAS 占用运行标志 → 推送状态 → 后台线程执行。
     pub fn start_scan(self: &Arc<Self>) {
@@ -160,9 +149,6 @@ impl Controller {
         thread::Builder::new()
             .name("oea-scan".to_string())
             .spawn(move || {
-                // 游戏操作串行门：与单次扫描互斥
-                let _gate = this.op_lock.lock().unwrap();
-
                 // 任务开始时才连接游戏（游戏未打开则报错并复位）
                 let mut session =
                     match connect_to_game(&this.ocr, &this.templates_root, this.stop.clone()) {
@@ -224,34 +210,6 @@ impl Controller {
         }
     }
 
-    /// 单次扫描当前档案详情（在调用线程同步执行）。
-    pub fn scan_single(&self) {
-        if self.running.load(Ordering::Relaxed) {
-            warn!("主任务正在运行中，忽略单次扫描请求");
-            return;
-        }
-        let _gate = self.op_lock.lock().unwrap();
-        // 二次检查：等待串行门期间主任务可能已启动
-        if self.running.load(Ordering::Relaxed) {
-            warn!("主任务正在运行中，忽略单次扫描请求");
-            return;
-        }
-
-        let mut session = match connect_to_game(&self.ocr, &self.templates_root, self.stop.clone())
-        {
-            Ok(s) => s,
-            Err(e) => {
-                error!("连接游戏失败: {e:#}");
-                return;
-            }
-        };
-        session.reset_stop();
-
-        if let Err(e) = single_scan(&mut session, &self.scenes, &self.reporter()) {
-            error!("单次扫描失败: {e:#}");
-        }
-    }
-
     /// 退出程序：请求停止后退出 Tauri 应用。
     pub fn quit(&self) {
         self.stop.store(true, Ordering::Relaxed);
@@ -271,12 +229,6 @@ impl Controller {
                 while let Ok(key_event) = rx.recv() {
                     if key_event == EXIT_HOTKEY {
                         self_cloned.quit();
-                    } else if key_event == SCAN_SINGLE_HOTKEY {
-                        if self_cloned.foreground.is_foreground_eligible() {
-                            self_cloned.scan_single();
-                        } else {
-                            debug!("前台窗口不是终末地或者 OEA，忽略热键");
-                        }
                     } else if key_event == TOGGLE_MAIN_TASK_HOTKEY {
                         if self_cloned.foreground.is_foreground_eligible() {
                             self_cloned.toggle_scan();

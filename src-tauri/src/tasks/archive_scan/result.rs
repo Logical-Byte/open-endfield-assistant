@@ -18,17 +18,17 @@ pub struct ScanResult {
     /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
     /// `failed`（OCR 结果为空）
     pub status: String,
-    /// 全局序号（从 1 开始，跨主任务 / 单次扫描连续递增）
+    /// 全局序号（从 1 开始，跨主任务连续递增）
     pub index: u32,
-    /// 档案库大类 id（pageType：multi_media / text / document，单次扫描为空）
+    /// 档案库大类 id（pageType：multi_media / text / document）
     pub category: String,
-    /// 档案库小类 id（categoryId，单次扫描为空）
+    /// 档案库小类 id（categoryId）
     pub sub_category: String,
     /// 档案详情页面截图（base64 PNG data URL，已缩小以控制事件体积）
     pub image: String,
     /// OCR 识别结果（前端可编辑）
     pub ocr_result: String,
-    /// 纠错后的档案标题（无法识别或单次扫描时为 `None`）
+    /// 纠错后的档案标题（无法识别时为 `None`）
     pub corrected_title: Option<String>,
     /// 纠错命中的档案 id（allItems 的 id，同标题多条时返回全部）
     pub item_ids: Vec<String>,
@@ -60,7 +60,7 @@ pub fn encode_png_data_url(img: &RgbaImage) -> String {
 
 /// 扫描结果上报器：任务层 → 前端事件通道。
 ///
-/// 持有通道发送端与全局序号（跨主任务 / 单次扫描连续递增）；
+/// 持有通道发送端与全局序号（跨主任务连续递增）；
 /// 由 [`crate::controller::Controller`] 创建并注入任务函数。
 /// 任务只负责"报了什么结果"，不关心通道如何到达前端。
 #[derive(Clone)]

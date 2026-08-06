@@ -6,15 +6,15 @@ export interface ScanResult {
   status: ScanResultStatus;
   /** 全局序号（从 1 开始，跨分类连续递增） */
   index: number;
-  /** 档案库大类 id（pageType：multi_media / text / document，单次扫描为空） */
+  /** 档案库大类 id（pageType：multi_media / text / document） */
   category: string;
-  /** 档案库小类 id（categoryId，单次扫描为空） */
+  /** 档案库小类 id（categoryId） */
   sub_category: string;
   /** 档案详情页面截图（base64 PNG data URL） */
   image: string;
   /** OCR 识别结果（前端可编辑） */
   ocr_result: string;
-  /** 纠错后的档案标题（无法识别或单次扫描时为 null） */
+  /** 纠错后的档案标题（无法识别时为 null） */
   corrected_title: string | null;
   /** 纠错命中的档案 id（allItems 的 id，同标题多条时返回全部） */
   item_ids: string[];

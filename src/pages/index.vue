@@ -3,7 +3,7 @@ import { useAppState } from '@/composables/app/useAppState';
 import { usePrtsData } from '@/composables/app/usePrtsData';
 import { useScanResults } from '@/composables/app/useScanResults';
 import { CollectType, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
-import { scanSingle, startScan, stopScan } from '@/utils/tauri';
+import { startScan, stopScan } from '@/utils/tauri';
 import { computed, ref } from 'vue';
 
 const { appStatus } = useAppState();
@@ -85,15 +85,6 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
           :icon="appStatus.running ? 'i-lucide-square' : 'i-lucide-play'"
           :label="appStatus.running ? '停止扫描' : '开始扫描'"
           @click="toggleScan"
-        />
-        <UButton
-          v-if="false"
-          color="neutral"
-          :disabled="appStatus.running"
-          icon="i-lucide-scan"
-          label="单次扫描"
-          variant="outline"
-          @click="scanSingle"
         />
         <UButton
           class="ms-auto"

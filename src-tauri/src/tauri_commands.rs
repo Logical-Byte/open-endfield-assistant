@@ -25,13 +25,6 @@ pub fn stop_scan(state: State<'_, Arc<Controller>>) -> AppStatus {
     state.inner().get_status()
 }
 
-/// 单次扫描当前档案详情。
-#[tauri::command]
-pub fn scan_single(state: State<'_, Arc<Controller>>) -> AppStatus {
-    state.inner().scan_single();
-    state.inner().get_status()
-}
-
 /// 查询当前应用状态。
 #[tauri::command]
 pub fn get_status(state: State<'_, Arc<Controller>>) -> AppStatus {
