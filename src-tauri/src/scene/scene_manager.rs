@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use tracing::{debug, info, warn};
 
 use super::{Scene, SceneId, 档案库SubSceneId};
@@ -94,18 +94,14 @@ impl SceneManager {
         // 但大多数场景只需要一张截图即可判断
 
         for scene in &self.scenes {
-            match scene.try_recognize(session) {
-                Ok(Some(id)) => {
-                    debug!("场景检测: 当前处于 {:?}", id);
-                    return Ok(id);
-                }
-                Ok(None) => {
-                    // 不是这个场景，继续检查下一个
-                }
-                Err(e) => {
-                    // 识别出错（比如模板文件缺失），记录警告并继续
-                    warn!("场景识别出错 ({}): {e:#}", scene.name());
-                }
+            // 识别出错（如模板缺失、模板尺寸与 ROI 不匹配）属于严重问题，
+            // 用 ? 直接让任务失败，而不是继续识别最后误报「未知场景」掩盖真实原因
+            let id = scene
+                .try_recognize(session)
+                .with_context(|| format!("场景识别出错 ({})", scene.name()))?;
+            if let Some(id) = id {
+                debug!("场景检测: 当前处于 {:?}", id);
+                return Ok(id);
             }
         }
 
