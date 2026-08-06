@@ -333,6 +333,7 @@ impl From<Region2D<i32>> for RECT {
 ///
 /// # 示例
 /// ```
+/// use oea_lib::{from_ltwh, utils::region::Region2D};
 /// const ROI: Region2D<u32> = from_ltwh!(180, 120, 60, 36);
 /// ```
 #[macro_export]
