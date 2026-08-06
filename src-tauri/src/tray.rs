@@ -19,8 +19,8 @@ use tracing::info;
 
 use crate::controller::{AppStatus, Controller};
 
-/// 关闭窗口时是否最小化到托盘（默认开启，托盘菜单提供"退出"入口）。
-static MINIMIZE_TO_TRAY: AtomicBool = AtomicBool::new(true);
+/// 关闭窗口时是否最小化到托盘（默认关闭，即直接关闭窗口退出应用）。
+static MINIMIZE_TO_TRAY: AtomicBool = AtomicBool::new(false);
 
 /// 全局托盘图标引用，供后续动态更新图标 / tooltip。
 static TRAY_ICON: OnceLock<Mutex<Option<TrayIcon>>> = OnceLock::new();
