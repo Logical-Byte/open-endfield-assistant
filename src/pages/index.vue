@@ -1,19 +1,79 @@
 <script setup lang="ts">
 import { useAppState } from '@/composables/app/useAppState';
+import { usePrtsData } from '@/composables/app/usePrtsData';
 import { useScanResults } from '@/composables/app/useScanResults';
+import { CollectType, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
 import { scanSingle, startScan, stopScan } from '@/utils/tauri';
+import { computed, ref } from 'vue';
 
 const { appStatus } = useAppState();
 const { scanResults, pushMockScanResult, clearScanResults } = useScanResults();
+const { prtsData } = usePrtsData();
 
-async function toggleScan() {
+function toggleScan() {
   return appStatus.value.running ? stopScan() : startScan();
+}
+
+function statusToCollectType(status: ScanResultStatus): CollectType {
+  switch (status) {
+    case 'success':
+      return CollectType.Collected;
+    case 'unrecognized':
+      return CollectType.Unrecognized;
+    case 'failed':
+      return CollectType.Failed;
+  }
 }
 
 /** 导出扫描结果到地图集。 */
 function exportToOem() {
   // TODO: 待实现导出逻辑
 }
+
+const hideCollected = ref(false);
+const hideUncollectible = ref(false);
+
+const filteredScanResults = computed<ScanResultCardProps[]>(() => {
+  const result: ScanResultCardProps[] = [];
+  for (const { status, category, sub_category, corrected_title, image } of scanResults.value) {
+    if (status === 'success') {
+      continue;
+    }
+    result.push({
+      collectType: statusToCollectType(status),
+      category,
+      subCategory: sub_category,
+      imageUrl: image,
+      title: corrected_title ?? '',
+    });
+  }
+
+  for (const { categoryId, id, title, type } of Object.values(prtsData.value?.allItems ?? {})) {
+    const maybeScanResult = scanResults.value.find((r) => r.item_ids.includes(id));
+    if (maybeScanResult !== undefined) {
+      const { status, category, sub_category, corrected_title, image } = maybeScanResult;
+      if (hideCollected.value && status === 'success') {
+        continue;
+      }
+      result.push({
+        collectType: statusToCollectType(status),
+        category,
+        subCategory: sub_category,
+        imageUrl: image,
+        title: corrected_title ?? title,
+      });
+    } else {
+      result.push({
+        collectType: CollectType.NotCollected,
+        category: type,
+        subCategory: categoryId,
+        imageUrl: null,
+        title,
+      });
+    }
+  }
+  return result;
+});
 </script>
 
 <template>
@@ -23,10 +83,11 @@ function exportToOem() {
         <UButton
           :color="appStatus.running ? 'error' : 'success'"
           :icon="appStatus.running ? 'i-lucide-square' : 'i-lucide-play'"
-          :label="appStatus.running ? '停止扫描' : '启动扫描'"
+          :label="appStatus.running ? '停止扫描' : '开始扫描'"
           @click="toggleScan"
         />
         <UButton
+          v-if="false"
           color="neutral"
           :disabled="appStatus.running"
           icon="i-lucide-scan"
@@ -45,34 +106,38 @@ function exportToOem() {
       </div>
 
       <div class="flex flex-1 flex-col gap-2 overflow-y-hidden">
-        <div class="flex flex-0 flex-wrap items-center gap-3">
-          <h2 class="mr-auto text-sm font-medium">扫描结果</h2>
-          <span class="text-xs text-muted">共 {{ scanResults.length }} 条</span>
-          <UButton
-            color="neutral"
-            icon="i-lucide-flask-conical"
-            label="模拟数据"
-            size="xs"
-            variant="ghost"
-            @click="pushMockScanResult()"
-          />
-          <UButton
-            color="neutral"
-            icon="i-lucide-trash-2"
-            label="清空"
-            size="xs"
-            variant="ghost"
-            @click="clearScanResults()"
-          />
+        <div class="flex flex-0 flex-wrap items-center justify-between">
+          <p class="text-sm font-medium">扫描结果</p>
+          <div class="flex flex-wrap gap-4">
+            <UCheckbox v-model="hideCollected" color="info" label="隐藏已收集" />
+            <UCheckbox v-model="hideUncollectible" color="info" label="隐藏任务获取的档案" />
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="ml-auto text-xs text-muted">共 {{ scanResults.length }} 条</span>
+            <UButton
+              color="info"
+              icon="i-lucide-flask-conical"
+              label="模拟数据"
+              size="xs"
+              variant="ghost"
+              @click="pushMockScanResult()"
+            />
+            <UButton
+              color="error"
+              icon="i-lucide-trash-2"
+              label="清空"
+              size="xs"
+              variant="ghost"
+              @click="clearScanResults()"
+            />
+          </div>
         </div>
 
         <div class="flex-1 scrollbar-gutter-stable space-y-2 overflow-y-auto p-1">
-          <ScanResultCard
-            v-for="result in scanResults"
-            :key="result.index"
-            v-bind="result"
-            v-model:ocr_text="result.ocr_result"
-          />
+          <template v-for="(scanResult, index) in filteredScanResults" :key="index">
+            <ScanResultCard v-bind="scanResult" />
+          </template>
         </div>
       </div>
     </div>

@@ -2,8 +2,8 @@ import { useAnimateWhenever } from '@/composables/image-preview/useAnimateWhenev
 import { useImagePreviewScale } from '@/composables/image-preview/useImagePreviewScale';
 import { downloadFile } from '@/utils/file';
 import { useDevicePixelRatio, useMagicKeys } from '@vueuse/core';
-import type { CSSProperties, Ref } from 'vue';
-import { computed, nextTick, ref, watch } from 'vue';
+import type { CSSProperties, MaybeRefOrGetter, Ref } from 'vue';
+import { computed, nextTick, ref, toValue, watch } from 'vue';
 
 export type Point2D = {
   x: number;
@@ -13,7 +13,7 @@ export type Point2D = {
 export type PreviewTarget = {
   url: string;
   name: string;
-  downloadName: string;
+  downloadName: MaybeRefOrGetter<string>;
 };
 
 export function useImagePreview(overlayRef: Ref<HTMLElement | null>) {
@@ -265,7 +265,7 @@ export function useImagePreview(overlayRef: Ref<HTMLElement | null>) {
   async function download(): Promise<void> {
     if (!preview.value) return;
     const { url, downloadName } = preview.value;
-    await downloadFile(url, downloadName);
+    await downloadFile(url, toValue(downloadName));
   }
 
   /** 放大图像 */

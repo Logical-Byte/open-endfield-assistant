@@ -1,25 +1,24 @@
 <script setup lang="ts">
 import { usePrtsData } from '@/composables/app/usePrtsData';
-import type { ScanResult } from '@/types/scanResult';
+import type { ScanResultCardProps } from '@/types/scanResult';
+import { CollectType } from '@/types/scanResult';
 import { openImagePreviewKey } from '@/utils/provideInject';
 import { computed, inject } from 'vue';
 
-const { index, status, category, sub_category, image, corrected_title, item_ids } =
-  defineProps<ScanResult>();
-const ocr_text = defineModel<string>('ocr_text');
+const { collectType, category, subCategory, imageUrl, title } = defineProps<ScanResultCardProps>();
 
 // 自动补全候选：当前子分类下所有档案标题（prts 数据加载幂等）
 const { getCategoryTitles, getPageName, getCategoryName } = usePrtsData();
-const candidates = computed(() => getCategoryTitles(sub_category));
+const candidates = computed(() => getCategoryTitles(subCategory));
 
 /** 基准分辨率（16:9，实际分辨率不同时按此等比例缩放） */
 const BASE_WIDTH = 1280;
 const BASE_HEIGHT = 720;
 /** 裁剪区域（以基准分辨率为坐标系） */
-const CROP_LEFT = 343;
-const CROP_TOP = 22;
-const CROP_RIGHT = 936;
-const CROP_BOTTOM = 168;
+const CROP_LEFT = 360;
+const CROP_TOP = 48;
+const CROP_RIGHT = 876;
+const CROP_BOTTOM = 134;
 /** 裁剪区域尺寸 */
 const CROP_WIDTH = CROP_RIGHT - CROP_LEFT;
 const CROP_HEIGHT = CROP_BOTTOM - CROP_TOP;
@@ -50,64 +49,75 @@ const openImagePreview = inject(openImagePreviewKey, () => {
   <UCard
     class="border-l-8"
     :class="{
-      'border-error': status === 'failed',
-      'border-warning': status === 'unrecognized',
-      'border-success': status === 'success',
+      'border-success': collectType === CollectType.Collected,
+      'border-warning': collectType === CollectType.Unrecognized,
+      'border-error': collectType === CollectType.Failed,
+      'border-(--ui-text-dimmed)': collectType === CollectType.NotCollected,
+    }"
+    :ui="{
+      body: 'px-3! py-0!',
     }"
   >
-    <div class="flex flex-col items-center gap-4 sm:flex-row">
-      <div class="flex flex-col items-center gap-1">
-        <div class="font-semibold">#{{ index }}</div>
-        <UBadge v-if="category" color="neutral" :label="getPageName(category)" variant="outline" />
+    <div class="flex flex-col items-center gap-3 sm:flex-row">
+      <div class="flex w-31.5 items-center justify-center">
         <UBadge
-          v-if="sub_category"
-          color="secondary"
-          :label="getCategoryName(sub_category)"
+          v-if="category && subCategory"
+          color="info"
+          :label="`${getPageName(category)} − ${getCategoryName(subCategory)}`"
           variant="outline"
-        />
-        <UBadge v-if="corrected_title" color="success" label="已纠错" variant="soft" />
-        <UBadge
-          v-else-if="status === 'unrecognized'"
-          color="warning"
-          label="无法识别"
-          variant="soft"
         />
       </div>
 
-      <!-- <img alt="档案详情截图" class="h-32 self-start rounded-md" :src="image" /> -->
-      <!-- B：仅显示 A 的裁剪区域（坐标与基准分辨率见脚本中的常量） -->
-      <ImagePreviewContainer
-        class="relative h-20 self-start overflow-hidden rounded-md ring-1 ring-default"
-        :style="cropContainerStyle"
-        @click="
-          openImagePreview({
-            url: image,
-            name: `档案详情截图 #${index}`,
-            downloadName: `档案详情截图 #${index}.png`,
-          })
-        "
-      >
-        <img
-          alt="档案详情裁剪区域"
-          class="absolute max-w-none"
-          :src="image"
-          :style="cropImageStyle"
-        />
-      </ImagePreviewContainer>
-      <div class="flex min-w-0 flex-1 flex-col gap-2">
-        <span class="text-xs font-medium text-muted">档案标题</span>
-        <UInputMenu
-          v-model="ocr_text"
-          color="neutral"
-          :content="{ hideWhenEmpty: true }"
-          :items="candidates"
-          mode="autocomplete"
-          placeholder="识别结果为空…"
-          size="sm"
-          variant="subtle"
-        />
-        <p v-if="item_ids.length" class="text-xs text-muted">档案 ID：{{ item_ids.join('、') }}</p>
+      <div class="w-72">
+        <ImagePreviewContainer
+          v-if="imageUrl"
+          class="relative w-full overflow-hidden"
+          :class="{
+            'opacity-25': collectType === CollectType.Collected,
+          }"
+          :style="cropContainerStyle"
+          @click="
+            openImagePreview({
+              url: imageUrl,
+              name: `档案详情截图`,
+              downloadName: () => `档案详情截图 - ${title}.png`,
+            })
+          "
+        >
+          <img
+            alt="档案详情截图"
+            class="absolute max-w-none"
+            :src="imageUrl"
+            :style="cropImageStyle"
+          />
+        </ImagePreviewContainer>
+        <div v-else class="flex h-12 items-center justify-center bg-accented">
+          <p class="text-sm text-muted">待收集</p>
+        </div>
       </div>
+
+      <div class="min-w-0 flex-1">
+        <p v-if="collectType === CollectType.NotCollected" class="text-center">{{ title }}</p>
+        <div v-else class="flex flex-col">
+          <!-- <p class="text-xs font-medium text-muted">标题识别纠错</p> -->
+          <UInputMenu color="neutral" :items="candidates" :model-value="title ?? ''" />
+        </div>
+      </div>
+
+      <UButton
+        v-if="collectType === CollectType.Collected"
+        class="text-muted"
+        color="neutral"
+        label="在 OEM 中查看"
+        trailing-icon="i-lucide-external-link"
+        variant="outline"
+      />
+      <UButton
+        v-if="collectType === CollectType.NotCollected"
+        label="前往 OEM 收集"
+        trailing-icon="i-lucide-external-link"
+        variant="outline"
+      />
     </div>
   </UCard>
 </template>

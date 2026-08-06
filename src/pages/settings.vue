@@ -1,36 +1,26 @@
 <script setup lang="ts">
 import { getMinimizeToTray, setMinimizeToTray } from '@/utils/tauri';
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 
 /** 关闭窗口时是否最小化到托盘（与后端状态同步）。 */
-const minimizeToTray = ref(false);
+const minimizeToTray = ref(await getMinimizeToTray());
 /** 正在写入后端设置。 */
 const saving = ref(false);
-
-async function loadMinimizeToTray(): Promise<void> {
-  minimizeToTray.value = await getMinimizeToTray();
-}
 
 /** 切换最小化到托盘：乐观更新，再用后端返回的权威值确认，失败则回滚。 */
 async function onMinimizeToTrayChange(value: boolean): Promise<void> {
   saving.value = true;
   try {
     minimizeToTray.value = await setMinimizeToTray(value);
-  } catch {
-    minimizeToTray.value = !value;
   } finally {
     saving.value = false;
   }
 }
-
-onMounted(loadMinimizeToTray);
 </script>
 
 <template>
   <UContainer>
     <UPage>
-      <UPageHeader description="OEA 应用设置" title="设置" />
-
       <UPageBody>
         <UCard description="托盘图标与窗口行为" title="系统托盘">
           <div class="flex items-center justify-between gap-4">

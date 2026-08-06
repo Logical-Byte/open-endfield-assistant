@@ -62,7 +62,7 @@ app.provide(openImagePreviewKey, open);
               target="_blank"
               :to="preview.url"
             >
-              {{ preview.url }}
+              {{ preview.url.slice(0, 256) }}
             </ULink>
           </div>
           <p

@@ -43,9 +43,19 @@ useScrollToBottom(logContainerRef, filteredLogLines);
     <UCard class="min-h-0 flex-1" :ui="{ body: 'h-full p-0!' }">
       <div ref="logContainerRef" class="h-full scrollbar-gutter-stable overflow-y-scroll px-6 py-4">
         <p v-if="filteredLogLines.length === 0" class="font-mono text-muted">暂无日志</p>
-        <p v-for="(line, index) in filteredLogLines" :key="index" class="font-mono leading-normal">
-          {{ formatTime(line.time) }} [{{ line.level }}] {{ line.message }}
-        </p>
+        <pre
+          v-for="({ time, level, message }, index) in filteredLogLines"
+          :key="index"
+          class="font-mono leading-normal"
+        ><span class="text-dimmed">{{ formatTime(time) }}</span> <span
+            :class="{
+              'text-dimmed': level === 'TRACE' || level === 'DEBUG',
+              'text-info': level === 'INFO',
+              'text-warning': level === 'WARN',
+              'text-error': level === 'ERROR',
+            }"
+            >{{ `[${level}]`.padStart(7, ' ') }}</span
+          > <span class="whitespace-pre-wrap">{{ message }}</span></pre>
       </div>
     </UCard>
   </UContainer>

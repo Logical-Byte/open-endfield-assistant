@@ -22,6 +22,10 @@ function getCategoryName(categoryId: string): string {
   return prtsData.value?.PrtsCategory[categoryId]?.name ?? categoryId;
 }
 
+function getItemTitleById(id: string): string {
+  return prtsData.value?.allItems[id]?.title ?? id;
+}
+
 /** 某子分类下所有档案标题（自动补全候选，按出现顺序去重）。 */
 function getCategoryTitles(categoryId: string): string[] {
   if (!prtsData.value) {
@@ -50,5 +54,6 @@ export function usePrtsData() {
     getPageName,
     getCategoryName,
     getCategoryTitles,
+    getItemTitleById,
   };
 }
