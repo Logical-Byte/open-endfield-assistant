@@ -15,6 +15,7 @@ useHead({
   <Suspense>
     <UApp>
       <div class="flex h-full flex-col">
+        <TitleBar />
         <AppHeader class="static z-auto backdrop-blur-none" />
 
         <UMain class="flex min-h-0 flex-1">

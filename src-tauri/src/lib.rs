@@ -81,7 +81,7 @@ pub fn run() {
             // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。
             fs::create_dir_all(app_paths.webview_data_dir())?;
             // 在 Rust 里动态创建 webview 窗口，而不在 `tauri.conf.json` 里声明窗口，否则无法更改 WebView2 用户数据目录。
-            let _main_window =
+            let main_window_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                     .title("OEA")
                     .inner_size(1024.0, 640.0)
@@ -89,8 +89,14 @@ pub fn run() {
                     .resizable(true)
                     .decorations(true)
                     .shadow(true)
-                    .data_directory(app_paths.webview_data_dir())
-                    .build()?;
+                    .data_directory(app_paths.webview_data_dir());
+
+            // 方案2：Windows 下移除系统标题栏，改用前端自定义标题栏（随应用主题融入）；
+            // macOS/Linux 保留原生标题栏。
+            #[cfg(target_os = "windows")]
+            let main_window_builder = main_window_builder.decorations(false);
+
+            let _main_window = main_window_builder.build()?;
 
             // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
             window::set_thread_dpi_awareness_context();
