@@ -2,12 +2,13 @@
 
 use std::{fs, sync::Arc};
 
-use anyhow::Result;
 use tauri::State;
 
 use crate::{
     app_paths::AppPaths,
     controller::{AppStatus, Controller},
+    tasks::screenshot::{self, ScreenshotFormat},
+    tray,
     types::PrtsData,
 };
 
@@ -61,14 +62,14 @@ pub fn open_log_dir() -> Result<(), String> {
 /// 设置"关闭窗口时最小化到托盘"（返回设置后的值，供前端设置界面使用）。
 #[tauri::command]
 pub fn set_minimize_to_tray(enabled: bool) -> bool {
-    crate::tray::set_minimize_to_tray(enabled);
-    crate::tray::get_minimize_to_tray()
+    tray::set_minimize_to_tray(enabled);
+    tray::get_minimize_to_tray()
 }
 
 /// 查询"关闭窗口时最小化到托盘"。
 #[tauri::command]
 pub fn get_minimize_to_tray() -> bool {
-    crate::tray::get_minimize_to_tray()
+    tray::get_minimize_to_tray()
 }
 
 /// 截取游戏窗口画面：按指定尺寸缩放并编码为指定格式（png / jpeg / webp），
@@ -76,55 +77,10 @@ pub fn get_minimize_to_tray() -> bool {
 ///
 /// 本命令每次调用只执行一次截图；帧率控制、定时轮询等逻辑全部由前端负责。
 #[tauri::command]
-pub fn screenshot(width: u32, height: u32, format: String) -> Result<String, String> {
-    use base64::Engine as _;
-    use image::{ImageFormat, imageops};
-    use std::io::Cursor;
-
-    // 1. 定位游戏窗口（PrintWindow 可捕获非最小化后台窗口）
-    let hwnd = crate::window::get_window_by_title(
-        crate::window::ENDFIELD_WINDOW_TITLE,
-        Some(crate::window::ENDFIELD_WINDOW_CLASS),
-    )
-    .map_err(|e| format!("未找到游戏窗口: {e}"))?;
-
-    // 2. 截图
-    let mut screencap = crate::screencap::PrintWindowScreencap::new(hwnd);
-    let raw = screencap
-        .screencap()
-        .map_err(|e| format!("截图失败: {e}"))?;
-
-    // 3. 缩放到指定尺寸
-    let resized = imageops::resize(
-        &raw,
-        width.max(1),
-        height.max(1),
-        imageops::FilterType::Triangle,
-    );
-
-    // 4. 按格式编码（JPEG 不支持 alpha 通道，先转 RGB 再编码）
-    let image_format = match format.as_str() {
-        "png" => ImageFormat::Png,
-        "jpeg" | "jpg" => ImageFormat::Jpeg,
-        "webp" => ImageFormat::WebP,
-        other => {
-            return Err(format!(
-                "不支持的图片格式: {other}（可选 png / jpeg / webp）"
-            ));
-        }
-    };
-    let mut buf = Cursor::new(Vec::new());
-    if image_format == ImageFormat::Jpeg {
-        image::DynamicImage::ImageRgba8(resized)
-            .to_rgb8()
-            .write_to(&mut buf, image_format)
-            .map_err(|e| format!("图片编码失败: {e}"))?;
-    } else {
-        resized
-            .write_to(&mut buf, image_format)
-            .map_err(|e| format!("图片编码失败: {e}"))?;
-    }
-
-    // 5. base64 编码返回
-    Ok(base64::engine::general_purpose::STANDARD.encode(buf.into_inner()))
+pub async fn screenshot(
+    width: u32,
+    height: u32,
+    format: ScreenshotFormat,
+) -> Result<String, String> {
+    screenshot::capture_screenshot(width, height, format).map_err(|e| e.to_string())
 }
