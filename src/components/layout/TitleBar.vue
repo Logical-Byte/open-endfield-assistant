@@ -40,29 +40,22 @@ onMounted(async () => {
 onUnmounted(() => {
   unlistenResize?.();
 });
-
-function handleMinimize(): void {
-  void appWindow?.minimize();
-}
-
-function handleToggleMaximize(): void {
-  void appWindow?.toggleMaximize();
-}
-
-function handleClose(): void {
-  void appWindow?.close();
-}
 </script>
 
 <template>
   <div
     v-if="isTauri && isWindows"
-    class="flex h-8 shrink-0 items-center justify-between border-b border-default bg-default select-none"
+    class="flex h-7.5 shrink-0 items-center justify-between border-b border-default bg-default select-none"
     data-tauri-drag-region
   >
     <div class="flex h-full items-center gap-1.5 px-3" data-tauri-drag-region>
-      <img alt="OEA" class="size-4 object-contain" draggable="false" :src="faviconUrl" />
-      <span class="text-sm font-semibold text-toned">OEA</span>
+      <img
+        alt="OEA"
+        class="pointer-events-none size-4 object-contain"
+        draggable="false"
+        :src="faviconUrl"
+      />
+      <span class="pointer-events-none font-ui text-xs text-toned">OEA</span>
     </div>
 
     <div class="flex h-full">
@@ -70,7 +63,7 @@ function handleClose(): void {
         class="flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-accented hover:text-toned"
         title="最小化"
         type="button"
-        @click="handleMinimize"
+        @click="appWindow?.minimize"
       >
         <WindowMinimizeIcon class="size-4" />
       </button>
@@ -78,7 +71,7 @@ function handleClose(): void {
         class="flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-accented hover:text-toned"
         :title="isMaximized ? '还原' : '最大化'"
         type="button"
-        @click="handleToggleMaximize"
+        @click="appWindow?.toggleMaximize"
       >
         <WindowRestoreIcon v-if="isMaximized" class="size-4" />
         <WindowMaximizeIcon v-else class="size-4" />
@@ -87,7 +80,7 @@ function handleClose(): void {
         class="flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-red-500 hover:text-white"
         title="关闭"
         type="button"
-        @click="handleClose"
+        @click="appWindow?.close"
       >
         <WindowCloseIcon class="size-4" />
       </button>

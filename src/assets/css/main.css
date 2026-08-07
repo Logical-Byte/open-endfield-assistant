@@ -33,6 +33,7 @@ body,
   --font-mono:
     'JetBrains Mono', 'Google Sans Code', 'Cascadia Mono', 'Consolas', var(--chinese-font),
     monospace;
+  --font-ui: system-ui;
 
   /* --color-green-50: oklch(90.98% 0.04338 166.72);
   --color-green-100: oklch(88.46% 0.05417 166.29);
