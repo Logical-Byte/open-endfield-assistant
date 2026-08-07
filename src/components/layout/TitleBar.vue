@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { useAppVersion } from '@/composables/app/useAppVersion';
+import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { onMounted, onUnmounted, ref } from 'vue';
+
+const { appVersion } = useAppVersion();
 
 // 应用图标：使用 /favicon.ico（dev 由 vite 中间件提供，构建后位于 dist 根目录）。
 // 用动态绑定避免 Vite 把它当作模块导入解析。
@@ -9,9 +13,8 @@ const faviconUrl = '/favicon.ico';
 // 仅 Windows 渲染自定义标题栏：Rust 端只在 Windows 移除系统标题栏，
 // macOS/Linux 保留原生标题栏，此处不渲染，避免出现双标题栏。
 const isWindows = navigator.userAgent.toLowerCase().includes('win');
-const isTauri = '__TAURI_INTERNALS__' in window;
 
-const appWindow = isTauri ? getCurrentWindow() : null;
+const appWindow = isTauri() ? getCurrentWindow() : null;
 const isMaximized = ref(false);
 
 let unlistenResize: (() => void) | null = null;
@@ -44,7 +47,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    v-if="isTauri && isWindows"
+    v-if="isTauri() && isWindows"
     class="flex h-7.5 shrink-0 items-center justify-between border-b border-default bg-default select-none"
     data-tauri-drag-region
   >
@@ -55,7 +58,9 @@ onUnmounted(() => {
         draggable="false"
         :src="faviconUrl"
       />
-      <span class="pointer-events-none font-ui text-xs text-toned">OEA</span>
+      <span class="pointer-events-none font-ui text-xs text-toned">
+        OEA<span v-if="appVersion"> v{{ appVersion }}</span>
+      </span>
     </div>
 
     <div class="flex h-full">

@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useAppVersion } from '@/composables/app/useAppVersion';
 import type { NavigationMenuItem } from '@nuxt/ui';
+
+const { appVersion } = useAppVersion();
 
 const navigationMenuItems: NavigationMenuItem[] = [
   {
@@ -38,8 +41,11 @@ const navigationMenuItems: NavigationMenuItem[] = [
 </script>
 
 <template>
-  <UHeader>
-    <template #title>OEA</template>
+  <UHeader :ui="{ title: 'inline' }">
+    <template #title>
+      <span>OEA</span
+      ><span v-if="appVersion" class="text-base font-medium text-muted"> v{{ appVersion }}</span>
+    </template>
 
     <UNavigationMenu :items="navigationMenuItems" />
 

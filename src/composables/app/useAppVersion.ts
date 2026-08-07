@@ -1,0 +1,30 @@
+//! 应用版本号（模块级单例 ref，多个组件共享；从 Tauri 运行时读取）。
+import { getVersion } from '@tauri-apps/api/app';
+import { isTauri } from '@tauri-apps/api/core';
+import { ref } from 'vue';
+
+/** 应用版本号（如 "0.1.0"；非 Tauri 环境为 null）。 */
+const appVersion = ref<string | null>(null);
+
+let initialized = false;
+
+export function useAppVersion() {
+  if (!initialized) {
+    initialized = true;
+
+    // 仅 Tauri 环境存在版本信息；浏览器调试环境不显示版本号。
+    if (isTauri()) {
+      getVersion()
+        .then((v) => {
+          appVersion.value = v;
+        })
+        .catch(() => {
+          // 忽略：读取失败时不显示版本号
+        });
+    }
+  }
+
+  return {
+    appVersion,
+  };
+}
