@@ -113,11 +113,18 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
           </div>
         </div>
 
-        <div class="flex-1 scrollbar-gutter-stable space-y-2 overflow-y-auto p-1">
-          <template v-for="(scanResult, index) in filteredScanResults" :key="index">
-            <ScanResultCard v-bind="scanResult" />
-          </template>
-        </div>
+        <UScrollArea
+          v-slot="{ item }"
+          class="flex-1 scrollbar-gutter-stable p-1"
+          :items="filteredScanResults"
+          :virtualize="{
+            estimateSize: 56,
+            skipMeasurement: true,
+            overscan: 8,
+          }"
+        >
+          <ScanResultCard v-bind="item" />
+        </UScrollArea>
       </div>
     </div>
   </UContainer>
