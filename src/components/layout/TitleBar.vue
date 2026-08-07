@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { useAppVersion } from '@/composables/app/useAppVersion';
+import { appVersion } from '@/utils/app/appVersion';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { onMounted, onUnmounted, ref } from 'vue';
-
-const { appVersion } = useAppVersion();
 
 // 应用图标：使用 /favicon.ico（dev 由 vite 中间件提供，构建后位于 dist 根目录）。
 // 用动态绑定避免 Vite 把它当作模块导入解析。

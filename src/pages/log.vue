@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { useLogState } from '@/composables/app/useLogState';
 import { useScrollToBottom } from '@/composables/useScrollToBottom';
+import { clearLogs, filteredLogLines, levelOptions, logLevelFilter } from '@/utils/log';
 import { openLogDir } from '@/utils/tauri';
 import { useTemplateRef } from 'vue';
-
-const { clearLogs, filteredLogLines, logLevelFilter, levelOptions } = useLogState();
 
 /** 把 ISO 8601 时间字符串格式化为 `MM-dd HH:MM:SS`（解析失败时原样返回）。 */
 function formatTime(iso: string): string {

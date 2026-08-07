@@ -1,13 +1,12 @@
-//! 共享应用状态（模块级单例 ref，多个组件共享）。
 import { getStatus, onAppStatus } from '@/utils/tauri';
 import { ref } from 'vue';
 
 /** 扫描档案库任务是否正在运行 */
-const appStatus = ref({ running: false });
+export const appStatus = ref({ running: false });
 
 let initialized = false;
 
-export function useAppState() {
+export function initAppStatus() {
   if (!initialized) {
     initialized = true;
 
@@ -18,8 +17,4 @@ export function useAppState() {
       appStatus.value = s;
     });
   }
-
-  return {
-    appStatus,
-  };
 }

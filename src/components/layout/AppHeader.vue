@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { useAppVersion } from '@/composables/app/useAppVersion';
+import { appVersion } from '@/utils/app/appVersion';
 import type { NavigationMenuItem } from '@nuxt/ui';
-
-const { appVersion } = useAppVersion();
 
 const navigationMenuItems: NavigationMenuItem[] = [
   {

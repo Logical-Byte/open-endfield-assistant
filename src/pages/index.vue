@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import { useAppState } from '@/composables/app/useAppState';
-import { usePrtsData } from '@/composables/app/usePrtsData';
-import { useScanResults } from '@/composables/app/useScanResults';
 import { CollectType, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
+import { appStatus } from '@/utils/app/appStatus';
+import { prtsData } from '@/utils/app/prtsData';
+import { clearScanResults, scanResults } from '@/utils/app/scanResults';
 import { startScan, stopScan } from '@/utils/tauri';
 import { computed, ref } from 'vue';
-
-const { appStatus } = useAppState();
-const { scanResults, pushMockScanResult, clearScanResults } = useScanResults();
-const { prtsData } = usePrtsData();
 
 function toggleScan() {
   return appStatus.value.running ? stopScan() : startScan();
@@ -106,14 +102,6 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
 
           <div class="flex flex-wrap items-center gap-2">
             <span class="ml-auto text-xs text-muted">共 {{ scanResults.length }} 条</span>
-            <UButton
-              color="info"
-              icon="i-lucide-flask-conical"
-              label="模拟数据"
-              size="xs"
-              variant="ghost"
-              @click="pushMockScanResult()"
-            />
             <UButton
               color="error"
               icon="i-lucide-trash-2"

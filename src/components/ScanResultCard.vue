@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { usePrtsData } from '@/composables/app/usePrtsData';
 import type { ScanResultCardProps } from '@/types/scanResult';
 import { CollectType } from '@/types/scanResult';
 import { openImagePreviewKey } from '@/utils/provideInject';
+import { getCategoryName, getCategoryTitles, getPageName } from '@/utils/prts';
 import { computed, inject } from 'vue';
 
 const { collectType, category, subCategory, imageUrl, title } = defineProps<ScanResultCardProps>();
 
 // 自动补全候选：当前子分类下所有档案标题（prts 数据加载幂等）
-const { getCategoryTitles, getPageName, getCategoryName } = usePrtsData();
 const candidates = computed(() => getCategoryTitles(subCategory));
 
 /** 基准分辨率（16:9，实际分辨率不同时按此等比例缩放） */
