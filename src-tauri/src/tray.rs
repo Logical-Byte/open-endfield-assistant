@@ -10,9 +10,10 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
+use anyhow::{Context, Result};
 use tauri::{
     AppHandle, Listener, Manager, Wry,
-    menu::{Menu, MenuItem},
+    menu::{MenuBuilder, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
 };
 use tracing::info;
@@ -40,8 +41,8 @@ pub fn get_minimize_to_tray() -> bool {
 }
 
 /// 显示并聚焦主窗口（最小化时先还原）。
-fn show_main_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+fn show_main_window(app_handle: &AppHandle) {
+    if let Some(window) = app_handle.get_webview_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
@@ -51,9 +52,9 @@ fn show_main_window(app: &AppHandle) {
 /// 处理窗口关闭请求：启用最小化到托盘时隐藏窗口并阻止关闭。
 ///
 /// 返回 `true` 表示已阻止关闭（应用继续驻留托盘），`false` 表示允许关闭。
-pub fn handle_close_requested(app: &AppHandle) -> bool {
+pub fn handle_close_requested(app_handle: &AppHandle) -> bool {
     if get_minimize_to_tray() {
-        if let Some(window) = app.get_webview_window("main") {
+        if let Some(window) = app_handle.get_webview_window("main") {
             let _ = window.hide();
         }
         true
@@ -81,21 +82,26 @@ fn update_toggle_item(running: bool) {
 }
 
 /// 初始化系统托盘（在 `setup` 中、`Controller` 托管之后调用）。
-pub fn init_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
     // 托盘菜单项：开始/停止扫描合并为一个动态切换项
-    let show_i = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
-    let toggle_i = MenuItem::with_id(app, "toggle", "开始扫描", true, None::<&str>)?;
-    let quit_i = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+    let show_item = MenuItem::with_id(app_handle, "show", "显示主窗口", true, None::<&str>)?;
+    let toggle_item = MenuItem::with_id(app_handle, "toggle", "开始扫描", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app_handle, "quit", "退出", true, None::<&str>)?;
 
-    let menu = Menu::with_items(app, &[&show_i, &toggle_i, &quit_i])?;
+    let menu = MenuBuilder::new(app_handle)
+        .item(&show_item)
+        .item(&toggle_item)
+        .separator()
+        .item(&quit_item)
+        .build()?;
 
     // 图标：复用应用图标（tauri.conf.json 的 bundle.icon）
-    let icon = app
+    let icon = app_handle
         .default_window_icon()
         .cloned()
-        .ok_or("未找到应用图标，无法创建托盘图标")?;
+        .context("未找到应用图标，无法创建托盘图标")?;
 
-    let tray = TrayIconBuilder::<Wry>::new()
+    let tray = TrayIconBuilder::new()
         .icon(icon)
         .tooltip("OEA")
         .menu(&menu)
@@ -128,12 +134,12 @@ pub fn init_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 show_main_window(tray.app_handle());
             }
         })
-        .build(app)?;
+        .build(app_handle)?;
 
     // 保存托盘引用，供后续动态更新
     {
         let tray_mutex = TRAY_ICON.get_or_init(|| Mutex::new(None));
-        let mut guard = tray_mutex.lock().map_err(|_| "托盘图标互斥锁中毒")?;
+        let mut guard = tray_mutex.lock().unwrap_or_else(|e| e.into_inner());
         *guard = Some(tray);
     }
 
@@ -142,18 +148,18 @@ pub fn init_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     // 重入 lock 同一个非重入 Mutex 会死锁（曾导致窗口打开即未响应）。
     {
         let toggle_mutex = TRAY_TOGGLE_ITEM.get_or_init(|| Mutex::new(None));
-        let mut toggle_guard = toggle_mutex.lock().map_err(|_| "托盘菜单项互斥锁中毒")?;
-        *toggle_guard = Some(toggle_i);
+        let mut toggle_guard = toggle_mutex.lock().unwrap_or_else(|e| e.into_inner());
+        *toggle_guard = Some(toggle_item);
     }
 
     // 订阅运行状态事件：扫描档案库任务启动 / 结束都会推送，据此切换菜单文案
-    app.listen("app-status", |event| {
+    app_handle.listen("app-status", |event| {
         if let Ok(status) = serde_json::from_str::<AppStatus>(event.payload()) {
             update_toggle_item(status.running);
         }
     });
     // 同步初始状态（启动时未运行，菜单已显示"开始扫描"）
-    if let Some(controller) = app.try_state::<Arc<Controller>>() {
+    if let Some(controller) = app_handle.try_state::<Arc<Controller>>() {
         update_toggle_item(controller.get_status().running);
     }
 
