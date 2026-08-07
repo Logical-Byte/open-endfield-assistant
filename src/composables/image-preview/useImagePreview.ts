@@ -16,7 +16,10 @@ export type PreviewTarget = {
   downloadName: MaybeRefOrGetter<string>;
 };
 
-export function useImagePreview(overlayRef: Ref<HTMLElement | null>) {
+export function useImagePreview(
+  overlayRef: Ref<HTMLElement | null>,
+  imgRef: Ref<HTMLImageElement | null>,
+) {
   const {
     clampScale,
     getNextScale,
@@ -48,8 +51,6 @@ export function useImagePreview(overlayRef: Ref<HTMLElement | null>) {
   const rotation = ref<number>(0);
   /** 图像缩放倍数，100% 缩放定义为 1 图像像素 = 1 屏幕像素，注意不是 CSS 像素 */
   const scale = ref<number>(1);
-  /** 图像的初始缩放倍数（依据容器自动计算） */
-  const initialScale = ref<number>(1);
   /** 背景色，默认为黑色 92% 不透明度 */
   const backgroundColor = ref<string>('rgba(0, 0, 0, 0.92)');
   /** 图像原始宽度 */
@@ -200,7 +201,6 @@ export function useImagePreview(overlayRef: Ref<HTMLElement | null>) {
     const defaultScale = Math.min(fitScale * pixelRatio.value, 1);
     const normalizedScale = clampScale(defaultScale);
 
-    initialScale.value = normalizedScale;
     scale.value = normalizedScale;
     offset.value = { x: 0, y: 0 };
   }
@@ -248,7 +248,6 @@ export function useImagePreview(overlayRef: Ref<HTMLElement | null>) {
   function open(target: PreviewTarget): void {
     preview.value = target;
     isAutoFitting.value = true;
-    initialScale.value = 1;
     scale.value = 1;
     rotation.value = 0;
     offset.value = { x: 0, y: 0 };
@@ -296,7 +295,12 @@ export function useImagePreview(overlayRef: Ref<HTMLElement | null>) {
     rotation.value -= ((((rotation.value + 180) % 360) + 360) % 360) - 180;
 
     if (key === '0') {
-      scale.value = initialScale.value;
+      // 依据当前容器尺寸重新计算适应屏幕的缩放
+      const image = imgRef.value;
+      const container = image?.parentElement;
+      if (container && image) {
+        fitScaleToContainer(container, image);
+      }
     } else {
       const x = Number.parseInt(key);
       scale.value = clampScale(2 ** (x - 5));

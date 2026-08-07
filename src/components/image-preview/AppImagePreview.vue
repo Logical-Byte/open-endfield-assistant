@@ -5,6 +5,7 @@ import { openImagePreviewKey } from '@/utils/provideInject';
 import { useTemplateRef } from 'vue';
 
 const overlayRef = useTemplateRef('overlayRef');
+const imgRef = useTemplateRef('imgRef');
 
 const {
   preview,
@@ -26,7 +27,7 @@ const {
   onMousemove,
   onMouseup,
   onKeydown,
-} = useImagePreview(overlayRef);
+} = useImagePreview(overlayRef, imgRef);
 
 app.provide(openImagePreviewKey, open);
 </script>
@@ -144,6 +145,7 @@ app.provide(openImagePreviewKey, open);
           @wheel.prevent="onWheel"
         >
           <img
+            ref="imgRef"
             :alt="preview.name"
             class="max-w-none"
             draggable="false"
