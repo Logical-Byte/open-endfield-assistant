@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { initAppStatus } from '@/utils/app/appStatus';
 import { initAppVersion } from '@/utils/app/appVersion';
+import { initOeaConfig } from '@/utils/app/config';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
@@ -18,6 +19,7 @@ useHead({
 initAppStatus();
 initAppVersion();
 initLogState();
+initOeaConfig();
 initPrtsData();
 initScanResults();
 </script>

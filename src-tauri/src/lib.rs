@@ -1,6 +1,7 @@
 //! OEA Assistant - 明日方舟终末地 自动化助手（Tauri 后端）。
 
 pub mod app_paths;
+pub mod config;
 pub mod connect;
 pub mod controller;
 pub mod hotkey;
@@ -59,15 +60,25 @@ pub fn run() {
             tauri_commands::get_prts_data,
             tauri_commands::quit,
             tauri_commands::open_log_dir,
-            tauri_commands::set_minimize_to_tray,
-            tauri_commands::get_minimize_to_tray,
+            tauri_commands::load_oea_config,
+            tauri_commands::save_oea_config,
             tauri_commands::screenshot,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if tray::handle_close_requested(window.app_handle()) {
+                let app_handle = window.app_handle();
+                let controller = app_handle.state::<Arc<Controller>>();
+                if controller
+                    .oea_config()
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .minimize_to_tray
+                {
                     api.prevent_close();
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.hide();
+                    }
                 }
             }
         })
@@ -77,6 +88,9 @@ pub fn run() {
 
             // 初始化日志系统：控制台输出 DEBUG+，文件输出 TRACE+，前端转发 TRACE+（界面可过滤等级）。
             let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
+
+            // 解析应用配置文件
+            let oea_config = config::load_oea_config(&app_paths.oea_config_file());
 
             // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。
             fs::create_dir_all(app_paths.webview_data_dir())?;
@@ -133,8 +147,9 @@ pub fn run() {
 
             // 组装 Controller 并托管为 State，启动后台线程
             let controller = Arc::new(Controller::new(
+                app_paths,
+                Mutex::new(oea_config),
                 ocr,
-                app_paths.templates_dir(),
                 scenes,
                 stop,
                 running,

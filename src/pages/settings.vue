@@ -1,21 +1,5 @@
 <script setup lang="ts">
-import { getMinimizeToTray, setMinimizeToTray } from '@/utils/tauri';
-import { ref } from 'vue';
-
-/** 关闭窗口时是否最小化到托盘（与后端状态同步）。 */
-const minimizeToTray = ref(await getMinimizeToTray());
-/** 正在写入后端设置。 */
-const saving = ref(false);
-
-/** 切换最小化到托盘：乐观更新，再用后端返回的权威值确认，失败则回滚。 */
-async function onMinimizeToTrayChange(value: boolean): Promise<void> {
-  saving.value = true;
-  try {
-    minimizeToTray.value = await setMinimizeToTray(value);
-  } finally {
-    saving.value = false;
-  }
-}
+import { oeaConfig, saving } from '@/utils/app/config';
 </script>
 
 <template>
@@ -33,11 +17,7 @@ async function onMinimizeToTrayChange(value: boolean): Promise<void> {
                 </p>
               </div>
             </div>
-            <USwitch
-              v-model="minimizeToTray"
-              :loading="saving"
-              @update:model-value="onMinimizeToTrayChange"
-            />
+            <USwitch v-model="oeaConfig.minimizeToTray" :loading="saving" />
           </div>
         </UCard>
       </UPageBody>

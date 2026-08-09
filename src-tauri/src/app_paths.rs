@@ -78,28 +78,38 @@ impl AppPaths {
         &self.root_dir
     }
 
-    /// 共享资源目录（前后端共用，submodule）。
+    /// 共享资源目录（前后端共用，submodule，`<root_dir>/resources`）。
     pub fn resources_dir(&self) -> PathBuf {
         self.root_dir.join("resources")
     }
 
-    /// OCR 模型目录。
+    /// OCR 模型目录（`<root_dir>/models`）。
     pub fn models_dir(&self) -> PathBuf {
         self.root_dir.join("models")
     }
 
-    /// 运行日志目录。
+    /// 运行日志目录（`<root_dir>/logs`）。
     pub fn logs_dir(&self) -> PathBuf {
         self.root_dir.join("logs")
     }
 
-    /// WebView2 用户数据目录（绿色便携：不写入 `%LOCALAPPDATA%`）。
+    /// WebView2 用户数据目录（绿色便携：不写入 `%LOCALAPPDATA%`，`<root_dir>/webview-data`）。
     pub fn webview_data_dir(&self) -> PathBuf {
         self.root_dir.join("webview-data")
     }
 
-    /// 模板图片根目录（`resources/templates`）。
+    /// 模板图片根目录（`<root_dir>/resources/templates`）。
     pub fn templates_dir(&self) -> PathBuf {
         self.resources_dir().join("templates")
+    }
+
+    /// 配置文件目录（`<root_dir>/config`）。
+    pub fn config_dir(&self) -> PathBuf {
+        self.root_dir.join("config")
+    }
+
+    /// OEA 应用配置文件（`<root_dir>/config/oea_config.json`）。
+    pub fn oea_config_file(&self) -> PathBuf {
+        self.config_dir().join("oea_config.json")
     }
 }

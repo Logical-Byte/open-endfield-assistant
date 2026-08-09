@@ -2,6 +2,7 @@
 
 import type { AppStatus } from '@/types/appStatus';
 import type { LogEntry } from '@/types/log';
+import type { OeaConfig } from '@/types/oeaConfig';
 import type { PrtsData } from '@/types/prts';
 import type { ScanResult } from '@/types/scanResult';
 import type { ScreenshotFormat } from '@/types/screenshot';
@@ -38,14 +39,12 @@ export async function openLogDir(): Promise<void> {
   await invoke('open_log_dir');
 }
 
-/** 查询"关闭窗口时最小化到托盘"。 */
-export async function getMinimizeToTray(): Promise<boolean> {
-  return await invoke('get_minimize_to_tray');
+export async function loadOeaConfig(): Promise<OeaConfig> {
+  return await invoke('load_oea_config');
 }
 
-/** 设置"关闭窗口时最小化到托盘"（返回设置后的实际值）。 */
-export async function setMinimizeToTray(enabled: boolean): Promise<boolean> {
-  return await invoke('set_minimize_to_tray', { enabled });
+export async function saveOeaConfig(oeaConfig: OeaConfig): Promise<void> {
+  return await invoke('save_oea_config', { oeaConfig });
 }
 
 /**

@@ -7,7 +7,6 @@
 //!
 //! 依赖方向：应用层 → 领域层（connect/session/scene/task）→ 基础设施层。
 
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
@@ -18,6 +17,8 @@ use tracing::{debug, error, info, warn};
 use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_7};
 
 use crate::{
+    app_paths::AppPaths,
+    config::OeaConfig,
     connect::connect_to_game,
     hotkey::KeyEvent,
     logger::LogEntry,
@@ -51,10 +52,12 @@ pub const EXIT_HOTKEY: KeyEvent = KeyEvent {
 
 /// 应用控制器（Tauri 托管状态，以 `Arc` 共享）。
 pub struct Controller {
+    /// 应用根目录
+    app_path: AppPaths,
+    /// 应用配置
+    oea_config: Mutex<OeaConfig>,
     /// 共享 OCR 引擎（跨会话复用模型）
     ocr: Arc<Mutex<OcrEngine>>,
-    /// 模板图片根目录
-    templates_root: PathBuf,
     /// 场景管理器（本游戏全部场景，跨线程共享只读）
     scenes: Arc<SceneManager>,
     /// 停止标志（独立于锁：命令 / 热键均可快速请求停止，任务内部轮询）
@@ -81,8 +84,9 @@ impl Controller {
     /// 创建控制器。
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        app_path: AppPaths,
+        oea_config: Mutex<OeaConfig>,
         ocr: Arc<Mutex<OcrEngine>>,
-        templates_root: PathBuf,
         scenes: Arc<SceneManager>,
         stop: Arc<AtomicBool>,
         running: Arc<AtomicBool>,
@@ -95,8 +99,9 @@ impl Controller {
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
     ) -> Self {
         Self {
+            app_path,
+            oea_config,
             ocr,
-            templates_root,
             scenes,
             stop,
             running,
@@ -108,6 +113,14 @@ impl Controller {
             correction,
             _logger_guard,
         }
+    }
+
+    pub fn app_path(&self) -> &AppPaths {
+        &self.app_path
+    }
+
+    pub fn oea_config(&self) -> &Mutex<OeaConfig> {
+        &self.oea_config
     }
 
     /// 读取当前状态（只读原子标志，不锁任何互斥量）。
@@ -150,15 +163,18 @@ impl Controller {
             .name("oea-scan".to_string())
             .spawn(move || {
                 // 任务开始时才连接游戏（游戏未打开则报错并复位）
-                let mut session =
-                    match connect_to_game(&this.ocr, &this.templates_root, this.stop.clone()) {
-                        Ok(s) => s,
-                        Err(e) => {
-                            error!("连接游戏失败: {e:#}");
-                            this.finish_scan();
-                            return;
-                        }
-                    };
+                let mut session = match connect_to_game(
+                    &this.ocr,
+                    &this.app_path.templates_dir(),
+                    this.stop.clone(),
+                ) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        error!("连接游戏失败: {e:#}");
+                        this.finish_scan();
+                        return;
+                    }
+                };
 
                 // 扫描档案库任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）
                 if let Err(e) = window::ensure_foreground_and_topmost(session.hwnd) {

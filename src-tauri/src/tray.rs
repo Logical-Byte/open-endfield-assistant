@@ -3,12 +3,8 @@
 //! 参考 [MXU 的 tray.rs](https://github.com/MistEO/MXU/blob/main/src-tauri/src/tray.rs) 实现：
 //! - 托盘菜单直接驱动 [`Controller`]，无需前端中转（与热键分发同一模式）；
 //! - 左键单击托盘图标显示主窗口；
-//! - 窗口关闭请求由 [`handle_close_requested`] 决定是否隐藏到托盘。
 
-use std::sync::{
-    Arc, Mutex, OnceLock,
-    atomic::{AtomicBool, Ordering},
-};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use anyhow::{Context, Result};
 use tauri::{
@@ -20,25 +16,11 @@ use tracing::info;
 
 use crate::controller::{AppStatus, Controller};
 
-/// 关闭窗口时是否最小化到托盘（默认关闭，即直接关闭窗口退出应用）。
-static MINIMIZE_TO_TRAY: AtomicBool = AtomicBool::new(false);
-
 /// 全局托盘图标引用，供后续动态更新图标 / tooltip。
 static TRAY_ICON: OnceLock<Mutex<Option<TrayIcon>>> = OnceLock::new();
 
 /// 全局"开始/停止扫描"菜单项引用，随扫描档案库任务运行状态动态切换文案。
 static TRAY_TOGGLE_ITEM: OnceLock<Mutex<Option<MenuItem<Wry>>>> = OnceLock::new();
-
-/// 设置"关闭窗口时最小化到托盘"。
-pub fn set_minimize_to_tray(enabled: bool) {
-    MINIMIZE_TO_TRAY.store(enabled, Ordering::SeqCst);
-    info!("最小化到托盘: {enabled}");
-}
-
-/// 查询"关闭窗口时最小化到托盘"。
-pub fn get_minimize_to_tray() -> bool {
-    MINIMIZE_TO_TRAY.load(Ordering::SeqCst)
-}
 
 /// 显示并聚焦主窗口（最小化时先还原）。
 fn show_main_window(app_handle: &AppHandle) {
@@ -46,20 +28,6 @@ fn show_main_window(app_handle: &AppHandle) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
-    }
-}
-
-/// 处理窗口关闭请求：启用最小化到托盘时隐藏窗口并阻止关闭。
-///
-/// 返回 `true` 表示已阻止关闭（应用继续驻留托盘），`false` 表示允许关闭。
-pub fn handle_close_requested(app_handle: &AppHandle) -> bool {
-    if get_minimize_to_tray() {
-        if let Some(window) = app_handle.get_webview_window("main") {
-            let _ = window.hide();
-        }
-        true
-    } else {
-        false
     }
 }
 
