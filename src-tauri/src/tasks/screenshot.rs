@@ -8,7 +8,7 @@ use serde::Deserialize;
 use crate::{screencap::PrintWindowScreencap, window};
 
 /// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ScreenshotFormat {
     Png,
@@ -51,15 +51,19 @@ pub fn capture_screenshot(width: u32, height: u32, format: ScreenshotFormat) -> 
     // 4. 按格式编码（JPEG 不支持 alpha 通道，先转 RGB 再编码）
     let image_format = format.to_image_format();
     let mut buf = Cursor::new(Vec::new());
-    if format == ScreenshotFormat::Jpeg {
-        image::DynamicImage::ImageRgba8(resized)
-            .to_rgb8()
-            .write_to(&mut buf, image_format)
-            .context("图片编码失败")?;
-    } else {
-        resized
-            .write_to(&mut buf, image_format)
-            .context("图片编码失败")?;
+
+    match format {
+        ScreenshotFormat::Jpeg => {
+            image::DynamicImage::ImageRgba8(resized)
+                .to_rgb8()
+                .write_to(&mut buf, image_format)
+                .context("图片编码失败")?;
+        }
+        ScreenshotFormat::Png | ScreenshotFormat::Webp => {
+            resized
+                .write_to(&mut buf, image_format)
+                .context("图片编码失败")?;
+        }
     }
 
     // 5. base64 编码返回
