@@ -31,7 +31,14 @@ const hideUncollectible = ref(false);
 
 const filteredScanResults = computed<ScanResultCardProps[]>(() => {
   const result: ScanResultCardProps[] = [];
-  for (const { status, category, subCategory, correctedTitle, image } of scanResults.value) {
+  for (const {
+    status,
+    category,
+    subCategory,
+    correctedTitle,
+    image,
+    itemIds,
+  } of scanResults.value) {
     if (status === 'success') {
       continue;
     }
@@ -41,6 +48,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
       subCategory,
       imageUrl: image,
       title: correctedTitle ?? '',
+      archiveId: itemIds[0] ?? null,
     });
   }
 
@@ -57,6 +65,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
         subCategory,
         imageUrl: image,
         title: correctedTitle ?? title,
+        archiveId: id,
       });
     } else {
       result.push({
@@ -65,6 +74,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
         subCategory: categoryId,
         imageUrl: null,
         title,
+        archiveId: id,
       });
     }
   }

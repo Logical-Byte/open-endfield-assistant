@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { initAppStatus } from '@/utils/app/appStatus';
 import { initAppVersion } from '@/utils/app/appVersion';
+import { initArchiveAcquisitionContract } from '@/utils/app/archiveAcquisitionContract';
 import { initOeaConfig } from '@/utils/app/config';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
@@ -20,6 +21,7 @@ initAppStatus();
 initAppVersion();
 initLogState();
 initOeaConfig();
+initArchiveAcquisitionContract();
 initPrtsData();
 initScanResults();
 </script>

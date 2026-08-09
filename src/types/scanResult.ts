@@ -33,4 +33,5 @@ export interface ScanResultCardProps {
   subCategory: string;
   imageUrl: string | null;
   title: string;
+  archiveId: string | null;
 }

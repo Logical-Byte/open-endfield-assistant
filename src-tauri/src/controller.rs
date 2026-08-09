@@ -26,7 +26,7 @@ use crate::{
     scene::SceneManager,
     task::{TaskStopped, run_task},
     tasks::archive_scan::{ArchiveScanTask, CorrectionIndex, ScanReporter, ScanResult},
-    types::PrtsData,
+    types::{ArchiveAcquisitionContract, PrtsData},
     window::{self, ForegroundGuard},
 };
 
@@ -74,6 +74,8 @@ pub struct Controller {
     handle: AppHandle,
     /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）
     prts: Arc<PrtsData>,
+    /// 档案获取契约（archive_acquisition_contract.json，供前端按档案 id 查询获取方式）
+    archive_acquisition_contract: Arc<ArchiveAcquisitionContract>,
     /// 档案标题纠错索引（应用启动时从 prts.json 构建一次）
     correction: Arc<CorrectionIndex>,
     /// 日志写入线程守卫（保活）
@@ -95,6 +97,7 @@ impl Controller {
         foreground: ForegroundGuard,
         handle: AppHandle,
         prts: Arc<PrtsData>,
+        archive_acquisition_contract: Arc<ArchiveAcquisitionContract>,
         correction: Arc<CorrectionIndex>,
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
     ) -> Self {
@@ -110,6 +113,7 @@ impl Controller {
             foreground,
             handle,
             prts,
+            archive_acquisition_contract,
             correction,
             _logger_guard,
         }
@@ -141,6 +145,11 @@ impl Controller {
     /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
     pub fn prts_data(&self) -> Arc<PrtsData> {
         Arc::clone(&self.prts)
+    }
+
+    /// 返回档案获取契约完整数据（供前端按档案 id 查询获取方式）。
+    pub fn archive_acquisition_contract_data(&self) -> Arc<ArchiveAcquisitionContract> {
+        Arc::clone(&self.archive_acquisition_contract)
     }
 
     // ========== 启动 / 停止 / 退出 ==========

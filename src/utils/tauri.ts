@@ -1,6 +1,7 @@
 //! Tauri 后端接口封装：类型安全地调用 Rust 命令、监听后端事件。
 
 import type { AppStatus } from '@/types/appStatus';
+import type { ArchiveAcquisitionContract } from '@/types/archiveAcquisitionContract';
 import type { LogEntry } from '@/types/log';
 import type { OeaConfig } from '@/types/oeaConfig';
 import type { PrtsData } from '@/types/prts';
@@ -27,6 +28,11 @@ export async function getStatus(): Promise<AppStatus> {
 /** 获取 prts.json 完整数据（分类中文名映射 / 自动补全候选）。 */
 export async function getPrtsData(): Promise<PrtsData> {
   return await invoke('get_prts_data');
+}
+
+/** 获取档案获取契约数据（按档案 id 查询获取方式）。 */
+export async function getArchiveAcquisitionContract(): Promise<ArchiveAcquisitionContract[]> {
+  return await invoke('get_archive_acquisition_contract');
 }
 
 /** 退出程序。 */

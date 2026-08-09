@@ -33,8 +33,13 @@ use tracing::info;
 use windows::Win32::Foundation::HWND;
 
 use crate::{
-    app_paths::AppPaths, controller::Controller, ocr::OcrEngine, scene::create_scene_manager,
-    tasks::archive_scan::CorrectionIndex, types::PrtsData, window::ForegroundGuard,
+    app_paths::AppPaths,
+    controller::Controller,
+    ocr::OcrEngine,
+    scene::create_scene_manager,
+    tasks::archive_scan::CorrectionIndex,
+    types::{ArchiveAcquisitionContract, PrtsData},
+    window::ForegroundGuard,
 };
 
 /// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
@@ -58,6 +63,7 @@ pub fn run() {
             tauri_commands::stop_scan,
             tauri_commands::get_status,
             tauri_commands::get_prts_data,
+            tauri_commands::get_archive_acquisition_contract,
             tauri_commands::quit,
             tauri_commands::open_log_dir,
             tauri_commands::load_oea_config,
@@ -133,6 +139,21 @@ pub fn run() {
             let correction = Arc::new(CorrectionIndex::from_prts(&prts));
             info!("已加载 prts.json（{} 个档案条目）", correction.len());
 
+            // 加载档案获取契约：供前端按档案 id 展示获取方式
+            let contract_path = app_paths
+                .resources_dir()
+                .join("data/archive_acquisition_contract.json");
+            let contract_text = fs::read_to_string(&contract_path)
+                .context("读取 archive_acquisition_contract.json 失败")?;
+            let archive_acquisition_contract = Arc::new(
+                serde_json::from_str::<ArchiveAcquisitionContract>(&contract_text)
+                    .context("解析 archive_acquisition_contract.json 失败")?,
+            );
+            info!(
+                "已加载 archive_acquisition_contract.json（{} 条获取契约）",
+                archive_acquisition_contract.len()
+            );
+
             // 场景管理器（本游戏全部场景，注册顺序即识别优先级）
             let scenes = Arc::new(create_scene_manager());
 
@@ -158,6 +179,7 @@ pub fn run() {
                 foreground,
                 app.handle().clone(),
                 prts,
+                archive_acquisition_contract,
                 correction,
                 logger_guard,
             ));

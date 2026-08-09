@@ -73,7 +73,7 @@ pub enum Special {
 /// 是否有效由 [`AcquisitionMethod`] 决定（与前端判别联合对齐）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ArchiveAcquisitionContract {
+pub struct ArchiveAcquisitionContractItem {
     /// 档案条目 id（对应 prts.json allItems 的 id）
     pub r#type: String,
     /// 获取方式
@@ -98,6 +98,8 @@ pub struct ArchiveAcquisitionContract {
     pub research_id: Option<String>,
 }
 
+pub type ArchiveAcquisitionContract = Vec<ArchiveAcquisitionContractItem>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,7 +114,7 @@ mod tests {
     #[test]
     fn deserialize_contracts() {
         let text = std::fs::read_to_string(DATA_FILE).expect("读取数据文件失败");
-        let contracts: Vec<ArchiveAcquisitionContract> =
+        let contracts: ArchiveAcquisitionContract =
             serde_json::from_str(&text).expect("反序列化失败");
 
         // 当前数据文件共 462 个配置条目（对应 PrtsAllItem 全部条目）
@@ -138,11 +140,11 @@ mod tests {
     #[test]
     fn round_trip() {
         let text = std::fs::read_to_string(DATA_FILE).expect("读取数据文件失败");
-        let contracts: Vec<ArchiveAcquisitionContract> =
+        let contracts: ArchiveAcquisitionContract =
             serde_json::from_str(&text).expect("反序列化失败");
 
         let serialized = serde_json::to_string(&contracts).expect("序列化失败");
-        let reparsed: Vec<ArchiveAcquisitionContract> =
+        let reparsed: ArchiveAcquisitionContract =
             serde_json::from_str(&serialized).expect("再次反序列化失败");
 
         assert_eq!(contracts.len(), reparsed.len());

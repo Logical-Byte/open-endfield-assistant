@@ -9,7 +9,7 @@ use crate::{
     config::{self, OeaConfig},
     controller::{AppStatus, Controller},
     tasks::screenshot::{self, ScreenshotFormat},
-    types::PrtsData,
+    types::{ArchiveAcquisitionContract, PrtsData},
 };
 
 /// 启动扫描档案库任务（在后台线程执行，立即返回当前状态）。
@@ -36,6 +36,14 @@ pub fn get_status(state: tauri::State<Arc<Controller>>) -> AppStatus {
 #[tauri::command]
 pub fn get_prts_data(state: tauri::State<Arc<Controller>>) -> Arc<PrtsData> {
     state.prts_data()
+}
+
+/// 返回 archive_acquisition_contract.json 完整数据（前端用于按档案 id 查询获取方式）。
+#[tauri::command]
+pub fn get_archive_acquisition_contract(
+    state: tauri::State<Arc<Controller>>,
+) -> Arc<ArchiveAcquisitionContract> {
+    state.archive_acquisition_contract_data()
 }
 
 /// 退出程序。
