@@ -15,7 +15,7 @@
   - `resources/` — git submodule（`Logical-Byte/oea-resource`），前后端共享资产（模板图、游戏数据、图标）
   - `models/` — OCR ONNX 模型（约 32MB，已 git 忽略）
   - `scripts/` — 数据生成（`makeAllData.ts`）、打包（`package.ts`）等脚本
-  - `.github/workflows/ci.yml` — CI（lint / build / typecheck）
+  - `.github/workflows/ci.yml` — CI（前端 check + 后端 fmt/clippy/test）
 - **绿色便携**：应用所有磁盘写入都限定在应用目录内（开发期为项目根，发布版为 exe 所在目录），路径解析见 `src-tauri/src/app_paths.rs`。
 
 ## 开发环境准备

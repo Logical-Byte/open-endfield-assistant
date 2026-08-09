@@ -1,3 +1,8 @@
+# pre-commit 配置：https://pre-commit.com
+# 首次使用：
+#   pip install pre-commit
+#   pre-commit install
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -14,13 +19,18 @@ repos:
 
   - repo: local
     hooks:
-      - id: backend-check
-        name: Backend Check (check, clippy, format)
-        language: system
-        entry: cargo check && cargo clippy --all-targets --all-features -- -D warnings && cargo fmt --all -- --check
-
       - id: frontend-check
-        name: Frontend Check (type-check, lint, format)
+        name: Frontend check (typecheck, eslint, prettier)
         language: system
         entry: pnpm run check
         pass_filenames: false
+        # 只在前端相关文件变更时触发；纯后端改动不需要跑前端检查
+        files: '^(src/|scripts/|.*\.(vue|ts|js|json|css|scss|html|md|ya?ml)$)'
+
+      - id: backend-check
+        name: Backend check (cargo check, clippy, fmt)
+        language: system
+        entry: cd src-tauri && cargo check --all-targets && cargo clippy --all-targets -- -D warnings && cargo fmt --all -- --check
+        pass_filenames: false
+        # 覆盖 src-tauri/ 下所有文件
+        files: '^src-tauri/'

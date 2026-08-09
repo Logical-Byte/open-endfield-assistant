@@ -1,19 +1,18 @@
 name: ci
 
-on: push
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        node: [22]
-
-    env:
-      NUXT_UI_PRO_LICENSE: ${{ secrets.NUXT_UI_PRO_LICENSE }}
-
+  # 前端：类型检查 + lint + 格式（Windows，与后端同平台）
+  frontend:
+    name: Frontend (check)
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -21,20 +20,45 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v6
 
-      - name: Install node
+      - name: Install Node
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install
 
-      - name: Lint
-        run: pnpm run lint
+      - name: Check (typecheck, eslint, prettier)
+        run: pnpm run check
 
-      - name: Build
-        run: pnpm run build
+  # 后端：Rust 检查与测试。
+  # 仅 Windows：后端依赖 windows crate 的图形捕获 API，无法跨平台编译。
+  backend:
+    name: Backend (fmt, clippy, test)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - name: Typecheck
-        run: pnpm run typecheck
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Format check
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test
