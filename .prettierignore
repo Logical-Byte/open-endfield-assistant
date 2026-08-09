@@ -1,3 +1,11 @@
-src/assets/fonts
+# Backend directory
+src-tauri/
+
+# Resource directory
+resources/
+
+# Generated files
+src/route-map.d.ts
+pnpm-lock.yaml
 auto-imports.d.ts
 components.d.ts

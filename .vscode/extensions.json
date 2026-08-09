@@ -4,6 +4,6 @@
     "dbaeumer.vscode-eslint",
     "EditorConfig.EditorConfig",
     "esbenp.prettier-vscode",
-    "tauri-apps.tauri-vscode",
+    "tauri-apps.tauri-vscode"
   ]
 }
