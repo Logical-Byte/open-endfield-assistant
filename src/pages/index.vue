@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CollectType, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
 import { appStatus } from '@/utils/app/appStatus';
+import { getAcquisitionMethod } from '@/utils/app/archiveAcquisitionContract';
 import { prtsData } from '@/utils/app/prtsData';
 import { clearScanResults, scanResults } from '@/utils/app/scanResults';
 import { startScan, stopScan } from '@/utils/tauri';
@@ -27,7 +28,12 @@ function exportToOem() {
 }
 
 const hideCollected = ref(false);
-const hideUncollectible = ref(false);
+const hideNotObtainableInOverworld = ref(false);
+
+/** 档案是否可在大世界中获取：仅获取方式为地图交互点位（method = 'map'）的档案可在世界内直接收集。 */
+function isNotObtainableInOverworld(archiveId: string | null): boolean {
+  return archiveId !== null && getAcquisitionMethod(archiveId) !== 'map';
+}
 
 const filteredScanResults = computed<ScanResultCardProps[]>(() => {
   const result: ScanResultCardProps[] = [];
@@ -53,6 +59,10 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
   }
 
   for (const { categoryId, id, title, type } of Object.values(prtsData.value?.allItems ?? {})) {
+    // 隐藏无法在大世界中获取的档案（获取方式非地图交互点位）
+    if (hideNotObtainableInOverworld.value && isNotObtainableInOverworld(id)) {
+      continue;
+    }
     const maybeScanResult = scanResults.value.find((r) => r.itemIds.includes(id));
     if (maybeScanResult !== undefined) {
       const { status, category, subCategory, correctedTitle, image } = maybeScanResult;
@@ -107,7 +117,11 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
           <p class="text-sm font-medium">扫描结果</p>
           <div class="flex flex-wrap gap-4">
             <UCheckbox v-model="hideCollected" color="info" label="隐藏已收集" />
-            <UCheckbox v-model="hideUncollectible" color="info" label="隐藏任务获取的档案" />
+            <UCheckbox
+              v-model="hideNotObtainableInOverworld"
+              color="info"
+              label="隐藏无法在大世界中获取的档案"
+            />
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
