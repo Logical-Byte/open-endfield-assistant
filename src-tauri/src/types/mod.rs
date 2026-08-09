@@ -5,6 +5,8 @@
 //!
 //! 新增数据模型时，在此新建子模块并在下方 re-export。
 
+pub mod archive_acquisition_contract;
 pub mod prts;
 
+pub use archive_acquisition_contract::*;
 pub use prts::*;
