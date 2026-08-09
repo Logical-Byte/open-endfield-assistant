@@ -55,6 +55,10 @@ jobs:
         working-directory: src-tauri
         run: cargo fmt --all -- --check
 
+      - name: Check
+        working-directory: src-tauri
+        run: cargo check --all-targets
+
       - name: Clippy
         working-directory: src-tauri
         run: cargo clippy --all-targets -- -D warnings
