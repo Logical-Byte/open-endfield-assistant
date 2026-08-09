@@ -28,9 +28,23 @@ repos:
         files: '^(src/|scripts/|.*\.(vue|ts|js|json|css|scss|html|md|ya?ml)$)'
 
       - id: backend-check
-        name: Backend check (cargo check, clippy, fmt)
+        name: Backend check (cargo check)
         language: system
-        entry: cd src-tauri && cargo check --all-targets && cargo clippy --all-targets -- -D warnings && cargo fmt --all -- --check
+        entry: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
         pass_filenames: false
         # 覆盖 src-tauri/ 下所有文件
+        files: '^src-tauri/'
+
+      - id: backend-clippy
+        name: Backend clippy
+        language: system
+        entry: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+        pass_filenames: false
+        files: '^src-tauri/'
+
+      - id: backend-fmt
+        name: Backend fmt
+        language: system
+        entry: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+        pass_filenames: false
         files: '^src-tauri/'

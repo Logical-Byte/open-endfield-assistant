@@ -29,7 +29,7 @@ impl OcrEngine {
         cache.ensure_model_set_for_pipeline(
             model_set,
             pipeline_config,
-            ModelDownloadMode::Missing,
+            ModelDownloadMode::Never,
         )?;
 
         let cfg = cache

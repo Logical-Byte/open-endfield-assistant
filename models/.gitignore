@@ -1,4 +1,5 @@
-# Ignore ocr models
+# OCR 模型体积较大，不入库
+# 克隆仓库后运行 `pnpm download:models` 下载模型
 
 *
 !.gitignore

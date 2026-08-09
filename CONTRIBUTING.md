@@ -46,6 +46,16 @@ git submodule update --init --recursive
 pnpm install
 ```
 
+### 下载 OCR 模型
+
+`models/` 目录已被 git 忽略（体积较大，不入库），克隆仓库后需要先下载 OCR 模型才能正常识别档案标题：
+
+```bash
+pnpm download:models
+```
+
+已存在的文件会跳过，需要强制覆盖时加 `--force`（`pnpm download:models --force`）。下载源为 ModelScope 的 `RapidAI/RapidOCR` 仓库，脚本位于 `scripts/downloadModels.ts`。
+
 ## 如何参与开发
 
 1. 在 [GitHub](https://github.com/Logical-Byte/open-endfield-assistant) 上开 issue 说明要做什么，或认领已有 issue。
@@ -108,17 +118,18 @@ pnpm makedata   # jiti scripts/makeAllData.ts
 
 ### 常用命令速查
 
-| 命令             | 作用                                      |
-| ---------------- | ----------------------------------------- |
-| `pnpm install`   | 安装前端依赖                              |
-| `pnpm tauri dev` | 启动开发环境（完整应用）                  |
-| `pnpm dev`       | 仅前端 Vite 开发服务器                    |
-| `pnpm check`     | 前端检查（typecheck + eslint + prettier） |
-| `pnpm lint:fix`  | 自动修复可修复的 lint 问题                |
-| `pnpm makedata`  | 重新生成 `resources/data/prts.json`       |
-| `cargo check`    | 后端编译检查（在 `src-tauri/` 下）        |
-| `cargo test`     | 后端单元测试（在 `src-tauri/` 下）        |
-| `pnpm package`   | 打包绿色便携 zip（见下）                  |
+| 命令                   | 作用                                          |
+| ---------------------- | --------------------------------------------- |
+| `pnpm install`         | 安装前端依赖                                  |
+| `pnpm tauri dev`       | 启动开发环境（完整应用）                      |
+| `pnpm dev`             | 仅前端 Vite 开发服务器                        |
+| `pnpm check`           | 前端检查（typecheck + eslint + prettier）     |
+| `pnpm lint:fix`        | 自动修复可修复的 lint 问题                    |
+| `pnpm makedata`        | 重新生成 `resources/data/prts.json`           |
+| `pnpm download:models` | 下载 OCR 模型到 `models/`（克隆仓库后先执行） |
+| `cargo check`          | 后端编译检查（在 `src-tauri/` 下）            |
+| `cargo test`           | 后端单元测试（在 `src-tauri/` 下）            |
+| `pnpm package`         | 打包绿色便携 zip（见下）                      |
 
 ## 打包构建
 

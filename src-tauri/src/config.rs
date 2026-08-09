@@ -5,22 +5,13 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 /// 应用配置。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OeaConfig {
     /// 配置文件版本号（用于升级时迁移配置）
     pub version: (u32, u32),
     /// 关闭时最小化到托盘而不是退出应用
     pub minimize_to_tray: bool,
-}
-
-impl Default for OeaConfig {
-    fn default() -> Self {
-        Self {
-            version: (0, 0),
-            minimize_to_tray: false,
-        }
-    }
 }
 
 /// 从配置文件加载；文件不存在或解析失败时回退默认配置。
