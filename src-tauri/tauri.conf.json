@@ -18,7 +18,6 @@
     "active": true,
     "targets": [],
     "icon": [
-      "../resources/icons/app-logo-20260802-230007-cropped.png",
       "../resources/icons/icon.ico"
     ],
     "android": {
