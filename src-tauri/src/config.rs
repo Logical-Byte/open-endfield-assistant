@@ -18,8 +18,8 @@ pub struct OeaConfig {
 }
 
 /// `sound_volume` 字段默认值。
-fn default_sound_volume() -> f32 {
-    0.8
+const fn default_sound_volume() -> f32 {
+    0.5
 }
 
 impl Default for OeaConfig {
@@ -27,7 +27,7 @@ impl Default for OeaConfig {
         Self {
             version: (0, 0),
             minimize_to_tray: false,
-            sound_volume: 0.8,
+            sound_volume: default_sound_volume(),
         }
     }
 }

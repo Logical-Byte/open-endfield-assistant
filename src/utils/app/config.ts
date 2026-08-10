@@ -7,7 +7,7 @@ export const VERSION: [number, number] = [0, 0];
 export const DEFAULT_OEA_CONFIG: OeaConfig = {
   version: VERSION,
   minimizeToTray: false,
-  soundVolume: 0.8,
+  soundVolume: 0.5,
 };
 
 export const oeaConfig = ref<OeaConfig>(DEFAULT_OEA_CONFIG);

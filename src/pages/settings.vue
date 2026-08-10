@@ -11,10 +11,10 @@ import { computed } from 'vue';
  */
 const soundVolume = computed<number>({
   get() {
-    const value = oeaConfig.value.soundVolume;
-    return typeof value === 'number' ? value : 0.8;
+    return oeaConfig.value.soundVolume;
   },
   set(value: number) {
+    // 只在 value 是数字时写入配置，数组一律忽略
     if (typeof value === 'number') {
       oeaConfig.value.soundVolume = value;
     }
