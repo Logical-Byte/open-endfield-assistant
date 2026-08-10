@@ -5,12 +5,14 @@
 ## 前端编写规范
 
 - 如果遇到属性排序错误，不需要您手动修复，运行 `pnpm lint:fix` 即可自动修复。
-- 不要为 URL 构建函数添加无意义的包装层——如果函数只是 `return anotherFunction(args)`，直接使用后者。
 - 适度重构：确保代码可读性和可维护性。
+- 不要添加无意义的包装层：如果函数只是 `return anotherFunction(args)`，直接使用后者。
 - 如果需要编写组件，请遵循 `nuxt-ui-expert` skill。
+- 改完代码后，运行 `pnpm fix`，确保代码风格符合要求。
 
 ## 后端编写规范
 
-- 使用 cargo 命令时注意工作目录。
+- 使用 cargo 命令时注意工作目录，您可以使用 `cargo command --manifest-path src-tauri/Cargo.toml`。
+- 适度重构：确保代码可读性和可维护性。
 - 原子引用计数的克隆必须写 `Arc::clone(&x)`，不能写 `x.clone()`。
 - 改完代码后，运行 `cargo check`，确保编译通过。编译通过后，运行 `cargo fix --allow-dirty` 和 `cargo clippy --fix --allow-dirty`，确保代码风格符合要求。

@@ -4,6 +4,9 @@ src-tauri/
 # Resource directory
 resources/
 
+# Temporary files
+temp/
+
 # Generated files
 src/route-map.d.ts
 pnpm-lock.yaml
