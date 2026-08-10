@@ -1,14 +1,14 @@
 //! 连接游戏：组装一次游戏操作所需的 [`Session`]。
 //!
-//! 程序启动时不依赖游戏窗口；直到开始任务才获取游戏窗口、检测分辨率并
-//! 构建会话。游戏未打开或分辨率不支持时返回错误，
+//! 程序启动时不依赖游戏窗口；直到开始任务才获取游戏窗口、检测分辨率与
+//! HDR 环境并构建会话。游戏未打开、分辨率不支持或显示器开启 HDR 时返回错误，
 //! 由调用方记录日志而非 panic。
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use anyhow::Result;
-use tracing::info;
+use anyhow::{Result, bail};
+use tracing::{info, warn};
 
 use crate::{
     input::SeizeInput,
@@ -24,8 +24,9 @@ use crate::{
 /// # 流程
 /// 1. 按标题/类名查找终末地窗口，若被最小化则恢复（仅确保在屏幕上，不抢占前台）；
 /// 2. 检测客户端分辨率（仅支持 16:9）；
-/// 3. 创建截图器与输入器；
-/// 4. 组装 [`Session`]（复用共享 OCR 引擎与模板目录）。
+/// 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）；
+/// 4. 创建截图器与输入器；
+/// 5. 组装 [`Session`]（复用共享 OCR 引擎与模板目录）。
 pub fn connect_to_game(
     ocr: &Arc<Mutex<OcrEngine>>,
     templates_root: &Path,
@@ -45,11 +46,20 @@ pub fn connect_to_game(
     let resolution = GameResolution::new(client_rect.width() as u32, client_rect.height() as u32)?;
     info!("游戏分辨率: {}×{}", resolution.width, resolution.height);
 
-    // 3. 创建截图器与输入器
+    // 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）
+    match window::is_hdr_enabled_on_window_monitor(hwnd) {
+        Ok(true) => {
+            bail!("终末地所在显示器已开启 HDR，截图颜色会失真导致识别异常，请关闭 HDR 后重试")
+        }
+        Ok(false) => {}
+        Err(e) => warn!("检查显示器 HDR 状态失败: {e:#}，继续执行任务"),
+    }
+
+    // 4. 创建截图器与输入器
     let screencap = Box::new(PrintWindowScreencap::new(hwnd));
     let input = Box::new(SeizeInput::new(hwnd, false));
 
-    // 4. 组装 Session（复用共享 OCR 引擎与模板目录）
+    // 5. 组装 Session（复用共享 OCR 引擎与模板目录）
     Ok(Session::new(
         hwnd,
         screencap,
