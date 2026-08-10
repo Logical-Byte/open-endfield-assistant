@@ -1,31 +1,39 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
+@import './corner-shape/corner-shape-utilities.css';
+@import './corner-shape/squircle-corner.css';
 
 :root {
   --chinese-font: 'HarmonyOS Sans SC', '鸿蒙黑体', 'Source Han Sans SC', '思源黑体', 'Noto Sans SC';
   --ui-header-height: 3rem;
 }
 
-html,
-body,
-#app {
-  @apply m-0 h-full p-0;
-}
+@layer base {
+  html {
+    font-feature-settings: 'calt' on;
+  }
 
-::-webkit-scrollbar {
-  @apply w-1.75;
-}
+  html,
+  body,
+  #app {
+    @apply m-0 h-full p-0;
+  }
 
-::-webkit-scrollbar-thumb {
-  @apply rounded-full bg-(--ui-text-dimmed)/50;
-}
+  ::-webkit-scrollbar {
+    @apply w-1.75;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-(--ui-text-dimmed)/90;
-}
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-(--ui-text-dimmed)/50;
+  }
 
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-(--ui-text-dimmed)/90;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
 }
 
 @theme static {
@@ -33,7 +41,7 @@ body,
   --font-mono:
     'JetBrains Mono', 'Google Sans Code', 'Cascadia Mono', 'Consolas', var(--chinese-font),
     monospace;
-  --font-ui: system-ui;
+  --font-ui: system-ui; /* 供应用标题栏使用 */
 
   /* --color-green-50: oklch(90.98% 0.04338 166.72);
   --color-green-100: oklch(88.46% 0.05417 166.29);

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTheme } from '@/composables/useTheme';
 import { initAppStatus } from '@/utils/app/appStatus';
 import { initAppVersion } from '@/utils/app/appVersion';
 import { initArchiveAcquisitionContract } from '@/utils/app/archiveAcquisitionContract';
@@ -12,8 +13,11 @@ import { computed } from 'vue';
 
 const colorMode = useColorMode();
 const themeColor = computed(() => (colorMode.value === 'dark' ? '#18181b' : '#ffffff'));
+const { style, link } = useTheme();
 
 useHead({
+  style,
+  link,
   meta: [{ name: 'theme-color', content: themeColor }],
 });
 

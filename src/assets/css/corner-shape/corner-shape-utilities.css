@@ -1,0 +1,82 @@
+/* corner-shape 工具类 */
+/*
+ * 简写: corner-<keyword>              → corner-shape: <keyword>
+ * 方向: corner-<dir>-<keyword>        → corner-<dir>-shape: <keyword>
+ * 任意值: corner-[superellipse(1.5)]
+ * keyword: 'round' | 'squircle' | 'square' | 'bevel' | 'scoop' | 'notch'
+ */
+
+@utility corner-* {
+  corner-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-shape: --value([*]);
+}
+
+@utility corner-s-* {
+  corner-inline-start-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-inline-start-shape: --value([*]);
+}
+
+@utility corner-e-* {
+  corner-inline-end-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-inline-end-shape: --value([*]);
+}
+
+@utility corner-t-* {
+  corner-top-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-top-shape: --value([*]);
+}
+
+@utility corner-r-* {
+  corner-right-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-right-shape: --value([*]);
+}
+
+@utility corner-b-* {
+  corner-bottom-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-bottom-shape: --value([*]);
+}
+
+@utility corner-l-* {
+  corner-left-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-left-shape: --value([*]);
+}
+
+@utility corner-ss-* {
+  corner-start-start-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-start-start-shape: --value([*]);
+}
+
+@utility corner-se-* {
+  corner-start-end-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-start-end-shape: --value([*]);
+}
+
+@utility corner-ee-* {
+  corner-end-end-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-end-end-shape: --value([*]);
+}
+
+@utility corner-es-* {
+  corner-end-start-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-end-start-shape: --value([*]);
+}
+
+@utility corner-tl-* {
+  corner-top-left-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-top-left-shape: --value([*]);
+}
+
+@utility corner-tr-* {
+  corner-top-right-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-top-right-shape: --value([*]);
+}
+
+@utility corner-br-* {
+  corner-bottom-right-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-bottom-right-shape: --value([*]);
+}
+
+@utility corner-bl-* {
+  corner-bottom-left-shape: --value('round', 'squircle', 'square', 'bevel', 'scoop', 'notch');
+  corner-bottom-left-shape: --value([*]);
+}

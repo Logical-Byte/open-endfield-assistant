@@ -1,0 +1,23 @@
+@layer utilities {
+  @supports (corner-shape: squircle) {
+    [class*='rounded-']:not(
+      .rounded-full,
+      .rounded-t-full,
+      .rounded-b-full,
+      .rounded-l-full,
+      .rounded-r-full,
+      .rounded-s-full,
+      .rounded-e-full,
+      .rounded-tl-full,
+      .rounded-tr-full,
+      .rounded-bl-full,
+      .rounded-br-full,
+      .rounded-ss-full,
+      .rounded-se-full,
+      .rounded-es-full,
+      .rounded-ee-full
+    ) {
+      corner-shape: var(--corner-shape);
+    }
+  }
+}
