@@ -1,5 +1,25 @@
 <script setup lang="ts">
 import { oeaConfig, saving } from '@/utils/app/config';
+import { computed } from 'vue';
+
+/**
+ * 音量（本地数字中转）。
+ *
+ * Nuxt UI 的 USlider 内部把 v-model 当数组处理，拖动时可能先回写 `[v]`（数组）再回写 `v`（数字），
+ * 直接绑到 oeaConfig.soundVolume 会让数组短暂进入配置，触发 save_oea_config 反序列化失败
+ * （"invalid type: sequence, expected f32"）。这里只允许 number 写入配置，数组一律忽略。
+ */
+const soundVolume = computed<number>({
+  get() {
+    const value = oeaConfig.value.soundVolume;
+    return typeof value === 'number' ? value : 0.8;
+  },
+  set(value: number) {
+    if (typeof value === 'number') {
+      oeaConfig.value.soundVolume = value;
+    }
+  },
+});
 </script>
 
 <template>
@@ -33,15 +53,9 @@ import { oeaConfig, saving } from '@/utils/app/config';
               </div>
             </div>
             <div class="flex w-52 items-center gap-3">
-              <USlider
-                v-model="oeaConfig.soundVolume"
-                class="flex-1"
-                :max="1"
-                :min="0"
-                :step="0.05"
-              />
+              <USlider v-model="soundVolume" class="flex-1" :max="1" :min="0" :step="0.05" />
               <span class="w-10 text-end text-sm tabular-nums">
-                {{ Math.round(oeaConfig.soundVolume * 100) }}%
+                {{ Math.round(soundVolume * 100) }}%
               </span>
             </div>
           </div>
