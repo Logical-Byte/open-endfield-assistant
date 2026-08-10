@@ -9,9 +9,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 前端：类型检查 + lint + 格式（Windows，与后端同平台）
-  frontend:
-    name: Frontend (check)
+  frontend-ci:
+    name: Frontend CI
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -29,19 +28,27 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Check (typecheck, eslint, prettier)
-        run: pnpm run check
+      # 先运行构建，生成 `auto-imports.d.ts` 和 `components.d.ts`，否则类型检查会报错。
+      - name: Frontend build
+        run: pnpm run build
 
-  # 后端：Rust 检查与测试。
-  # 仅 Windows：后端依赖 windows crate 的图形捕获 API，无法跨平台编译。
-  backend:
-    name: Backend (fmt, clippy, test)
+      - name: Frontend typecheck
+        run: pnpm run typecheck
+
+      - name: Frontend lint
+        run: pnpm run lint
+
+      - name: Frontend format check
+        run: pnpm run format:check
+
+  backend-ci:
+    name: Backend CI
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Install Rust
+      - name: Install rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -51,18 +58,18 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Format check
-        working-directory: src-tauri
-        run: cargo fmt --all -- --check
-
-      - name: Check
+      - name: Backend check
         working-directory: src-tauri
         run: cargo check --all-targets
 
-      - name: Clippy
+      - name: Backend clippy
         working-directory: src-tauri
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Test
+      - name: Backend format check
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: Backend test
         working-directory: src-tauri
         run: cargo test
