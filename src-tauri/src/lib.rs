@@ -4,6 +4,7 @@ pub mod app_paths;
 pub mod config;
 pub mod connect;
 pub mod controller;
+pub mod data;
 pub mod hotkey;
 mod include;
 pub mod input;
@@ -26,20 +27,15 @@ use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::{Arc, Mutex, mpsc};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use rapidocr_core::config::PipelineConfig;
 use tauri::Manager;
 use tracing::info;
 use windows::Win32::Foundation::HWND;
 
 use crate::{
-    app_paths::AppPaths,
-    controller::Controller,
-    ocr::OcrEngine,
-    scene::create_scene_manager,
-    tasks::archive_scan::CorrectionIndex,
-    types::{ArchiveAcquisitionContract, PrtsData},
-    window::ForegroundGuard,
+    app_paths::AppPaths, controller::Controller, data::AppData, ocr::OcrEngine,
+    scene::create_scene_manager, window::ForegroundGuard,
 };
 
 /// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
@@ -130,29 +126,9 @@ pub fn run() {
             let ocr_engine = OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
             let ocr = Arc::new(Mutex::new(ocr_engine));
 
-            // 加载 prts.json：一次读取，同时用于纠错索引（后端）与前端数据查询
-            let prts_path = app_paths.resources_dir().join("data/prts.json");
-            let prts_text = fs::read_to_string(&prts_path).context("读取 prts.json 失败")?;
-            let prts = Arc::new(
-                serde_json::from_str::<PrtsData>(&prts_text).context("解析 prts.json 失败")?,
-            );
-            let correction = Arc::new(CorrectionIndex::from_prts(&prts));
-            info!("已加载 prts.json（{} 个档案条目）", correction.len());
-
-            // 加载档案获取契约：供前端按档案 id 展示获取方式
-            let contract_path = app_paths
-                .resources_dir()
-                .join("data/archive_acquisition_contract.json");
-            let contract_text = fs::read_to_string(&contract_path)
-                .context("读取 archive_acquisition_contract.json 失败")?;
-            let archive_acquisition_contract = Arc::new(
-                serde_json::from_str::<ArchiveAcquisitionContract>(&contract_text)
-                    .context("解析 archive_acquisition_contract.json 失败")?,
-            );
-            info!(
-                "已加载 archive_acquisition_contract.json（{} 条获取契约）",
-                archive_acquisition_contract.len()
-            );
+            // 加载静态数据文件（prts.json / archive_acquisition_contract.json / 纠错索引），
+            // 缺失或损坏视为致命错误（E1 严格策略）
+            let app_data = AppData::load(&app_paths)?;
 
             // 场景管理器（本游戏全部场景，注册顺序即识别优先级）
             let scenes = Arc::new(create_scene_manager());
@@ -178,9 +154,7 @@ pub fn run() {
                 scan_index,
                 foreground,
                 app.handle().clone(),
-                prts,
-                archive_acquisition_contract,
-                correction,
+                app_data,
                 logger_guard,
             ));
             Controller::spawn_log_loop(log_rx, app.handle().clone());

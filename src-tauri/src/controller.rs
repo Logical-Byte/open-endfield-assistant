@@ -20,12 +20,13 @@ use crate::{
     app_paths::AppPaths,
     config::OeaConfig,
     connect::connect_to_game,
+    data::AppData,
     hotkey::KeyEvent,
     logger::LogEntry,
     ocr::OcrEngine,
     scene::SceneManager,
     task::{TaskStopped, run_task},
-    tasks::archive_scan::{ArchiveScanTask, CorrectionIndex, ScanReporter, ScanResult},
+    tasks::archive_scan::{ArchiveScanTask, ScanReporter, ScanResult},
     types::{ArchiveAcquisitionContract, PrtsData},
     window::{self, ForegroundGuard},
 };
@@ -72,12 +73,8 @@ pub struct Controller {
     foreground: ForegroundGuard,
     /// Tauri 应用句柄（向前端 emit 事件）
     handle: AppHandle,
-    /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）
-    prts: Arc<PrtsData>,
-    /// 档案获取契约（archive_acquisition_contract.json，供前端按档案 id 查询获取方式）
-    archive_acquisition_contract: Arc<ArchiveAcquisitionContract>,
-    /// 档案标题纠错索引（应用启动时从 prts.json 构建一次）
-    correction: Arc<CorrectionIndex>,
+    /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
+    app_data: AppData,
     /// 日志写入线程守卫（保活）
     _logger_guard: tracing_appender::non_blocking::WorkerGuard,
 }
@@ -96,9 +93,7 @@ impl Controller {
         scan_index: Arc<AtomicU32>,
         foreground: ForegroundGuard,
         handle: AppHandle,
-        prts: Arc<PrtsData>,
-        archive_acquisition_contract: Arc<ArchiveAcquisitionContract>,
-        correction: Arc<CorrectionIndex>,
+        app_data: AppData,
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
     ) -> Self {
         Self {
@@ -112,9 +107,7 @@ impl Controller {
             scan_index,
             foreground,
             handle,
-            prts,
-            archive_acquisition_contract,
-            correction,
+            app_data,
             _logger_guard,
         }
     }
@@ -144,12 +137,12 @@ impl Controller {
 
     /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
     pub fn prts_data(&self) -> Arc<PrtsData> {
-        Arc::clone(&self.prts)
+        self.app_data.prts()
     }
 
     /// 返回档案获取契约完整数据（供前端按档案 id 查询获取方式）。
     pub fn archive_acquisition_contract_data(&self) -> Arc<ArchiveAcquisitionContract> {
-        Arc::clone(&self.archive_acquisition_contract)
+        self.app_data.archive_acquisition_contract()
     }
 
     // ========== 启动 / 停止 / 退出 ==========
@@ -194,7 +187,7 @@ impl Controller {
                 session.reset_stop();
 
                 // 执行扫描档案库任务（阻塞，期间任务内部轮询停止标志）
-                let task = ArchiveScanTask::new(this.reporter(), Arc::clone(&this.correction));
+                let task = ArchiveScanTask::new(this.reporter(), this.app_data.correction());
                 let result = run_task(&task, &mut session, &this.scenes);
 
                 // 区分"被停止"与"出错"
