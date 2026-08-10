@@ -5,13 +5,31 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 /// 应用配置。
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OeaConfig {
     /// 配置文件版本号（用于升级时迁移配置）
     pub version: (u32, u32),
     /// 关闭时最小化到托盘而不是退出应用
     pub minimize_to_tray: bool,
+    /// 扫描音效音量（0.0–1.0）
+    #[serde(default = "default_sound_volume")]
+    pub sound_volume: f32,
+}
+
+/// `sound_volume` 字段默认值。
+fn default_sound_volume() -> f32 {
+    0.8
+}
+
+impl Default for OeaConfig {
+    fn default() -> Self {
+        Self {
+            version: (0, 0),
+            minimize_to_tray: false,
+            sound_volume: 0.8,
+        }
+    }
 }
 
 /// 从配置文件加载；文件不存在或解析失败时回退默认配置。

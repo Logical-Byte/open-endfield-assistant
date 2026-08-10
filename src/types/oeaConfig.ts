@@ -3,4 +3,6 @@ export interface OeaConfig {
   version: [number, number];
   /** 关闭时最小化到托盘而不是退出应用 */
   minimizeToTray: boolean;
+  /** 扫描音效音量（0.0–1.0） */
+  soundVolume: number;
 }

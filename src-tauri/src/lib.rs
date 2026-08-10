@@ -14,6 +14,7 @@ pub mod resolution;
 pub mod scene;
 pub mod screencap;
 pub mod session;
+pub mod sound;
 pub mod task;
 pub mod tasks;
 pub mod tauri_commands;

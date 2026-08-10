@@ -25,6 +25,7 @@ use crate::{
     logger::LogEntry,
     ocr::OcrEngine,
     scene::SceneManager,
+    sound,
     task::{TaskStopped, run_task},
     tasks::archive_scan::{ArchiveScanTask, ScanReporter, ScanResult},
     types::{ArchiveAcquisitionContract, PrtsData},
@@ -135,6 +136,18 @@ impl Controller {
         )
     }
 
+    /// 播放扫描提示音（音量取配置；开始/自然完成播 enable，失败/被停止播 disable）。
+    fn play_scan_sound(&self, enable: bool) {
+        let volume = self
+            .oea_config()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .sound_volume;
+        let name = if enable { "enable.wav" } else { "disable.wav" };
+        let path = self.app_path.resources_dir().join("sounds").join(name);
+        sound::play_wav(&path, volume);
+    }
+
     /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
     pub fn prts_data(&self) -> Arc<PrtsData> {
         self.app_data.prts()
@@ -159,6 +172,7 @@ impl Controller {
         }
         info!("收到启动扫描档案库任务请求");
         self.emit_status();
+        self.play_scan_sound(true);
 
         let this = Arc::clone(self);
         thread::Builder::new()
@@ -173,6 +187,7 @@ impl Controller {
                     Ok(s) => s,
                     Err(e) => {
                         error!("连接游戏失败: {e:#}");
+                        this.play_scan_sound(false);
                         this.finish_scan();
                         return;
                     }
@@ -192,11 +207,18 @@ impl Controller {
 
                 // 区分"被停止"与"出错"
                 match result {
-                    Ok(_) => info!("========== 扫描档案库任务执行完毕 =========="),
+                    Ok(_) => {
+                        info!("========== 扫描档案库任务执行完毕 ==========");
+                        this.play_scan_sound(true);
+                    }
                     Err(e) if e.downcast_ref::<TaskStopped>().is_some() => {
                         info!("扫描档案库任务已被用户停止");
+                        this.play_scan_sound(false);
                     }
-                    Err(e) => error!("扫描档案库任务执行失败: {e:#}"),
+                    Err(e) => {
+                        error!("扫描档案库任务执行失败: {e:#}");
+                        this.play_scan_sound(false);
+                    }
                 }
 
                 this.finish_scan();
