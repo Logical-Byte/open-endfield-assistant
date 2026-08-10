@@ -52,6 +52,20 @@ pub fn quit(state: tauri::State<Arc<Controller>>) {
     state.quit();
 }
 
+/// 当前进程是否以管理员权限运行。
+#[tauri::command]
+pub fn is_elevated() -> bool {
+    crate::admin::is_elevated()
+}
+
+/// 以管理员权限重启应用（成功后退出当前进程）。
+#[tauri::command]
+pub fn restart_as_admin(app_handle: tauri::AppHandle) -> Result<(), String> {
+    crate::admin::restart_as_admin()?;
+    app_handle.exit(0);
+    Ok(())
+}
+
 /// 在系统文件管理器中打开日志目录（不存在时先创建）。
 ///
 /// 由于根目录为双模式动态路径（dev=项目根 / release=exe 目录），静态 scope 无法精确

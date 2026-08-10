@@ -1,5 +1,7 @@
 //! OEA Assistant - 明日方舟终末地 自动化助手（Tauri 后端）。
 
+#[cfg(target_os = "windows")]
+pub mod admin;
 pub mod app_paths;
 pub mod config;
 pub mod connect;
@@ -66,6 +68,8 @@ pub fn run() {
             tauri_commands::load_oea_config,
             tauri_commands::save_oea_config,
             tauri_commands::screenshot,
+            tauri_commands::is_elevated,
+            tauri_commands::restart_as_admin,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
