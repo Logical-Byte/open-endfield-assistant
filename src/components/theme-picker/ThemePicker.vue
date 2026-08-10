@@ -21,7 +21,6 @@ function onCarouselSelect(index: number) {
 
 const {
   primaryColors,
-  secondaryColors,
   neutralColors,
   radiuses,
   cornerShapePresets,
@@ -31,7 +30,6 @@ const {
   monospaceFontOptions,
   colorModes,
   primary,
-  secondary,
   neutral,
   radius,
   cornerShape,
@@ -67,15 +65,14 @@ const {
     </UTooltip>
 
     <template #content>
-      <UFormField label="主题色">
+      <UFormField>
         <UTabs
           v-model="activeColorRole"
           class="mbe-2"
           :content="false"
           :items="[
-            { label: '第一主题色', value: 0 },
-            { label: '第二主题色', value: 1 },
-            { label: '中性色', value: 2 },
+            { label: '主题色', value: 0 },
+            { label: '中性色', value: 1 },
           ]"
           size="xs"
           variant="link"
@@ -87,7 +84,7 @@ const {
           v-slot="{ item }"
           auto-height
           :duration="20"
-          :items="[0, 1, 2]"
+          :items="[0, 1]"
           :ui="{ container: 'transition-[height]' }"
           @select="onCarouselSelect"
         >
@@ -104,17 +101,6 @@ const {
           </div>
           <div v-else-if="item === 1" class="grid grid-cols-3 gap-1">
             <ThemePickerButton
-              v-for="{ id, lightLabel, darkLabel, chipStyle } in secondaryColors"
-              :key="id"
-              :chip-style
-              class="capitalize"
-              :label="colorModeCalculated === 'dark' ? darkLabel : lightLabel"
-              :selected="secondary === id"
-              @click="secondary = id"
-            />
-          </div>
-          <div v-else-if="item === 2" class="grid grid-cols-3 gap-1">
-            <ThemePickerButton
               v-for="{ id, lightLabel, darkLabel, chipStyle } in neutralColors"
               :key="id"
               :chip-style
@@ -130,15 +116,15 @@ const {
       <UFormField label="圆角大小">
         <div class="grid grid-cols-5 gap-1">
           <ThemePickerButton
-            v-for="r in radiuses"
-            :key="r"
+            v-for="{ value, label } in radiuses"
+            :key="value"
             class="justify-center px-0"
-            :label="String(r)"
-            :selected="radius === r"
+            :label="label"
+            :selected="radius === value"
             :style="{
-              borderRadius: `${r * cornerShapeCoefficient}rem`,
+              borderRadius: `${value * cornerShapeCoefficient}rem`,
             }"
-            @click="radius = r"
+            @click="radius = value"
           />
         </div>
       </UFormField>
