@@ -172,7 +172,6 @@ impl Controller {
         }
         info!("收到启动扫描档案库任务请求");
         self.emit_status();
-        self.play_scan_sound(true);
 
         let this = Arc::clone(self);
         thread::Builder::new()
@@ -200,6 +199,10 @@ impl Controller {
 
                 // 清除上一次可能残留的停止信号
                 session.reset_stop();
+
+                // 启动检查通过、任务真正开始执行前播放 enable 提示音
+                // （避免"启动后立即失败"时 enable/disable 两个音效同时播放）
+                this.play_scan_sound(true);
 
                 // 执行扫描档案库任务（阻塞，期间任务内部轮询停止标志）
                 let task = ArchiveScanTask::new(this.reporter(), this.app_data.correction());
