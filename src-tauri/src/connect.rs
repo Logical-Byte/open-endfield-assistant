@@ -7,7 +7,7 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use tracing::{info, warn};
 
 use crate::{
@@ -36,10 +36,12 @@ pub fn connect_to_game(
     let hwnd = window::get_window_by_title(
         window::ENDFIELD_WINDOW_TITLE,
         Some(window::ENDFIELD_WINDOW_CLASS),
-    )?;
+    )
+    .context("未找到终末地窗口，请先打开游戏")?;
     // 若窗口被最小化则先恢复，否则 `ensure_window_on_screen` 会跳过调整
-    window::restore_window_if_minimized(hwnd)?;
-    window::ensure_window_on_screen(hwnd)?;
+    let _ = window::restore_window_if_minimized(hwnd).inspect_err(|e| warn!("恢复窗口失败: {e:#}"));
+    let _ =
+        window::ensure_window_on_screen(hwnd).inspect_err(|e| warn!("确保窗口在屏幕上失败: {e:#}"));
 
     // 2. 检测分辨率
     let client_rect = window::get_client_rect(hwnd)?;

@@ -35,31 +35,23 @@ impl GameResolution {
 
     /// 验证是否为 16:9 比例。如果窗口大小为 0 也认为是合法的（尚未获取到窗口大小时）。
     pub fn validate(&self) -> Result<()> {
-        if self.width == 0 || self.height == 0 {
-            return Ok(());
-        }
         // 允许 1 像素的误差（因为某些窗口 API 可能返回奇数尺寸）
         let expected_height = self.width * 9 / 16;
         let diff = self.height.abs_diff(expected_height);
         if diff > 1 {
-            bail!(
-                "不支持的分辨率 {}×{}，仅支持 16:9 (预期高度约 {})",
-                self.width,
-                self.height,
-                expected_height
-            );
+            bail!("不支持的分辨率 {}×{}，仅支持 16:9", self.width, self.height);
         }
         Ok(())
     }
 
     /// 将 720p 基准坐标系中的 x 坐标缩放到当前分辨率。
     pub fn scale_x(&self, x: u32) -> u32 {
-        (x as u64 * self.width as u64 / 1280) as u32
+        x * self.width / 1280
     }
 
     /// 将 720p 基准坐标系中的 y 坐标缩放到当前分辨率。
     pub fn scale_y(&self, y: u32) -> u32 {
-        (y as u64 * self.height as u64 / 720) as u32
+        y * self.height / 720
     }
 
     /// 将 720p 基准坐标系中的点缩放到当前分辨率。
