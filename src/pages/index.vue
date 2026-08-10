@@ -5,11 +5,30 @@ import { getAcquisitionMethod } from '@/utils/app/archiveAcquisitionContract';
 import { prtsData } from '@/utils/app/prtsData';
 import { clearScanResults, scanResults } from '@/utils/app/scanResults';
 import { startScan, stopScan } from '@/utils/tauri';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 function toggleScan() {
   return appStatus.value.running ? stopScan() : startScan();
 }
+
+/** 用户是否手动关闭了扫描失败提示（失败原因变化时自动恢复显示） */
+const scanErrorDismissed = ref(false);
+
+/** 是否展示扫描失败提示（存在失败原因且未被手动关闭） */
+const showScanError = computed(
+  () => appStatus.value.scanError !== null && !scanErrorDismissed.value,
+);
+
+/** 当前扫描失败原因（无失败时为 undefined，用于提示文案） */
+const scanErrorMessage = computed(() => appStatus.value.scanError ?? undefined);
+
+// 失败原因变化（含重新失败）时恢复显示提示
+watch(
+  () => appStatus.value.scanError,
+  () => {
+    scanErrorDismissed.value = false;
+  },
+);
 
 function statusToCollectType(status: ScanResultStatus): CollectType {
   switch (status) {
@@ -111,6 +130,29 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
           @click="exportToOem"
         />
       </div>
+
+      <UAlert
+        v-if="showScanError"
+        close
+        color="error"
+        :description="scanErrorMessage"
+        icon="i-lucide-circle-alert"
+        orientation="horizontal"
+        title="扫描失败"
+        variant="outline"
+        @update:open="scanErrorDismissed = true"
+      >
+        <template #actions>
+          <UButton
+            color="info"
+            icon="i-lucide-scroll-text"
+            label="前往日志页查看详情"
+            size="sm"
+            to="/log"
+            variant="outline"
+          />
+        </template>
+      </UAlert>
 
       <div class="flex flex-1 flex-col gap-2 overflow-y-hidden">
         <div class="flex flex-0 flex-wrap items-center justify-between">

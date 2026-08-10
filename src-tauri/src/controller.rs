@@ -34,9 +34,13 @@ use crate::{
 
 /// 推送给前端的应用状态。
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AppStatus {
     /// 扫描档案库任务是否正在运行
     pub running: bool,
+    /// 扫描档案库任务结束时的失败原因（仅失败时随结束状态推送一次；成功 / 被停止 / 查询状态时为 `None`）
+    #[serde(default)]
+    pub scan_error: Option<String>,
 }
 
 /// 引号 `'` → 切换扫描档案库任务
@@ -121,10 +125,11 @@ impl Controller {
         &self.oea_config
     }
 
-    /// 读取当前状态（只读原子标志，不锁任何互斥量）。
+    /// 读取当前状态（只读原子标志；失败原因不存储，由结束事件一次性推送）。
     pub fn get_status(&self) -> AppStatus {
         AppStatus {
             running: self.running.load(Ordering::Relaxed),
+            scan_error: None,
         }
     }
 
@@ -171,7 +176,8 @@ impl Controller {
             return;
         }
         info!("收到启动扫描档案库任务请求");
-        self.emit_status();
+        // 启动状态不携带失败原因（失败原因仅在任务结束时推送一次）
+        self.emit_status(None);
 
         let this = Arc::clone(self);
         thread::Builder::new()
@@ -187,7 +193,7 @@ impl Controller {
                     Err(e) => {
                         error!("连接游戏失败: {e:#}");
                         this.play_scan_sound(false);
-                        this.finish_scan();
+                        this.finish_scan(Some(format!("连接游戏失败: {e:#}")));
                         return;
                     }
                 };
@@ -213,26 +219,27 @@ impl Controller {
                     Ok(_) => {
                         info!("========== 扫描档案库任务执行完毕 ==========");
                         this.play_scan_sound(true);
+                        this.finish_scan(None);
                     }
                     Err(e) if e.downcast_ref::<TaskStopped>().is_some() => {
                         info!("扫描档案库任务已被用户停止");
                         this.play_scan_sound(false);
+                        this.finish_scan(None);
                     }
                     Err(e) => {
                         error!("扫描档案库任务执行失败: {e:#}");
                         this.play_scan_sound(false);
+                        this.finish_scan(Some(format!("扫描档案库任务执行失败: {e:#}")));
                     }
                 }
-
-                this.finish_scan();
             })
             .expect("启动扫描档案库任务线程失败");
     }
 
-    /// 复位运行标志并推送"空闲"状态。
-    fn finish_scan(&self) {
+    /// 复位运行标志并推送"空闲"状态（携带本次任务的失败原因，无失败时为 `None`）。
+    fn finish_scan(&self, scan_error: Option<String>) {
         self.running.store(false, Ordering::Relaxed);
-        self.emit_status();
+        self.emit_status(scan_error);
     }
 
     /// 请求停止扫描档案库任务（原子置位，由任务内部轮询实现优雅停止）。
@@ -312,9 +319,12 @@ impl Controller {
             .expect("启动扫描结果转发线程失败");
     }
 
-    /// 向前端推送当前状态。
-    fn emit_status(&self) {
-        let status = self.get_status();
+    /// 向前端推送当前状态（running 标志 + 本次任务结束时的失败原因）。
+    fn emit_status(&self, scan_error: Option<String>) {
+        let status = AppStatus {
+            running: self.running.load(Ordering::Relaxed),
+            scan_error,
+        };
         if let Err(e) = self.handle.emit("app-status", &status) {
             error!("向前端推送状态失败: {e}");
         }
