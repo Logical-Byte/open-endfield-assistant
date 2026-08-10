@@ -131,7 +131,10 @@ impl Session {
     }
 
     /// 将鼠标移动到安全位置（窗口中心），避免 hover 干扰识别。
-    fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+    ///
+    /// 除点击后回中外，任务开始前也应先回中一次：
+    /// 防止任务开始时鼠标恰好停在按钮上，按钮 hover 样式变化干扰首次识别。
+    pub fn move_mouse_to_safe_position(&mut self) -> Result<()> {
         let cx = self.resolution.width as i32 / 2;
         let cy = self.resolution.height as i32 / 2;
         self.input

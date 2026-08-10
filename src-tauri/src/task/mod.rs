@@ -1,6 +1,6 @@
 //! 任务系统模块。
 //!
-//! `Task` trait 是脚本的扩展点：每个自动化脚本（扫描档案库、刷战令……）实现一个 Task。
+//! `Task` trait 是脚本的扩展点：每个自动化脚本实现一个 Task。
 //! [`run_task`] 提供通用启动流程：检测当前场景 → 不在入口列表则导航到第一个入口 → 执行任务。
 //!
 //! 任务运行中的导航一律委托 [`crate::scene::SceneManager`]，Task 只写业务节奏。
@@ -49,6 +49,10 @@ pub trait Task {
 /// 运行任务：检测当前场景 → 不在入口列表则导航到第一个入口 → 执行任务。
 pub fn run_task(task: &dyn Task, session: &mut Session, scenes: &SceneManager) -> Result<()> {
     tracing::info!("========== 开始执行任务: {} ==========", task.name());
+
+    // 0. 任务开始前先把鼠标移到窗口中心，避免鼠标恰好 hover 在按钮上，
+    //    按钮 hover 样式变化干扰首次场景识别 / 导航。
+    session.move_mouse_to_safe_position()?;
 
     // 1. 检测当前场景
     let current = scenes.detect_current_scene(session)?;
