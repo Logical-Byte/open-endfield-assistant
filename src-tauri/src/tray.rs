@@ -1,6 +1,5 @@
 //! 系统托盘：图标、菜单与"关闭时最小化到托盘"。
 //!
-//! 参考 [MXU 的 tray.rs](https://github.com/MistEO/MXU/blob/main/src-tauri/src/tray.rs) 实现：
 //! - 托盘菜单直接驱动 [`Controller`]，无需前端中转（与热键分发同一模式）；
 //! - 左键单击托盘图标显示主窗口；
 

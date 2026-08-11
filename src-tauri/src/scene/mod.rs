@@ -1,6 +1,5 @@
 //! 场景系统模块。
 //!
-//! 借鉴 MaaFramework 的 "识别 → 动作 → next" 节点模型：
 //! - **框架**：[`Scene`] trait（自我识别 + 跳转声明）、[`SceneManager`]（注册表 + BFS 导航）、
 //!   [`SceneAction`]（跳转动作）、[`SceneId`]（界面唯一标识）；
 //! - **本游戏场景实现**：`overworld`（大世界）、`terminal`（协议终端）、`archive`（档案库）。

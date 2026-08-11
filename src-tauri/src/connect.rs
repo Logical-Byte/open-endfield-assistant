@@ -16,7 +16,7 @@ use crate::{
     resolution::GameResolution,
     screencap::PrintWindowScreencap,
     session::{Session, StopToken},
-    window,
+    window::{self, hdr},
 };
 
 /// 连接游戏窗口并组装会话。
@@ -34,8 +34,8 @@ pub fn connect_to_game(
 ) -> Result<Session> {
     // 1. 获取游戏窗口（仅确保窗口在屏幕上，不抢占前台）
     let hwnd = window::get_window_by_title(
-        window::ENDFIELD_WINDOW_TITLE,
         Some(window::ENDFIELD_WINDOW_CLASS),
+        Some(window::ENDFIELD_WINDOW_TITLE),
     )
     .context("未找到终末地窗口，请先打开游戏")?;
     // 若窗口被最小化则先恢复，否则 `ensure_window_on_screen` 会跳过调整
@@ -49,7 +49,7 @@ pub fn connect_to_game(
     info!("游戏分辨率: {}×{}", resolution.width, resolution.height);
 
     // 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）
-    match window::is_hdr_enabled_on_window_monitor(hwnd) {
+    match hdr::is_hdr_enabled_on_window_monitor(hwnd) {
         Ok(true) => {
             bail!("终末地所在显示器已开启 HDR，截图颜色会失真导致识别异常，请关闭 HDR 后重试")
         }

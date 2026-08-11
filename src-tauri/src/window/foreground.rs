@@ -6,7 +6,7 @@
 
 use windows::Win32::Foundation::HWND;
 
-use crate::window::{get_active_window, get_window_by_title};
+use crate::window::{get_foreground_window, get_window_by_title};
 
 /// 终末地游戏窗口标题
 pub const ENDFIELD_WINDOW_TITLE: &str = "Endfield";
@@ -38,7 +38,7 @@ impl ForegroundGuard {
     /// 终末地窗口每次实时查找（可能尚未打开或被关闭）；
     /// 找不到时视为"不在前台"，仅当确实匹配时返回 `true`。
     pub fn is_foreground_eligible(&self) -> bool {
-        let foreground = get_active_window();
+        let foreground = get_foreground_window();
 
         // OEA 自身窗口在前台
         if foreground == self.oea_hwnd {
@@ -46,7 +46,7 @@ impl ForegroundGuard {
         }
 
         // 终末地游戏窗口在前台
-        match get_window_by_title(ENDFIELD_WINDOW_TITLE, Some(ENDFIELD_WINDOW_CLASS)) {
+        match get_window_by_title(Some(ENDFIELD_WINDOW_CLASS), Some(ENDFIELD_WINDOW_TITLE)) {
             Ok(game_hwnd) if !game_hwnd.is_invalid() => foreground == game_hwnd,
             _ => false,
         }

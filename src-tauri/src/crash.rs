@@ -21,10 +21,9 @@ use std::path::PathBuf;
 use std::sync::Once;
 
 use chrono::Local;
-use windows::Win32::UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW};
-use windows::core::PCWSTR;
 
 use crate::app_paths::AppPaths;
+use crate::window::dialog::{self, DialogIcon};
 
 static PANIC_HOOK_INSTALLED: Once = Once::new();
 
@@ -66,11 +65,12 @@ pub fn report_fatal(error: &anyhow::Error, app_handle: &tauri::AppHandle) -> ! {
         None => "（写入失败）".to_string(),
     };
 
-    show_error_dialog(
+    let _ = dialog::show_message(
         "OEA 启动失败",
         &format!(
             "程序初始化失败，无法启动。\n\n错误详情：\n{error:#}\n\n详细日志已保存至：\n{crash_file_hint}",
         ),
+        DialogIcon::Error,
     );
 
     // 兜底退出：setup 失败后进程不应继续运行
@@ -98,23 +98,6 @@ fn write_crash_log(title: &str, body: &str) -> Option<PathBuf> {
         }
     }
     None
-}
-
-/// 弹 Windows 原生错误对话框（不依赖 WebView，setup 失败时前端不可用也能提示用户）。
-fn show_error_dialog(title: &str, message: &str) {
-    fn to_wide(s: &str) -> Vec<u16> {
-        s.encode_utf16().chain(std::iter::once(0)).collect()
-    }
-    let title_wide = to_wide(title);
-    let message_wide = to_wide(message);
-    unsafe {
-        let _ = MessageBoxW(
-            None,
-            PCWSTR::from_raw(message_wide.as_ptr()),
-            PCWSTR::from_raw(title_wide.as_ptr()),
-            MB_OK | MB_ICONERROR,
-        );
-    }
 }
 
 #[cfg(test)]

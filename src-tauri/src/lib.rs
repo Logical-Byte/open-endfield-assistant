@@ -25,6 +25,7 @@ pub mod template_matching;
 pub mod tray;
 pub mod types;
 pub mod utils;
+pub mod webview2;
 pub mod window;
 
 use std::fs;
@@ -34,7 +35,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use anyhow::{Context, Result, anyhow};
 use rapidocr_core::config::PipelineConfig;
 use tauri::Manager;
-use tracing::info;
+use tracing::{info, warn};
 use windows::Win32::Foundation::HWND;
 
 use crate::{
@@ -52,10 +53,6 @@ fn get_oea_hwnd(app_handle: &tauri::AppHandle) -> Result<HWND> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // 尽早安装全局 panic hook：任何 panic（含 Tauri setup 失败导致的 panic）都会
-    // 独立写入 logs/crash-*.log，保证 release（无控制台）下也有可回溯记录。
-    crash::install_panic_hook();
-
     tauri::Builder::default()
         // WebView2 默认通过 raw input 接收键盘输入，当 OEA 窗口聚焦时会导致
         // WH_KEYBOARD_LL 低级键盘钩子收不到按键（[`tauri-apps/tauri#13919`](https://github.com/tauri-apps/tauri/issues/13919)）。
@@ -119,6 +116,12 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     // 初始化日志系统：控制台输出 DEBUG+，文件输出 TRACE+，前端转发 TRACE+（界面可过滤等级）。
     let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
 
+    // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
+    window::set_thread_dpi_awareness_context();
+
+    // WebView2 缺失时自动下载引导程序并安装。
+    webview2::ensure_installed(&app_paths.cache_dir()).inspect_err(|e| warn!("{e:#}"))?;
+
     // 解析应用配置文件
     let oea_config = config::load_oea_config(&app_paths.oea_config_file());
 
@@ -140,15 +143,12 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
             .shadow(true)
             .data_directory(app_paths.webview_data_dir());
 
-    // 方案2：Windows 下移除系统标题栏，改用前端自定义标题栏（随应用主题融入）；
+    // Windows 下移除系统标题栏，改用前端自定义标题栏（随应用主题融入）；
     // macOS/Linux 保留原生标题栏。
     #[cfg(target_os = "windows")]
     let main_window_builder = main_window_builder.decorations(false);
 
     let _main_window = main_window_builder.build()?;
-
-    // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
-    window::set_thread_dpi_awareness_context();
 
     // 扫描结果通道：任务线程产生 → 转发线程 emit 给前端
     let (scan_tx, scan_rx) = mpsc::channel();
@@ -159,8 +159,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let ocr_engine = OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
     let ocr = Arc::new(Mutex::new(ocr_engine));
 
-    // 加载静态数据文件（prts.json / archive_acquisition_contract.json / 纠错索引），
-    // 缺失或损坏视为致命错误（E1 严格策略）
+    // 加载静态数据文件
     let app_data = AppData::load(&app_paths)?;
 
     // 场景管理器（本游戏全部场景，注册顺序即识别优先级）

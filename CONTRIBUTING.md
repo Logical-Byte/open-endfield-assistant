@@ -158,7 +158,7 @@ tauri build --no-bundle && jiti scripts/package.ts
 把 zip 解压到**干净目录**，双击 `OEA.exe`：
 
 - 应用能正常启动；
-- `logs/`、`webview-data/` 在 exe 旁自动生成；
+- `logs/`、`cache/` 在 exe 旁自动生成（`cache/webview-data/` 为 WebView2 用户数据）；
 - 扫描任务能正常加载 OCR 模型（`models/`）与 `resources/data/prts.json`。
 
 ## 发版流程

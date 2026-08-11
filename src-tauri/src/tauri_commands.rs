@@ -5,6 +5,7 @@ use std::{fs, sync::Arc};
 use tracing::{debug, error, info};
 
 use crate::{
+    admin,
     app_paths::AppPaths,
     config::{self, OeaConfig},
     controller::{AppStatus, Controller},
@@ -55,13 +56,13 @@ pub fn quit(state: tauri::State<Arc<Controller>>) {
 /// 当前进程是否以管理员权限运行。
 #[tauri::command]
 pub fn is_elevated() -> bool {
-    crate::admin::is_elevated()
+    admin::is_elevated()
 }
 
 /// 以管理员权限重启应用（成功后退出当前进程）。
 #[tauri::command]
 pub fn restart_as_admin(app_handle: tauri::AppHandle) -> Result<(), String> {
-    crate::admin::restart_as_admin()?;
+    admin::restart_as_admin().map_err(|e| e.to_string())?;
     app_handle.exit(0);
     Ok(())
 }

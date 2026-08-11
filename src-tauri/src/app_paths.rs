@@ -74,11 +74,13 @@ impl AppPaths {
     }
 
     /// 应用根目录。
+    /// - debug 构建（`tauri dev` / `cargo run`）：`CARGO_MANIFEST_DIR` 的上一级 = 项目根；
+    /// - release 构建（`tauri build` / `cargo build --release`）：exe 所在目录。
     pub fn root_dir(&self) -> &Path {
         &self.root_dir
     }
 
-    /// 共享资源目录（前后端共用，submodule，`<root_dir>/resources`）。
+    /// 共享资源目录（`<root_dir>/resources`，前后端共用，submodule）。
     pub fn resources_dir(&self) -> PathBuf {
         self.root_dir.join("resources")
     }
@@ -93,9 +95,14 @@ impl AppPaths {
         self.root_dir.join("logs")
     }
 
-    /// WebView2 用户数据目录（绿色便携：不写入 `%LOCALAPPDATA%`，`<root_dir>/webview-data`）。
+    /// 缓存目录（`<root_dir>/cache`，存放运行期缓存与临时文件，如 WebView2 安装引导程序）。
+    pub fn cache_dir(&self) -> PathBuf {
+        self.root_dir.join("cache")
+    }
+
+    /// WebView2 用户数据目录（`<root_dir>/cache/webview-data`，不写入 `%LOCALAPPDATA%`，）。
     pub fn webview_data_dir(&self) -> PathBuf {
-        self.root_dir.join("webview-data")
+        self.cache_dir().join("webview-data")
     }
 
     /// 模板图片根目录（`<root_dir>/resources/templates`）。

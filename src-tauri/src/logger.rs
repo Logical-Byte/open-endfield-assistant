@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, mpsc};
 
 use chrono::{Local, NaiveDate};
 use serde::Serialize;
-use tracing::{Event, Subscriber, level_filters::LevelFilter};
+use tracing::{Event, Subscriber, info, level_filters::LevelFilter};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_log::LogTracer;
 use tracing_subscriber::{
@@ -191,6 +191,8 @@ pub fn init(logs_dir: &Path) -> (WorkerGuard, mpsc::Receiver<LogEntry>) {
     // （如 setup 失败时的 `Failed to setup app`），不桥接的话这些消息会丢失，
     // 不会进入日志文件与前端。重复安装会返回 Err，忽略即可。
     let _ = LogTracer::init();
+
+    info!("日志系统初始化完成，日志目录: {}", logs_dir.display());
 
     (guard, rx)
 }

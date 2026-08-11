@@ -31,8 +31,8 @@ impl ScreenshotFormat {
 pub fn capture_screenshot(width: u32, height: u32, format: ScreenshotFormat) -> Result<String> {
     // 1. 定位游戏窗口（PrintWindow 可捕获非最小化后台窗口）
     let hwnd = window::get_window_by_title(
-        window::ENDFIELD_WINDOW_TITLE,
         Some(window::ENDFIELD_WINDOW_CLASS),
+        Some(window::ENDFIELD_WINDOW_TITLE),
     )
     .context("未找到游戏窗口")?;
 

@@ -4,8 +4,6 @@
 //! 桌面矩形 → `QueryDisplayConfig` 枚举活动显示路径并用几何位置匹配到对应
 //! target → `DisplayConfigGetDeviceInfo(ADVANCED_COLOR_INFO)` 读取
 //! `advancedColorEnabled`（Value 位 1）判断 HDR 是否开启。
-//!
-//! 参考实现：MaaEnd `agent/go-service/taskersink/hdrcheck/hdr_windows.go`。
 
 use std::mem::size_of;
 

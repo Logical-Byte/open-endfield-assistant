@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build"
+    "beforeDevCommand": "pnpm download:models && pnpm dev",
+    "beforeBuildCommand": "pnpm download:models && pnpm build"
   },
   "app": {
     "security": {

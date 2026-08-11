@@ -6,5 +6,9 @@ fn main() {
     #[cfg(target_os = "windows")]
     oea_lib::admin::elevate_at_startup();
 
+    // 尽早安装全局 panic hook：任何 panic（含 Tauri setup 失败导致的 panic）都会
+    // 独立写入 logs/crash-*.log，保证 release（无控制台）下也有可回溯记录。
+    oea_lib::crash::install_panic_hook();
+
     oea_lib::run();
 }

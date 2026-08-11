@@ -8,7 +8,7 @@ use super::{SceneAction, SceneId};
 
 /// 场景 trait：每个游戏界面实现此 trait。
 ///
-/// 借鉴 MaaFramework Pipeline 节点的设计，每个场景负责：
+/// 每个场景负责：
 /// 1. 识别自身（`try_recognize`）
 /// 2. 定义可跳转的目标场景（`transitions`）
 ///

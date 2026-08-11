@@ -33,8 +33,8 @@ tsconfig.node.tsbuildinfo
 # User config directory
 /config
 
-# Webview data
-/webview-data
+# Cache directory
+/cache
 
 # Release packages
 /releases
