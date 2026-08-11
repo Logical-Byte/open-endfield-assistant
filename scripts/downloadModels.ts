@@ -27,12 +27,12 @@ const modelsDir = path.join(rootDir, 'models');
 // 需要下载的模型（来自 ModelScope: RapidAI/RapidOCR）
 const MODEL_FILES: ModelFile[] = [
   {
-    url: 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv6/rec/PP-OCRv6_rec_small.onnx',
-    name: 'PP-OCRv6_rec_small.onnx',
+    url: 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv6/rec/PP-OCRv6_rec_tiny.onnx',
+    name: 'PP-OCRv6_rec_tiny.onnx',
   },
   {
-    url: 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/paddle/PP-OCRv6/rec/PP-OCRv6_rec_small/ppocrv6_dict.txt',
-    name: 'ppocrv6_dict.txt',
+    url: 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/paddle/PP-OCRv6/rec/PP-OCRv6_rec_tiny/ppocrv6_tiny_dict.txt',
+    name: 'ppocrv6_tiny_dict.txt',
   },
 ];
 

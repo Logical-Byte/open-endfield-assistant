@@ -1,11 +1,11 @@
 use std::{path::Path, time::Instant};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use image::RgbImage;
 use rapidocr_core::{
     RapidOcr,
     config::{InferenceOptions, PipelineConfig},
-    model::{DEFAULT_MODEL_SET_NAME, ModelCache, ModelDownloadMode, model_set_by_name},
+    model::{ModelCache, ModelDownloadMode, PPOCRV6_TINY},
     types::OcrOutput,
 };
 
@@ -21,13 +21,11 @@ impl OcrEngine {
     /// - `models_dir`: OCR 模型目录（如 [`crate::app_paths::AppPaths::models_dir()`]）
     pub fn new(pipeline_config: PipelineConfig, models_dir: &Path) -> Result<Self> {
         let model_dir = models_dir;
-        let model_set_name = DEFAULT_MODEL_SET_NAME;
-        let model_set = model_set_by_name(model_set_name)
-            .ok_or_else(|| anyhow!("unknown model set {model_set_name:?}"))?;
+        let model_set = PPOCRV6_TINY;
 
         let cache = ModelCache::new(model_dir);
         cache
-            .ensure_model_set_for_pipeline(model_set, pipeline_config, ModelDownloadMode::Never)
+            .ensure_model_set_for_pipeline(&model_set, pipeline_config, ModelDownloadMode::Never)
             .with_context(|| {
                 format!(
                     "初始化 OCR 模型失败（模型目录: {}），请确认 models 目录包含识别模型文件",
@@ -36,7 +34,7 @@ impl OcrEngine {
             })?;
 
         let cfg = cache
-            .config_for(model_set)
+            .config_for(&model_set)
             .with_pipeline(pipeline_config)
             .with_inference_options(InferenceOptions {
                 intra_threads: 8,
