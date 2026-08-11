@@ -20,13 +20,14 @@
 
 ## 开发环境准备
 
-| 依赖             | 版本要求                                        | 说明                           |
-| ---------------- | ----------------------------------------------- | ------------------------------ |
-| Node.js          | ≥ 20.19（建议 22 LTS）                          | Vite 7 要求                    |
-| pnpm             | 11.x（仓库锁定 `packageManager: pnpm@11.17.0`） | 建议启用 corepack              |
-| Rust             | ≥ 1.85（stable）                                | 仓库使用 `edition = "2024"`    |
-| Windows          | 10 / 11（x64）                                  | 当前仅面向 Windows x86_64 分发 |
-| WebView2 Runtime | 系统预装（Win11 自带）                          | Tauri 运行时依赖               |
+| 依赖    | 版本要求                                        | 说明                           |
+| ------- | ----------------------------------------------- | ------------------------------ |
+| Node.js | ≥ 20.19（建议 22 LTS）                          | Vite 7 要求                    |
+| pnpm    | 11.x（仓库锁定 `packageManager: pnpm@11.17.0`） | 建议启用 corepack              |
+| Rust    | ≥ 1.85（stable）                                | 仓库使用 `edition = "2024"`    |
+| Windows | 10 / 11（x86_64）                               | 当前仅面向 Windows x86_64 分发 |
+
+> WebView2 运行时为 Tauri 运行时依赖，缺失时应用会在首次启动时自动联网安装，无需手动准备。
 
 后端编译需要 MSVC（Microsoft C++ Build Tools，含 Windows SDK）。建议使用 VS Code 并安装 `rust-analyzer`、`Volar`（Vue 官方扩展）。
 

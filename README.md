@@ -23,8 +23,7 @@
 
 ### 系统要求
 
-- Windows 10 / 11（x64）
-- WebView2 运行时（Windows 11 自带，Windows 10 一般也已预装）
+- Windows 10 / 11（x86_64）
 
 ## 使用说明
 
