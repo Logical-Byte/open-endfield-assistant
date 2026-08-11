@@ -163,6 +163,9 @@ tauri build --no-bundle && jiti scripts/package.ts
 
 ## 发版流程
 
+> **自动化发版**：推送 `v*` tag（如 `v0.1.0`）后，release workflow（`.github/workflows/release.yml`）会自动构建 zip 并发布到 GitHub Releases（自动生成 changelog）。
+> **tag 必须与 `src-tauri/tauri.conf.json` 中的 `version` 一致**（例如版本为 `0.1.0` 时打 `v0.1.0`）。workflow 会在构建前校验二者一致，不一致则构建失败。
+
 1. **同步版本号**（三处保持一致，例如要发 `0.1.0`）：
    - `package.json` 的 `version`
    - `src-tauri/tauri.conf.json` 的 `version`
@@ -178,7 +181,9 @@ tauri build --no-bundle && jiti scripts/package.ts
    git push origin main --tags
    ```
 
-7. **创建 GitHub Release**：在 [Releases](https://github.com/Logical-Byte/open-endfield-assistant/releases) 页面以 `v0.1.0` 创建 release，上传 zip 产物，填写变更说明（changelog）。
+   推送后 release workflow 会自动完成构建与 GitHub Release 发布（上传 zip、自动生成 changelog）。
+
+7. **（可选）手动发布**：若 workflow 未自动创建 Release，可在 [Releases](https://github.com/Logical-Byte/open-endfield-assistant/releases) 页面以 `v0.1.0` 手动创建 release，上传 `release/OEA-windows-x86_64-v0.1.0.zip`，填写变更说明。
 
 ## 自动化逻辑参考
 

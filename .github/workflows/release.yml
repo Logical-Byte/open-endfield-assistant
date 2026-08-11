@@ -1,0 +1,84 @@
+# 发版自动化 workflow
+#
+# 触发方式：推送 `v*` tag（如 `v0.1.0`）后，自动构建绿色便携 zip，并发布到 GitHub Releases（自动生成 changelog）。
+#
+# 要求：tag 必须与 `src-tauri/tauri.conf.json` 中的 `version` 一致（例如 version=0.1.0 时打 v0.1.0），
+#       下方「校验版本号与 tag 一致」步骤会在构建前校验，不一致直接失败。
+#
+# 说明：
+#   - 产物为绿色便携 zip（`pnpm package`，不产出安装程序），命名 `OEA-windows-<arch>-v<version>.zip`。
+#   - `resources/` 为私有子模块，签出需要 PAT（secret: OEA_SUBMODULE_TOKEN）。
+#   - `models/` 已 git 忽略，构建前需 `pnpm download:models` 下载 OCR 模型。
+#   - 前端/后端检查（`pnpm check` / `cargo test`）已由 ci workflow 在每次 push（含 tag）时覆盖。
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: 构建并发布
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          # oea-resource 是私有仓库，GITHUB_TOKEN 无法访问，需用有权限的 PAT（secret: OEA_SUBMODULE_TOKEN）
+          token: ${{ secrets.OEA_SUBMODULE_TOKEN }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'src-tauri -> target'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Download OCR models
+        run: pnpm download:models
+
+      - name: 校验版本号与 tag 一致
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          $config = Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json
+          if ($config.version -ne $tag) {
+            throw "tag ${{ github.ref_name }} 与 tauri.conf.json 版本 $($config.version) 不一致，请先同步版本号"
+          }
+          Write-Host "构建版本: $($config.version)"
+
+      - name: 构建并打包 zip
+        run: pnpm package
+
+      - name: 创建 GitHub Release 并上传产物
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: release/*.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true
