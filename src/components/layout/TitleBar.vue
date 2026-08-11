@@ -8,10 +8,6 @@ import { onMounted, onUnmounted, ref } from 'vue';
 // 用动态绑定避免 Vite 把它当作模块导入解析。
 const faviconUrl = '/favicon.ico';
 
-// 仅 Windows 渲染自定义标题栏：Rust 端只在 Windows 移除系统标题栏，
-// macOS/Linux 保留原生标题栏，此处不渲染，避免出现双标题栏。
-const isWindows = navigator.userAgent.toLowerCase().includes('win');
-
 const appWindow = isTauri() ? getCurrentWindow() : null;
 const isMaximized = ref(false);
 
@@ -45,7 +41,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    v-if="isTauri() && isWindows"
+    v-if="isTauri()"
     class="flex h-7.5 shrink-0 items-center justify-between border-b border-default bg-default select-none"
     data-tauri-drag-region
   >

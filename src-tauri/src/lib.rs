@@ -139,14 +139,9 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
             .inner_size(1024.0, 640.0)
             .min_inner_size(864.0, 540.0)
             .resizable(true)
-            .decorations(true)
+            .decorations(false) // 移除系统标题栏
             .shadow(true)
             .data_directory(app_paths.webview_data_dir());
-
-    // Windows 下移除系统标题栏，改用前端自定义标题栏（随应用主题融入）；
-    // macOS/Linux 保留原生标题栏。
-    #[cfg(target_os = "windows")]
-    let main_window_builder = main_window_builder.decorations(false);
 
     let _main_window = main_window_builder.build()?;
 
