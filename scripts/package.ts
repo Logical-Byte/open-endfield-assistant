@@ -45,7 +45,7 @@ const arch = ARCH_MAP[process.arch] ?? process.arch;
 
 // 产物与目录
 const bundleName = `${productName}-windows-${arch}-v${version}`;
-const outDir = path.join(rootDir, 'release');
+const outDir = path.join(rootDir, 'releases');
 const zipPath = path.join(outDir, `${bundleName}.zip`);
 const stagingDir = path.join(outDir, bundleName);
 

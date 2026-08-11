@@ -151,7 +151,7 @@ tauri build --no-bundle && jiti scripts/package.ts
   2. 将 `target/release/oea.exe`（`--no-bundle` 下二进制沿用 Cargo 包名，需自行重命名）重命名为 `OEA.exe`，连同 `models/`、`resources/` 拷入暂存目录（跳过 `.` 开头的条目，如子模块 `.git`）；
   3. 用 Windows 自带 `tar.exe`（bsdtar）打 zip，并校验 zip 根目录包含 `OEA.exe`、`models/`、`resources/`。
 
-产物：`release/OEA-windows-x86_64-v0.1.0.zip`（约 39MB）。`release/` 目录已 git 忽略。
+产物：`releases/OEA-windows-x86_64-v0.1.0.zip`（约 39MB）。`releases/` 目录已 git 忽略。
 
 ### 冒烟测试
 
@@ -172,7 +172,7 @@ tauri build --no-bundle && jiti scripts/package.ts
    - `src-tauri/Cargo.toml` 的 `[package] version`
 2. **确认资源完整**：检查 `resources/` 子模块内容（尤其未跟踪的 `data/`、`icons/`），必要时先提交到 `oea-resource` 仓库并更新子模块引用。
 3. **本地全量检查**：`pnpm check` + `cargo check`（`src-tauri/` 下）+ `cargo test --lib`。
-4. **打包**：`pnpm package`，得到 `release/OEA-windows-x86_64-v0.1.0.zip`。
+4. **打包**：`pnpm package`，得到 `releases/OEA-windows-x86_64-v0.1.0.zip`。
 5. **冒烟测试**：见上文「冒烟测试」。
 6. **打 tag 并推送**：
 
@@ -183,7 +183,7 @@ tauri build --no-bundle && jiti scripts/package.ts
 
    推送后 release workflow 会自动完成构建与 GitHub Release 发布（上传 zip、自动生成 changelog）。
 
-7. **（可选）手动发布**：若 workflow 未自动创建 Release，可在 [Releases](https://github.com/Logical-Byte/open-endfield-assistant/releases) 页面以 `v0.1.0` 手动创建 release，上传 `release/OEA-windows-x86_64-v0.1.0.zip`，填写变更说明。
+7. **（可选）手动发布**：若 workflow 未自动创建 Release，可在 [Releases](https://github.com/Logical-Byte/open-endfield-assistant/releases) 页面以 `v0.1.0` 手动创建 release，上传 `releases/OEA-windows-x86_64-v0.1.0.zip`，填写变更说明。
 
 ## 自动化逻辑参考
 

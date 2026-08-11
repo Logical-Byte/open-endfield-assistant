@@ -37,4 +37,4 @@ tsconfig.node.tsbuildinfo
 /webview-data
 
 # Release packages
-/release
+/releases

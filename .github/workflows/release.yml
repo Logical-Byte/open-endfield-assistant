@@ -36,31 +36,6 @@ jobs:
           # oea-resource 是私有仓库，GITHUB_TOKEN 无法访问，需用有权限的 PAT（secret: OEA_SUBMODULE_TOKEN）
           token: ${{ secrets.OEA_SUBMODULE_TOKEN }}
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Install Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: 'src-tauri -> target'
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Download OCR models
-        run: pnpm download:models
-
       - name: 校验版本号与 tag 一致
         shell: pwsh
         run: |
@@ -71,6 +46,31 @@ jobs:
           }
           Write-Host "构建版本: $($config.version)"
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Download OCR models
+        run: pnpm download:models
+
       - name: 构建并打包 zip
         run: pnpm package
 
@@ -79,6 +79,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          files: release/*.zip
+          files: releases/*.zip
           fail_on_unmatched_files: true
           generate_release_notes: true
