@@ -10,6 +10,7 @@ on:
 jobs:
   mirrorchyan:
     runs-on: macos-latest
+    if: ${{ github.repository_owner == 'Logical-Byte' }}
     strategy:
       fail-fast: false
       matrix:
