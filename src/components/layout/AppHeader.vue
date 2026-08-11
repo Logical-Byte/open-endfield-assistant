@@ -39,7 +39,17 @@ const navigationMenuItems: NavigationMenuItem[] = [
 </script>
 
 <template>
-  <UHeader :ui="{ title: 'inline' }">
+  <UHeader
+    :ui="{
+      title: 'inline',
+      left: 'md:flex-1',
+      center: 'hidden md:flex',
+      right: 'md:flex-1',
+      toggle: 'md:hidden',
+      content: 'md:hidden',
+      overlay: 'md:hidden',
+    }"
+  >
     <template #title>
       <span>OEA</span
       ><span v-if="appVersion" class="text-base font-medium text-muted"> v{{ appVersion }}</span>

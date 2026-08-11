@@ -137,7 +137,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
         tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
             .title("OEA")
             .inner_size(1024.0, 640.0)
-            .min_inner_size(256.0, 192.0)
+            .min_inner_size(864.0, 540.0)
             .resizable(true)
             .decorations(true)
             .shadow(true)
