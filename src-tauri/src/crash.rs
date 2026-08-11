@@ -7,7 +7,7 @@
 //!
 //! 本模块提供两层兜底，保证任何致命错误都"留痕 + 可见"：
 //! - [`install_panic_hook`]：全局 panic hook，把 panic 消息与 backtrace 独立写入
-//!   `logs/crash-<时间戳>.log`（不依赖 tracing，panic 发生时日志系统可能尚未初始化），
+//!   `logs/crash-<时间>-<pid>.log`（不依赖 tracing，panic 发生时日志系统可能尚未初始化），
 //!   并同步输出到 tracing 管道（若已初始化，可进入当日日志与前端）。
 //! - [`report_fatal`]：确定性致命错误（如 setup 失败）的统一出口——全链错误写入
 //!   日志与 crash 文件，弹原生对话框告知用户，最后退出进程。
@@ -31,8 +31,9 @@ static PANIC_HOOK_INSTALLED: Once = Once::new();
 ///
 /// 行为：
 /// - 先调用默认 hook（保证 `tauri dev` 等带控制台场景下的行为不变）；
-/// - 把 panic 消息 + backtrace 独立写入 `logs/crash-<时间戳>.log`（日志目录不可用时
-///   回退到系统临时目录，保证一定有记录）；
+/// - 把 panic 消息 + backtrace 独立写入 `logs/crash-<时间戳>-<pid>.log`（时间戳含毫秒
+///   精度、文件名带进程 ID，避免同一秒内多次崩溃互相覆盖；日志目录不可用时回退到
+///   系统临时目录，保证一定有记录）；
 /// - 同步输出到 tracing 管道（若已初始化）。
 ///
 /// hook 内全部用不可 panic 的写法，避免 hook 自身再触发 abort。
@@ -78,20 +79,23 @@ pub fn report_fatal(error: &anyhow::Error, app_handle: &tauri::AppHandle) -> ! {
     std::process::exit(1);
 }
 
-/// 把一段致命错误文本写入 `logs/crash-<时间戳>.log`。
+/// 把一段致命错误文本写入 `logs/crash-<时间>-<pid>.log`。
 ///
-/// 优先写日志目录（与当日日志同目录，用户容易找到）；失败（如目录不可写 / 无法定位）
-/// 时回退到系统临时目录，保证尽量留下记录。返回实际写入的文件路径。
+/// 时间含毫秒精度（`%Y%m%d-%H%M%S-%f`），文件名再带上进程 ID：即使同一秒内多次
+/// panic（或并发测试）也不会互相覆盖。优先写日志目录（与当日日志同目录，用户容易
+/// 找到）；失败（如目录不可写 / 无法定位）时回退到系统临时目录，保证尽量留下记录。
+/// 返回实际写入的文件路径。
 fn write_crash_log(title: &str, body: &str) -> Option<PathBuf> {
     let candidates = [
         AppPaths::new().map(|p| p.logs_dir()).ok(),
         Some(std::env::temp_dir()),
     ];
-    let timestamp = Local::now().format("%Y%m%d-%H%M%S");
+    let time_string = Local::now().format("%Y%m%d-%H%M%S-%f");
+    let pid = std::process::id();
 
     for dir in candidates.into_iter().flatten() {
         let _ = fs::create_dir_all(&dir);
-        let path = dir.join(format!("crash-{timestamp}.log"));
+        let path = dir.join(format!("crash-{time_string}-{pid}.log"));
         let content = format!("===== {title} =====\n{body}\n");
         if fs::write(&path, content).is_ok() {
             return Some(path);

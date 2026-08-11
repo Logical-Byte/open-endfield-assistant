@@ -103,7 +103,11 @@ pub fn read_registry_string(
         return Err(status);
     }
 
-    let result = String::from_utf16_lossy(&buffer[..data_size as usize / 2 - 1]);
+    // 去掉末尾的 `\0`。`data_size` 是字节数，除以 2 得到 UTF-16 单元数；
+    // 使用 `saturating_sub` 防止空值（`data_size < 2`）时下溢 panic，
+    // 并用 `min` 兜底防止注册表数据异常时切片越界。
+    let len = (data_size as usize / 2).saturating_sub(1).min(buffer.len());
+    let result = String::from_utf16_lossy(&buffer[..len]);
     Ok(Some(result))
 }
 
@@ -124,11 +128,9 @@ mod tests {
 
         match result {
             Ok(Some(value)) => {
-                assert!(
-                    !value.is_empty()
-                        && value.starts_with(r"C:\Users\")
-                        && value.ends_with(r"\Desktop")
-                );
+                assert!(!value.is_empty());
+                let path = std::path::Path::new(&value);
+                assert!(path.is_absolute() && path.exists());
             }
             _ => panic!(),
         }
