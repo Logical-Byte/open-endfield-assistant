@@ -6,6 +6,7 @@ pub mod app_paths;
 pub mod config;
 pub mod connect;
 pub mod controller;
+pub mod crash;
 pub mod data;
 pub mod hotkey;
 mod include;
@@ -30,7 +31,7 @@ use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::{Arc, Mutex, mpsc};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use rapidocr_core::config::PipelineConfig;
 use tauri::Manager;
 use tracing::info;
@@ -51,6 +52,10 @@ fn get_oea_hwnd(app_handle: &tauri::AppHandle) -> Result<HWND> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 尽早安装全局 panic hook：任何 panic（含 Tauri setup 失败导致的 panic）都会
+    // 独立写入 logs/crash-*.log，保证 release（无控制台）下也有可回溯记录。
+    crash::install_panic_hook();
+
     tauri::Builder::default()
         // WebView2 默认通过 raw input 接收键盘输入，当 OEA 窗口聚焦时会导致
         // WH_KEYBOARD_LL 低级键盘钩子收不到按键（[`tauri-apps/tauri#13919`](https://github.com/tauri-apps/tauri/issues/13919)）。
@@ -90,87 +95,12 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            // 解析资源目录（resources/models/logs），不依赖运行时工作目录
-            let app_paths = AppPaths::new()?;
-
-            // 初始化日志系统：控制台输出 DEBUG+，文件输出 TRACE+，前端转发 TRACE+（界面可过滤等级）。
-            let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
-
-            // 解析应用配置文件
-            let oea_config = config::load_oea_config(&app_paths.oea_config_file());
-
-            // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。
-            fs::create_dir_all(app_paths.webview_data_dir())?;
-            // 在 Rust 里动态创建 webview 窗口，而不在 `tauri.conf.json` 里声明窗口，否则无法更改 WebView2 用户数据目录。
-            let main_window_builder =
-                tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
-                    .title("OEA")
-                    .inner_size(1024.0, 640.0)
-                    .min_inner_size(256.0, 192.0)
-                    .resizable(true)
-                    .decorations(true)
-                    .shadow(true)
-                    .data_directory(app_paths.webview_data_dir());
-
-            // 方案2：Windows 下移除系统标题栏，改用前端自定义标题栏（随应用主题融入）；
-            // macOS/Linux 保留原生标题栏。
-            #[cfg(target_os = "windows")]
-            let main_window_builder = main_window_builder.decorations(false);
-
-            let _main_window = main_window_builder.build()?;
-
-            // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
-            window::set_thread_dpi_awareness_context();
-
-            // 扫描结果通道：任务线程产生 → 转发线程 emit 给前端
-            let (scan_tx, scan_rx) = mpsc::channel();
-            let scan_index = Arc::new(AtomicU32::new(0));
-
-            // 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
-            let pipeline_config = PipelineConfig::recognition_only();
-            let ocr_engine = OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
-            let ocr = Arc::new(Mutex::new(ocr_engine));
-
-            // 加载静态数据文件（prts.json / archive_acquisition_contract.json / 纠错索引），
-            // 缺失或损坏视为致命错误（E1 严格策略）
-            let app_data = AppData::load(&app_paths)?;
-
-            // 场景管理器（本游戏全部场景，注册顺序即识别优先级）
-            let scenes = Arc::new(create_scene_manager());
-
-            // 开始监听热键
-            let oea_hwnd = get_oea_hwnd(app.handle())?;
-            let foreground = ForegroundGuard::new(oea_hwnd);
-            let hotkey_rx = hotkey::listen()?;
-
-            // 状态标志（Controller 唯一归属）
-            let stop = Arc::new(AtomicBool::new(false));
-            let running = Arc::new(AtomicBool::new(false));
-
-            // 组装 Controller 并托管为 State，启动后台线程
-            let controller = Arc::new(Controller::new(
-                app_paths,
-                Mutex::new(oea_config),
-                ocr,
-                scenes,
-                stop,
-                running,
-                scan_tx,
-                scan_index,
-                foreground,
-                app.handle().clone(),
-                app_data,
-                logger_guard,
-            ));
-            Controller::spawn_log_loop(log_rx, app.handle().clone());
-            Controller::spawn_scan_result_loop(scan_rx, app.handle().clone());
-            controller.spawn_hotkey_loop(hotkey_rx);
-            app.manage(controller);
-
-            // 初始化系统托盘（依赖已托管的 Controller，托盘菜单事件直接驱动它）
-            tray::init_tray(app.handle())?;
-
-            info!("OEA 后端初始化完成");
+            // setup 失败不允许向上传播：Tauri 会直接 panic（`Failed to setup app`）且
+            // release 无控制台，用户毫无感知。统一交给 crash::report_fatal 兜底：
+            // 全链日志 + crash 文件 + 原生弹窗 + 退出。
+            if let Err(e) = setup_app(app) {
+                crash::report_fatal(&e, app.handle());
+            }
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -179,4 +109,95 @@ pub fn run() {
             let (_, _) = (app_handle, event);
             // dbg!(app_handle, event);
         });
+}
+
+/// setup 主体：任何一步失败都会返回 Err，由 [`crash::report_fatal`] 统一兜底。
+fn setup_app(app: &mut tauri::App) -> Result<()> {
+    // 解析资源目录（resources/models/logs），不依赖运行时工作目录
+    let app_paths = AppPaths::new()?;
+
+    // 初始化日志系统：控制台输出 DEBUG+，文件输出 TRACE+，前端转发 TRACE+（界面可过滤等级）。
+    let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
+
+    // 解析应用配置文件
+    let oea_config = config::load_oea_config(&app_paths.oea_config_file());
+
+    // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。
+    fs::create_dir_all(app_paths.webview_data_dir()).with_context(|| {
+        format!(
+            "创建 WebView2 数据目录 {} 失败",
+            app_paths.webview_data_dir().display()
+        )
+    })?;
+    // 在 Rust 里动态创建 webview 窗口，而不在 `tauri.conf.json` 里声明窗口，否则无法更改 WebView2 用户数据目录。
+    let main_window_builder =
+        tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
+            .title("OEA")
+            .inner_size(1024.0, 640.0)
+            .min_inner_size(256.0, 192.0)
+            .resizable(true)
+            .decorations(true)
+            .shadow(true)
+            .data_directory(app_paths.webview_data_dir());
+
+    // 方案2：Windows 下移除系统标题栏，改用前端自定义标题栏（随应用主题融入）；
+    // macOS/Linux 保留原生标题栏。
+    #[cfg(target_os = "windows")]
+    let main_window_builder = main_window_builder.decorations(false);
+
+    let _main_window = main_window_builder.build()?;
+
+    // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
+    window::set_thread_dpi_awareness_context();
+
+    // 扫描结果通道：任务线程产生 → 转发线程 emit 给前端
+    let (scan_tx, scan_rx) = mpsc::channel();
+    let scan_index = Arc::new(AtomicU32::new(0));
+
+    // 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
+    let pipeline_config = PipelineConfig::recognition_only();
+    let ocr_engine = OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
+    let ocr = Arc::new(Mutex::new(ocr_engine));
+
+    // 加载静态数据文件（prts.json / archive_acquisition_contract.json / 纠错索引），
+    // 缺失或损坏视为致命错误（E1 严格策略）
+    let app_data = AppData::load(&app_paths)?;
+
+    // 场景管理器（本游戏全部场景，注册顺序即识别优先级）
+    let scenes = Arc::new(create_scene_manager());
+
+    // 开始监听热键
+    let oea_hwnd = get_oea_hwnd(app.handle())?;
+    let foreground = ForegroundGuard::new(oea_hwnd);
+    let hotkey_rx = hotkey::listen()?;
+
+    // 状态标志（Controller 唯一归属）
+    let stop = Arc::new(AtomicBool::new(false));
+    let running = Arc::new(AtomicBool::new(false));
+
+    // 组装 Controller 并托管为 State，启动后台线程
+    let controller = Arc::new(Controller::new(
+        app_paths,
+        Mutex::new(oea_config),
+        ocr,
+        scenes,
+        stop,
+        running,
+        scan_tx,
+        scan_index,
+        foreground,
+        app.handle().clone(),
+        app_data,
+        logger_guard,
+    ));
+    Controller::spawn_log_loop(log_rx, app.handle().clone());
+    Controller::spawn_scan_result_loop(scan_rx, app.handle().clone());
+    controller.spawn_hotkey_loop(hotkey_rx);
+    app.manage(controller);
+
+    // 初始化系统托盘（依赖已托管的 Controller，托盘菜单事件直接驱动它）
+    tray::init_tray(app.handle())?;
+
+    info!("OEA 后端初始化完成");
+    Ok(())
 }
