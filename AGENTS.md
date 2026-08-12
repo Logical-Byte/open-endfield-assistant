@@ -7,15 +7,13 @@
 
 ### 前端
 
-- Linter 使用 `pnpm lint:fix` 和 `pnpm fix`。
-- 编写组件时遵循 `nuxt-ui-expert` skill。
+- Linter 使用 `pnpm lint:fix`（修复属性排序错误）和 `pnpm fix`（任意修改后都需要运行）。
 - 拒绝写 `anotherFunction(args)` 的简单包装函数。
 
 ### 后端
 
 - 在 `src-tauri` 目录中运行 cargo 命令，或使用 `--manifest-path src-tauri/Cargo.toml`。
 - Linter 使用 `cargo check`、`cargo fix --allow-dirty` 和 `cargo clippy --fix --allow-dirty`.
-- 项目根目录在开发时是 `package.json` 所在目录，打包后是 exe 文件所在目录。所有磁盘写操作必须限定在项目根目录内。
 - 使用 `Arc::clone(&foo)` 克隆原子引用计数指针，拒绝 `foo.clone()`。
 - 在注释中使用反引号 backquote 包裹代码片段。
 - `unsafe` 仅包裹单个函数调用表达式。`? ; =` 放在 unsafe 块外。例：`let foo = unsafe { bar(baz) }?;`。
