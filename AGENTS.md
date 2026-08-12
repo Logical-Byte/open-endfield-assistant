@@ -1,31 +1,26 @@
-## 添加依赖的规则
+## 编码规范
 
-当需要添加依赖时，必须使用 `pnpm add` 或者 `cargo add` 命令。除非必要，在命令中不要指定依赖的版本。不得修改 `package.json` 或者 `Cargo.toml` 文件中的依赖项。需要移除依赖时同理。
+### 依赖管理
 
-## 前端编写规范
+- 使用 `pnpm add`、`pnpm remove`、`cargo add` 或 `cargo remove` 添加或移除依赖，拒绝手动更改 package.json` 或 `Cargo.toml` 依赖项
+- 除非必要，不要在命令中指定依赖版本。
 
-- 如果遇到属性排序错误，不需要您手动修复，运行 `pnpm lint:fix` 即可自动修复。
+### 前端
 
-- 适度重构：确保代码可读性和可维护性。
+- Linter 使用 `pnpm lint:fix` 和 `pnpm fix`。
+- 编写组件时遵循 `nuxt-ui-expert` skill。
+- 拒绝写 `anotherFunction(args)` 的简单包装函数。
 
-- 改完代码后，运行 `pnpm fix`，确保代码风格符合要求。
+### 后端
 
-- 如果需要编写组件，请遵循 `nuxt-ui-expert` skill。
+- 在 `src-tauri` 目录中运行 cargo 命令，或使用 `--manifest-path src-tauri/Cargo.toml`。
+- Linter 使用 `cargo check`、`cargo fix --allow-dirty` 和 `cargo clippy --fix --allow-dirty`.
+- 项目根目录在开发时是 `package.json` 所在目录，打包后是 exe 文件所在目录。所有磁盘写操作必须限定在项目根目录内。
+- 使用 `Arc::clone(&foo)` 克隆原子引用计数指针，拒绝 `foo.clone()`。
+- 在注释中使用反引号 backquote 包裹代码片段。
+- `unsafe` 仅包裹单个函数调用表达式。`? ; =` 放在 unsafe 块外。例：`let foo = unsafe { bar(baz) }?;`。
+- 后端的运行时行为不得更改“根目录”以外的磁盘文件。“根目录”在开发环境下，指 `package.json` 所在目录。在打包后，指可执行文件所在目录。
 
-- 不要添加无意义的包装层：如果函数只是 `return anotherFunction(args)`，直接使用后者。
+## 本地/个人偏好
 
-## 后端编写规范
-
-- 使用 cargo 命令时注意工作目录，您可以使用 `cargo command --manifest-path src-tauri/Cargo.toml`。
-
-- 适度重构：确保代码可读性和可维护性。
-
-- 改完代码后，运行 `cargo check`，确保编译通过。编译通过后，运行 `cargo fix --allow-dirty` 和 `cargo clippy --fix --allow-dirty`，确保代码风格符合要求。
-
-- 项目根目录定义为（开发时：`package.json` 所在目录，打包后：exe 文件所在目录）。所有磁盘写操作都必须严格限定在项目根目录内，绝对禁止在项目根目录以外的任何目录进行磁盘写操作。
-
-- 原子引用计数的克隆必须写 `Arc::clone(&x)`，不能写 `x.clone()`。
-
-- 注释中的代码片段必须使用反引号包裹，无论是行内注释还是文档注释。
-
-- 所有 unsafe 函数的调用必须将 `unsafe` 块的范围缩小到最小，仅在函数调用表达式的外层添加 `unsafe` 块，问号、分号、赋值等任何其他操作符都必须放在 `unsafe` 块外部，例如 `let result = unsafe { function(argument) }?;`。
+`AGENTS.local.md` 是被 Git 忽略的个人偏好文档，在开始工作前读取。如有冲突，以本文件 `AGENTS.md` 为准。
