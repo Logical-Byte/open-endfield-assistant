@@ -2,7 +2,7 @@
 
 ### 依赖管理
 
-- 使用 `pnpm add`、`pnpm remove`、`cargo add` 或 `cargo remove` 添加或移除依赖，拒绝手动更改 package.json` 或 `Cargo.toml` 依赖项
+- 使用 `pnpm add`、`pnpm remove`、`cargo add` 或 `cargo remove` 添加或移除依赖，拒绝手动更改 `package.json` 或 `Cargo.toml` 依赖项
 - 除非必要，不要在命令中指定依赖版本。
 
 ### 前端
