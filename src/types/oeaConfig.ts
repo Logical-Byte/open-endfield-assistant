@@ -1,8 +1,21 @@
+export enum UpdateSource {
+  Mirrorchyan = 'mirrorchyan',
+  Github = 'github',
+}
+
+export enum UpdateProxyMode {
+  System = 'system',
+  Direct = 'direct',
+  Proxy = 'proxy',
+}
+
 export interface OeaConfig {
-  /** 配置文件版本号（用于升级时迁移配置） */
-  version: [number, number];
-  /** 关闭时最小化到托盘而不是退出应用 */
+  majorVersion: number;
+  minorVersion: number;
   minimizeToTray: boolean;
-  /** 扫描音效音量（0.0–1.0） */
   soundVolume: number;
+  updateSource: UpdateSource;
+  mirrorchyanCdkEncrypted: string | null;
+  updateProxyMode: UpdateProxyMode;
+  updateProxyUrl: string | null;
 }

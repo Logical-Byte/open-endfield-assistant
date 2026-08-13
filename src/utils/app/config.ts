@@ -1,13 +1,19 @@
-import type { OeaConfig } from '@/types/oeaConfig';
+import { OeaConfig, UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import { loadOeaConfig, saveOeaConfig } from '@/utils/tauri';
 import { ref, watch } from 'vue';
 
-export const VERSION: [number, number] = [0, 0];
+export const CURRENT_MAJOR_VERSION: number = 0;
+export const CURRENT_MINOR_VERSION: number = 0;
 
 export const DEFAULT_OEA_CONFIG: OeaConfig = {
-  version: VERSION,
+  majorVersion: CURRENT_MAJOR_VERSION,
+  minorVersion: CURRENT_MINOR_VERSION,
   minimizeToTray: false,
   soundVolume: 0.5,
+  updateSource: UpdateSource.Mirrorchyan,
+  mirrorchyanCdkEncrypted: null,
+  updateProxyMode: UpdateProxyMode.System,
+  updateProxyUrl: null,
 };
 
 export const oeaConfig = ref<OeaConfig>(DEFAULT_OEA_CONFIG);
