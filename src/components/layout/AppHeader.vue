@@ -63,6 +63,7 @@ const navigationMenuItems: NavigationMenuItem[] = [
 
     <template #right>
       <div class="flex items-center gap-1">
+        <UpdatePopover />
         <ThemePicker />
         <UTooltip text="切换颜色模式">
           <UColorModeButton />

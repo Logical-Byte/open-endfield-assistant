@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import { oeaConfig, saving } from '@/utils/app/config';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 /**
  * 音量（本地数字中转）。
@@ -20,46 +21,141 @@ const soundVolume = computed<number>({
     }
   },
 });
+
+// ---------------------------------------------------------------------------
+// 以下为「更新」相关设置的样板数据。
+// 目前仅做静态界面，后续接入 `oeaConfig.updateSource` / `updateProxyMode` 等字段。
+// ---------------------------------------------------------------------------
+
+/** 更新源选项（对应后端 `UpdateSource`）。 */
+const updateSourceItems = [
+  { label: 'Mirror酱', value: UpdateSource.Mirrorchyan },
+  { label: 'GitHub', value: UpdateSource.Github },
+];
+const updateSource = ref<UpdateSource>(UpdateSource.Mirrorchyan);
+
+/** 更新代理模式选项（对应后端 `UpdateProxyMode`）。 */
+const proxyModeItems = [
+  { label: '不使用代理', value: UpdateProxyMode.None },
+  { label: '系统代理', value: UpdateProxyMode.System },
+  { label: '自定义代理', value: UpdateProxyMode.Custom },
+];
+const updateProxyMode = ref<UpdateProxyMode>(UpdateProxyMode.System);
+
+/** Mirror酱 CDK 密文（`null` 表示未设置）。 */
+const mirrorchyanCdk = ref<string>('');
+
+/** 自定义代理地址。 */
+const updateProxyUrl = ref<string>('');
 </script>
 
 <template>
   <UContainer>
     <UPage>
       <UPageBody>
-        <UCard description="托盘图标与窗口行为" title="系统托盘">
-          <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <span class="i-lucide-panel-bottom-dashed text-2xl text-primary" />
-              <div>
-                <p class="font-medium">关闭时最小化到托盘</p>
-                <p class="text-sm text-toned">
-                  点击窗口关闭按钮时隐藏到系统托盘而不是退出，可通过托盘菜单或 Alt+Delete 退出
-                </p>
-              </div>
-            </div>
+        <SettingsCard icon="i-lucide-layout-panel-left" title="界面设置">
+          <SettingsItem
+            description="点击窗口关闭按钮时隐藏到系统托盘而不是退出，可通过托盘菜单或 Alt+Delete 退出"
+            icon="i-lucide-panel-bottom-close"
+            title="关闭时最小化到托盘"
+          >
             <USwitch v-model="oeaConfig.minimizeToTray" :loading="saving" />
-          </div>
-        </UCard>
+          </SettingsItem>
+        </SettingsCard>
 
-        <UCard description="扫描开始、完成与失败提示音" title="扫描音效">
-          <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <span class="i-lucide-volume-2 text-2xl text-primary" />
-              <div>
-                <p class="font-medium">扫描提示音音量</p>
-                <p class="text-sm text-toned">
-                  扫描开始与自然完成时播放提示音，失败或被停止时播放另一提示音
-                </p>
-              </div>
-            </div>
-            <div class="flex w-52 items-center gap-3">
+        <SettingsCard icon="i-lucide-headphones" title="声音设置">
+          <SettingsItem
+            description="扫描开始与自然完成时播放提示音，失败或被停止时播放另一提示音"
+            icon="i-lucide-volume-2"
+            title="扫描提示音音量"
+          >
+            <div class="flex w-56 items-center gap-2">
               <USlider v-model="soundVolume" class="flex-1" :max="1" :min="0" :step="0.05" />
               <span class="w-10 text-end text-sm tabular-nums">
                 {{ Math.round(soundVolume * 100) }}%
               </span>
             </div>
-          </div>
-        </UCard>
+          </SettingsItem>
+        </SettingsCard>
+
+        <SettingsCard icon="i-lucide-download" title="更新设置">
+          <SettingsItem
+            description="选择从哪个源检查并下载新版本"
+            icon="i-lucide-cloud-download"
+            title="更新源"
+          >
+            <USelect v-model="updateSource" class="w-56" :items="updateSourceItems" />
+          </SettingsItem>
+
+          <SettingsItem icon="i-lucide-key-round" title="Mirror酱 CDK">
+            <template #description>
+              <span class="text-sm text-dimmed"
+                ><ULink class="text-primary hover:text-primary/75" to="https://mirrorchyan.com/"
+                  >Mirror酱</ULink
+                >
+                是独立的第三方加速下载服务，需要付费使用。
+                <br />
+                <ULink
+                  class="text-primary hover:text-primary/75"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  to="https://ef.yituliu.cn/resources/oea"
+                  >OEA</ULink
+                >
+                本身不收取任何费用，也提供免费的下载渠道。您可以前往
+                <ULink
+                  class="text-primary hover:text-primary/75"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
+                  >GitHub Release</ULink
+                >
+                免费下载和使用。</span
+              >
+            </template>
+            <div class="flex flex-col items-center gap-1">
+              <UInput
+                v-model="mirrorchyanCdk"
+                class="w-56"
+                color="neutral"
+                placeholder="未填写时使用 GitHub 下载"
+                type="password"
+              />
+              <ULink
+                class="text-sm text-primary hover:text-primary/75"
+                rel="noopener noreferrer"
+                target="_blank"
+                to="https://mirrorchyan.com/?source=oea"
+              >
+                <span class="flex items-center gap-1"
+                  >没有 CDK？立即订阅<UIcon name="i-lucide-external-link"
+                /></span>
+              </ULink>
+            </div>
+          </SettingsItem>
+
+          <SettingsItem
+            description="下载更新包时使用的代理方式"
+            icon="i-lucide-network"
+            title="网络代理"
+          >
+            <USelect v-model="updateProxyMode" class="w-56" :items="proxyModeItems" />
+          </SettingsItem>
+
+          <SettingsItem
+            v-if="updateProxyMode === 'custom'"
+            description="自定义代理服务器地址，例如 http://127.0.0.1:7890"
+            icon="i-lucide-link"
+            title="代理地址"
+          >
+            <UInput
+              v-model="updateProxyUrl"
+              class="w-56"
+              color="neutral"
+              placeholder="http://127.0.0.1:7890"
+            />
+          </SettingsItem>
+        </SettingsCard>
       </UPageBody>
     </UPage>
   </UContainer>

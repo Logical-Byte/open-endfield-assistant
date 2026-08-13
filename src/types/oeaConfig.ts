@@ -4,9 +4,9 @@ export enum UpdateSource {
 }
 
 export enum UpdateProxyMode {
+  None = 'none',
   System = 'system',
-  Direct = 'direct',
-  Proxy = 'proxy',
+  Custom = 'custom',
 }
 
 export interface OeaConfig {
