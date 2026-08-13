@@ -180,6 +180,14 @@ function startDownload() {
                       免费下载和使用。</span
                     ></template
                   >
+                  <template #hint
+                    ><ULink
+                      class="flex items-center gap-1 text-xs text-primary hover:text-primary/75"
+                      rel="noopener noreferrer"
+                      target="_blank"
+                      to="https://mirrorchyan.com/?source=oea"
+                      >获取 CDK<UIcon name="i-lucide-external-link" /></ULink
+                  ></template>
                   <UInput
                     v-model="mirrorchyanCdk"
                     class="w-full"
@@ -200,7 +208,11 @@ function startDownload() {
                   v-if="oeaConfig.updateProxyMode === UpdateProxyMode.Custom"
                   label="自定义代理"
                 >
-                  <UInput class="w-full" placeholder="http://127.0.0.1:7890" />
+                  <UInput
+                    v-model="oeaConfig.updateProxyUrl"
+                    class="w-full"
+                    placeholder="http://127.0.0.1:7890"
+                  />
                 </UFormField>
               </div>
             </template>
