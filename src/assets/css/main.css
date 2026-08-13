@@ -6,6 +6,7 @@
 :root {
   --chinese-font: 'HarmonyOS Sans SC', '鸿蒙黑体', 'Source Han Sans SC', '思源黑体', 'Noto Sans SC';
   --ui-header-height: 3rem;
+  --ui-title-height: 1.875rem;
 }
 
 @layer base {

@@ -115,7 +115,8 @@ function startDownload() {
   <UPopover
     v-model:open="updateOpen"
     :ui="{
-      content: 'flex max-h-[calc(100svh-var(--ui-header-height)-2rem)] w-md flex-col gap-3 p-4',
+      content:
+        'flex max-h-[calc(100dvh-var(--ui-header-height)-var(--ui-title-height)-1rem)] w-md flex-col gap-3 p-4',
     }"
   >
     <UTooltip text="发现新版本">
