@@ -49,8 +49,8 @@ export async function applyUiScale(): Promise<void> {
 // 滑块拖动时防抖应用到窗口。
 watchDebounced(
   uiScale,
-  () => {
-    void applyUiScale();
+  async () => {
+    await applyUiScale();
   },
   { debounce: 750 },
 );

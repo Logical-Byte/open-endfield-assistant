@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { UpdateProxyMode } from '@/types/oeaConfig';
 import { UpdateCheckStatus } from '@/types/update';
+import { appVersion } from '@/utils/app/appVersion';
 import {
   mirrorchyanCdk,
   oeaConfig,
@@ -8,9 +9,8 @@ import {
   saving,
   updateSourceItems,
 } from '@/utils/app/config';
-import { checkUpdate, updateCheckStatus } from '@/utils/app/update';
+import { checkUpdate, updateCheckResult } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
-import { updatePopoverOpen } from '@/utils/uiState';
 import { computed } from 'vue';
 
 const toast = useToast();
@@ -48,23 +48,13 @@ const soundVolume = computed<number>({
 
 /** 手动检查更新。 */
 async function manualCheckUpdate(): Promise<void> {
-  try {
-    const result = await checkUpdate();
-    if (result.hasUpdate) {
-      updatePopoverOpen.value = true;
-    } else {
-      toast.add({
-        title: '当前已是最新版本',
-        icon: 'i-lucide-check-circle',
-        color: 'success',
-      });
-    }
-  } catch (error) {
+  await checkUpdate();
+  if (updateCheckResult.value.status === UpdateCheckStatus.NoUpdate) {
     toast.add({
-      title: '检查更新失败',
-      description: error instanceof Error ? error.message : String(error),
-      icon: 'i-lucide-triangle-alert',
-      color: 'error',
+      title: '当前已是最新版本',
+      description: `v${appVersion.value ?? ''}`,
+      icon: 'i-lucide-check-circle',
+      color: 'success',
     });
   }
 }
@@ -199,7 +189,7 @@ async function manualCheckUpdate(): Promise<void> {
               block
               icon="i-lucide-refresh-cw"
               label="检查更新"
-              :loading="updateCheckStatus === UpdateCheckStatus.Checking"
+              :loading="updateCheckResult.status === UpdateCheckStatus.Checking"
               @click="manualCheckUpdate"
             />
           </div>

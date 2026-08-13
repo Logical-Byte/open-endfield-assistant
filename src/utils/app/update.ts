@@ -14,8 +14,7 @@ const RESOURCE_ID = 'OEA';
 /** 检查更新 API 端点。 */
 const CHECK_URL = `https://mirrorchyan.com/api/resources/${RESOURCE_ID}/latest`;
 
-export const updateCheckStatus = ref<UpdateCheckStatus>(UpdateCheckStatus.Idle);
-export const updateCheckResult = ref<UpdateCheckResult | null>(null);
+export const updateCheckResult = ref<UpdateCheckResult>({ status: UpdateCheckStatus.Idle });
 
 /**
  * 执行一次检查更新（启动自动检查与设置页手动检查共用）。
@@ -23,8 +22,9 @@ export const updateCheckResult = ref<UpdateCheckResult | null>(null);
  * 检查固定请求 MirrorChyan，无论「更新源」设置为何：更新源只决定后续下载
  * 从镜像还是 GitHub 拉取，不影响「是否可更新」的判定（见设计文档 v1）。
  */
-export async function checkUpdate(): Promise<UpdateCheckResult> {
-  updateCheckStatus.value = UpdateCheckStatus.Checking;
+export async function checkUpdate(): Promise<void> {
+  updateCheckResult.value = { status: UpdateCheckStatus.Checking };
+  let maybePayload: MirrorchyanResourcesLatestResponse | undefined = undefined;
   try {
     // 读取当前版本号，若无法获取则直接报错。
     const currentVersion = appVersion.value;
@@ -59,7 +59,8 @@ export async function checkUpdate(): Promise<UpdateCheckResult> {
     }
 
     const response = await fetch(url, init);
-    const payload: MirrorchyanResourcesLatestResponse = await response.json();
+    const payload = await response.json();
+    maybePayload = payload;
 
     if (payload.code !== 0 || !payload.data) {
       throw new Error(`${payload.msg} (${payload.code})`);
@@ -71,21 +72,21 @@ export async function checkUpdate(): Promise<UpdateCheckResult> {
 
     if (hasUpdate) {
       logWarn(`检查更新：有新版本可用，当前 ${currentVersion}，最新 ${latestVersion}`);
-      updateCheckStatus.value = UpdateCheckStatus.HasUpdate;
+      updateCheckResult.value = { status: UpdateCheckStatus.HasUpdate, result: payload };
       updatePopoverOpen.value = true;
     } else {
       logInfo(`检查更新：已是最新版本 ${currentVersion}`);
-      updateCheckStatus.value = UpdateCheckStatus.NoUpdate;
+      updateCheckResult.value = { status: UpdateCheckStatus.NoUpdate, result: payload };
     }
-
-    const result = { hasUpdate, currentVersion, latestVersion, payload };
-    updateCheckResult.value = result;
-    return result;
   } catch (error) {
-    updateCheckStatus.value = UpdateCheckStatus.Error;
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logError(`检查更新失败: ${errorMessage}`);
-    throw error;
+    const errorInstance = error instanceof Error ? error : new Error(String(error));
+    updateCheckResult.value = {
+      status: UpdateCheckStatus.Error,
+      error: errorInstance,
+      result: maybePayload,
+    };
+    updatePopoverOpen.value = true;
+    logError(`检查更新失败: ${errorInstance.message}`);
   }
 }
 

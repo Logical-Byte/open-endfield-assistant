@@ -9,14 +9,9 @@ export enum UpdateCheckStatus {
   Error,
 }
 
-/** 检查更新结果。 */
-export interface UpdateCheckResult {
-  /** 是否有新版本可更新。 */
-  hasUpdate: boolean;
-  /** 当前版本号（如 "0.1.0"）。 */
-  currentVersion: string;
-  /** 最新版本号（如 "0.2.0"）。 */
-  latestVersion: string;
-  /** API 响应数据。 */
-  payload: MirrorchyanResourcesLatestResponse;
-}
+export type UpdateCheckResult =
+  | { status: UpdateCheckStatus.Idle }
+  | { status: UpdateCheckStatus.Checking }
+  | { status: UpdateCheckStatus.HasUpdate; result: MirrorchyanResourcesLatestResponse }
+  | { status: UpdateCheckStatus.NoUpdate; result: MirrorchyanResourcesLatestResponse }
+  | { status: UpdateCheckStatus.Error; error: Error; result?: MirrorchyanResourcesLatestResponse };
