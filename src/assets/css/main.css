@@ -58,3 +58,73 @@
 .dark {
   /* --ui-primary: var(--ui-color-primary-500); */
 }
+
+@layer components {
+  .markdown-body {
+    @apply text-sm leading-relaxed;
+  }
+
+  .markdown-body :where(h1, h2, h3, h4, h5, h6) {
+    @apply mt-3 mb-1.5 font-semibold;
+  }
+
+  .markdown-body h1 {
+    @apply text-lg;
+  }
+
+  .markdown-body h2 {
+    @apply text-base;
+  }
+
+  .markdown-body h3 {
+    @apply text-sm;
+  }
+
+  .markdown-body p {
+    @apply my-1.5;
+  }
+
+  .markdown-body :where(ul, ol) {
+    @apply my-1.5 ps-4;
+  }
+
+  .markdown-body ul {
+    @apply list-disc;
+  }
+
+  .markdown-body ol {
+    @apply list-decimal;
+  }
+
+  .markdown-body li {
+    @apply my-0.5;
+  }
+
+  .markdown-body a {
+    @apply text-primary hover:underline;
+  }
+
+  .markdown-body code {
+    @apply rounded-md bg-muted px-1 py-0.5 font-mono text-xs;
+  }
+
+  .markdown-body pre {
+    @apply my-2 overflow-x-auto rounded-md bg-muted p-2.5;
+  }
+
+  .markdown-body pre code {
+    @apply rounded-none bg-transparent p-0;
+  }
+
+  .markdown-body blockquote {
+    @apply my-2 border-s-2 border-(--ui-border) ps-2 text-toned;
+  }
+
+  .markdown-body hr {
+    @apply my-3;
+  }
+
+  .markdown-body strong {
+    @apply font-semibold;
+  }
+}

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderMarkdown } from '@/utils/markdown';
 import { ref } from 'vue';
 
 /**
@@ -15,12 +16,17 @@ const settingsOpen = ref(false);
 const currentVersion = ref('0.1.0');
 const newVersion = ref('0.2.0');
 
-/** 更新日志（样板数据）。 */
-const releaseNote = ref([
-  '新增：档案库扫描结果支持按获取方式筛选',
-  '优化：大幅提升 OCR 识别速度，降低误识别率',
-  '修复：部分分辨率下截图窗口误判的问题',
-]);
+/** 更新日志（样板数据，Markdown 源码）。 */
+const releaseNote = ref(`### 新增
+- 档案库扫描结果支持按获取方式筛选
+- 支持自定义下载代理
+
+### 优化
+- 大幅提升 OCR 识别速度，降低误识别率
+
+### 修复
+- 修复部分分辨率下截图窗口误判的问题
+`);
 
 /** 下载相关设置（样板数据）。 */
 const downloadSource = ref('mirrorchyan');
@@ -74,9 +80,12 @@ function startDownload() {
 
         <div class="rounded-md bg-muted p-3">
           <p class="mb-2 text-xs font-medium text-toned">更新日志</p>
-          <ul class="flex list-disc flex-col gap-1 ps-4 text-sm">
-            <li v-for="item in releaseNote" :key="item">{{ item }}</li>
-          </ul>
+          <!-- eslint-disable vue/no-v-html -- 渲染结果经 DOMPurify 消毒 -->
+          <div
+            class="markdown-body max-h-64 overflow-y-auto"
+            v-html="renderMarkdown(releaseNote)"
+          />
+          <!-- eslint-enable vue/no-v-html -->
         </div>
 
         <div class="flex w-full gap-2">
