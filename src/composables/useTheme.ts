@@ -70,11 +70,48 @@ function getColorCSSProperty(colorName: string, shade: number): string {
   }
 }
 
+/** Tailwind 颜色 id 对应的中文显示名。 */
+const COLOR_ZH_NAMES: Record<string, string> = {
+  red: '姨妈红',
+  orange: '落日橙',
+  amber: '麦穗黄',
+  yellow: '咸蛋黄',
+  lime: '青柠绿',
+  green: '帽子绿',
+  emerald: '宝石绿',
+  teal: '孔雀青',
+  cyan: '釉彩青',
+  sky: '晨曦蓝',
+  blue: '蕾姆蓝',
+  indigo: '夜幕靛',
+  violet: '薰衣紫',
+  purple: '基佬紫',
+  fuchsia: '丁香紫',
+  pink: '少女粉',
+  rose: '玫瑰红',
+  slate: '烟青灰',
+  gray: '钛金灰',
+  zinc: '铅华灰',
+  neutral: '珍珠灰',
+  stone: '暖石灰',
+  taupe: '亚麻褐',
+  mauve: '淡霞紫',
+  mist: '茶褐绿',
+  olive: '橄榄绿',
+  black: '曜石黑',
+  white: '象牙白',
+};
+
+/** 返回颜色的中文显示名，未收录时回退到英文 id。 */
+function colorZhName(colorName: string): string {
+  return COLOR_ZH_NAMES[colorName] ?? colorName;
+}
+
 function toColorEntry(colorName: string): ColorEntry {
   return {
     id: colorName,
-    lightLabel: colorName,
-    darkLabel: colorName,
+    lightLabel: colorZhName(colorName),
+    darkLabel: colorZhName(colorName),
     chipStyle: {
       // 优先使用 CSS 变量（尊重 @theme 覆盖），被 tree-shake 时 fallback 到具体值
       '--color-light': getColorCSSProperty(colorName, 500),
@@ -98,8 +135,8 @@ const neutralColorNames = [
 const primaryColors: ColorEntry[] = [
   {
     id: 'grayscale',
-    lightLabel: 'black',
-    darkLabel: 'white',
+    lightLabel: colorZhName('black'),
+    darkLabel: colorZhName('white'),
     chipStyle: {
       '--color-light': 'black',
       '--color-dark': 'white',
