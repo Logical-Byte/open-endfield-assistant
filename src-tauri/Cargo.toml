@@ -29,12 +29,13 @@ image = "0.25.10"
 imageproc = "0.27.0"
 indexmap = { version = "2.14.0", features = ["serde"] }
 rapidocr-core = { version = "0.2.2", default-features = false }
-reqwest = { version = "0.13.4", features = ["blocking", "native-tls"], default-features = false }
+reqwest = { version = "0.12", features = ["blocking", "native-tls"], default-features = false }
 rodio = { version = "0.21.1", features = ["hound", "playback", "tracing"], default-features = false }
 scopeguard = "1.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tauri = { version = "2.11.3", features = ["tray-icon"] }
+tauri-plugin-http = { version = "2", default-features = false }
 tauri-plugin-opener = "2"
 tracing = "0.1.44"
 tracing-appender = "0.2.5"

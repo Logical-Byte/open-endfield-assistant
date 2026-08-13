@@ -49,6 +49,8 @@ if (isTauri()) {
         <!-- <AppFooter /> -->
 
         <AppImagePreview />
+        <DownloadingModal />
+        <InstallingModal />
       </div>
     </UApp>
   </Suspense>

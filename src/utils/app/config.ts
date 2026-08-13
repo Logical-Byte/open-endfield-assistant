@@ -2,8 +2,21 @@ import { OeaConfig, UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import { loadOeaConfig, saveOeaConfig } from '@/utils/tauri';
 import { ref, watch } from 'vue';
 
-export const CURRENT_MAJOR_VERSION: number = 0;
-export const CURRENT_MINOR_VERSION: number = 0;
+/** 更新源选项 */
+export const updateSourceItems = [
+  { label: 'Mirror酱', value: UpdateSource.Mirrorchyan },
+  { label: 'GitHub', value: UpdateSource.Github },
+];
+
+/** 更新代理模式选项 */
+export const proxyModeItems = [
+  { label: '不使用代理', value: UpdateProxyMode.None },
+  { label: '系统代理', value: UpdateProxyMode.System },
+  { label: '自定义代理', value: UpdateProxyMode.Custom },
+];
+
+export const CURRENT_MAJOR_VERSION: number = 0 as const;
+export const CURRENT_MINOR_VERSION: number = 0 as const;
 
 export const DEFAULT_OEA_CONFIG: OeaConfig = {
   majorVersion: CURRENT_MAJOR_VERSION,
@@ -14,7 +27,7 @@ export const DEFAULT_OEA_CONFIG: OeaConfig = {
   mirrorchyanCdkEncrypted: '',
   updateProxyMode: UpdateProxyMode.System,
   updateProxyUrl: '',
-};
+} as const;
 
 export const oeaConfig = ref<OeaConfig>(DEFAULT_OEA_CONFIG);
 export const saving = ref(false);

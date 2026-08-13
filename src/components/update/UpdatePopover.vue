@@ -1,15 +1,10 @@
 <script setup lang="ts">
+import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
+import { oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
 import { renderMarkdown } from '@/utils/markdown';
+import { downloadingModalOpen, updatePopoverOpen } from '@/utils/uiState';
 import { ref } from 'vue';
 
-/**
- * 更新提醒（样板，纯静态）。
- *
- * 实际逻辑中，仅在检测到新版本时由父组件（`AppHeader`）通过 `v-if` 渲染；
- * 新版本号、更新日志与下载设置均由后端更新检查结果填充。
- */
-const updateOpen = ref(false);
-const downloadOpen = ref(false);
 const settingsOpen = ref(false);
 
 /** 当前版本与新版本（样板数据）。 */
@@ -90,30 +85,15 @@ pnpm build
 感谢使用 OEA，反馈问题请前往 [GitHub Issues](https://github.com/Logical-Byte/open-endfield-assistant/issues)。
 `);
 
-/** 下载相关设置（样板数据）。 */
-const downloadSource = ref('mirrorchyan');
-const downloadProxyMode = ref('system');
-
-const downloadSourceItems = [
-  { label: 'Mirror酱', value: 'mirrorchyan' },
-  { label: 'GitHub', value: 'github' },
-];
-
-const downloadProxyModeItems = [
-  { label: '不使用代理', value: 'none' },
-  { label: '系统代理', value: 'system' },
-  { label: '自定义代理', value: 'custom' },
-];
-
 function startDownload() {
-  updateOpen.value = false;
-  downloadOpen.value = true;
+  updatePopoverOpen.value = false;
+  downloadingModalOpen.value = true;
 }
 </script>
 
 <template>
   <UPopover
-    v-model:open="updateOpen"
+    v-model:open="updatePopoverOpen"
     :ui="{
       content:
         'flex max-h-[calc(100dvh-var(--ui-header-height)-var(--ui-title-height)-1rem)] w-md flex-col gap-3 p-4',
@@ -126,7 +106,7 @@ function startDownload() {
           color="neutral"
           icon="i-lucide-cloud-download"
           square
-          :variant="updateOpen ? 'soft' : 'ghost'"
+          :variant="updatePopoverOpen ? 'soft' : 'ghost'"
         />
         <span class="absolute top-0.5 right-0.5 size-2 rounded-full bg-primary" />
       </span>
@@ -156,21 +136,23 @@ function startDownload() {
       </div>
 
       <div class="flex w-full gap-2">
-        <UButton
-          class="flex-1 justify-center"
-          icon="i-lucide-download"
-          label="立即更新"
-          @click="startDownload"
-        />
+        <UButton block icon="i-lucide-download" label="立即更新" @click="startDownload" />
         <UPopover v-model:open="settingsOpen">
           <UButton aria-label="下载设置" icon="i-lucide-settings-2" variant="subtle" />
           <template #content>
             <div class="w-64 space-y-4 p-4">
               <UFormField label="下载源">
-                <USelect v-model="downloadSource" class="w-full" :items="downloadSourceItems" />
+                <USelect
+                  v-model="oeaConfig.updateSource"
+                  class="w-full"
+                  :items="updateSourceItems"
+                />
               </UFormField>
 
-              <UFormField v-if="downloadSource === 'mirrorchyan'" label="Mirror酱 CDK">
+              <UFormField
+                v-if="oeaConfig.updateSource === UpdateSource.Mirrorchyan"
+                label="Mirror酱 CDK"
+              >
                 <template #help>
                   <span class="text-xs leading-none text-dimmed"
                     ><ULink class="text-primary hover:text-primary/75" to="https://mirrorchyan.com/"
@@ -206,13 +188,16 @@ function startDownload() {
 
               <UFormField label="下载代理">
                 <USelect
-                  v-model="downloadProxyMode"
+                  v-model="oeaConfig.updateProxyMode"
                   class="w-full"
-                  :items="downloadProxyModeItems"
+                  :items="proxyModeItems"
                 />
               </UFormField>
 
-              <UFormField v-if="downloadProxyMode === 'custom'" label="自定义代理">
+              <UFormField
+                v-if="oeaConfig.updateProxyMode === UpdateProxyMode.Custom"
+                label="自定义代理"
+              >
                 <UInput class="w-full" placeholder="http://127.0.0.1:7890" />
               </UFormField>
             </div>
@@ -221,6 +206,4 @@ function startDownload() {
       </div>
     </template>
   </UPopover>
-
-  <UpdateModal v-model="downloadOpen" />
 </template>

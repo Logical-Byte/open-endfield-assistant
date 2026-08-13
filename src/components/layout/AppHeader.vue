@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { appVersion } from '@/utils/app/appVersion';
-import type { NavigationMenuItem } from '@nuxt/ui';
+import { NavigationMenuItem } from '@nuxt/ui';
 
 const navigationMenuItems: NavigationMenuItem[] = [
   {

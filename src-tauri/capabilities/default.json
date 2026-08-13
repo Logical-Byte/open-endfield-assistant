@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-minimize",
@@ -11,6 +13,7 @@
     "core:window:allow-start-dragging",
     "core:window:allow-is-maximized",
     "core:webview:allow-set-webview-zoom",
+    "http:default",
     "opener:default"
   ]
 }

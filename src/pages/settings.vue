@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
-import { oeaConfig, saving } from '@/utils/app/config';
+import { UpdateProxyMode } from '@/types/oeaConfig';
+import { oeaConfig, proxyModeItems, saving, updateSourceItems } from '@/utils/app/config';
 import { uiScale } from '@/utils/uiScale';
 import { computed } from 'vue';
 
@@ -34,19 +34,6 @@ const soundVolume = computed<number>({
     }
   },
 });
-
-/** 更新源选项（对应后端 `UpdateSource`）。 */
-const updateSourceItems = [
-  { label: 'Mirror酱', value: UpdateSource.Mirrorchyan },
-  { label: 'GitHub', value: UpdateSource.Github },
-];
-
-/** 更新代理模式选项（对应后端 `UpdateProxyMode`）。 */
-const proxyModeItems = [
-  { label: '不使用代理', value: UpdateProxyMode.None },
-  { label: '系统代理', value: UpdateProxyMode.System },
-  { label: '自定义代理', value: UpdateProxyMode.Custom },
-];
 </script>
 
 <template>
@@ -175,6 +162,9 @@ const proxyModeItems = [
               placeholder="http://127.0.0.1:7890"
             />
           </SettingsItem>
+          <div>
+            <UButton block icon="i-lucide-refresh-cw" label="检查更新" />
+          </div>
         </SettingsCard>
       </UPageBody>
     </UPage>
