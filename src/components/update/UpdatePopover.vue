@@ -3,9 +3,9 @@ import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import { UpdateCheckStatus } from '@/types/update';
 import { appVersion } from '@/utils/app/appVersion';
 import { mirrorchyanCdk, oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
-import { checkUpdate, updateCheckResult } from '@/utils/app/update';
+import { checkUpdate, startUpdate, updateCheckResult } from '@/utils/app/update';
 import { renderMarkdown } from '@/utils/markdown';
-import { downloadingModalOpen, updatePopoverOpen } from '@/utils/uiState';
+import { updatePopoverOpen } from '@/utils/uiState';
 import { computed, ref } from 'vue';
 
 const settingsOpen = ref(false);
@@ -56,11 +56,6 @@ const statusText = computed<string>(() => {
       return '检查更新';
   }
 });
-
-function startDownload() {
-  updatePopoverOpen.value = false;
-  downloadingModalOpen.value = true;
-}
 </script>
 
 <template>
@@ -136,7 +131,7 @@ function startDownload() {
         </div>
 
         <div class="flex w-full gap-2">
-          <UButton block icon="i-lucide-download" label="立即更新" @click="startDownload" />
+          <UButton block icon="i-lucide-download" label="立即更新" @click="startUpdate" />
           <UPopover v-model:open="settingsOpen">
             <UButton aria-label="下载设置" icon="i-lucide-settings-2" variant="subtle" />
             <template #content>

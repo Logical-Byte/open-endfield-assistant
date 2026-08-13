@@ -1,12 +1,23 @@
 <script setup lang="ts">
+import { UpdateCheckStatus } from '@/types/update';
 import { appVersion } from '@/utils/app/appVersion';
+import { startUpdate, updateCheckResult } from '@/utils/app/update';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 // 应用图标：使用 /favicon.ico（dev 由 vite 中间件提供，构建后位于 dist 根目录）。
 // 用动态绑定避免 Vite 把它当作模块导入解析。
 const faviconUrl = '/favicon.ico';
+
+/** 检测到新版本时的炫彩提示文案（未检测到更新时为 `null`）。 */
+const updateNotice = computed<string | null>(() => {
+  if (updateCheckResult.value.status !== UpdateCheckStatus.HasUpdate) {
+    return null;
+  }
+  const version = updateCheckResult.value.result.data?.version_name;
+  return version ? `检测到新版本：v${version.replace(/^v/, '')}` : null;
+});
 
 const appWindow = isTauri() ? getCurrentWindow() : null;
 const isMaximized = ref(false);
@@ -52,6 +63,13 @@ onUnmounted(() => {
         draggable="false"
         :src="faviconUrl"
       />
+      <span
+        v-if="updateNotice"
+        class="titlebar-update-notice text-xs font-bold"
+        @click="startUpdate"
+      >
+        {{ updateNotice }}
+      </span>
       <span class="pointer-events-none font-ui text-xs text-toned">
         OEA<span v-if="appVersion"> v{{ appVersion }}</span>
       </span>
@@ -86,3 +104,28 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style lang="css" scoped>
+.titlebar-update-notice {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-red-500),
+    /* var(--color-orange-500), */ var(--color-yellow-500),
+    /* var(--color-lime-500), */ var(--color-green-500),
+    /* var(--color-teal-500), */ var(--color-cyan-500),
+    /* var(--color-sky-500), */ var(--color-blue-500),
+    /* var(--color-violet-500), */ var(--color-fuchsia-500) /* var(--color-pink-500) */
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: titlebar-update-notice-flow 3s linear infinite;
+}
+
+@keyframes titlebar-update-notice-flow {
+  to {
+    background-position: -200% 0;
+  }
+}
+</style>

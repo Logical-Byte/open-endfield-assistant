@@ -4,7 +4,7 @@ import { UpdateCheckResult, UpdateCheckStatus } from '@/types/update';
 import { appVersion } from '@/utils/app/appVersion';
 import { mirrorchyanCdk, oeaConfig } from '@/utils/app/config';
 import { logError, logInfo, logWarn } from '@/utils/tauri';
-import { updatePopoverOpen } from '@/utils/uiState';
+import { downloadingModalOpen, updatePopoverOpen } from '@/utils/uiState';
 import { fetch, type ClientOptions } from '@tauri-apps/plugin-http';
 import { gt } from 'semver';
 import { ref } from 'vue';
@@ -89,11 +89,11 @@ export async function checkUpdate(): Promise<void> {
     const hasUpdate = isNewer(latestVersion, currentVersion);
 
     if (hasUpdate) {
-      logWarn(`检查更新：有新版本可用，当前 ${currentVersion}，最新 ${latestVersion}`);
+      logWarn(`检查更新：有新版本可用，当前 v${currentVersion}，最新 ${latestVersion}`);
       updateCheckResult.value = { status: UpdateCheckStatus.HasUpdate, result: payload };
       updatePopoverOpen.value = true;
     } else {
-      logInfo(`检查更新：已是最新版本 ${currentVersion}`);
+      logInfo(`检查更新：已是最新版本 v${currentVersion}`);
       updateCheckResult.value = { status: UpdateCheckStatus.NoUpdate, result: payload };
     }
   } catch (error) {
@@ -106,6 +106,12 @@ export async function checkUpdate(): Promise<void> {
     updatePopoverOpen.value = true;
     logError(`检查更新失败: ${errorInstance.message}`);
   }
+}
+
+export async function startUpdate() {
+  updatePopoverOpen.value = false;
+  downloadingModalOpen.value = true;
+  // TODO
 }
 
 /** MirrorChyan 业务错误码对应的用户可读描述（见 `docs/ErrorCode.md`）。 */
