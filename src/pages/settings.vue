@@ -1,7 +1,20 @@
 <script setup lang="ts">
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import { oeaConfig, saving } from '@/utils/app/config';
-import { computed, ref } from 'vue';
+import { uiScale } from '@/utils/uiScale';
+import { computed } from 'vue';
+
+/** UI 缩放（本地数字中转）。`USlider` 会短暂回写 `[v]` 数组，这里只允许 number 进入 `uiScale`。 */
+const uiScaleNumber = computed<number>({
+  get() {
+    return uiScale.value;
+  },
+  set(value: number) {
+    if (typeof value === 'number') {
+      uiScale.value = value;
+    }
+  },
+});
 
 /**
  * 音量（本地数字中转）。
@@ -22,17 +35,11 @@ const soundVolume = computed<number>({
   },
 });
 
-// ---------------------------------------------------------------------------
-// 以下为「更新」相关设置的样板数据。
-// 目前仅做静态界面，后续接入 `oeaConfig.updateSource` / `updateProxyMode` 等字段。
-// ---------------------------------------------------------------------------
-
 /** 更新源选项（对应后端 `UpdateSource`）。 */
 const updateSourceItems = [
   { label: 'Mirror酱', value: UpdateSource.Mirrorchyan },
   { label: 'GitHub', value: UpdateSource.Github },
 ];
-const updateSource = ref<UpdateSource>(UpdateSource.Mirrorchyan);
 
 /** 更新代理模式选项（对应后端 `UpdateProxyMode`）。 */
 const proxyModeItems = [
@@ -40,13 +47,6 @@ const proxyModeItems = [
   { label: '系统代理', value: UpdateProxyMode.System },
   { label: '自定义代理', value: UpdateProxyMode.Custom },
 ];
-const updateProxyMode = ref<UpdateProxyMode>(UpdateProxyMode.System);
-
-/** Mirror酱 CDK 密文（`null` 表示未设置）。 */
-const mirrorchyanCdk = ref<string>('');
-
-/** 自定义代理地址。 */
-const updateProxyUrl = ref<string>('');
 </script>
 
 <template>
@@ -54,6 +54,26 @@ const updateProxyUrl = ref<string>('');
     <UPage>
       <UPageBody>
         <SettingsCard icon="i-lucide-layout-panel-left" title="界面设置">
+          <SettingsItem
+            description="设置应用窗口的缩放比例，影响所有界面元素的大小"
+            icon="i-lucide-zoom-in"
+            title="缩放比例"
+          >
+            <div class="flex w-56 items-center gap-2">
+              <div class="flex-1">
+                <USlider v-model="uiScaleNumber" :max="2" :min="0.5" :step="0.05" tooltip />
+                <div class="mt-1 flex justify-between text-xs text-dimmed tabular-nums">
+                  <span>50%</span>
+                  <span>100%</span>
+                  <span>150%</span>
+                  <span>200%</span>
+                </div>
+              </div>
+              <span class="w-12 shrink-0 text-end text-sm tabular-nums"
+                >{{ Math.round(uiScaleNumber * 100) }}%</span
+              >
+            </div>
+          </SettingsItem>
           <SettingsItem
             description="点击窗口关闭按钮时隐藏到系统托盘而不是退出，可通过托盘菜单或 Alt+Delete 退出"
             icon="i-lucide-panel-bottom-close"
@@ -84,7 +104,7 @@ const updateProxyUrl = ref<string>('');
             icon="i-lucide-cloud-download"
             title="更新源"
           >
-            <USelect v-model="updateSource" class="w-56" :items="updateSourceItems" />
+            <USelect v-model="oeaConfig.updateSource" class="w-56" :items="updateSourceItems" />
           </SettingsItem>
 
           <SettingsItem icon="i-lucide-key-round" title="Mirror酱 CDK">
@@ -115,7 +135,7 @@ const updateProxyUrl = ref<string>('');
             </template>
             <div class="flex flex-col items-center gap-1">
               <UInput
-                v-model="mirrorchyanCdk"
+                v-model="oeaConfig.mirrorchyanCdkEncrypted"
                 class="w-56"
                 color="neutral"
                 placeholder="未填写时使用 GitHub 下载"
@@ -139,17 +159,17 @@ const updateProxyUrl = ref<string>('');
             icon="i-lucide-network"
             title="网络代理"
           >
-            <USelect v-model="updateProxyMode" class="w-56" :items="proxyModeItems" />
+            <USelect v-model="oeaConfig.updateProxyMode" class="w-56" :items="proxyModeItems" />
           </SettingsItem>
 
           <SettingsItem
-            v-if="updateProxyMode === 'custom'"
+            v-if="oeaConfig.updateProxyMode === UpdateProxyMode.Custom"
             description="自定义代理服务器地址，例如 http://127.0.0.1:7890"
             icon="i-lucide-link"
             title="代理地址"
           >
             <UInput
-              v-model="updateProxyUrl"
+              v-model="oeaConfig.updateProxyUrl"
               class="w-56"
               color="neutral"
               placeholder="http://127.0.0.1:7890"

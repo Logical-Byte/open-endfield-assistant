@@ -42,89 +42,109 @@
     'JetBrains Mono', 'Google Sans Code', 'Cascadia Mono', 'Consolas', var(--chinese-font),
     monospace;
   --font-ui: system-ui; /* 供应用标题栏使用 */
-
-  /* --color-green-50: oklch(90.98% 0.04338 166.72);
-  --color-green-100: oklch(88.46% 0.05417 166.29);
-  --color-green-200: oklch(83.957% 0.07763 165.13);
-  --color-green-300: oklch(79.343% 0.09927 163.52);
-  --color-green-400: oklch(74.927% 0.11835 162.26);
-  --color-green-500: oklch(70.253% 0.13197 160.37);
-  --color-green-600: oklch(58.426% 0.10793 160.73);
-  --color-green-700: oklch(45.657% 0.08188 161.06);
-  --color-green-800: oklch(32.298% 0.05338 161.83);
-  --color-green-900: oklch(17.276% 0.02184 161.78); */
-}
-
-.dark {
-  /* --ui-primary: var(--ui-color-primary-500); */
 }
 
 @layer components {
   .markdown-body {
-    @apply text-sm leading-relaxed;
-  }
-
-  .markdown-body :where(h1, h2, h3, h4, h5, h6) {
-    @apply mt-3 mb-1.5 font-semibold;
-  }
-
-  .markdown-body h1 {
-    @apply text-lg;
-  }
-
-  .markdown-body h2 {
-    @apply text-base;
-  }
-
-  .markdown-body h3 {
     @apply text-sm;
-  }
 
-  .markdown-body p {
-    @apply my-1.5;
-  }
+    :first-child {
+      @apply mt-0;
+    }
 
-  .markdown-body :where(ul, ol) {
-    @apply my-1.5 ps-4;
-  }
+    :last-child {
+      @apply mb-0;
+    }
 
-  .markdown-body ul {
-    @apply list-disc;
-  }
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      @apply mt-[1em] mb-[0.5em] font-bold;
+    }
 
-  .markdown-body ol {
-    @apply list-decimal;
-  }
+    h1 {
+      @apply text-xl;
+    }
 
-  .markdown-body li {
-    @apply my-0.5;
-  }
+    h2 {
+      @apply text-lg;
+    }
 
-  .markdown-body a {
-    @apply text-primary hover:underline;
-  }
+    h3 {
+      @apply text-base;
+    }
 
-  .markdown-body code {
-    @apply rounded-md bg-muted px-1 py-0.5 font-mono text-xs;
-  }
+    p {
+      @apply my-1.5;
+    }
 
-  .markdown-body pre {
-    @apply my-2 overflow-x-auto rounded-md bg-muted p-2.5;
-  }
+    ul,
+    ol {
+      @apply my-1.5 ps-4;
+    }
 
-  .markdown-body pre code {
-    @apply rounded-none bg-transparent p-0;
-  }
+    ul {
+      @apply list-disc;
+    }
 
-  .markdown-body blockquote {
-    @apply my-2 border-s-2 border-(--ui-border) ps-2 text-toned;
-  }
+    ol {
+      @apply list-decimal;
+    }
 
-  .markdown-body hr {
-    @apply my-3;
-  }
+    li {
+      @apply my-1.5;
+    }
 
-  .markdown-body strong {
-    @apply font-semibold;
+    a {
+      @apply text-primary hover:text-primary/75;
+    }
+
+    code {
+      @apply rounded-sm bg-elevated px-1 py-0 font-mono;
+    }
+
+    pre {
+      @apply my-1.5 overflow-x-auto rounded-md border border-default bg-elevated px-3 py-2;
+
+      code {
+        @apply rounded-none bg-transparent p-0;
+      }
+    }
+
+    blockquote {
+      @apply my-3 border-s-2 border-default ps-2 text-muted;
+    }
+
+    hr {
+      @apply my-3;
+    }
+
+    strong {
+      @apply font-bold;
+    }
+
+    table {
+      @apply my-3 w-full border-collapse border-y border-inverted;
+
+      thead {
+        tr {
+          @apply border-b border-inverted bg-elevated;
+        }
+      }
+
+      tbody {
+        tr:nth-child(even) {
+          @apply bg-elevated;
+        }
+      }
+
+      th,
+      td {
+        @apply px-2 py-1;
+      }
+    }
   }
 }

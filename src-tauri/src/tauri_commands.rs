@@ -67,6 +67,30 @@ pub fn restart_as_admin(app_handle: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 读取 WebView2 当前缩放因子（`ZoomFactor`），用于前端初始化缩放滑块。
+///
+/// 缩放值的唯一持久化由 WebView2 自身负责（写入用户数据目录），
+/// 前端只把它当作内存镜像，不再额外持久化。
+#[tauri::command]
+pub fn get_webview_zoom(window: tauri::WebviewWindow) -> Result<f64, String> {
+    use std::sync::mpsc;
+
+    let (tx, rx) = mpsc::channel();
+    window
+        .with_webview(move |platform_webview| {
+            let controller = platform_webview.controller();
+            let mut factor = 0.0f64;
+            let zoom = unsafe { controller.ZoomFactor(&mut factor) }
+                .ok()
+                .map(|_| factor);
+            let _ = tx.send(zoom);
+        })
+        .map_err(|e| e.to_string())?;
+    rx.recv()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "读取 WebView2 缩放因子失败".to_string())
+}
+
 /// 在系统文件管理器中打开日志目录（不存在时先创建）。
 ///
 /// 由于根目录为双模式动态路径（dev=项目根 / release=exe 目录），静态 scope 无法精确

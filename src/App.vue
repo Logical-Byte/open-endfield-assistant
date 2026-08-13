@@ -7,6 +7,8 @@ import { initOeaConfig } from '@/utils/app/config';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
+import { initUiScale } from '@/utils/uiScale';
+import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';
 import { computed } from 'vue';
@@ -21,13 +23,16 @@ useHead({
   meta: [{ name: 'theme-color', content: themeColor }],
 });
 
-initAppStatus();
-initAppVersion();
-initLogState();
-initOeaConfig();
-initArchiveAcquisitionContract();
-initPrtsData();
-initScanResults();
+if (isTauri()) {
+  initAppStatus();
+  initAppVersion();
+  initArchiveAcquisitionContract();
+  initLogState();
+  initOeaConfig();
+  initPrtsData();
+  initScanResults();
+  initUiScale();
+}
 </script>
 
 <template>

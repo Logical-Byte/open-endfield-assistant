@@ -65,6 +65,11 @@ export async function screenshot(
   return await invoke<string>('screenshot', { width, height, format });
 }
 
+/** 读取 WebView2 当前缩放因子（用于初始化缩放滑块）。 */
+export async function getWebviewZoom(): Promise<number> {
+  return await invoke<number>('get_webview_zoom');
+}
+
 /**
  * 监听应用状态变更事件（启动 / 结束均触发，payload 为最新 AppStatus）。
  * 返回取消监听函数，组件卸载时应调用。
@@ -87,4 +92,8 @@ export async function onLog(cb: (entry: LogEntry) => void): Promise<() => void> 
  */
 export async function onScanResult(cb: (result: ScanResult) => void): Promise<() => void> {
   return await listen<ScanResult>('scan-result', (event) => cb(event.payload));
+}
+
+export async function onWebviewZoomChanged(cb: (zoom: number) => void): Promise<() => void> {
+  return await listen<number>('webview-zoom-changed', (event) => cb(event.payload));
 }

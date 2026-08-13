@@ -72,6 +72,7 @@ pub fn run() {
             tauri_commands::screenshot,
             tauri_commands::is_elevated,
             tauri_commands::restart_as_admin,
+            tauri_commands::get_webview_zoom,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
@@ -141,9 +142,11 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
             .resizable(true)
             .decorations(false) // 移除系统标题栏
             .shadow(true)
-            .data_directory(app_paths.webview_data_dir());
+            .data_directory(app_paths.webview_data_dir())
+            .zoom_hotkeys_enabled(true); // 允许 Ctrl+滚轮 / Ctrl++ / Ctrl+- 原生缩放
 
-    let _main_window = main_window_builder.build()?;
+    let main_window = main_window_builder.build()?;
+    register_zoom_changed_listener(&main_window);
 
     // 扫描结果通道：任务线程产生 → 转发线程 emit 给前端
     let (scan_tx, scan_rx) = mpsc::channel();
@@ -194,4 +197,44 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     info!("OEA 后端初始化完成");
     Ok(())
+}
+
+/// 注册 WebView2 原生缩放（`ZoomFactor`）变化监听。
+///
+/// 用户通过 `Ctrl+滚轮` / `Ctrl+加减` 缩放时，WebView2 内部会修改 `ZoomFactor` 并触发
+/// `ZoomFactorChanged` 事件。这里把新值 emit 给前端（`webview-zoom-changed`），
+/// 让设置页的缩放滑块与快捷键缩放保持同步。
+fn register_zoom_changed_listener(window: &tauri::WebviewWindow) {
+    use tauri::Emitter;
+    use webview2_com::{
+        Microsoft::Web::WebView2::Win32::ICoreWebView2Controller, ZoomFactorChangedEventHandler,
+    };
+    use windows::core::IUnknown;
+
+    let app_handle = window.app_handle().clone();
+
+    let result = window.with_webview(move |platform_webview| {
+        let controller = platform_webview.controller();
+
+        let handler = ZoomFactorChangedEventHandler::create(Box::new(
+            move |sender: Option<ICoreWebView2Controller>, _args: Option<IUnknown>| {
+                let Some(controller) = sender else {
+                    return Ok(());
+                };
+                let mut factor = 0.0f64;
+                unsafe { controller.ZoomFactor(&mut factor) }?;
+                let _ = app_handle.emit("webview-zoom-changed", factor);
+                Ok(())
+            },
+        ));
+
+        let mut token = 0i64;
+        if let Err(e) = unsafe { controller.add_ZoomFactorChanged(&handler, &mut token) } {
+            warn!("注册 ZoomFactorChanged 监听失败: {e}");
+        }
+    });
+
+    if let Err(e) = result {
+        warn!("获取 WebView2 controller 失败: {e:#}");
+    }
 }

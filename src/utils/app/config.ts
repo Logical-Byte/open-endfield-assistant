@@ -11,9 +11,9 @@ export const DEFAULT_OEA_CONFIG: OeaConfig = {
   minimizeToTray: false,
   soundVolume: 0.5,
   updateSource: UpdateSource.Mirrorchyan,
-  mirrorchyanCdkEncrypted: null,
+  mirrorchyanCdkEncrypted: '',
   updateProxyMode: UpdateProxyMode.System,
-  updateProxyUrl: null,
+  updateProxyUrl: '',
 };
 
 export const oeaConfig = ref<OeaConfig>(DEFAULT_OEA_CONFIG);

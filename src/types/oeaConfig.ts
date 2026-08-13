@@ -15,7 +15,7 @@ export interface OeaConfig {
   minimizeToTray: boolean;
   soundVolume: number;
   updateSource: UpdateSource;
-  mirrorchyanCdkEncrypted: string | null;
+  mirrorchyanCdkEncrypted: string;
   updateProxyMode: UpdateProxyMode;
-  updateProxyUrl: string | null;
+  updateProxyUrl: string;
 }

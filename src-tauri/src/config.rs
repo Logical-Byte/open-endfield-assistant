@@ -42,12 +42,12 @@ pub struct OeaConfig {
     pub sound_volume: f32,
     /// 更新源，默认 `mirrorchyan`
     pub update_source: UpdateSource,
-    /// Mirror酱 CDK 密文，默认 `None`
-    pub mirrorchyan_cdk_encrypted: Option<String>,
+    /// Mirror酱 CDK 密文
+    pub mirrorchyan_cdk_encrypted: String,
     /// 更新代理模式，默认 `system`
     pub update_proxy_mode: UpdateProxyMode,
-    /// 更新代理 URL，默认 `None`
-    pub update_proxy_url: Option<String>,
+    /// 更新代理 URL
+    pub update_proxy_url: String,
 }
 
 impl Default for OeaConfig {
@@ -58,9 +58,9 @@ impl Default for OeaConfig {
             minimize_to_tray: false,
             sound_volume: 0.5,
             update_source: UpdateSource::default(),
-            mirrorchyan_cdk_encrypted: None,
+            mirrorchyan_cdk_encrypted: "".to_string(),
             update_proxy_mode: UpdateProxyMode::default(),
-            update_proxy_url: None,
+            update_proxy_url: "".to_string(),
         }
     }
 }
@@ -109,9 +109,9 @@ mod tests {
             minimize_to_tray: true,
             sound_volume: 0.8,
             update_source: UpdateSource::Github,
-            mirrorchyan_cdk_encrypted: Some("encrypted_cdk".to_string()),
+            mirrorchyan_cdk_encrypted: "encrypted_cdk".to_string(),
             update_proxy_mode: UpdateProxyMode::default(),
-            update_proxy_url: Some("http://localhost:8080".to_string()),
+            update_proxy_url: "http://localhost:8080".to_string(),
         };
         save_oea_config(&original_config, path).unwrap();
         let loaded_config = load_oea_config(path);
@@ -144,8 +144,8 @@ mod tests {
         assert_eq!(config.minimize_to_tray, true);
         assert_eq!(config.sound_volume, 0.7);
         assert_eq!(config.update_source, UpdateSource::default());
-        assert_eq!(config.mirrorchyan_cdk_encrypted, None);
+        assert_eq!(config.mirrorchyan_cdk_encrypted, "".to_string());
         assert_eq!(config.update_proxy_mode, UpdateProxyMode::default());
-        assert_eq!(config.update_proxy_url, None);
+        assert_eq!(config.update_proxy_url, "".to_string());
     }
 }
