@@ -8,17 +8,11 @@ export const MAX_LINES = 4096;
 /** 日志行列表（后端实时追加，全局唯一缓冲） */
 export const logLines = ref<LogEntry[]>([]);
 
-let initialized = false;
-
-export function initLogState() {
-  if (!initialized) {
-    initialized = true;
-
-    onLog((logEntry) => {
-      logLines.value.push(logEntry);
-      if (logLines.value.length > MAX_LINES) {
-        logLines.value.splice(0, logLines.value.length - MAX_LINES);
-      }
-    });
-  }
+export async function initLogState() {
+  await onLog((logEntry) => {
+    logLines.value.push(logEntry);
+    if (logLines.value.length > MAX_LINES) {
+      logLines.value.splice(0, logLines.value.length - MAX_LINES);
+    }
+  });
 }

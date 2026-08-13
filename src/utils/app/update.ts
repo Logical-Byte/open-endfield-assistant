@@ -6,7 +6,6 @@ import { mirrorchyanCdk, oeaConfig } from '@/utils/app/config';
 import { logError, logInfo, logWarn } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { fetch, type ClientOptions } from '@tauri-apps/plugin-http';
-import { whenever } from '@vueuse/core';
 import { gt } from 'semver';
 import { ref } from 'vue';
 
@@ -17,32 +16,6 @@ const CHECK_URL = `https://mirrorchyan.com/api/resources/${RESOURCE_ID}/latest`;
 
 export const updateCheckStatus = ref<UpdateCheckStatus>(UpdateCheckStatus.Idle);
 export const updateCheckResult = ref<UpdateCheckResult | null>(null);
-
-let initialized = false;
-
-/**
- * 应用启动时调用一次：等当前版本号就绪后自动检查更新。
- *
- * 仅等待 `appVersion`（异步读取）即可：`oeaConfig` 有默认值、立即可用，
- * cdk 只影响返回的下载链接，不影响「是否存在新版本」的结论。
- */
-export function initUpdateCheck(): void {
-  if (initialized) {
-    return;
-  }
-  initialized = true;
-
-  whenever(
-    () => appVersion.value !== null,
-    async () => {
-      const result = await checkUpdate();
-      if (result.hasUpdate) {
-        updatePopoverOpen.value = true;
-      }
-    },
-    { once: true },
-  );
-}
 
 /**
  * 执行一次检查更新（启动自动检查与设置页手动检查共用）。
@@ -99,6 +72,7 @@ export async function checkUpdate(): Promise<UpdateCheckResult> {
     if (hasUpdate) {
       logWarn(`检查更新：有新版本可用，当前 ${currentVersion}，最新 ${latestVersion}`);
       updateCheckStatus.value = UpdateCheckStatus.HasUpdate;
+      updatePopoverOpen.value = true;
     } else {
       logInfo(`检查更新：已是最新版本 ${currentVersion}`);
       updateCheckStatus.value = UpdateCheckStatus.NoUpdate;

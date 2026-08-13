@@ -67,16 +67,10 @@ let lastSaved: OeaConfig = deepClone(DEFAULT_OEA_CONFIG);
 /** 回滚进行中标志：拦截回滚赋值触发的重复保存。 */
 let restoring = false;
 
-let initialized = false;
-
 export async function initOeaConfig() {
-  if (initialized) {
-    return;
-  }
-  initialized = true;
-
   const toast = useToast();
 
+  // 加载配置，失败时使用默认配置。
   try {
     oeaConfig.value = await loadOeaConfig();
   } catch (error) {
@@ -84,6 +78,7 @@ export async function initOeaConfig() {
     logError(`加载配置失败，使用默认配置: ${errorMessage}`);
     oeaConfig.value = deepClone(DEFAULT_OEA_CONFIG);
   }
+  // 保存快照，回滚时使用。
   lastSaved = deepClone(oeaConfig.value);
 
   // 解密密文填充内存明文（必须在注册明文 watch 之前，避免初始化即触发一次加密写回）。

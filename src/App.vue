@@ -7,7 +7,7 @@ import { initOeaConfig } from '@/utils/app/config';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
-import { initUpdateCheck } from '@/utils/app/update';
+import { checkUpdate } from '@/utils/app/update';
 import { initUiScale } from '@/utils/uiScale';
 import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
@@ -24,17 +24,21 @@ useHead({
   meta: [{ name: 'theme-color', content: themeColor }],
 });
 
-if (isTauri()) {
-  initAppStatus();
-  initAppVersion();
-  initArchiveAcquisitionContract();
-  initLogState();
-  initOeaConfig();
-  initPrtsData();
-  initScanResults();
-  initUiScale();
-  initUpdateCheck();
+async function initApp(): Promise<void> {
+  if (isTauri()) {
+    await initAppStatus();
+    await initAppVersion();
+    await initPrtsData();
+    await initArchiveAcquisitionContract();
+    await initLogState();
+    await initOeaConfig();
+    await initScanResults();
+    await initUiScale();
+    await checkUpdate();
+  }
 }
+
+initApp();
 </script>
 
 <template>
