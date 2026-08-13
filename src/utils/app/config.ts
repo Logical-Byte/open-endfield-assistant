@@ -1,5 +1,5 @@
 import { OeaConfig, UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
-import { loadOeaConfig, saveOeaConfig } from '@/utils/tauri';
+import { cdkDecrypt, cdkEncrypt, loadOeaConfig, logError, saveOeaConfig } from '@/utils/tauri';
 import { ref, watch } from 'vue';
 
 /** 更新源选项 */
@@ -30,6 +30,8 @@ export const DEFAULT_OEA_CONFIG: OeaConfig = {
 } as const;
 
 export const oeaConfig = ref<OeaConfig>(DEFAULT_OEA_CONFIG);
+/** Mirror酱 CDK 明文（仅内存共享，不落盘；磁盘只存 `oeaConfig.mirrorchyanCdkEncrypted` 密文）。 */
+export const mirrorchyanCdk = ref('');
 export const saving = ref(false);
 
 /**
@@ -40,6 +42,24 @@ export const saving = ref(false);
  */
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
+}
+
+/** 明文变化后加密并写入配置密文（由配置深监听统一落盘）。 */
+async function saveMirrorchyanCdk(plain: string): Promise<void> {
+  if (!plain) {
+    oeaConfig.value.mirrorchyanCdkEncrypted = '';
+    return;
+  }
+  try {
+    oeaConfig.value.mirrorchyanCdkEncrypted = await cdkEncrypt(plain);
+  } catch (error) {
+    useToast().add({
+      title: '保存 CDK 失败',
+      description: error instanceof Error ? error.message : String(error),
+      icon: 'i-lucide-triangle-alert',
+      color: 'error',
+    });
+  }
 }
 
 /** 最近一次成功保存到磁盘的配置快照（保存失败时回滚到此值）。 */
@@ -60,10 +80,26 @@ export async function initOeaConfig() {
   try {
     oeaConfig.value = await loadOeaConfig();
   } catch (error) {
-    console.error('加载配置失败，使用默认配置', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logError(`加载配置失败，使用默认配置: ${errorMessage}`);
     oeaConfig.value = deepClone(DEFAULT_OEA_CONFIG);
   }
   lastSaved = deepClone(oeaConfig.value);
+
+  // 解密密文填充内存明文（必须在注册明文 watch 之前，避免初始化即触发一次加密写回）。
+  if (oeaConfig.value.mirrorchyanCdkEncrypted) {
+    try {
+      mirrorchyanCdk.value = await cdkDecrypt(oeaConfig.value.mirrorchyanCdkEncrypted);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logError(`解密 CDK 失败，视为未设置: ${errorMessage}`);
+    }
+  }
+
+  // 明文变化 → 加密 → 写入配置密文（配置深监听负责落盘）。
+  watch(mirrorchyanCdk, async (value: string) => {
+    await saveMirrorchyanCdk(value.trim());
+  });
 
   // 注意：deep watch 下新/旧值都是同一对象引用（深层修改不改变引用），
   // 无法用旧值回滚，因此单独维护 lastSaved 快照。
@@ -80,7 +116,8 @@ export async function initOeaConfig() {
         await saveOeaConfig(oeaConfig.value);
         lastSaved = deepClone(oeaConfig.value);
       } catch (error) {
-        console.error('保存配置失败，已回滚', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logError(`保存配置失败，已回滚: ${errorMessage}`);
         restoring = true;
         oeaConfig.value = deepClone(lastSaved);
         restoring = false;

@@ -2,7 +2,8 @@
 
 use std::{fs, sync::Arc};
 
-use tracing::{debug, error, info};
+use base64::{Engine, engine::general_purpose::STANDARD};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::{
     admin,
@@ -119,7 +120,7 @@ pub fn save_oea_config(
     oea_config: OeaConfig,
 ) -> Result<(), String> {
     let path = state.app_path().oea_config_file();
-    debug!("正在保存配置 {oea_config:?} 到 {path:?}");
+    debug!("正在保存配置 {oea_config:?} 到 {}", path.display());
     // 先保存到文件
     config::save_oea_config(&oea_config, &path).map_err(|e| {
         error!("保存配置文件失败: {e:#}");
@@ -128,8 +129,32 @@ pub fn save_oea_config(
     // 如果保存到文件成功，再更新内存配置，确保内存配置与磁盘配置一致
     let mut config_guard = state.oea_config().lock().unwrap_or_else(|e| e.into_inner());
     *config_guard = oea_config;
-    info!("已成功保存配置 {config_guard:?} 到 {path:?}");
+    info!("已成功保存配置到 {}", path.display());
     Ok(())
+}
+
+/// 用 DPAPI（当前用户作用域）加密 CDK，返回 Base64 密文。
+#[tauri::command]
+pub fn cdk_encrypt(cdk: String) -> Result<String, String> {
+    let encrypted = crate::dpapi::encrypt(cdk.trim().as_bytes()).map_err(|e| {
+        error!("加密 CDK 失败: {e}");
+        e.to_string()
+    })?;
+    Ok(STANDARD.encode(encrypted))
+}
+
+/// 用 DPAPI（当前用户作用域）解密 CDK 密文，返回明文。
+#[tauri::command]
+pub fn cdk_decrypt(encrypted: String) -> Result<String, String> {
+    let blob = STANDARD.decode(encrypted.trim()).map_err(|e| {
+        error!("CDK 密文 Base64 解码失败: {e}");
+        e.to_string()
+    })?;
+    let plain = crate::dpapi::decrypt(&blob).map_err(|e| {
+        error!("解密 CDK 失败: {e}");
+        e.to_string()
+    })?;
+    String::from_utf8(plain).map_err(|e| format!("CDK 明文不是合法 UTF-8: {e}"))
 }
 
 /// 截取游戏窗口画面：按指定尺寸缩放并编码为指定格式（png / jpeg / webp），
@@ -143,4 +168,36 @@ pub async fn screenshot(
     format: ScreenshotFormat,
 ) -> Result<String, String> {
     screenshot::capture_screenshot(width, height, format).map_err(|e| e.to_string())
+}
+
+/// 写一条 TRACE 级日志到后端日志系统（进入文件 / 控制台，并广播给所有前端窗口）。
+///
+/// 前端通过这类命令把自己的运行信息接入统一日志管道，与后端日志一起排查问题。
+#[tauri::command]
+pub fn log_trace(message: String) {
+    trace!("{}", message);
+}
+
+/// 写一条 DEBUG 级日志到后端日志系统（进入文件 / 控制台，并广播给所有前端窗口）。
+#[tauri::command]
+pub fn log_debug(message: String) {
+    debug!("{}", message);
+}
+
+/// 写一条 INFO 级日志到后端日志系统（进入文件 / 控制台，并广播给所有前端窗口）。
+#[tauri::command]
+pub fn log_info(message: String) {
+    info!("{}", message);
+}
+
+/// 写一条 WARN 级日志到后端日志系统（进入文件 / 控制台，并广播给所有前端窗口）。
+#[tauri::command]
+pub fn log_warn(message: String) {
+    warn!("{}", message);
+}
+
+/// 写一条 ERROR 级日志到后端日志系统（进入文件 / 控制台，并广播给所有前端窗口）。
+#[tauri::command]
+pub fn log_error(message: String) {
+    error!("{}", message);
 }

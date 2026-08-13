@@ -1,89 +1,29 @@
 <script setup lang="ts">
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
-import { oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
+import { appVersion } from '@/utils/app/appVersion';
+import { mirrorchyanCdk, oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
+import { updateCheckResult } from '@/utils/app/update';
 import { renderMarkdown } from '@/utils/markdown';
 import { downloadingModalOpen, updatePopoverOpen } from '@/utils/uiState';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const settingsOpen = ref(false);
 
-/** 当前版本与新版本（样板数据）。 */
-const currentVersion = ref('0.1.0');
-const newVersion = ref('0.2.0');
+/** 是否存在新版本：检查成功且有更新时，标题栏才显示提醒气泡。 */
+const hasUpdate = computed<boolean>(() => updateCheckResult.value?.hasUpdate ?? false);
 
-/** 更新日志（样板数据，Markdown 源码，用于测试超长内容滚动）。 */
-const releaseNote = ref(`# v0.2.0 更新日志
+/** 当前版本号（不含 v 前缀）。 */
+const currentVersion = computed<string>(() => appVersion.value ?? '');
 
-> 本次更新内容较多，请仔细阅读。
+/** 新版本号（服务端 version_name 带 v 前缀，此处去掉以统一显示 v 前缀）。 */
+const newVersion = computed<string>(() =>
+  (updateCheckResult.value?.latestVersion ?? '').replace(/^v/, ''),
+);
 
-## 新增功能
-
-- **档案库扫描**：扫描结果支持按获取方式筛选
-- **自动更新**：应用内一键检查并下载新版本，支持 Mirror 酱镜像源与 GitHub 官方源
-- **下载代理**：支持系统代理、自定义代理与不使用代理三种模式
-- **扫描音效**：扫描开始、完成、失败时播放提示音，音量可调
-- **主题系统**：支持主色、次色、中性色、圆角与字体自定义
-
-### 档案库扫描
-
-- 新增「按获取方式筛选」下拉框
-- 商店兑换类档案支持跳转 OEM 页面
-- 扫描结果卡片支持缩放预览
-
-### 自动更新
-
-- 检测到新版本时在标题栏显示提醒气泡
-- 更新日志支持 Markdown 渲染，内容过长可滚动查看
-
-## 优化
-
-- 大幅提升 OCR 识别速度，降低误识别率约 30%
-- 优化截图窗口定位逻辑，部分高 DPI 场景不再误判
-- 减少应用启动时的内存占用
-
-## 修复
-
-- 修复部分分辨率下截图窗口误判的问题
-- 修复深浅色主题切换后部分颜色未即时生效的问题
-- 修复扫描中断后进度条未复位的问题
-
-## 使用说明
-
-### 命令行构建
-
-\`\`\`bash
-pnpm install
-pnpm dev
-pnpm build
-\`\`\`
-
-### 打包发布
-
-使用 \`pnpm package\` 生成绿色便携版压缩包，产物位于 \`release/\` 目录。
-
-## 已知问题
-
-1. 部分 Windows 版本首次启动需等待 WebView2 安装完成
-2. 极少数分辨率下截图窗口仍可能误判，欢迎反馈
-3. Mirror 酱镜像源需要付费，GitHub 官方源免费但速度可能较慢
-
-## 更新路线图
-
-| 版本 | 主要内容 | 状态 |
-| ---- | -------- | ---- |
-| v0.1.0 | 基础扫描 | 已发布 |
-| v0.2.0 | 自动更新 | 本次 |
-| v0.3.0 | 多显示器 | 计划中 |
-
-- [x] 档案库扫描
-- [x] 自动更新
-- [ ] 多显示器支持
-- [ ] 云同步
-
----
-
-感谢使用 OEA，反馈问题请前往 [GitHub Issues](https://github.com/Logical-Byte/open-endfield-assistant/issues)。
-`);
+/** 更新日志（Markdown 源码；服务端未提供时用占位文案）。 */
+const releaseNote = computed<string>(
+  () => updateCheckResult.value?.payload.data?.release_note || '暂无更新日志',
+);
 
 function startDownload() {
   updatePopoverOpen.value = false;
@@ -93,6 +33,7 @@ function startDownload() {
 
 <template>
   <UPopover
+    v-if="hasUpdate"
     v-model:open="updatePopoverOpen"
     :ui="{
       content:
@@ -119,9 +60,9 @@ function startDownload() {
           <p class="font-semibold">发现新版本</p>
         </div>
         <div class="flex items-center gap-1.5">
-          <UBadge color="neutral" variant="soft">v{{ currentVersion }}</UBadge>
+          <UBadge color="neutral" variant="subtle">v{{ currentVersion }}</UBadge>
           <UIcon class="text-toned" name="i-lucide-arrow-right" />
-          <UBadge color="primary" variant="soft">v{{ newVersion }}</UBadge>
+          <UBadge color="primary" variant="subtle">v{{ newVersion }}</UBadge>
         </div>
       </div>
 
@@ -179,8 +120,8 @@ function startDownload() {
                   ></template
                 >
                 <UInput
+                  v-model="mirrorchyanCdk"
                   class="w-full"
-                  color="neutral"
                   placeholder="未填写时使用 GitHub 下载"
                   type="password"
                 />

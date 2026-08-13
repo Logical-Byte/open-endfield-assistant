@@ -7,6 +7,7 @@ import { initOeaConfig } from '@/utils/app/config';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
+import { initUpdateCheck } from '@/utils/app/update';
 import { initUiScale } from '@/utils/uiScale';
 import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
@@ -32,6 +33,7 @@ if (isTauri()) {
   initPrtsData();
   initScanResults();
   initUiScale();
+  initUpdateCheck();
 }
 </script>
 

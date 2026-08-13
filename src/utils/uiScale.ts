@@ -1,4 +1,4 @@
-import { getWebviewZoom, onWebviewZoomChanged } from '@/utils/tauri';
+import { getWebviewZoom, logError, onWebviewZoomChanged } from '@/utils/tauri';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { watchDebounced } from '@vueuse/core';
@@ -21,7 +21,8 @@ export async function initUiScale(): Promise<void> {
       uiScale.value = factor;
     }
   } catch (error) {
-    console.error('读取 UI 缩放失败:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logError(`读取 UI 缩放失败: ${errorMessage}`);
   }
 }
 
@@ -40,7 +41,8 @@ export async function applyUiScale(): Promise<void> {
   try {
     return await getCurrentWebview().setZoom(factor);
   } catch (error) {
-    console.error('应用 UI 缩放失败:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logError(`应用 UI 缩放失败: ${errorMessage}`);
   }
 }
 
@@ -55,7 +57,7 @@ watchDebounced(
 
 if (isTauri()) {
   // 监听 WebView2 原生缩放（`Ctrl+滚轮` / `Ctrl+加减`）变化，同步回 `uiScale`。
-  void onWebviewZoomChanged((zoom) => {
+  onWebviewZoomChanged((zoom) => {
     const factor = Number(zoom);
     if (Number.isFinite(factor)) {
       uiScale.value = factor;

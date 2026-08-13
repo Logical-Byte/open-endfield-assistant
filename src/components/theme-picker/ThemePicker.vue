@@ -151,7 +151,6 @@ const {
           <USelect
             v-model="englishFont"
             class="inline-full"
-            color="neutral"
             :content="{ bodyLock: false }"
             icon="i-lucide-type"
             :items="englishFontOptions"
@@ -179,7 +178,6 @@ const {
           <USelect
             v-model="chineseFont"
             class="inline-full"
-            color="neutral"
             :content="{ bodyLock: false }"
             icon="i-lucide-quote"
             :items="chineseFontOptions"
@@ -207,7 +205,6 @@ const {
           <USelect
             v-model="monospaceFont"
             class="font-mono inline-full"
-            color="neutral"
             :content="{ bodyLock: false }"
             icon="i-lucide-code"
             :items="monospaceFontOptions"

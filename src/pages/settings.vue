@@ -1,8 +1,19 @@
 <script setup lang="ts">
 import { UpdateProxyMode } from '@/types/oeaConfig';
-import { oeaConfig, proxyModeItems, saving, updateSourceItems } from '@/utils/app/config';
+import { UpdateCheckStatus } from '@/types/update';
+import {
+  mirrorchyanCdk,
+  oeaConfig,
+  proxyModeItems,
+  saving,
+  updateSourceItems,
+} from '@/utils/app/config';
+import { checkUpdate, updateCheckStatus } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
+import { updatePopoverOpen } from '@/utils/uiState';
 import { computed } from 'vue';
+
+const toast = useToast();
 
 /** UI 缩放（本地数字中转）。`USlider` 会短暂回写 `[v]` 数组，这里只允许 number 进入 `uiScale`。 */
 const uiScaleNumber = computed<number>({
@@ -34,6 +45,29 @@ const soundVolume = computed<number>({
     }
   },
 });
+
+/** 手动检查更新。 */
+async function manualCheckUpdate(): Promise<void> {
+  try {
+    const result = await checkUpdate();
+    if (result.hasUpdate) {
+      updatePopoverOpen.value = true;
+    } else {
+      toast.add({
+        title: '当前已是最新版本',
+        icon: 'i-lucide-check-circle',
+        color: 'success',
+      });
+    }
+  } catch (error) {
+    toast.add({
+      title: '检查更新失败',
+      description: error instanceof Error ? error.message : String(error),
+      icon: 'i-lucide-triangle-alert',
+      color: 'error',
+    });
+  }
+}
 </script>
 
 <template>
@@ -122,9 +156,8 @@ const soundVolume = computed<number>({
             </template>
             <div class="flex flex-col items-center gap-1">
               <UInput
-                v-model="oeaConfig.mirrorchyanCdkEncrypted"
+                v-model="mirrorchyanCdk"
                 class="w-56"
-                color="neutral"
                 placeholder="未填写时使用 GitHub 下载"
                 type="password"
               />
@@ -158,12 +191,17 @@ const soundVolume = computed<number>({
             <UInput
               v-model="oeaConfig.updateProxyUrl"
               class="w-56"
-              color="neutral"
               placeholder="http://127.0.0.1:7890"
             />
           </SettingsItem>
           <div>
-            <UButton block icon="i-lucide-refresh-cw" label="检查更新" />
+            <UButton
+              block
+              icon="i-lucide-refresh-cw"
+              label="检查更新"
+              :loading="updateCheckStatus === UpdateCheckStatus.Checking"
+              @click="manualCheckUpdate"
+            />
           </div>
         </SettingsCard>
       </UPageBody>

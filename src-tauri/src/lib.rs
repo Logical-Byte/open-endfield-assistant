@@ -8,6 +8,7 @@ pub mod connect;
 pub mod controller;
 pub mod crash;
 pub mod data;
+pub mod dpapi;
 pub mod hotkey;
 mod include;
 pub mod input;
@@ -70,10 +71,17 @@ pub fn run() {
             tauri_commands::open_log_dir,
             tauri_commands::load_oea_config,
             tauri_commands::save_oea_config,
+            tauri_commands::cdk_encrypt,
+            tauri_commands::cdk_decrypt,
             tauri_commands::screenshot,
             tauri_commands::is_elevated,
             tauri_commands::restart_as_admin,
             tauri_commands::get_webview_zoom,
+            tauri_commands::log_trace,
+            tauri_commands::log_debug,
+            tauri_commands::log_info,
+            tauri_commands::log_warn,
+            tauri_commands::log_error,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
