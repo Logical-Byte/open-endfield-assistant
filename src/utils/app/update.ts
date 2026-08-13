@@ -23,6 +23,11 @@ export const updateCheckResult = ref<UpdateCheckResult>({ status: UpdateCheckSta
  * 从镜像还是 GitHub 拉取，不影响「是否可更新」的判定（见设计文档 v1）。
  */
 export async function checkUpdate(): Promise<void> {
+  // 若当前正在检查更新，则忽略本次请求（避免重复请求）。
+  if (updateCheckResult.value.status === UpdateCheckStatus.Checking) {
+    return;
+  }
+
   updateCheckResult.value = { status: UpdateCheckStatus.Checking };
   let maybePayload: MirrorchyanResourcesLatestResponse | undefined = undefined;
   try {

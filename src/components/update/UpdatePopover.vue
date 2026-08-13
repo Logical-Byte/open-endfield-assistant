@@ -101,7 +101,7 @@ const statusText = computed<string>(() => {
           <UIcon class="size-5 text-error" name="i-lucide-circle-alert" />
           <p class="font-semibold">检查更新失败</p>
         </div>
-        <p class="text-sm text-toned">
+        <p class="text-sm whitespace-pre-wrap text-toned">
           {{ updateCheckResult.error.message }}
         </p>
         <UButton block icon="i-lucide-rotate-cw" label="重试" @click="checkUpdate" />
