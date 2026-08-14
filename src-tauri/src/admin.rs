@@ -17,13 +17,14 @@ use windows::core::{PCWSTR, w};
 
 /// 当前进程是否以管理员权限运行（查询进程 token 的提升状态）。
 pub fn is_elevated() -> bool {
+    let mut token = HANDLE::default();
+    let current_process = unsafe { GetCurrentProcess() };
+    if unsafe { OpenProcessToken(current_process, TOKEN_QUERY, &mut token) }.is_err() {
+        return false;
+    }
+    let mut elevation = TOKEN_ELEVATION::default();
+    let mut return_length = 0u32;
     unsafe {
-        let mut token = HANDLE::default();
-        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
-            return false;
-        }
-        let mut elevation = TOKEN_ELEVATION::default();
-        let mut return_length = 0u32;
         GetTokenInformation(
             token,
             TokenElevation,
@@ -31,9 +32,9 @@ pub fn is_elevated() -> bool {
             std::mem::size_of::<TOKEN_ELEVATION>() as u32,
             &mut return_length,
         )
-        .is_ok()
-            && elevation.TokenIsElevated != 0
     }
+    .is_ok()
+        && elevation.TokenIsElevated != 0
 }
 
 /// 以管理员权限重新启动当前应用（触发 UAC 弹窗）；调用方随后应退出当前进程。
