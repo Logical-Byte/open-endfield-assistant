@@ -13,6 +13,7 @@ import {
   UpdateDownloadStatus,
   UpdateInstallStage,
   UpdateInstallStatus,
+  UpdatePackageType,
 } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
 import { mirrorchyanCdk, oeaConfig } from '@/utils/app/config';
@@ -649,9 +650,7 @@ async function prepareDownload(): Promise<PreparedUpdate | null> {
       filename: extractFilenameFromUrl(data.url),
       source: UpdateSource.Mirrorchyan,
       updateType:
-        data.update_type === 'incremental' || data.update_type === 'full'
-          ? data.update_type
-          : undefined,
+        data.update_type === 'incremental' ? UpdatePackageType.Incremental : UpdatePackageType.Full,
       versionName,
       releaseNote: data.release_note,
     };
@@ -667,6 +666,7 @@ async function prepareDownload(): Promise<PreparedUpdate | null> {
     fileSize: github.fileSize,
     filename: github.filename,
     source: UpdateSource.Github,
+    updateType: UpdatePackageType.Full,
     versionName,
     releaseNote: data.release_note,
   };

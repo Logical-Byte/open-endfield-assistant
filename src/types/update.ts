@@ -47,6 +47,12 @@ export interface UpdateDownloadProgress {
   progress: number;
 }
 
+/** 更新包类型。 */
+export enum UpdatePackageType {
+  Incremental = 'incremental',
+  Full = 'full',
+}
+
 /** 已就绪的下载信息（URL + 校验信息，由「下载源决策」产出）。 */
 export interface PreparedUpdate {
   url: string;
@@ -56,8 +62,8 @@ export interface PreparedUpdate {
   /** 建议文件名（服务端可能通过 Content-Disposition 覆盖实际文件名） */
   filename?: string;
   source: UpdateSource;
-  /** 更新包类型（仅 MirrorChyan 返回；GitHub 全量） */
-  updateType?: 'incremental' | 'full';
+  /** 更新包类型（MirrorChyan 按响应判定；GitHub 固定全量） */
+  updateType: UpdatePackageType;
   versionName: string;
   releaseNote: string;
 }
@@ -96,7 +102,7 @@ export interface PendingUpdateInfo {
   releaseNote: string;
   downloadSavePath: string;
   fileSize?: number;
-  updateType?: 'incremental' | 'full';
+  updateType: UpdatePackageType;
   downloadSource?: UpdateSource;
   timestamp: number;
 }
