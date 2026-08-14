@@ -53,7 +53,7 @@ onUnmounted(() => {
 <template>
   <div
     v-if="isTauri()"
-    class="flex h-7.5 shrink-0 items-center justify-between border-b border-default bg-default select-none"
+    class="flex h-(--ui-title-height) shrink-0 items-center justify-between border-b border-default bg-default select-none"
     data-tauri-drag-region
   >
     <div class="flex h-full items-center gap-1.5 px-3" data-tauri-drag-region>
