@@ -21,8 +21,8 @@ import { logError, logInfo, logWarn, onAppStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { fetch, type ClientOptions } from '@tauri-apps/plugin-http';
-import { arch, version } from '@tauri-apps/plugin-os';
+import { ClientOptions, fetch } from '@tauri-apps/plugin-http';
+import { arch, platform, version } from '@tauri-apps/plugin-os';
 import { gt } from 'semver';
 import { ref } from 'vue';
 
@@ -677,7 +677,7 @@ async function prepareDownload(): Promise<PreparedUpdate | null> {
  *
  * - 按已知 tag（`v<新版本>`）直接请求「按 tag 获取 release」端点，
  *   避免列表接口只返回前 100 条导致的分页遗漏；
- * - 匹配资产：`OEA-windows-x86_64-v<版本>.zip`；
+ * - 匹配资产：优先精确匹配 `OEA-<平台>-<架构>-v<版本>.zip`，无精确匹配时取体积最大的 zip 资产；
  * - 校验信息：取 asset `digest`（须为 `sha256:<hex>` 格式，否则视为无校验信息）；
  * - 下载地址：使用 asset 的 API `url`（`/releases/assets/{id}`）而非 `browser_download_url`，
  *   后者在 private 仓库中不可用；Rust 下载端会带 `Authorization` 与
@@ -719,16 +719,13 @@ async function resolveGithubDownload(
 
   const release: GitHubRelease = await response.json();
 
-  const candidates = release.assets.filter((asset) => {
-    const name = asset.name.toLowerCase();
-    return name.includes('windows') && name.includes('x86_64') && name.endsWith('.zip');
-  });
-  const exactName = `OEA-windows-x86_64-v${target}.zip`;
-  const asset =
-    candidates.find((item) => item.name === exactName) ??
-    candidates.find((item) => item.name.toLowerCase().includes(`v${target}`)) ??
-    candidates[0] ??
-    null;
+  // 匹配资产：优先精确匹配 `OEA-<平台>-<架构>-v<版本>.zip`，无精确匹配时取体积最大的 zip 资产。
+  const exactName = `OEA-${platform()}-${arch()}-${tag}.zip`;
+  const candidates = release.assets.filter((asset) => asset.name.toLowerCase().endsWith('.zip'));
+  let asset = candidates.find((item) => item.name === exactName) ?? null;
+  if (!asset && candidates.length > 0) {
+    asset = candidates.reduce((largest, item) => (item.size > largest.size ? item : largest));
+  }
   if (!asset) {
     throw new Error('GitHub Release 中未找到 OEA-windows-x86_64 的 zip 资产');
   }
