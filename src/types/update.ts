@@ -3,11 +3,12 @@ import { UpdateSource } from '@/types/oeaConfig';
 import { Endpoints } from '@octokit/types';
 
 /**
- * GitHub Releases API 响应类型。
+ * GitHub 单个 Release 响应类型（按 tag 获取）。
  *
- * @see https://docs.github.com/en/rest/releases/releases#list-releases
+ * @see https://docs.github.com/en/rest/releases/releases#get-a-release-by-tag-name
  */
-export type GitHubReleases = Endpoints['GET /repos/{owner}/{repo}/releases']['response']['data'];
+export type GitHubRelease =
+  Endpoints['GET /repos/{owner}/{repo}/releases/tags/{tag}']['response']['data'];
 
 /** 检查更新阶段。 */
 export enum UpdateCheckStatus {

@@ -3,7 +3,7 @@ import { MirrorchyanResourcesLatestResponse } from '@/types/mirrorchyan';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import {
   ChangesJson,
-  GitHubReleases,
+  GitHubRelease,
   PendingUpdateInfo,
   PreparedUpdate,
   UpdateCheckResult,
@@ -673,11 +673,12 @@ async function prepareDownload(): Promise<PreparedUpdate | null> {
 }
 
 /**
- * 从 GitHub Releases 匹配目标版本的下载资产。
+ * 从 GitHub Releases 获取目标版本的下载资产。
  *
- * - 匹配 tag：`v<新版本>`（归一化后比较），找不到则回退最新 release（v4 §12 风险注记）；
+ * - 按已知 tag（`v<新版本>`）直接请求「按 tag 获取 release」端点，
+ *   避免列表接口只返回前 100 条导致的分页遗漏；
  * - 匹配资产：`OEA-windows-x86_64-v<版本>.zip`；
- * - 校验信息：取 asset `digest`（`sha256:<hex>`，去前缀）；
+ * - 校验信息：取 asset `digest`（须为 `sha256:<hex>` 格式，否则视为无校验信息）；
  * - 下载地址：使用 asset 的 API `url`（`/releases/assets/{id}`）而非 `browser_download_url`，
  *   后者在 private 仓库中不可用；Rust 下载端会带 `Authorization` 与
  *   `Accept: application/octet-stream` 请求并跟随 302 重定向。
@@ -690,7 +691,7 @@ async function resolveGithubDownload(
     'User-Agent': buildUpdateUserAgent(),
   };
   if (__OEA_GITHUB_TOKEN__) {
-    headers.Authorization = `token ${__OEA_GITHUB_TOKEN__}`;
+    headers.Authorization = `Bearer ${__OEA_GITHUB_TOKEN__}`;
   }
 
   const init: RequestInit & ClientOptions = {
@@ -699,26 +700,24 @@ async function resolveGithubDownload(
     ...(await buildProxyClientOptions()),
   };
 
+  const target = normalizeVersion(versionName);
+  const tag = `v${target}`;
   let response: Response;
   try {
-    response = await fetch(`${GITHUB_RELEASES_URL}?per_page=100`, init);
+    response = await fetch(`${GITHUB_RELEASES_URL}/tags/${encodeURIComponent(tag)}`, init);
   } catch (error) {
     throw new Error(
       `GitHub API 请求失败: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+  if (response.status === 404) {
+    throw new Error(`GitHub 上未找到版本 ${tag} 的 Release`);
+  }
   if (!response.ok) {
     throw new Error(`GitHub API 错误（HTTP ${response.status}），GitHub 下载暂不可用`);
   }
 
-  const releases: GitHubReleases = await response.json();
-
-  const target = normalizeVersion(versionName);
-  const release =
-    releases.find((item) => normalizeVersion(item.tag_name) === target) ?? releases[0] ?? null;
-  if (!release) {
-    throw new Error('GitHub 上未找到对应版本的 Release');
-  }
+  const release: GitHubRelease = await response.json();
 
   const candidates = release.assets.filter((asset) => {
     const name = asset.name.toLowerCase();
@@ -727,22 +726,22 @@ async function resolveGithubDownload(
   const exactName = `OEA-windows-x86_64-v${target}.zip`;
   const asset =
     candidates.find((item) => item.name === exactName) ??
-    candidates.find((item) =>
-      item.name.toLowerCase().includes(`v${normalizeVersion(versionName)}`),
-    ) ??
+    candidates.find((item) => item.name.toLowerCase().includes(`v${target}`)) ??
     candidates[0] ??
     null;
   if (!asset) {
     throw new Error('GitHub Release 中未找到 OEA-windows-x86_64 的 zip 资产');
   }
 
-  const sha256 = asset.digest?.replace(/^sha256:/i, '').trim();
+  // GitHub 资产 digest 期望为 `sha256:<sha256>` 格式，格式不符时视为没有校验信息。
+  const digestMatch = asset.digest?.match(/^sha256:([0-9a-f]{64})$/i);
+  const sha256 = digestMatch?.[1]?.toLowerCase();
   if (!sha256) {
-    logWarn(`GitHub 资产缺少 digest，跳过 sha256 校验: ${asset.name}`);
+    logWarn(`GitHub 资产缺少合法的 sha256 digest，跳过 sha256 校验: ${asset.name}`);
   }
   return {
     url: asset.url,
-    sha256: sha256 || undefined,
+    sha256,
     fileSize: asset.size,
     filename: asset.name,
   };
