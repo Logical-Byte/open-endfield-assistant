@@ -38,7 +38,7 @@ async function initApp(): Promise<void> {
   }
 }
 
-initApp();
+void initApp();
 </script>
 
 <template>
