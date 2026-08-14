@@ -65,14 +65,15 @@ export enum UpdateInstallStatus {
 }
 
 /** 安装流程阶段（驱动不可关闭弹窗的进度文案）。 */
-export type UpdateInstallStage =
-  | 'backing-up'
-  | 'extracting'
-  | 'checking'
-  | 'applying-incremental'
-  | 'applying-full'
-  | 'cleaning-up'
-  | 'done';
+export enum UpdateInstallStage {
+  BackingUp,
+  Extracting,
+  Checking,
+  ApplyingIncremental,
+  ApplyingFull,
+  CleaningUp,
+  Done,
+}
 
 /** Mirror 酱增量包 `changes.json`（字段名 snake_case，与文档一致）。 */
 export interface ChangesJson {

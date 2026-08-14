@@ -76,13 +76,13 @@ const UPDATE_COMPLETE_KEY = 'oea-update-complete';
 
 /** 安装阶段 → 用户可读文案。 */
 const INSTALL_STAGE_LABELS: Record<UpdateInstallStage, string> = {
-  'backing-up': '备份配置',
-  extracting: '解压更新包',
-  checking: '检查更新包类型',
-  'applying-incremental': '应用增量更新',
-  'applying-full': '应用全量更新',
-  'cleaning-up': '清理临时文件',
-  done: '安装完成',
+  [UpdateInstallStage.BackingUp]: '备份配置',
+  [UpdateInstallStage.Extracting]: '解压更新包',
+  [UpdateInstallStage.Checking]: '检查更新包类型',
+  [UpdateInstallStage.ApplyingIncremental]: '应用增量更新',
+  [UpdateInstallStage.ApplyingFull]: '应用全量更新',
+  [UpdateInstallStage.CleaningUp]: '清理临时文件',
+  [UpdateInstallStage.Done]: '安装完成',
 };
 
 /** 安装阶段文案（供弹窗展示）。 */
@@ -463,7 +463,7 @@ export async function initUpdateState(): Promise<void> {
   }
 
   // 4. 扫描结束后若有待安装更新且开启自动安装，自动触发（下载完成时扫描运行中也生效）。
-  onAppStatus((status) => {
+  await onAppStatus((status) => {
     if (!status.running) {
       void tryAutoInstall();
     }
@@ -526,7 +526,7 @@ export async function startInstall(): Promise<void> {
     }
 
     // 应用已成功：重启失败不回滚，仅提示手动重启。
-    installStage.value = 'done';
+    installStage.value = UpdateInstallStage.Done;
     try {
       const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
@@ -552,26 +552,26 @@ export async function startInstall(): Promise<void> {
 async function runInstallSteps(zipPath: string, prepared: PreparedUpdate): Promise<void> {
   // 1. 清空 old（保证回滚基线干净），再备份配置（失败仅 warn，Rust 已保证不报错）。
   await invoke('cleanup_old_dir');
-  installStage.value = 'backing-up';
+  installStage.value = UpdateInstallStage.BackingUp;
   await invoke('backup_config');
 
   // 2. 解压（内部会先清理残留解压目录）。
-  installStage.value = 'extracting';
+  installStage.value = UpdateInstallStage.Extracting;
   await invoke('extract_zip', { zipPath });
 
   // 3. 判定增量 / 全量（以 changes.json 是否存在于解压目录为准）。
-  installStage.value = 'checking';
+  installStage.value = UpdateInstallStage.Checking;
   const changes = await invoke<ChangesJson | null>('check_changes_json');
   if (changes) {
-    installStage.value = 'applying-incremental';
+    installStage.value = UpdateInstallStage.ApplyingIncremental;
     await invoke('apply_incremental_update', { deleted: changes.deleted });
   } else {
-    installStage.value = 'applying-full';
+    installStage.value = UpdateInstallStage.ApplyingFull;
     await invoke('apply_full_update');
   }
 
   // 4. 应用成功：清理（失败仅 warn，不再回滚）。
-  installStage.value = 'cleaning-up';
+  installStage.value = UpdateInstallStage.CleaningUp;
   await invoke('cleanup_extract_dir').catch((error) => {
     logWarn(`清理解压目录失败: ${String(error)}`);
   });
@@ -587,7 +587,7 @@ async function runInstallSteps(zipPath: string, prepared: PreparedUpdate): Promi
     releaseNote: prepared.releaseNote,
     timestamp: Date.now(),
   });
-  installStage.value = 'done';
+  installStage.value = UpdateInstallStage.Done;
   installStatus.value = UpdateInstallStatus.Completed;
 }
 
