@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { oeaVersion } from '@/main';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import { UpdateCheckStatus, UpdateDownloadStatus } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
-import { appVersion } from '@/utils/app/appVersion';
 import { mirrorchyanCdk, oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
 import {
   cancelDownload,
@@ -164,7 +164,7 @@ function formatSpeed(bytesPerSecond: number): string {
             <p class="font-semibold">发现新版本</p>
           </div>
           <div class="flex items-center gap-1.5">
-            <UBadge color="neutral" variant="subtle">v{{ appVersion ?? '未知' }}</UBadge>
+            <UBadge color="neutral" variant="subtle">v{{ oeaVersion }}</UBadge>
             <UIcon class="text-toned" name="i-lucide-arrow-right" />
             <UBadge color="primary" variant="subtle">v{{ newVersion ?? '未知' }}</UBadge>
           </div>

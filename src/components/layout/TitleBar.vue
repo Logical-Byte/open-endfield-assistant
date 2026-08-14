@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { oeaVersion } from '@/main';
 import { UpdateCheckStatus } from '@/types/update';
-import { appVersion } from '@/utils/app/appVersion';
 import { startDownload, updateCheckResult } from '@/utils/app/update';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -71,7 +71,7 @@ onUnmounted(() => {
         {{ updateNotice }}
       </span>
       <span class="pointer-events-none font-ui text-xs text-toned">
-        OEA<span v-if="appVersion"> v{{ appVersion }}</span>
+        OEA<span v-if="oeaVersion"> v{{ oeaVersion }}</span>
       </span>
     </div>
 

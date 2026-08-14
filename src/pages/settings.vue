@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { oeaVersion } from '@/main';
 import { UpdateProxyMode } from '@/types/oeaConfig';
 import { UpdateCheckStatus } from '@/types/update';
-import { appVersion } from '@/utils/app/appVersion';
 import {
   CURRENT_SCAN_TIPS_VERSION,
   mirrorchyanCdk,
@@ -67,7 +67,7 @@ async function manualCheckUpdate(): Promise<void> {
   if (updateCheckResult.value.status === UpdateCheckStatus.NoUpdate) {
     toast.add({
       title: '当前已是最新版本',
-      description: `v${appVersion.value ?? ''}`,
+      description: `v${oeaVersion}`,
       icon: 'i-lucide-check-circle',
       color: 'success',
     });

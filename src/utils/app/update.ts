@@ -1,3 +1,4 @@
+import { oeaVersion } from '@/main';
 import { MirrorchyanResourcesLatestResponse } from '@/types/mirrorchyan';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import {
@@ -14,7 +15,6 @@ import {
   UpdateInstallStatus,
 } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
-import { appVersion } from '@/utils/app/appVersion';
 import { mirrorchyanCdk, oeaConfig } from '@/utils/app/config';
 import { logError, logInfo, logWarn, onAppStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
@@ -43,11 +43,11 @@ const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITH
  * - 版本取系统真实版本的前两段（Win10/Win11 的 NT 版本均为 `10.0`，与浏览器 UA 一致）；
  * - 架构用插件返回的进程架构（x64 构建在 ARM64 机器上仍为 `x86_64`，与浏览器 UA 约定一致）。
  */
-function buildUpdateUserAgent(appVersionValue: string): string {
+function buildUpdateUserAgent(): string {
   const nt = version().split('.').slice(0, 2).join('.');
   const osArch = arch();
   const archToken = osArch === 'x86_64' ? 'Win64; x64' : osArch === 'aarch64' ? 'ARM64' : osArch;
-  return `OEA/${appVersionValue} (Windows NT ${nt}; ${archToken})`;
+  return `OEA/${oeaVersion} (Windows NT ${nt}; ${archToken})`;
 }
 
 /** 检查更新结果（弹 Popover 的依据）。 */
@@ -203,15 +203,9 @@ export async function checkUpdate(): Promise<void> {
   updateCheckResult.value = { status: UpdateCheckStatus.Checking };
   let maybePayload: MirrorchyanResourcesLatestResponse | undefined = undefined;
   try {
-    // 读取当前版本号，若无法获取则直接报错。
-    const currentVersion = appVersion.value;
-    if (currentVersion === null) {
-      throw new Error('无法获取当前版本号');
-    }
-
     // 构造请求参数（主备站共用同一套参数）。
     const url = new URL(CHECK_URL_BASES[0]);
-    url.searchParams.set('current_version', `v${currentVersion}`);
+    url.searchParams.set('current_version', `v${oeaVersion}`);
     url.searchParams.set('user_agent', 'oea_client');
     url.searchParams.set('channel', 'stable');
     url.searchParams.set('os', 'windows');
@@ -223,7 +217,7 @@ export async function checkUpdate(): Promise<void> {
     const params = url.searchParams.toString();
 
     const headers: Record<string, string> = {
-      'User-Agent': buildUpdateUserAgent(currentVersion),
+      'User-Agent': buildUpdateUserAgent(),
       Accept: 'application/json',
     };
 
@@ -269,10 +263,10 @@ export async function checkUpdate(): Promise<void> {
 
     const data = payload.data;
     const latestVersion = data.version_name;
-    const hasUpdate = isNewer(latestVersion, currentVersion);
+    const hasUpdate = isNewer(latestVersion, oeaVersion);
 
     if (hasUpdate) {
-      logWarn(`检查更新：有新版本可用，当前 v${currentVersion}，最新 ${latestVersion}`);
+      logWarn(`检查更新：有新版本可用，当前 v${oeaVersion}，最新 ${latestVersion}`);
       updateCheckResult.value = { status: UpdateCheckStatus.HasUpdate, result: payload };
       updatePopoverOpen.value = true;
       // 「自动下载更新」开启时直接开始下载（无需用户点击）。
@@ -281,7 +275,7 @@ export async function checkUpdate(): Promise<void> {
         void startDownload();
       }
     } else {
-      logInfo(`检查更新：已是最新版本 v${currentVersion}`);
+      logInfo(`检查更新：已是最新版本 v${oeaVersion}`);
       updateCheckResult.value = { status: UpdateCheckStatus.NoUpdate, result: payload };
     }
   } catch (error) {
@@ -369,7 +363,7 @@ export async function startDownload(): Promise<void> {
       proxyUrl: proxyMode === UpdateProxyMode.Custom ? updateProxyUrl : null,
       authToken: prepared.source === 'github' ? __OEA_GITHUB_TOKEN__ : null,
       accept: prepared.source === 'github' ? 'application/octet-stream' : null,
-      userAgent: buildUpdateUserAgent(appVersion.value ?? 'unknown'),
+      userAgent: buildUpdateUserAgent(),
     });
 
     // 取消可能在 Rust 收尾阶段才到达（下载实际已完成）：尊重用户意图，不进入已完成态。
@@ -584,7 +578,7 @@ async function runInstallSteps(zipPath: string, prepared: PreparedUpdate): Promi
   // 5. 保存「更新完成」信息并清除 pending，随后由 startInstall 触发重启。
   clearPendingUpdateInfo();
   saveUpdateCompleteInfo({
-    previousVersion: appVersion.value ?? '',
+    previousVersion: oeaVersion,
     newVersion: prepared.versionName,
     releaseNote: prepared.releaseNote,
     timestamp: Date.now(),
@@ -686,7 +680,7 @@ async function resolveGithubDownload(
 ): Promise<{ url: string; sha256?: string; fileSize: number; filename: string } | null> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
-    'User-Agent': buildUpdateUserAgent(appVersion.value ?? 'unknown'),
+    'User-Agent': buildUpdateUserAgent(),
   };
   if (__OEA_GITHUB_TOKEN__) {
     headers.Authorization = `token ${__OEA_GITHUB_TOKEN__}`;
