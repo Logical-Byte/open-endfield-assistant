@@ -16,7 +16,7 @@ export const proxyModeItems = [
 ];
 
 export const CURRENT_MAJOR_VERSION: number = 0 as const;
-export const CURRENT_MINOR_VERSION: number = 1 as const;
+export const CURRENT_MINOR_VERSION: number = 0 as const;
 
 /**
  * 当前档案扫描提示的版本号（与 `ScanGuide.vue` 中的提示文案同源）。
