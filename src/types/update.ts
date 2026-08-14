@@ -1,4 +1,5 @@
 import { MirrorchyanResourcesLatestResponse } from '@/types/mirrorchyan';
+import { UpdateSource } from '@/types/oeaConfig';
 import { Endpoints } from '@octokit/types';
 
 /**
@@ -46,9 +47,6 @@ export interface UpdateDownloadProgress {
   progress: number;
 }
 
-/** 更新包下载源。 */
-export type UpdateDownloadSource = 'mirrorchyan' | 'github';
-
 /** 已就绪的下载信息（URL + 校验信息，由「下载源决策」产出）。 */
 export interface PreparedUpdate {
   url: string;
@@ -57,7 +55,7 @@ export interface PreparedUpdate {
   fileSize?: number;
   /** 建议文件名（服务端可能通过 Content-Disposition 覆盖实际文件名） */
   filename?: string;
-  source: UpdateDownloadSource;
+  source: UpdateSource;
   /** 更新包类型（仅 MirrorChyan 返回；GitHub 全量） */
   updateType?: 'incremental' | 'full';
   versionName: string;
@@ -99,7 +97,7 @@ export interface PendingUpdateInfo {
   downloadSavePath: string;
   fileSize?: number;
   updateType?: 'incremental' | 'full';
-  downloadSource?: UpdateDownloadSource;
+  downloadSource?: UpdateSource;
   timestamp: number;
 }
 

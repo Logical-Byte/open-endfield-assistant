@@ -225,8 +225,7 @@ export async function checkUpdate(): Promise<void> {
     const proxyInit = await buildProxyClientOptions();
 
     // 依次尝试主站与备站。
-    let payload: MirrorchyanResourcesLatestResponse | undefined = undefined;
-    let lastError: unknown = undefined;
+    let lastError: Error | undefined = undefined;
     for (const base of CHECK_URL_BASES) {
       try {
         const response = await fetch(`${base}?${params}`, {
@@ -234,40 +233,40 @@ export async function checkUpdate(): Promise<void> {
           headers,
           ...proxyInit,
         });
-        const parsed = (await response.json()) as MirrorchyanResourcesLatestResponse;
-        payload = parsed;
+        const parsed: MirrorchyanResourcesLatestResponse = await response.json();
+        maybePayload = parsed;
         if (parsed.code === 0) {
           break;
         }
         lastError = new Error(`Mirror 酱服务返回错误: code=${parsed.code}, msg=${parsed.msg}`);
         logWarn(`${base} 返回错误 code=${parsed.code}，尝试备用站`);
       } catch (error) {
-        lastError = error;
-        logWarn(`${base} 请求失败: ${error instanceof Error ? error.message : String(error)}`);
+        lastError = error instanceof Error ? error : new Error(String(error));
+        logWarn(`${base} 请求失败: ${lastError.message}`);
       }
     }
 
-    if (!payload) {
-      const errorMessage = lastError instanceof Error ? lastError.message : String(lastError);
-      throw new Error(`检查更新请求失败，请检查网络连接或代理设置，或稍后重试。\n${errorMessage}`);
+    if (!maybePayload) {
+      throw new Error(
+        `检查更新请求失败，请检查网络连接或代理设置，或稍后重试。\n${lastError?.message}`,
+      );
     }
-    maybePayload = payload;
 
     // 检查业务错误码，若非 0 则视为失败。
-    if (payload.code !== 0) {
-      throw buildMirrorchyanError(payload.code, payload.msg);
+    if (maybePayload.code !== 0) {
+      throw buildMirrorchyanError(maybePayload.code, maybePayload.msg);
     }
-    if (!payload.data) {
+    if (!maybePayload.data) {
       throw new Error('检查更新服务响应异常，请稍后重试');
     }
 
-    const data = payload.data;
+    const data = maybePayload.data;
     const latestVersion = data.version_name;
     const hasUpdate = isNewer(latestVersion, oeaVersion);
 
     if (hasUpdate) {
       logWarn(`检查更新：有新版本可用，当前 v${oeaVersion}，最新 ${latestVersion}`);
-      updateCheckResult.value = { status: UpdateCheckStatus.HasUpdate, result: payload };
+      updateCheckResult.value = { status: UpdateCheckStatus.HasUpdate, result: maybePayload };
       updatePopoverOpen.value = true;
       // 「自动下载更新」开启时直接开始下载（无需用户点击）。
       // 安装进行中不触发自动下载，避免与续装流程互相干扰。
@@ -276,7 +275,7 @@ export async function checkUpdate(): Promise<void> {
       }
     } else {
       logInfo(`检查更新：已是最新版本 v${oeaVersion}`);
-      updateCheckResult.value = { status: UpdateCheckStatus.NoUpdate, result: payload };
+      updateCheckResult.value = { status: UpdateCheckStatus.NoUpdate, result: maybePayload };
     }
   } catch (error) {
     const errorInstance = error instanceof Error ? error : new Error(String(error));
@@ -285,6 +284,7 @@ export async function checkUpdate(): Promise<void> {
       error: errorInstance,
       result: maybePayload,
     };
+    // 若检查更新失败，弹出 Popover 提示用户手动检查（避免用户错过更新）。
     updatePopoverOpen.value = true;
     logError(`检查更新失败: ${errorInstance.message}`);
   }
@@ -293,8 +293,12 @@ export async function checkUpdate(): Promise<void> {
 /**
  * 开始下载更新（自动下载与手动「立即更新」共用）。
  *
- * 流程：准备下载信息（决定源与校验信息）→ 调 Rust `download_update` 流式下载 →
- * 监听 `download-progress` 进度事件（按 session 过滤）→ 成功后保存实际路径。
+ * 流程：准备下载信息（决定源与校验信息）→ 监听 `download-progress` 进度事件（按 session 过滤）→
+ * 调 Rust `download_update` 流式下载 → 成功后保存实际路径。
+ *
+ * 注意：本函数会一直等到下载结束（成功 / 失败 / 取消）才返回，不会在开始下载后立即返回。
+ * Rust 端 `download_update` 会流式读完整响应体（含磁盘写入与 sha256 校验）后才 resolve，
+ * 下载期间的状态由独立的 `download-progress` 事件上报。
  */
 export async function startDownload(): Promise<void> {
   if (isDownloading) {
@@ -353,7 +357,10 @@ export async function startDownload(): Promise<void> {
     });
 
     const { updateProxyMode, updateProxyUrl } = oeaConfig.value;
-    const proxyMode = prepared.source === 'github' ? updateProxyMode : UpdateProxyMode.None;
+    const proxyMode =
+      prepared.source === UpdateSource.Github ? updateProxyMode : UpdateProxyMode.None;
+    // 阻塞直到下载结束：Rust `download_update` 流式读完整响应体、写完盘并校验 sha256 后才返回，
+    // 不会在开始下载后立即返回；期间进度由上面的 `download-progress` 事件上报。
     const result = await invoke<DownloadResultPayload>('download_update', {
       url: prepared.url,
       savePath,
@@ -361,8 +368,8 @@ export async function startDownload(): Promise<void> {
       expectedSha256: prepared.sha256 ?? null,
       proxyMode,
       proxyUrl: proxyMode === UpdateProxyMode.Custom ? updateProxyUrl : null,
-      authToken: prepared.source === 'github' ? __OEA_GITHUB_TOKEN__ : null,
-      accept: prepared.source === 'github' ? 'application/octet-stream' : null,
+      authToken: prepared.source === UpdateSource.Github ? __OEA_GITHUB_TOKEN__ : null,
+      accept: prepared.source === UpdateSource.Github ? 'application/octet-stream' : null,
       userAgent: buildUpdateUserAgent(),
     });
 
@@ -443,7 +450,7 @@ export async function initUpdateState(): Promise<void> {
   if (pending) {
     preparedUpdate.value = {
       url: '',
-      source: pending.downloadSource ?? 'mirrorchyan',
+      source: pending.downloadSource ?? UpdateSource.Mirrorchyan,
       updateType: pending.updateType,
       versionName: pending.versionName,
       releaseNote: pending.releaseNote,
@@ -640,7 +647,7 @@ async function prepareDownload(): Promise<PreparedUpdate | null> {
       sha256: data.sha256,
       fileSize: data.filesize,
       filename: extractFilenameFromUrl(data.url),
-      source: 'mirrorchyan',
+      source: UpdateSource.Mirrorchyan,
       updateType:
         data.update_type === 'incremental' || data.update_type === 'full'
           ? data.update_type
@@ -659,7 +666,7 @@ async function prepareDownload(): Promise<PreparedUpdate | null> {
     sha256: github.sha256,
     fileSize: github.fileSize,
     filename: github.filename,
-    source: 'github',
+    source: UpdateSource.Github,
     versionName,
     releaseNote: data.release_note,
   };
