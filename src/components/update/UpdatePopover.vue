@@ -48,13 +48,6 @@ const maybeStatusChipColor = computed<string | null>(() => {
   }
 });
 
-/** 下载进行中或正在取消：隐藏「立即更新」与下载设置，避免取消收尾窗口内的操作竞态。 */
-const isDownloadBusy = computed<boolean>(() =>
-  [UpdateDownloadStatus.Downloading, UpdateDownloadStatus.Cancelling].includes(
-    downloadStatus.value,
-  ),
-);
-
 /** 按钮 tooltip 与 aria-label 的状态文案。 */
 const statusText = computed<string>(() => {
   switch (updateCheckResult.value.status) {
@@ -246,15 +239,10 @@ function formatSpeed(bytesPerSecond: number): string {
           <UButton color="error" label="重试" size="xs" variant="soft" @click="startDownload" />
         </div>
 
-        <div class="flex w-full gap-2">
-          <UButton
-            v-if="!isDownloadBusy"
-            block
-            icon="i-lucide-download"
-            label="立即更新"
-            @click="startDownload"
-          />
-          <UPopover v-if="!isDownloadBusy" v-model:open="settingsOpen">
+        <!-- 仅下载前（Idle）显示「立即更新」与下载设置；下载中/已下载/失败均不显示 -->
+        <div v-if="downloadStatus === UpdateDownloadStatus.Idle" class="flex w-full gap-2">
+          <UButton block icon="i-lucide-download" label="立即更新" @click="startDownload" />
+          <UPopover v-model:open="settingsOpen">
             <UButton aria-label="下载设置" icon="i-lucide-settings-2" variant="subtle" />
             <template #content>
               <div class="w-64 space-y-4 p-4">
