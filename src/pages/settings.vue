@@ -3,6 +3,7 @@ import { UpdateProxyMode } from '@/types/oeaConfig';
 import { UpdateCheckStatus } from '@/types/update';
 import { appVersion } from '@/utils/app/appVersion';
 import {
+  CURRENT_SCAN_TIPS_VERSION,
   mirrorchyanCdk,
   oeaConfig,
   proxyModeItems,
@@ -11,7 +12,7 @@ import {
 } from '@/utils/app/config';
 import { checkUpdate, updateCheckResult } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const toast = useToast();
 
@@ -46,6 +47,20 @@ const soundVolume = computed<number>({
   },
 });
 
+/**
+ * 档案扫描页是否展示操作提示（开关）。
+ * 底层映射到已确认提示版本 `scanTipsDismissedVersion`：
+ * 关闭时写为当前版本（本版本内不再提示），打开时重置为 `0`（重新展示最新版提示）。
+ */
+const scanGuideEnabled = computed<boolean>({
+  get() {
+    return oeaConfig.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION;
+  },
+  set(value: boolean) {
+    oeaConfig.value.scanTipsDismissedVersion = value ? 0 : CURRENT_SCAN_TIPS_VERSION;
+  },
+});
+
 /** 手动检查更新。 */
 async function manualCheckUpdate(): Promise<void> {
   await checkUpdate();
@@ -58,13 +73,89 @@ async function manualCheckUpdate(): Promise<void> {
     });
   }
 }
+
+/** 设置分类目录：`id` 同时用作滚动锚点。 */
+const sections = [
+  { id: 'interface', icon: 'i-lucide-layout-panel-left', title: '界面设置' },
+  { id: 'sound', icon: 'i-lucide-headphones', title: '声音设置' },
+  { id: 'update', icon: 'i-lucide-download', title: '更新设置' },
+];
+
+/** 当前高亮的设置分类 id。 */
+const activeSectionId = ref<string>('interface');
+
+/** 点击目录触发程序化滚动期间，暂停滚动监听，避免平滑滚动途中高亮抖动。 */
+let isProgrammaticScroll = false;
+
+/** 更新当前高亮分类：取顶部越过阈值、最靠下的分类。 */
+function updateActiveSection(): void {
+  if (isProgrammaticScroll) {
+    return;
+  }
+  const offset = 120;
+  let current = sections[0].id;
+  for (const section of sections) {
+    const el = document.getElementById(section.id);
+    if (el !== null && el.getBoundingClientRect().top <= offset) {
+      current = section.id;
+    }
+  }
+  activeSectionId.value = current;
+}
+
+/** 点击目录跳转到对应分类并立即高亮。 */
+function scrollToSection(id: string): void {
+  activeSectionId.value = id;
+  isProgrammaticScroll = true;
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.setTimeout(() => {
+    isProgrammaticScroll = false;
+  }, 700);
+}
+
+onMounted(() => {
+  // `UMain` 渲染为 <main>，是实际滚动容器。
+  document
+    .querySelector('main')
+    ?.addEventListener('scroll', updateActiveSection, { passive: true });
+});
+
+onBeforeUnmount(() => {
+  document.querySelector('main')?.removeEventListener('scroll', updateActiveSection);
+});
 </script>
 
 <template>
   <UContainer>
     <UPage>
+      <template #left>
+        <UPageAside
+          :ui="{
+            root: 'lg:sticky lg:top-0 lg:max-h-[calc(100vh-var(--ui-header-height)-var(--ui-title-height))] lg:overflow-y-auto',
+          }"
+        >
+          <nav class="flex flex-col gap-1">
+            <UButton
+              v-for="section in sections"
+              :key="section.id"
+              class="w-full justify-start"
+              :color="activeSectionId === section.id ? 'primary' : 'neutral'"
+              :icon="section.icon"
+              :label="section.title"
+              :variant="activeSectionId === section.id ? 'soft' : 'ghost'"
+              @click="scrollToSection(section.id)"
+            />
+          </nav>
+        </UPageAside>
+      </template>
+
       <UPageBody>
-        <SettingsCard icon="i-lucide-layout-panel-left" title="界面设置">
+        <SettingsCard
+          id="interface"
+          class="scroll-mt-8"
+          icon="i-lucide-layout-panel-left"
+          title="界面设置"
+        >
           <SettingsItem
             description="设置应用窗口的缩放比例，影响所有界面元素的大小"
             icon="i-lucide-zoom-in"
@@ -92,9 +183,16 @@ async function manualCheckUpdate(): Promise<void> {
           >
             <USwitch v-model="oeaConfig.minimizeToTray" :loading="saving" />
           </SettingsItem>
+          <SettingsItem
+            description="进入档案扫描页时显示操作指引，关闭后若无更新则不再提示，可随时重新开启"
+            icon="i-lucide-circle-help"
+            title="新手操作提示"
+          >
+            <USwitch v-model="scanGuideEnabled" :loading="saving" />
+          </SettingsItem>
         </SettingsCard>
 
-        <SettingsCard icon="i-lucide-headphones" title="声音设置">
+        <SettingsCard id="sound" class="scroll-mt-8" icon="i-lucide-headphones" title="声音设置">
           <SettingsItem
             description="扫描开始与自然完成时播放提示音，失败或被停止时播放另一提示音"
             icon="i-lucide-volume-2"
@@ -109,7 +207,7 @@ async function manualCheckUpdate(): Promise<void> {
           </SettingsItem>
         </SettingsCard>
 
-        <SettingsCard icon="i-lucide-download" title="更新设置">
+        <SettingsCard id="update" class="scroll-mt-8" icon="i-lucide-download" title="更新设置">
           <SettingsItem
             description="选择从哪个源检查并下载新版本"
             icon="i-lucide-cloud-download"

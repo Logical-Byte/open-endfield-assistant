@@ -48,6 +48,16 @@ pub struct OeaConfig {
     pub update_proxy_mode: UpdateProxyMode,
     /// 更新代理 URL
     pub update_proxy_url: String,
+    /// 档案扫描启动提示已确认的版本号，默认 `0`。
+    ///
+    /// 与前端 `ScanGuide.vue` 的常量 `CURRENT_SCAN_TIPS_VERSION` 配合：
+    /// 前端在 `scan_tips_dismissed_version < 当前提示版本` 时展示启动提示；
+    /// 用户勾选「下次更新前不再提示」并确认后，前端把本字段更新为当前提示版本并持久化。
+    ///
+    /// 更新提示文案时，想让所有用户（含已确认过的）重新看一次，只需递增前端
+    /// `CURRENT_SCAN_TIPS_VERSION`，本字段无需改动；只改文案不递增版本号则老用户不重看。
+    /// 本字段的「值」不属于 config 结构变更，不会因此再次 bump `minorVersion`。
+    pub scan_tips_dismissed_version: u32,
 }
 
 impl Default for OeaConfig {
@@ -61,6 +71,7 @@ impl Default for OeaConfig {
             mirrorchyan_cdk_encrypted: "".to_string(),
             update_proxy_mode: UpdateProxyMode::default(),
             update_proxy_url: "".to_string(),
+            scan_tips_dismissed_version: 0,
         }
     }
 }
@@ -112,6 +123,7 @@ mod tests {
             mirrorchyan_cdk_encrypted: "encrypted_cdk".to_string(),
             update_proxy_mode: UpdateProxyMode::default(),
             update_proxy_url: "http://localhost:8080".to_string(),
+            scan_tips_dismissed_version: 1,
         };
         save_oea_config(&original_config, path).unwrap();
         let loaded_config = load_oea_config(path);
@@ -147,5 +159,6 @@ mod tests {
         assert_eq!(config.mirrorchyan_cdk_encrypted, "".to_string());
         assert_eq!(config.update_proxy_mode, UpdateProxyMode::default());
         assert_eq!(config.update_proxy_url, "".to_string());
+        assert_eq!(config.scan_tips_dismissed_version, 0);
     }
 }

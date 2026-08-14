@@ -18,4 +18,5 @@ export interface OeaConfig {
   mirrorchyanCdkEncrypted: string;
   updateProxyMode: UpdateProxyMode;
   updateProxyUrl: string;
+  scanTipsDismissedVersion: number;
 }

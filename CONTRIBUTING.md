@@ -186,6 +186,37 @@ tauri build --no-bundle && jiti scripts/package.ts
 
 7. **（可选）手动发布**：若 workflow 未自动创建 Release，可在 [Releases](https://github.com/Logical-Byte/open-endfield-assistant/releases) 页面以 `v0.1.0` 手动创建 release，上传 `releases/OEA-windows-x86_64-v0.1.0.zip`，填写变更说明。
 
+## 扫描启动提示的版本机制
+
+首次进入「档案扫描」页时，应用会展示一份操作指引（分辨率 1280 × 720、关闭 HDR、打开档案库等）。为避免每次启动都打扰用户，提示的展示与否由「提示版本号」控制。
+
+### 工作原理
+
+两个版本号配合决定是否展示：
+
+- **当前提示版本**：前端常量 `CURRENT_SCAN_TIPS_VERSION`（`src/components/scan/ScanGuide.vue`），与提示文案写在同一个文件里，保证改文案时不会漏改版本。
+- **用户已确认版本**：后端配置字段 `scanTipsDismissedVersion`（`config/oea_config.json`，默认 `0`）。用户勾选「下次更新前不再提示」并点击「我知道了」时写入。
+
+**展示规则**：`scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION` 时展示提示，否则不展示。
+
+- 不勾选、直接点「我知道了」：仅本次启动隐藏（内存标志），不写配置，下次启动仍展示。
+- 勾选后点「我知道了」：把 `scanTipsDismissedVersion` 写入当前 `CURRENT_SCAN_TIPS_VERSION`，由 `src/utils/app/config.ts` 的配置深监听自动落盘，本版本内不再展示。
+
+### 更新提示文案，让所有用户重新看一次
+
+1. 修改 `ScanGuide.vue` 中的提示文案；
+2. 把 `CURRENT_SCAN_TIPS_VERSION` 递增 1（例如 `1 → 2`）。
+
+老用户已确认的版本号（`1`）将小于新版本（`2`），下次启动会重新看到新提示；从未确认过的新用户（`0 < 2`）同样会看到。
+
+此操作只改前端常量与文案，不涉及 config 结构，**无需** bump `minorVersion`。
+
+### 更新提示文案，但无需老用户重看
+
+只修改 `ScanGuide.vue` 中的提示文案，**保持 `CURRENT_SCAN_TIPS_VERSION` 不变**。已确认过的用户（版本号 ≥ 当前版本）不会重新看到；只有从未确认过的新用户会看到最新文案。
+
+> 说明：`scanTipsDismissedVersion` 字段本身属于配置兼容变更，首次新增该字段时 bump 了一次 `minorVersion`（当前为 `1`）。后续只改动版本号的「值」不构成结构变更，不要再 bump。
+
 ## 自动化逻辑参考
 
 以下内容记录自动化扫描所依赖的游戏界面特征与导航逻辑。修改 `src-tauri/src/scene/`、`src-tauri/src/tasks/archive_scan/` 相关代码时，请保持本文档同步更新。
