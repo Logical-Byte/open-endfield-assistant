@@ -55,3 +55,49 @@ export interface PreparedUpdate {
   versionName: string;
   releaseNote: string;
 }
+
+/** 安装阶段。 */
+export enum UpdateInstallStatus {
+  Idle,
+  Installing,
+  Completed,
+  Failed,
+}
+
+/** 安装流程阶段（驱动不可关闭弹窗的进度文案）。 */
+export type UpdateInstallStage =
+  | 'backing-up'
+  | 'extracting'
+  | 'checking'
+  | 'applying-incremental'
+  | 'applying-full'
+  | 'cleaning-up'
+  | 'done';
+
+/** Mirror 酱增量包 `changes.json`（字段名 snake_case，与文档一致）。 */
+export interface ChangesJson {
+  added: string[];
+  modified: string[];
+  deleted: string[];
+  added_dir: string[];
+  deleted_dir: string[];
+}
+
+/** 待安装更新信息（localStorage `oea-pending-update`，下载完成 → 安装完成之间持久化）。 */
+export interface PendingUpdateInfo {
+  versionName: string;
+  releaseNote: string;
+  downloadSavePath: string;
+  fileSize?: number;
+  updateType?: 'incremental' | 'full';
+  downloadSource?: UpdateDownloadSource;
+  timestamp: number;
+}
+
+/** 更新完成信息（localStorage `oea-update-complete`，重启后展示）。 */
+export interface UpdateCompleteInfo {
+  previousVersion: string;
+  newVersion: string;
+  releaseNote: string;
+  timestamp: number;
+}

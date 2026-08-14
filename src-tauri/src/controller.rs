@@ -262,6 +262,10 @@ impl Controller {
 
     /// 退出程序：请求停止后退出 Tauri 应用。
     pub fn quit(&self) {
+        if crate::update::is_installing() {
+            warn!("正在安装更新，拒绝退出");
+            return;
+        }
         self.stop.store(true, Ordering::Relaxed);
         info!("收到退出请求，正在退出程序...");
         self.handle.exit(0);

@@ -7,7 +7,7 @@ import { initOeaConfig } from '@/utils/app/config';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
-import { checkUpdate } from '@/utils/app/update';
+import { initUpdateState } from '@/utils/app/update';
 import { initUiScale } from '@/utils/uiScale';
 import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
@@ -34,7 +34,7 @@ async function initApp(): Promise<void> {
     await initOeaConfig();
     await initScanResults();
     await initUiScale();
-    await checkUpdate();
+    await initUpdateState();
   }
 }
 
@@ -51,6 +51,8 @@ void initApp();
         <UMain class="flex min-h-0 flex-1 overflow-y-auto">
           <RouterView />
         </UMain>
+
+        <InstallUpdateModal />
 
         <!-- <AppFooter /> -->
 

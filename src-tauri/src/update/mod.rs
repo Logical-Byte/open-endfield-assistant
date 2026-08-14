@@ -5,6 +5,8 @@
 //! - 本模块只做"重活"：流式下载到 `<root>/cache/downloads/`，上报进度，
 //!   支持取消与 sha256 校验，并解析 Windows 系统代理供检查请求与下载共用。
 
+pub mod install;
+
 use std::{
     io::Write,
     path::{Path, PathBuf},
@@ -52,6 +54,20 @@ static DOWNLOAD_CANCELLED: AtomicBool = AtomicBool::new(false);
 static CURRENT_DOWNLOAD_SESSION: AtomicU64 = AtomicU64::new(0);
 /// 已下载字节数（仅作进度采样的共享计数，允许最终一致，用 `Relaxed` 序即可）。
 static DOWNLOADED_BYTES: AtomicU64 = AtomicU64::new(0);
+/// 安装进行中标志：安装期间拒绝退出（`quit` / 窗口关闭 / 托盘退出统一检查）。
+static UPDATE_INSTALLING: AtomicBool = AtomicBool::new(false);
+
+/// 当前是否正在安装更新。
+pub fn is_installing() -> bool {
+    UPDATE_INSTALLING.load(Ordering::SeqCst)
+}
+
+/// 设置安装进行中标志（前端在安装开始/结束时调用）。
+#[tauri::command]
+pub fn set_update_installing(installing: bool) {
+    UPDATE_INSTALLING.store(installing, Ordering::SeqCst);
+    info!("设置更新安装状态: {installing}");
+}
 
 /// 临时文件守卫：下载异常退出时同步删除 `.downloading` 半成品，成功重命名后调用 `disarm`。
 struct TempFileGuard {

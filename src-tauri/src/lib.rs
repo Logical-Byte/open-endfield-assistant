@@ -88,10 +88,28 @@ pub fn run() {
             update::cancel_download,
             update::get_update_download_dir,
             update::resolve_system_proxy,
+            update::set_update_installing,
+            update::install::backup_config,
+            update::install::extract_zip,
+            update::install::check_changes_json,
+            update::install::apply_incremental_update,
+            update::install::apply_full_update,
+            update::install::restore_from_old,
+            update::install::cleanup_old_dir,
+            update::install::cleanup_extract_dir,
+            update::install::remove_downloaded_package,
+            update::install::pending_package_exists,
+            update::install::cleanup_stale_update_files,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // 安装更新期间拒绝关闭窗口（配合不可关闭的安装弹窗）
+                if update::is_installing() {
+                    warn!("正在安装更新，拒绝关闭窗口");
+                    api.prevent_close();
+                    return;
+                }
                 let app_handle = window.app_handle();
                 let controller = app_handle.state::<Arc<Controller>>();
                 if controller

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import { UpdateCheckStatus, UpdateDownloadStatus } from '@/types/update';
+import { appStatus } from '@/utils/app/appStatus';
 import { appVersion } from '@/utils/app/appVersion';
 import { mirrorchyanCdk, oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
 import {
@@ -9,6 +10,7 @@ import {
   downloadProgress,
   downloadStatus,
   startDownload,
+  startInstall,
   updateCheckResult,
 } from '@/utils/app/update';
 import { renderMarkdown } from '@/utils/markdown';
@@ -221,11 +223,19 @@ function formatSpeed(bytesPerSecond: number): string {
           正在取消…
         </div>
 
-        <div
-          v-else-if="downloadStatus === UpdateDownloadStatus.Completed"
-          class="rounded-md bg-success/10 p-3 text-sm text-success"
-        >
-          下载完成，准备安装…
+        <div v-else-if="downloadStatus === UpdateDownloadStatus.Completed" class="space-y-2">
+          <div class="rounded-md bg-success/10 p-3 text-sm text-success">下载完成</div>
+          <UButton
+            block
+            color="primary"
+            :disabled="appStatus.running"
+            icon="i-lucide-package-check"
+            label="立即安装"
+            @click="startInstall"
+          />
+          <p v-if="appStatus.running" class="text-xs text-dimmed">
+            扫描任务运行中，扫描结束后将自动安装
+          </p>
         </div>
 
         <div
