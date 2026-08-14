@@ -21,6 +21,7 @@ import { updatePopoverOpen } from '@/utils/uiState';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { fetch, type ClientOptions } from '@tauri-apps/plugin-http';
+import { arch, version } from '@tauri-apps/plugin-os';
 import { gt } from 'semver';
 import { ref } from 'vue';
 
@@ -35,6 +36,19 @@ const CHECK_URL_BASES = [
 const GITHUB_OWNER = 'Logical-Byte';
 const GITHUB_REPO = 'open-endfield-assistant';
 const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
+
+/**
+ * 根据实际系统信息生成更新请求 UA（`OEA/<版本> (Windows NT <major.minor>; Win64; x64)`）。
+ *
+ * - 版本取系统真实版本的前两段（Win10/Win11 的 NT 版本均为 `10.0`，与浏览器 UA 一致）；
+ * - 架构用插件返回的进程架构（x64 构建在 ARM64 机器上仍为 `x86_64`，与浏览器 UA 约定一致）。
+ */
+function buildUpdateUserAgent(appVersionValue: string): string {
+  const nt = version().split('.').slice(0, 2).join('.');
+  const osArch = arch();
+  const archToken = osArch === 'x86_64' ? 'Win64; x64' : osArch === 'aarch64' ? 'ARM64' : osArch;
+  return `OEA/${appVersionValue} (Windows NT ${nt}; ${archToken})`;
+}
 
 /** 检查更新结果（弹 Popover 的依据）。 */
 export const updateCheckResult = ref<UpdateCheckResult>({ status: UpdateCheckStatus.Idle });
@@ -209,7 +223,7 @@ export async function checkUpdate(): Promise<void> {
     const params = url.searchParams.toString();
 
     const headers: Record<string, string> = {
-      'User-Agent': `OEA/${currentVersion} (Windows NT 10.0; Win64; x64; amd64)`,
+      'User-Agent': buildUpdateUserAgent(currentVersion),
       Accept: 'application/json',
     };
 
@@ -355,6 +369,7 @@ export async function startDownload(): Promise<void> {
       proxyUrl: proxyMode === UpdateProxyMode.Custom ? updateProxyUrl : null,
       authToken: prepared.source === 'github' ? __OEA_GITHUB_TOKEN__ : null,
       accept: prepared.source === 'github' ? 'application/octet-stream' : null,
+      userAgent: buildUpdateUserAgent(appVersion.value ?? 'unknown'),
     });
 
     // 取消可能在 Rust 收尾阶段才到达（下载实际已完成）：尊重用户意图，不进入已完成态。
@@ -671,7 +686,7 @@ async function resolveGithubDownload(
 ): Promise<{ url: string; sha256?: string; fileSize: number; filename: string } | null> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
-    'User-Agent': `OEA/${appVersion.value ?? 'unknown'}`,
+    'User-Agent': buildUpdateUserAgent(appVersion.value ?? 'unknown'),
   };
   if (__OEA_GITHUB_TOKEN__) {
     headers.Authorization = `token ${__OEA_GITHUB_TOKEN__}`;

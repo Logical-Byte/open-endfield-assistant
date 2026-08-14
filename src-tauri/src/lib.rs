@@ -62,6 +62,7 @@ pub fn run() {
         // Always = 移除 raw input 注册，让 LL 钩子全局都能收到按键。
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             tauri_commands::start_scan,

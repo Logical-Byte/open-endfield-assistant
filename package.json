@@ -23,6 +23,7 @@
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-http": "~2.5.9",
     "@tauri-apps/plugin-opener": "~2.5.4",
+    "@tauri-apps/plugin-os": "^2.3.2",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@unhead/vue": "^2.1.16",
     "@vueuse/core": "^14.4.0",

@@ -180,14 +180,12 @@ fn normalize_proxy_server(raw: &str) -> Option<String> {
 /// - `system`：解析系统代理后使用；
 /// - `custom`：使用 `proxy_url`。
 fn build_client(
-    app_version: &str,
+    user_agent: &str,
     proxy_mode: Option<String>,
     proxy_url: Option<String>,
 ) -> Result<reqwest::Client, String> {
     let mut builder = reqwest::Client::builder()
-        .user_agent(format!(
-            "OEA/{app_version} (Windows NT 10.0; Win64; x64; amd64)"
-        ))
+        .user_agent(user_agent)
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(30 * 60))
         // GitHub asset 端点会 302 到签名 CDN 地址，需要跟随重定向；
@@ -351,8 +349,8 @@ pub async fn download_update(
     proxy_url: Option<String>,
     auth_token: Option<String>,
     accept: Option<String>,
+    user_agent: Option<String>,
 ) -> Result<DownloadResult, String> {
-    let app_version = app.package_info().version.to_string();
     let session_id = CURRENT_DOWNLOAD_SESSION.fetch_add(1, Ordering::SeqCst) + 1;
     DOWNLOAD_CANCELLED.store(false, Ordering::SeqCst);
     DOWNLOADED_BYTES.store(0, Ordering::SeqCst);
@@ -363,7 +361,10 @@ pub async fn download_update(
         std::fs::create_dir_all(parent).map_err(|e| format!("无法创建下载目录: {e}"))?;
     }
 
-    let client = build_client(&app_version, proxy_mode, proxy_url)?;
+    // UA 由前端基于 `@tauri-apps/plugin-os` 生成并传入（唯一来源）；
+    // 兜底仅覆盖未传入 UA 的旧调用方。
+    let user_agent = user_agent.unwrap_or_else(|| format!("OEA/{}", app.package_info().version));
+    let client = build_client(&user_agent, proxy_mode, proxy_url)?;
 
     let mut request = client.get(&url);
     if let Some(token) = auth_token.filter(|token| !token.trim().is_empty()) {
