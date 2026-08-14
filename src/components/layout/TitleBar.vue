@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { UpdateCheckStatus } from '@/types/update';
 import { appVersion } from '@/utils/app/appVersion';
-import { startUpdate, updateCheckResult } from '@/utils/app/update';
+import { startDownload, updateCheckResult } from '@/utils/app/update';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -66,7 +66,7 @@ onUnmounted(() => {
       <span
         v-if="updateNotice"
         class="titlebar-update-notice text-xs font-bold"
-        @click="startUpdate"
+        @click="startDownload"
       >
         {{ updateNotice }}
       </span>

@@ -216,6 +216,22 @@ onBeforeUnmount(() => {
             <USelect v-model="oeaConfig.updateSource" class="w-56" :items="updateSourceItems" />
           </SettingsItem>
 
+          <SettingsItem
+            description="检查到新版本后自动开始下载，无需手动点击"
+            icon="i-lucide-cloud-download"
+            title="自动下载更新"
+          >
+            <USwitch v-model="oeaConfig.autoDownloadUpdates" :loading="saving" />
+          </SettingsItem>
+
+          <SettingsItem
+            description="下载完成后自动安装；扫描任务运行中不会安装，将在扫描结束后自动安装"
+            icon="i-lucide-rocket"
+            title="自动安装更新"
+          >
+            <USwitch v-model="oeaConfig.autoInstallUpdates" :loading="saving" />
+          </SettingsItem>
+
           <SettingsItem icon="i-lucide-key-round" title="Mirror酱 CDK">
             <template #description>
               <span class="text-sm text-dimmed"

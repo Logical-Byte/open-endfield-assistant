@@ -55,8 +55,6 @@ void initApp();
         <!-- <AppFooter /> -->
 
         <AppImagePreview />
-        <DownloadingModal />
-        <InstallingModal />
       </div>
     </UApp>
   </Suspense>

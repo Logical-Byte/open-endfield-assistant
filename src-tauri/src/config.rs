@@ -7,7 +7,7 @@ use tracing::warn;
 /// 当前配置文件主要版本号
 pub const CURRENT_MAJOR_VERSION: u32 = 0;
 /// 当前配置文件次要版本号
-pub const CURRENT_MINOR_VERSION: u32 = 0;
+pub const CURRENT_MINOR_VERSION: u32 = 1;
 
 /// 更新源。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -48,6 +48,10 @@ pub struct OeaConfig {
     pub update_proxy_mode: UpdateProxyMode,
     /// 更新代理 URL
     pub update_proxy_url: String,
+    /// 是否自动下载更新（默认 `true`）
+    pub auto_download_updates: bool,
+    /// 是否自动安装更新（默认 `true`；扫描任务运行中不会安装，等待扫描结束后自动安装）
+    pub auto_install_updates: bool,
     /// 档案扫描启动提示已确认的版本号，默认 `0`。
     ///
     /// 与前端 `ScanGuide.vue` 的常量 `CURRENT_SCAN_TIPS_VERSION` 配合：
@@ -71,6 +75,8 @@ impl Default for OeaConfig {
             mirrorchyan_cdk_encrypted: "".to_string(),
             update_proxy_mode: UpdateProxyMode::default(),
             update_proxy_url: "".to_string(),
+            auto_download_updates: true,
+            auto_install_updates: true,
             scan_tips_dismissed_version: 0,
         }
     }
@@ -123,6 +129,8 @@ mod tests {
             mirrorchyan_cdk_encrypted: "encrypted_cdk".to_string(),
             update_proxy_mode: UpdateProxyMode::default(),
             update_proxy_url: "http://localhost:8080".to_string(),
+            auto_download_updates: false,
+            auto_install_updates: false,
             scan_tips_dismissed_version: 1,
         };
         save_oea_config(&original_config, path).unwrap();
@@ -153,12 +161,14 @@ mod tests {
         let config: OeaConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.major_version, 1);
         assert_eq!(config.minor_version, 2);
-        assert_eq!(config.minimize_to_tray, true);
+        assert!(config.minimize_to_tray);
         assert_eq!(config.sound_volume, 0.7);
         assert_eq!(config.update_source, UpdateSource::default());
         assert_eq!(config.mirrorchyan_cdk_encrypted, "".to_string());
         assert_eq!(config.update_proxy_mode, UpdateProxyMode::default());
         assert_eq!(config.update_proxy_url, "".to_string());
+        assert!(config.auto_download_updates);
+        assert!(config.auto_install_updates);
         assert_eq!(config.scan_tips_dismissed_version, 0);
     }
 }

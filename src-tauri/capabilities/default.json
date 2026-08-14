@@ -15,9 +15,14 @@
     "core:window:allow-toggle-maximize",
     {
       "identifier": "http:allow-fetch",
-      "allow": [{ "url": "https://mirrorchyan.com/*" }]
+      "allow": [
+        { "url": "https://mirrorchyan.com/*" },
+        { "url": "https://mirrorchyan.net/*" },
+        { "url": "https://api.github.com/*" }
+      ]
     },
     "http:default",
-    "opener:default"
+    "opener:default",
+    "process:allow-restart"
   ]
 }

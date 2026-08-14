@@ -25,6 +25,7 @@ pub mod tauri_commands;
 pub mod template_matching;
 pub mod tray;
 pub mod types;
+pub mod update;
 pub mod utils;
 pub mod webview2;
 pub mod window;
@@ -61,6 +62,7 @@ pub fn run() {
         // Always = 移除 raw input 注册，让 LL 钩子全局都能收到按键。
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             tauri_commands::start_scan,
             tauri_commands::stop_scan,
@@ -82,6 +84,10 @@ pub fn run() {
             tauri_commands::log_info,
             tauri_commands::log_warn,
             tauri_commands::log_error,
+            update::download_update,
+            update::cancel_download,
+            update::get_update_download_dir,
+            update::resolve_system_proxy,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用

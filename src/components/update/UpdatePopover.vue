@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
-import { UpdateCheckStatus } from '@/types/update';
+import { UpdateCheckStatus, UpdateDownloadStatus } from '@/types/update';
 import { appVersion } from '@/utils/app/appVersion';
 import { mirrorchyanCdk, oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
-import { checkUpdate, startUpdate, updateCheckResult } from '@/utils/app/update';
+import {
+  cancelDownload,
+  checkUpdate,
+  downloadProgress,
+  downloadStatus,
+  startDownload,
+  updateCheckResult,
+} from '@/utils/app/update';
 import { renderMarkdown } from '@/utils/markdown';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { computed, ref } from 'vue';
@@ -39,6 +46,13 @@ const maybeStatusChipColor = computed<string | null>(() => {
   }
 });
 
+/** 下载进行中或正在取消：隐藏「立即更新」与下载设置，避免取消收尾窗口内的操作竞态。 */
+const isDownloadBusy = computed<boolean>(() =>
+  [UpdateDownloadStatus.Downloading, UpdateDownloadStatus.Cancelling].includes(
+    downloadStatus.value,
+  ),
+);
+
 /** 按钮 tooltip 与 aria-label 的状态文案。 */
 const statusText = computed<string>(() => {
   switch (updateCheckResult.value.status) {
@@ -56,6 +70,47 @@ const statusText = computed<string>(() => {
       return '检查更新';
   }
 });
+
+/** 下载进度文案：已下载 / 总大小（总大小未知时只显示已下载）。 */
+const progressText = computed<string>(() => {
+  const { downloadedSize, totalSize } = downloadProgress.value;
+  if (totalSize > 0) {
+    return `${formatBytes(downloadedSize)} / ${formatBytes(totalSize)}`;
+  }
+  return formatBytes(downloadedSize);
+});
+
+/** 剩余时间估算（速度 > 0 且总大小已知时）。 */
+const etaText = computed<string | null>(() => {
+  const { downloadedSize, totalSize, speed } = downloadProgress.value;
+  if (totalSize <= 0 || speed <= 0 || downloadedSize >= totalSize) {
+    return null;
+  }
+  const seconds = Math.ceil((totalSize - downloadedSize) / speed);
+  if (seconds < 60) {
+    return ` · 约 ${seconds} 秒`;
+  }
+  if (seconds < 3600) {
+    return ` · 约 ${Math.ceil(seconds / 60)} 分钟`;
+  }
+  return ` · 约 ${(seconds / 3600).toFixed(1)} 小时`;
+});
+
+/** 字节数格式化为人类可读单位。 */
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) {
+    return '0 B';
+  }
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** index;
+  return `${value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+/** 速度格式化为人类可读单位。 */
+function formatSpeed(bytesPerSecond: number): string {
+  return `${formatBytes(bytesPerSecond)}/s`;
+}
 </script>
 
 <template>
@@ -130,9 +185,66 @@ const statusText = computed<string>(() => {
           <!-- eslint-enable vue/no-v-html -->
         </div>
 
+        <!-- 下载状态区 -->
+        <div
+          v-if="downloadStatus === UpdateDownloadStatus.Downloading"
+          class="space-y-2 rounded-md bg-muted p-3"
+        >
+          <div class="flex items-center justify-between text-xs text-toned">
+            <span class="flex items-center gap-1.5">
+              <UIcon class="size-3.5 animate-spin" name="i-lucide-loader-circle" />
+              正在下载
+            </span>
+            <span class="tabular-nums">{{ progressText }}</span>
+          </div>
+          <UProgress size="sm" :value="downloadProgress.progress" />
+          <div class="flex items-center justify-between text-xs text-dimmed">
+            <span class="tabular-nums"
+              >{{ downloadProgress.progress.toFixed(1) }}% · {{ formatSpeed(downloadProgress.speed)
+              }}{{ etaText }}</span
+            >
+            <UButton
+              color="neutral"
+              label="取消"
+              size="xs"
+              variant="ghost"
+              @click="cancelDownload"
+            />
+          </div>
+        </div>
+
+        <div
+          v-else-if="downloadStatus === UpdateDownloadStatus.Cancelling"
+          class="flex items-center gap-2 rounded-md bg-muted p-3 text-sm text-toned"
+        >
+          <UIcon class="size-4 animate-spin text-primary" name="i-lucide-loader-circle" />
+          正在取消…
+        </div>
+
+        <div
+          v-else-if="downloadStatus === UpdateDownloadStatus.Completed"
+          class="rounded-md bg-success/10 p-3 text-sm text-success"
+        >
+          下载完成，准备安装…
+        </div>
+
+        <div
+          v-else-if="downloadStatus === UpdateDownloadStatus.Failed"
+          class="flex items-center justify-between gap-2 rounded-md bg-error/10 p-3"
+        >
+          <p class="text-sm text-error">下载失败</p>
+          <UButton color="error" label="重试" size="xs" variant="soft" @click="startDownload" />
+        </div>
+
         <div class="flex w-full gap-2">
-          <UButton block icon="i-lucide-download" label="立即更新" @click="startUpdate" />
-          <UPopover v-model:open="settingsOpen">
+          <UButton
+            v-if="!isDownloadBusy"
+            block
+            icon="i-lucide-download"
+            label="立即更新"
+            @click="startDownload"
+          />
+          <UPopover v-if="!isDownloadBusy" v-model:open="settingsOpen">
             <UButton aria-label="下载设置" icon="i-lucide-settings-2" variant="subtle" />
             <template #content>
               <div class="w-64 space-y-4 p-4">

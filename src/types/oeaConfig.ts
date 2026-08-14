@@ -18,5 +18,9 @@ export interface OeaConfig {
   mirrorchyanCdkEncrypted: string;
   updateProxyMode: UpdateProxyMode;
   updateProxyUrl: string;
+  /** 检查到新版本后是否自动开始下载。 */
+  autoDownloadUpdates: boolean;
+  /** 下载完成后是否自动安装（扫描任务运行中不会安装，等待扫描结束）。 */
+  autoInstallUpdates: boolean;
   scanTipsDismissedVersion: number;
 }
