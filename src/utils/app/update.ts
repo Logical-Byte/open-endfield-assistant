@@ -2,6 +2,7 @@ import { MirrorchyanResourcesLatestResponse } from '@/types/mirrorchyan';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import {
   ChangesJson,
+  GitHubReleases,
   PendingUpdateInfo,
   PreparedUpdate,
   UpdateCheckResult,
@@ -171,20 +172,6 @@ interface DownloadResultPayload {
   sessionId: number;
   actualSavePath: string;
   detectedFilename: string | null;
-}
-
-/** GitHub Release API 的最小响应结构（本地 schema 副本确认含 `digest`）。 */
-interface GitHubRelease {
-  tag_name: string;
-  assets: GitHubReleaseAsset[];
-}
-
-interface GitHubReleaseAsset {
-  name: string;
-  size: number;
-  /** GitHub API 资产端点；private 仓库下载必须用它（配 `Accept: application/octet-stream`）。 */
-  url: string;
-  digest?: string;
 }
 
 /**
@@ -708,7 +695,7 @@ async function resolveGithubDownload(
     throw new Error(`GitHub API 错误（HTTP ${response.status}），GitHub 下载暂不可用`);
   }
 
-  const releases = (await response.json()) as GitHubRelease[];
+  const releases: GitHubReleases = await response.json();
 
   const target = normalizeVersion(versionName);
   const release =

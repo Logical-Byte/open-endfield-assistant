@@ -1,4 +1,12 @@
 import { MirrorchyanResourcesLatestResponse } from '@/types/mirrorchyan';
+import { Endpoints } from '@octokit/types';
+
+/**
+ * GitHub Releases API 响应类型。
+ *
+ * @see https://docs.github.com/en/rest/releases/releases#list-releases
+ */
+export type GitHubReleases = Endpoints['GET /repos/{owner}/{repo}/releases']['response']['data'];
 
 /** 检查更新阶段。 */
 export enum UpdateCheckStatus {
