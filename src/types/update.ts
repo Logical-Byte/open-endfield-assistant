@@ -60,7 +60,7 @@ export interface PreparedUpdate {
   /** 期望 sha256（GitHub 来源时来自 asset.digest；缺失则为 undefined） */
   sha256?: string;
   fileSize?: number;
-  /** 建议文件名（服务端可能通过 Content-Disposition 覆盖实际文件名） */
+  /** 建议文件名（GitHub 来源时为资产名；MirrorChyan 无此信息），服务端可能通过 Content-Disposition 覆盖实际文件名 */
   filename?: string;
   source: UpdateSource;
   /** 更新包类型（MirrorChyan 按响应判定；GitHub 固定全量） */

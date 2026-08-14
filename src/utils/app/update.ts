@@ -647,7 +647,6 @@ async function prepareDownload(): Promise<PreparedUpdate | null> {
       url: data.url,
       sha256: data.sha256,
       fileSize: data.filesize,
-      filename: extractFilenameFromUrl(data.url),
       source: UpdateSource.Mirrorchyan,
       updateType:
         data.update_type === 'incremental' ? UpdatePackageType.Incremental : UpdatePackageType.Full,
@@ -757,20 +756,6 @@ async function buildProxyClientOptions(): Promise<ClientOptions> {
     }
   }
   return {};
-}
-
-/** 从 URL 路径提取文件名（带扩展名才返回）。 */
-function extractFilenameFromUrl(url: string): string | undefined {
-  try {
-    const segment = new URL(url).pathname.split('/').filter(Boolean).pop();
-    if (!segment) {
-      return undefined;
-    }
-    const filename = decodeURIComponent(segment);
-    return filename.includes('.') ? filename : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /** 归一化版本号（去 `v` 前缀、小写）。 */
