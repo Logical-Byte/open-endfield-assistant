@@ -1,20 +1,15 @@
 //! OEA Assistant - 明日方舟终末地 自动化助手（Tauri 后端）。
 
-#[cfg(target_os = "windows")]
-pub mod admin;
 pub mod app_paths;
 pub mod config;
 pub mod connect;
 pub mod controller;
 pub mod crash;
 pub mod data;
-pub mod hotkey;
-pub mod input;
 pub mod logger;
 pub mod ocr;
 pub mod resolution;
 pub mod scene;
-pub mod screencap;
 pub mod session;
 pub mod sound;
 pub mod task;
@@ -24,8 +19,6 @@ pub mod template_matching;
 pub mod tray;
 pub mod types;
 pub mod utils;
-pub mod webview2;
-pub mod window;
 pub mod windows_ops;
 
 use std::fs;
