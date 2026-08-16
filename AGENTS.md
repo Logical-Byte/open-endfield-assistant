@@ -1,23 +1,43 @@
-## 编码规范
+## 项目概览
 
-### 依赖管理
+Open Endfield Assistant（OEA）是一个 Tauri 2 桌面应用。前端使用 Vue 3、Nuxt UI、Vite 和 TypeScript，桌面后端使用 Rust。
 
-- 使用 `pnpm add`、`pnpm remove`、`cargo add` 或 `cargo remove` 添加或移除依赖，拒绝手动更改 `package.json` 或 `Cargo.toml` 依赖项
-- 除非必要，不要在命令中指定依赖版本。
+## 前端
 
-### 前端
+前端代码位于 `src/`，使用 pnpm 管理依赖。以下命令在仓库根目录运行：
 
-- Linter 使用 `pnpm lint:fix`（修复属性排序错误）和 `pnpm fix`（任意修改后都需要运行）。
-- 拒绝写 `anotherFunction(args)` 的简单包装函数。
+```bash
+pnpm install
+pnpm tauri dev
+pnpm dev
+pnpm fix
+pnpm build
+pnpm check
+```
 
-### 后端
+修改前端代码、配置或依赖前，阅读 `docs/rule-frontend.md`。
 
-- 在 `src-tauri` 目录中运行 cargo 命令，或使用 `--manifest-path src-tauri/Cargo.toml`。
-- Linter 使用 `cargo check`、`cargo fix --allow-dirty` 和 `cargo clippy --fix --allow-dirty`.
-- 使用 `Arc::clone(&foo)` 克隆原子引用计数指针，拒绝 `foo.clone()`。
-- 在注释中使用反引号 backquote 包裹代码片段。
-- `unsafe` 仅包裹单个函数调用表达式。`? ; =` 放在 unsafe 块外。例：`let foo = unsafe { bar(baz) }?;`。
-- 后端的运行时行为不得更改“根目录”以外的磁盘文件。“根目录”在开发环境下，指 `package.json` 所在目录。在打包后，指可执行文件所在目录。
+## 后端
+
+Rust 后端位于 `src-tauri/`。在该目录中运行 Cargo 命令：
+
+```bash
+cd src-tauri
+cargo check --all-targets
+cargo clippy --all-targets -- -D warnings
+cargo fmt --all -- --check
+cargo test
+```
+
+从仓库根目录运行时，使用 `--manifest-path src-tauri/Cargo.toml`，例如 `cargo check --manifest-path src-tauri/Cargo.toml --all-targets`。
+
+修改后端代码、配置或依赖前，阅读 `docs/rule-backend.md`。
+
+## 专题文档
+
+- 修改打包或发版流程前，阅读 `docs/releasing.md`。
+- 修改 `src-tauri/src/scene/` 或 `src-tauri/src/tasks/archive_scan/` 下的档案库自动化逻辑前，阅读 `docs/archive-automation.md`。
+- 修改解包数据处理、档案标题映射或相关数据生成脚本前，阅读 `docs/game-data.md`。
 
 ## 本地/个人偏好
 
