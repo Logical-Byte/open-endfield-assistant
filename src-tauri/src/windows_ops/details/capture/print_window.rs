@@ -9,23 +9,22 @@ use windows::Win32::Graphics::Gdi::{
 use windows::Win32::Storage::Xps::{PRINT_WINDOW_FLAGS, PW_CLIENTONLY, PrintWindow};
 use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
-use super::base::ScreencapBase;
 use crate::utils::region::Region2D;
 use crate::windows_ops::WindowHandle;
 
 // PW_RENDERFULLCONTENT (0x2): 捕获非最小化后台窗口
 const PW_RENDERFULLCONTENT: PRINT_WINDOW_FLAGS = PRINT_WINDOW_FLAGS(0x2_u32);
 
-pub struct PrintWindowScreencap {
+pub(in crate::windows_ops) struct PrintWindowState {
     hwnd: HWND,
 }
 
-impl PrintWindowScreencap {
-    pub fn new(window: WindowHandle) -> Self {
+impl PrintWindowState {
+    pub(in crate::windows_ops) fn new(window: WindowHandle) -> Self {
         Self { hwnd: window.0 }
     }
 
-    pub fn screencap(&mut self) -> Result<RgbaImage> {
+    pub(in crate::windows_ops) fn screencap(&mut self) -> Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -124,7 +123,10 @@ impl PrintWindowScreencap {
         RgbaImage::from_raw_bgra(width as u32, height as u32, mat).context("从原始数据创建图像失败")
     }
 
-    pub fn screencap_region(&mut self, relative_region: Region2D<i32>) -> Result<RgbaImage> {
+    pub(in crate::windows_ops) fn screencap_region(
+        &mut self,
+        relative_region: Region2D<i32>,
+    ) -> Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -276,22 +278,5 @@ impl PrintWindowScreencap {
         }
 
         RgbaImage::from_raw_bgra(width as u32, height as u32, mat).context("从原始数据创建图像失败")
-    }
-}
-
-// Win32 句柄（HWND 等）跨线程传递安全（访问时由调用方串行化）。
-unsafe impl Send for PrintWindowScreencap {}
-
-impl ScreencapBase for PrintWindowScreencap {
-    fn new(window: WindowHandle) -> Self {
-        Self::new(window)
-    }
-
-    fn screencap(&mut self) -> Result<RgbaImage> {
-        Self::screencap(self)
-    }
-
-    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> Result<RgbaImage> {
-        Self::screencap_region(self, relative_region)
     }
 }

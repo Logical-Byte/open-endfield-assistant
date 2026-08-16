@@ -4,26 +4,26 @@ use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Gdi::ClientToScreen;
 use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
-use super::base::ScreencapBase;
 use super::desktop_dup::DesktopDupScreencap;
 use crate::windows_ops::WindowHandle;
+use crate::windows_ops::capture::ScreencapBase;
 
 /// 基于 Desktop Duplication 的窗口截图器
 /// 先截取全屏，再根据窗口客户区坐标裁剪
-pub struct DesktopDupWindowScreencap {
+struct DesktopDupWindowScreencap {
     hwnd: HWND,
     inner: DesktopDupScreencap,
 }
 
 impl DesktopDupWindowScreencap {
-    pub fn new(window: WindowHandle) -> Self {
+    fn new(window: WindowHandle) -> Self {
         Self {
             hwnd: window.0,
             inner: DesktopDupScreencap::new(window),
         }
     }
 
-    pub fn screencap(&mut self) -> Result<RgbaImage> {
+    fn screencap(&mut self) -> Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -119,10 +119,6 @@ impl DesktopDupWindowScreencap {
 unsafe impl Send for DesktopDupWindowScreencap {}
 
 impl ScreencapBase for DesktopDupWindowScreencap {
-    fn new(window: WindowHandle) -> Self {
-        Self::new(window)
-    }
-
     fn screencap(&mut self) -> Result<RgbaImage> {
         self.screencap()
     }

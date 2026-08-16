@@ -19,31 +19,16 @@ use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::{IDYES, SW_SHOWNORMAL};
 use windows::core::{HRESULT, PCWSTR};
 
-/// 对话框主图标（对应 TaskDialog 的主图标）。
-#[derive(Clone, Copy)]
-pub enum DialogIcon {
-    /// 红色错误图标。
-    Error,
-    /// 黄色警告图标。
-    Warning,
-    /// 蓝色信息图标。
-    Info,
-}
-
-impl DialogIcon {
-    fn to_pcwstr(self) -> PCWSTR {
-        match self {
-            DialogIcon::Error => TD_ERROR_ICON,
-            DialogIcon::Warning => TD_WARNING_ICON,
-            DialogIcon::Info => TD_INFORMATION_ICON,
-        }
-    }
-}
+use crate::windows_ops::dialog::DialogIcon;
 
 /// 弹出一个仅「确定」按钮的信息对话框。
 ///
 /// `content` 中可用 `<a href="https://...">链接文字</a>` 语法嵌入可点击超链接。
-pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> Result<()> {
+pub(in crate::windows_ops) fn show_message(
+    title: &str,
+    content: &str,
+    icon: DialogIcon,
+) -> Result<()> {
     task_dialog(title, content, icon, TDCBF_OK_BUTTON, None, None)?;
     Ok(())
 }
@@ -51,7 +36,11 @@ pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> Result<()> 
 /// 弹出一个「是/否」确认对话框（默认焦点在「是」），返回用户是否确认。
 ///
 /// 内容同样支持 `<a href="...">` 超链接；按 Esc 或关闭窗口视为「否」。
-pub fn confirm(title: &str, content: &str, icon: DialogIcon) -> Result<bool> {
+pub(in crate::windows_ops) fn confirm(
+    title: &str,
+    content: &str,
+    icon: DialogIcon,
+) -> Result<bool> {
     let mut selected = 0;
     task_dialog(
         title,
@@ -84,7 +73,11 @@ fn task_dialog(
         pszWindowTitle: PCWSTR(title_wide.as_ptr()),
         pszContent: PCWSTR(content_wide.as_ptr()),
         Anonymous1: TASKDIALOGCONFIG_0 {
-            pszMainIcon: icon.to_pcwstr(),
+            pszMainIcon: match icon {
+                DialogIcon::Error => TD_ERROR_ICON,
+                DialogIcon::Warning => TD_WARNING_ICON,
+                DialogIcon::Info => TD_INFORMATION_ICON,
+            },
         },
         dwCommonButtons: buttons,
         nDefaultButton: default_button.unwrap_or(0),

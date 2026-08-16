@@ -11,4 +11,4 @@
 mod detection;
 mod install;
 
-pub use install::ensure_installed;
+pub(in crate::windows_ops) use install::ensure_installed;

@@ -15,13 +15,13 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use crate::windows_ops::WindowHandle;
 
 /// 设置当前线程的 DPI 感知上下文为 Per Monitor v2
-pub fn set_thread_dpi_awareness_context() {
+pub(in crate::windows_ops) fn set_thread_dpi_awareness_context() {
     let _ = unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
 }
 
 // 窗口激活并置顶工具函数（强化版本，用于需要前台的物理输入方式）
 // 用于 LegacyEventInput 和 SeizeInput，因为它们使用 SendInput/mouse_event 等物理输入 API
-pub fn ensure_foreground_and_topmost(window: WindowHandle) -> Result<()> {
+pub(in crate::windows_ops) fn ensure_foreground_and_topmost(window: WindowHandle) -> Result<()> {
     let hwnd = window.0;
     if hwnd.is_invalid() {
         bail!("hwnd is invalid");
@@ -53,7 +53,7 @@ pub fn ensure_foreground_and_topmost(window: WindowHandle) -> Result<()> {
 ///
 /// 连接游戏时调用：窗口最小化时 [`ensure_window_on_screen`] 会跳过调整，
 /// 需先恢复窗口才能正确获取并调整客户区。
-pub fn restore_window_if_minimized(window: WindowHandle) -> Result<()> {
+pub(in crate::windows_ops) fn restore_window_if_minimized(window: WindowHandle) -> Result<()> {
     let hwnd = window.0;
     if hwnd.is_invalid() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
         bail!("Invalid window handle");
@@ -69,7 +69,7 @@ pub fn restore_window_if_minimized(window: WindowHandle) -> Result<()> {
 /// Ensure the window's client area is fully visible on the monitor.
 /// If the window extends beyond the monitor bounds, move it back.
 /// If the client area is larger than the monitor, resize the window.
-pub fn ensure_window_on_screen(window: WindowHandle) -> Result<()> {
+pub(in crate::windows_ops) fn ensure_window_on_screen(window: WindowHandle) -> Result<()> {
     let hwnd = window.0;
     if hwnd.is_invalid() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
         bail!("Invalid window handle");

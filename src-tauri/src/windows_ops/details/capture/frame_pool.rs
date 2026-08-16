@@ -31,11 +31,11 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use windows::core::Interface;
 
-use super::base::ScreencapBase;
 use crate::windows_ops::WindowHandle;
+use crate::windows_ops::capture::ScreencapBase;
 
 /// FramePool 截图器
-pub struct FramePoolScreencap {
+struct FramePoolScreencap {
     hwnd: HWND,
     d3d_device: Option<ID3D11Device>,
     d3d_context: Option<ID3D11DeviceContext>,
@@ -54,9 +54,6 @@ pub struct FramePoolScreencap {
 unsafe impl Send for FramePoolScreencap {}
 
 impl ScreencapBase for FramePoolScreencap {
-    fn new(window: WindowHandle) -> Self {
-        Self::new(window)
-    }
     fn screencap(&mut self) -> Result<RgbaImage> {
         self.screencap()
     }

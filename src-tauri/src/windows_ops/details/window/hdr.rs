@@ -24,7 +24,9 @@ use crate::windows_ops::WindowHandle;
 /// 判断指定窗口所在显示器是否开启了 HDR。
 ///
 /// 检测失败（API 不可用 / 查询出错）时返回 `Err`，由调用方决定是否阻断任务。
-pub fn is_hdr_enabled_on_window_monitor(window: WindowHandle) -> Result<bool> {
+pub(in crate::windows_ops) fn is_hdr_enabled_on_window_monitor(
+    window: WindowHandle,
+) -> Result<bool> {
     let hwnd = window.0;
     // 1. 定位窗口所在显示器，读取其桌面矩形
     let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };

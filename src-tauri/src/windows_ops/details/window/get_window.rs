@@ -5,18 +5,23 @@ use windows::core::PCWSTR;
 
 use crate::windows_ops::WindowHandle;
 
-pub fn get_app_window(app_handle: &tauri::AppHandle) -> Result<WindowHandle> {
+pub(in crate::windows_ops) fn get_app_window(
+    app_handle: &tauri::AppHandle,
+) -> Result<WindowHandle> {
     let window = app_handle
         .get_webview_window("main")
         .ok_or_else(|| anyhow!("未找到 OEA 主窗口"))?;
     Ok(WindowHandle(window.hwnd()?))
 }
 
-pub fn get_foreground_window() -> WindowHandle {
+pub(in crate::windows_ops) fn get_foreground_window() -> WindowHandle {
     WindowHandle(unsafe { GetForegroundWindow() })
 }
 
-pub fn get_window_by_title(class_name: Option<&str>, title: Option<&str>) -> Result<WindowHandle> {
+pub(in crate::windows_ops) fn get_window_by_title(
+    class_name: Option<&str>,
+    title: Option<&str>,
+) -> Result<WindowHandle> {
     let class_wide = class_name.map(|s| {
         s.encode_utf16()
             .chain(std::iter::once(0))
