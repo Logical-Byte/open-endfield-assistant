@@ -20,8 +20,8 @@ pub enum Contact {
     X2 = 4,
 }
 
-const fn make_message_param(low: u32, high: u32) -> usize {
-    ((low & 0xffff) | ((high & 0xffff) << 16)) as usize
+const fn make_message_param(low: u16, high: u16) -> usize {
+    (low as usize) | ((high as usize) << 16)
 }
 
 // Contact 到 WM_* 消息的转换结果
@@ -47,11 +47,11 @@ pub fn contact_to_mouse_down_message(contact: Contact) -> MouseMessageInfo {
         },
         Contact::X1 => MouseMessageInfo {
             message: WM_XBUTTONDOWN,
-            w_param: make_message_param(MK_XBUTTON1.0, XBUTTON1.into()),
+            w_param: make_message_param(MK_XBUTTON1.0 as u16, XBUTTON1),
         },
         Contact::X2 => MouseMessageInfo {
             message: WM_XBUTTONDOWN,
-            w_param: make_message_param(MK_XBUTTON2.0, XBUTTON2.into()),
+            w_param: make_message_param(MK_XBUTTON2.0 as u16, XBUTTON2),
         },
     }
 }
@@ -99,17 +99,18 @@ pub fn contact_to_mouse_up_message(contact: Contact) -> MouseMessageInfo {
         },
         Contact::X1 => MouseMessageInfo {
             message: WM_XBUTTONUP,
-            w_param: make_message_param(0, XBUTTON1.into()),
+            w_param: make_message_param(0, XBUTTON1),
         },
         Contact::X2 => MouseMessageInfo {
             message: WM_XBUTTONUP,
-            w_param: make_message_param(0, XBUTTON2.into()),
+            w_param: make_message_param(0, XBUTTON2),
         },
     }
 }
 
 // MOUSEEVENTF 标志和按钮数据
 pub struct MouseEventFlags {
+    /// 传给 Win32 鼠标输入 API 的 `MOUSEEVENTF_*` 位模式。
     pub flags: u32,
     pub button_data: u32,
 }
