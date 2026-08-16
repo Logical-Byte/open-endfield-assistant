@@ -50,7 +50,7 @@ pub fn is_installed() -> bool {
 /// 读取注册表中的字符串 (REG_SZ)
 ///
 /// 如果键或值不存在，返回 `Ok(None)`。
-pub fn read_registry_string(
+fn read_registry_string(
     hkey: HKEY,
     subkey: &str,
     value_name: &str,

@@ -4,8 +4,8 @@ use windows::Win32::Foundation::{HWND, POINT, RECT};
 use windows::Win32::Graphics::Gdi::ClientToScreen;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     BlockInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE,
-    MAPVK_VK_TO_VSC, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_MOVE, MOUSEEVENTF_WHEEL,
-    MOUSEINPUT, MapVirtualKeyW, SendInput, VIRTUAL_KEY,
+    MAPVK_VK_TO_VSC, MOUSE_EVENT_FLAGS, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_HWHEEL, MOUSEEVENTF_MOVE,
+    MOUSEEVENTF_WHEEL, MOUSEINPUT, MapVirtualKeyW, SendInput, VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetSystemMetrics, HWND_NOTOPMOST, SM_CXSCREEN, SM_CYSCREEN, SWP_NOMOVE,
@@ -56,7 +56,7 @@ impl SeizeInput {
             Anonymous: INPUT_0 {
                 mi: MOUSEINPUT {
                     mouseData: flags.button_data,
-                    dwFlags: flags.flags,
+                    dwFlags: MOUSE_EVENT_FLAGS(flags.flags),
                     ..Default::default()
                 },
             },
@@ -130,7 +130,7 @@ impl SeizeInput {
             Anonymous: INPUT_0 {
                 mi: MOUSEINPUT {
                     mouseData: flags.button_data,
-                    dwFlags: flags.flags,
+                    dwFlags: MOUSE_EVENT_FLAGS(flags.flags),
                     ..Default::default()
                 },
             },

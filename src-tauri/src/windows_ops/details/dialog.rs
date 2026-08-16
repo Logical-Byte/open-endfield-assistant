@@ -7,6 +7,7 @@
 //!
 //! 不依赖 WebView，可在 Tauri 启动前使用（WebView2 缺失兜底、setup 失败兜底）。
 
+use anyhow::Result;
 use windows::Win32::Foundation::{HWND, LPARAM, S_OK, WPARAM};
 use windows::Win32::UI::Controls::{
     TASKDIALOG_COMMON_BUTTON_FLAGS, TASKDIALOG_NOTIFICATIONS, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0,
@@ -42,14 +43,15 @@ impl DialogIcon {
 /// 弹出一个仅「确定」按钮的信息对话框。
 ///
 /// `content` 中可用 `<a href="https://...">链接文字</a>` 语法嵌入可点击超链接。
-pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> windows::core::Result<()> {
-    task_dialog(title, content, icon, TDCBF_OK_BUTTON, None, None)
+pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> Result<()> {
+    task_dialog(title, content, icon, TDCBF_OK_BUTTON, None, None)?;
+    Ok(())
 }
 
 /// 弹出一个「是/否」确认对话框（默认焦点在「是」），返回用户是否确认。
 ///
 /// 内容同样支持 `<a href="...">` 超链接；按 Esc 或关闭窗口视为「否」。
-pub fn confirm(title: &str, content: &str, icon: DialogIcon) -> windows::core::Result<bool> {
+pub fn confirm(title: &str, content: &str, icon: DialogIcon) -> Result<bool> {
     let mut selected = 0;
     task_dialog(
         title,

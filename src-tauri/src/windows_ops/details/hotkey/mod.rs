@@ -16,7 +16,7 @@ use scopeguard::defer;
 use tracing::{error, info};
 use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+    VK_CONTROL, VK_DELETE, VK_LWIN, VK_MENU, VK_OEM_7, VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, GetMessageW, HC_ACTION, KBDLLHOOKSTRUCT, LLKHF_ALTDOWN, MSG, SetWindowsHookExW,
@@ -29,6 +29,13 @@ const MOD_ALT: u32 = 1 << 0;
 const MOD_CTRL: u32 = 1 << 1;
 const MOD_SHIFT: u32 = 1 << 2;
 const MOD_WIN: u32 = 1 << 3;
+
+/// Delete 键的 OEA 键码。
+pub const DELETE_KEY: u32 = VK_DELETE.0 as u32;
+/// `'` 键的 OEA 键码。
+pub const OEM_7_KEY: u32 = VK_OEM_7.0 as u32;
+/// Alt 修饰键的 OEA 状态位。
+pub const ALT_MODIFIER: u32 = MOD_ALT;
 
 /// 一次原始键盘事件。
 ///

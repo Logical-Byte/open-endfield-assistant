@@ -5,12 +5,12 @@ use std::{fs, sync::Arc};
 use tracing::{debug, error, info};
 
 use crate::{
-    admin,
     app_paths::AppPaths,
     config::{self, OeaConfig},
     controller::{AppStatus, Controller},
     tasks::screenshot::{self, ScreenshotFormat},
     types::{ArchiveAcquisitionContract, PrtsData},
+    windows_ops,
 };
 
 /// 启动扫描档案库任务（在后台线程执行，立即返回当前状态）。
@@ -56,13 +56,13 @@ pub fn quit(state: tauri::State<Arc<Controller>>) {
 /// 当前进程是否以管理员权限运行。
 #[tauri::command]
 pub fn is_elevated() -> bool {
-    admin::is_elevated()
+    windows_ops::admin::is_elevated()
 }
 
 /// 以管理员权限重启应用（成功后退出当前进程）。
 #[tauri::command]
 pub fn restart_as_admin(app_handle: tauri::AppHandle) -> Result<(), String> {
-    admin::restart_as_admin().map_err(|e| e.to_string())?;
+    windows_ops::admin::restart_as_admin().map_err(|e| e.to_string())?;
     app_handle.exit(0);
     Ok(())
 }

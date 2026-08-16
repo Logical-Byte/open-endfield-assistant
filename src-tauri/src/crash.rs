@@ -22,8 +22,7 @@ use std::sync::Once;
 
 use chrono::Local;
 
-use crate::app_paths::AppPaths;
-use crate::window::dialog::{self, DialogIcon};
+use crate::{app_paths::AppPaths, windows_ops};
 
 static PANIC_HOOK_INSTALLED: Once = Once::new();
 
@@ -66,12 +65,12 @@ pub fn report_fatal(error: &anyhow::Error, app_handle: &tauri::AppHandle) -> ! {
         None => "（写入失败）".to_string(),
     };
 
-    let _ = dialog::show_message(
+    let _ = windows_ops::dialog::show_message(
         "OEA 启动失败",
         &format!(
             "程序初始化失败，无法启动。\n\n错误详情：\n{error:#}\n\n详细日志已保存至：\n{crash_file_hint}",
         ),
-        DialogIcon::Error,
+        windows_ops::dialog::DialogIcon::Error,
     );
 
     // 兜底退出：setup 失败后进程不应继续运行

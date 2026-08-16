@@ -14,14 +14,12 @@ use std::thread;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use tracing::{debug, error, info, warn};
-use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, VK_DELETE, VK_OEM_7};
 
 use crate::{
     app_paths::AppPaths,
     config::OeaConfig,
     connect::connect_to_game,
     data::AppData,
-    hotkey::KeyEvent,
     logger::LogEntry,
     ocr::OcrEngine,
     scene::SceneManager,
@@ -29,7 +27,7 @@ use crate::{
     task::{TaskStopped, run_task},
     tasks::archive_scan::{ArchiveScanTask, ScanReporter, ScanResult},
     types::{ArchiveAcquisitionContract, PrtsData},
-    windows_ops::{self, window::ForegroundGuard},
+    windows_ops,
 };
 
 /// 推送给前端的应用状态。
@@ -44,16 +42,16 @@ pub struct AppStatus {
 }
 
 /// 引号 `'` → 切换扫描档案库任务
-pub const TOGGLE_MAIN_TASK_HOTKEY: KeyEvent = KeyEvent {
-    vk: VK_OEM_7.0 as u32,
+pub const TOGGLE_MAIN_TASK_HOTKEY: windows_ops::hotkey::KeyEvent = windows_ops::hotkey::KeyEvent {
+    vk: windows_ops::hotkey::OEM_7_KEY,
     down: true,
     modifiers: 0,
 };
 /// Alt+Delete → 退出
-pub const EXIT_HOTKEY: KeyEvent = KeyEvent {
-    vk: VK_DELETE.0 as u32,
+pub const EXIT_HOTKEY: windows_ops::hotkey::KeyEvent = windows_ops::hotkey::KeyEvent {
+    vk: windows_ops::hotkey::DELETE_KEY,
     down: true,
-    modifiers: MOD_ALT.0,
+    modifiers: windows_ops::hotkey::ALT_MODIFIER,
 };
 
 /// 应用控制器（Tauri 托管状态，以 `Arc` 共享）。
@@ -75,7 +73,7 @@ pub struct Controller {
     /// 全局扫描序号（跨扫描档案库任务连续递增）
     scan_index: Arc<AtomicU32>,
     /// 前台窗口守卫（应用层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
-    foreground: ForegroundGuard,
+    foreground: windows_ops::window::ForegroundGuard,
     /// Tauri 应用句柄（向前端 emit 事件）
     handle: AppHandle,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
@@ -96,7 +94,7 @@ impl Controller {
         running: Arc<AtomicBool>,
         scan_tx: mpsc::Sender<ScanResult>,
         scan_index: Arc<AtomicU32>,
-        foreground: ForegroundGuard,
+        foreground: windows_ops::window::ForegroundGuard,
         handle: AppHandle,
         app_data: AppData,
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
@@ -270,7 +268,7 @@ impl Controller {
     // ========== 后台线程 ==========
 
     /// 启动热键消费线程（应用层：前台窗口过滤 + 动作分发）。
-    pub fn spawn_hotkey_loop(self: &Arc<Self>, rx: mpsc::Receiver<KeyEvent>) {
+    pub fn spawn_hotkey_loop(self: &Arc<Self>, rx: mpsc::Receiver<windows_ops::hotkey::KeyEvent>) {
         let self_cloned = Arc::clone(self);
 
         thread::Builder::new()
