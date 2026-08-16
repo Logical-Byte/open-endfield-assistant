@@ -19,7 +19,7 @@
 
 ## 磁盘写入边界
 
-后端的运行时行为不得更改“根目录”以外的磁盘文件。“根目录”在开发环境下，指 `package.json` 所在目录。在打包后，指可执行文件所在目录。
+后端的运行时行为不得更改“根目录”以外的磁盘文件。“根目录”在开发环境下，指 `package.json` 所在目录。在打包后，指可执行文件所在目录。路径解析见 `src-tauri/src/app_paths.rs`。
 
 ## 自动修复
 
@@ -31,4 +31,4 @@ cargo fix --allow-dirty
 cargo clippy --fix --allow-dirty
 ```
 
-完整的提交前检查见 [贡献指南](../CONTRIBUTING.md#提交前检查)。
+完整的提交前检查见 [贡献指南](../CONTRIBUTING.md#检查与测试)。

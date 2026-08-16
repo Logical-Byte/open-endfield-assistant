@@ -26,4 +26,4 @@
 pnpm fix
 ```
 
-完整的提交前检查见 [贡献指南](../CONTRIBUTING.md#提交前检查)。
+完整的提交前检查见 [贡献指南](../CONTRIBUTING.md#检查与测试)。
