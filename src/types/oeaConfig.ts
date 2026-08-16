@@ -1,8 +1,26 @@
+export enum UpdateSource {
+  Mirrorchyan = 'mirrorchyan',
+  Github = 'github',
+}
+
+export enum UpdateProxyMode {
+  None = 'none',
+  System = 'system',
+  Custom = 'custom',
+}
+
 export interface OeaConfig {
-  /** 配置文件版本号（用于升级时迁移配置） */
-  version: [number, number];
-  /** 关闭时最小化到托盘而不是退出应用 */
+  majorVersion: number;
+  minorVersion: number;
   minimizeToTray: boolean;
-  /** 扫描音效音量（0.0–1.0） */
   soundVolume: number;
+  updateSource: UpdateSource;
+  mirrorchyanCdkEncrypted: string;
+  updateProxyMode: UpdateProxyMode;
+  updateProxyUrl: string;
+  /** 检查到新版本后是否自动开始下载。 */
+  autoDownloadUpdates: boolean;
+  /** 下载完成后是否自动安装（扫描任务运行中不会安装，等待扫描结束）。 */
+  autoInstallUpdates: boolean;
+  scanTipsDismissedVersion: number;
 }

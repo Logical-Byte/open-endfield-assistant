@@ -10,14 +10,8 @@ export function clearScanResults(): void {
   scanResults.value = [];
 }
 
-let initialized = false;
-
-export function initScanResults() {
-  if (!initialized) {
-    initialized = true;
-
-    onScanResult((result) => {
-      scanResults.value.push(result);
-    });
-  }
+export async function initScanResults() {
+  await onScanResult((result) => {
+    scanResults.value.push(result);
+  });
 }

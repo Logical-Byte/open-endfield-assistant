@@ -17,19 +17,11 @@ const methodByArchiveId = computed(() => {
   return map;
 });
 
-let initialized = false;
-
-export function initArchiveAcquisitionContract() {
-  if (!initialized) {
-    initialized = true;
-
-    getArchiveAcquisitionContract().then((data) => {
-      acquisitionContracts.value = data;
-    });
-  }
-}
-
 /** 查询档案 id 对应的获取方式（未收录时返回 null）。 */
 export function getAcquisitionMethod(archiveId: string): AcquisitionMethod | null {
   return methodByArchiveId.value.get(archiveId) ?? null;
+}
+
+export async function initArchiveAcquisitionContract() {
+  acquisitionContracts.value = await getArchiveAcquisitionContract();
 }
