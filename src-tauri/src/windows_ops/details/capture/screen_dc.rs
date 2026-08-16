@@ -10,14 +10,15 @@ use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
 use super::base::ScreencapBase;
 use crate::utils::region::Region2D;
+use crate::windows_ops::WindowHandle;
 
 pub struct ScreenDCScreencap {
     hwnd: HWND,
 }
 
 impl ScreenDCScreencap {
-    pub fn new(hwnd: HWND) -> Self {
-        Self { hwnd }
+    pub fn new(window: WindowHandle) -> Self {
+        Self { hwnd: window.0 }
     }
 
     pub fn screencap(&mut self) -> Result<RgbaImage> {
@@ -124,8 +125,8 @@ impl ScreenDCScreencap {
 unsafe impl Send for ScreenDCScreencap {}
 
 impl ScreencapBase for ScreenDCScreencap {
-    fn new(hwnd: HWND) -> Self {
-        Self::new(hwnd)
+    fn new(window: WindowHandle) -> Self {
+        Self::new(window)
     }
 
     fn screencap(&mut self) -> Result<RgbaImage> {

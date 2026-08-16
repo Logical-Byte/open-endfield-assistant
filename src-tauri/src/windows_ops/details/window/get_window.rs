@@ -1,13 +1,22 @@
-use anyhow::Result;
-use windows::Win32::Foundation::HWND;
+use anyhow::{Result, anyhow};
+use tauri::Manager;
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetForegroundWindow};
 use windows::core::PCWSTR;
 
-pub fn get_foreground_window() -> HWND {
-    unsafe { GetForegroundWindow() }
+use crate::windows_ops::WindowHandle;
+
+pub fn get_app_window(app_handle: &tauri::AppHandle) -> Result<WindowHandle> {
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| anyhow!("未找到 OEA 主窗口"))?;
+    Ok(WindowHandle(window.hwnd()?))
 }
 
-pub fn get_window_by_title(class_name: Option<&str>, title: Option<&str>) -> Result<HWND> {
+pub fn get_foreground_window() -> WindowHandle {
+    WindowHandle(unsafe { GetForegroundWindow() })
+}
+
+pub fn get_window_by_title(class_name: Option<&str>, title: Option<&str>) -> Result<WindowHandle> {
     let class_wide = class_name.map(|s| {
         s.encode_utf16()
             .chain(std::iter::once(0))
@@ -23,7 +32,7 @@ pub fn get_window_by_title(class_name: Option<&str>, title: Option<&str>) -> Res
     let lpwindowname = title_wide.map(|v| PCWSTR::from_raw(v.as_ptr()));
 
     let hwnd = unsafe { FindWindowW(lpclassname.as_ref(), lpwindowname.as_ref()) }?;
-    Ok(hwnd)
+    Ok(WindowHandle(hwnd))
 }
 
 #[cfg(test)]

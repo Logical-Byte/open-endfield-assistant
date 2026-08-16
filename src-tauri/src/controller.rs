@@ -29,7 +29,7 @@ use crate::{
     task::{TaskStopped, run_task},
     tasks::archive_scan::{ArchiveScanTask, ScanReporter, ScanResult},
     types::{ArchiveAcquisitionContract, PrtsData},
-    window::{self, ForegroundGuard},
+    windows_ops::{self, window::ForegroundGuard},
 };
 
 /// 推送给前端的应用状态。
@@ -199,7 +199,7 @@ impl Controller {
                 };
 
                 // 扫描档案库任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）
-                if let Err(e) = window::ensure_foreground_and_topmost(session.hwnd) {
+                if let Err(e) = windows_ops::window::ensure_foreground_and_topmost(session.hwnd) {
                     warn!("无法将游戏窗口置于前台: {e:#}，继续尝试执行任务");
                 }
 

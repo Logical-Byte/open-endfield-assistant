@@ -11,6 +11,7 @@ use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
 use super::base::ScreencapBase;
 use crate::utils::region::Region2D;
+use crate::windows_ops::WindowHandle;
 
 // PW_RENDERFULLCONTENT (0x2): 捕获非最小化后台窗口
 const PW_RENDERFULLCONTENT: PRINT_WINDOW_FLAGS = PRINT_WINDOW_FLAGS(0x2_u32);
@@ -20,8 +21,8 @@ pub struct PrintWindowScreencap {
 }
 
 impl PrintWindowScreencap {
-    pub fn new(hwnd: HWND) -> Self {
-        Self { hwnd }
+    pub fn new(window: WindowHandle) -> Self {
+        Self { hwnd: window.0 }
     }
 
     pub fn screencap(&mut self) -> Result<RgbaImage> {
@@ -282,8 +283,8 @@ impl PrintWindowScreencap {
 unsafe impl Send for PrintWindowScreencap {}
 
 impl ScreencapBase for PrintWindowScreencap {
-    fn new(hwnd: HWND) -> Self {
-        Self::new(hwnd)
+    fn new(window: WindowHandle) -> Self {
+        Self::new(window)
     }
 
     fn screencap(&mut self) -> Result<RgbaImage> {

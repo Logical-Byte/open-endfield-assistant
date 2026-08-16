@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use windows::Win32::Foundation::{HWND, POINT, RECT};
+use windows::Win32::Foundation::{POINT, RECT};
 use windows::Win32::Graphics::Gdi::ClientToScreen;
 use windows::Win32::UI::WindowsAndMessaging::{
     GWL_STYLE, GetClassNameW, GetClientRect, GetWindowLongPtrW, GetWindowTextLengthW,
@@ -7,8 +7,10 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::utils::{point::Point2D, region::Region2D};
+use crate::windows_ops::WindowHandle;
 
-pub fn get_window_title(hwnd: HWND) -> Result<String> {
+pub fn get_window_title(window: WindowHandle) -> Result<String> {
+    let hwnd = window.0;
     let length = unsafe { GetWindowTextLengthW(hwnd) };
     if length == 0 {
         bail!("Failed to get window title");
@@ -21,19 +23,22 @@ pub fn get_window_title(hwnd: HWND) -> Result<String> {
     Ok(title)
 }
 
-pub fn get_client_rect(hwnd: HWND) -> Result<Region2D<i32>> {
+pub fn get_client_rect(window: WindowHandle) -> Result<Region2D<i32>> {
+    let hwnd = window.0;
     let mut rect = RECT::default();
     unsafe { GetClientRect(hwnd, &mut rect) }?;
     Ok(rect.into())
 }
 
-pub fn client_to_screen(hwnd: HWND, point: Point2D<i32>) -> Result<Point2D<i32>> {
+pub fn client_to_screen(window: WindowHandle, point: Point2D<i32>) -> Result<Point2D<i32>> {
+    let hwnd = window.0;
     let mut point = POINT::from(point);
     unsafe { ClientToScreen(hwnd, &mut point) }.ok()?;
     Ok(point.into())
 }
 
-pub fn get_window_class_name(hwnd: HWND) -> Result<String> {
+pub fn get_window_class_name(window: WindowHandle) -> Result<String> {
+    let hwnd = window.0;
     let mut buffer = vec![0u16; 256];
     let length = unsafe { GetClassNameW(hwnd, &mut buffer) };
     if length == 0 {
@@ -44,6 +49,7 @@ pub fn get_window_class_name(hwnd: HWND) -> Result<String> {
     Ok(class_name)
 }
 
-pub fn is_fullscreen(hwnd: HWND) -> bool {
+pub fn is_fullscreen(window: WindowHandle) -> bool {
+    let hwnd = window.0;
     (unsafe { GetWindowLongPtrW(hwnd, GWL_STYLE) } as u32) & WS_POPUP.0 != 0
 }
