@@ -8,10 +8,7 @@
 //!   `block_input` 可在操作期间屏蔽真实键盘鼠标；
 //! - [`Contact`]：鼠标按键枚举（左 / 右 / 中 / X1 / X2）。
 
-mod base;
 mod input_utils;
 mod seize;
 
-pub use base::*;
-pub use input_utils::*;
-pub use seize::*;
+pub(in crate::windows_ops) use seize::SeizeInputState;

@@ -12,26 +12,25 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SWP_NOSIZE, SetCursorPos, SetWindowPos,
 };
 
-use super::{base::InputBase, input_utils::Contact};
-use crate::utils::point::Point2D;
 use crate::windows_ops::WindowHandle;
+use crate::windows_ops::input::Contact;
 use crate::windows_ops::window::ensure_foreground_and_topmost;
 
-pub struct SeizeInput {
+pub(in crate::windows_ops) struct SeizeInputState {
     hwnd: HWND,
     block_input: bool,
     last_pos: Option<(i32, i32)>,
 }
 
-impl Drop for SeizeInput {
+impl Drop for SeizeInputState {
     fn drop(&mut self) {
         let _ = self.unblock_input();
     }
 }
 
-impl SeizeInput {
+impl SeizeInputState {
     /// 创建输入器（物理输入，`block_input` 为是否在操作期间屏蔽真实键盘鼠标）。
-    pub fn new(window: WindowHandle, block_input: bool) -> Self {
+    pub(in crate::windows_ops) fn new(window: WindowHandle, block_input: bool) -> Self {
         Self {
             hwnd: window.0,
             block_input,
@@ -39,7 +38,12 @@ impl SeizeInput {
         }
     }
 
-    fn touch_down(&mut self, contact: Contact, x: i32, y: i32) -> Result<()> {
+    pub(in crate::windows_ops) fn touch_down(
+        &mut self,
+        contact: Contact,
+        x: i32,
+        y: i32,
+    ) -> Result<()> {
         let mut point = POINT { x, y };
 
         if !self.hwnd.is_invalid() {
@@ -72,7 +76,12 @@ impl SeizeInput {
         Ok(())
     }
 
-    fn touch_move(&mut self, _contact: Contact, x: i32, y: i32) -> Result<()> {
+    pub(in crate::windows_ops) fn touch_move(
+        &mut self,
+        _contact: Contact,
+        x: i32,
+        y: i32,
+    ) -> Result<()> {
         let mut point = POINT { x, y };
 
         if !self.hwnd.is_invalid() {
@@ -114,7 +123,12 @@ impl SeizeInput {
         Ok(())
     }
 
-    fn touch_up(&self, contact: Contact, _x: i32, _y: i32) -> Result<()> {
+    pub(in crate::windows_ops) fn touch_up(
+        &self,
+        contact: Contact,
+        _x: i32,
+        _y: i32,
+    ) -> Result<()> {
         if !self.hwnd.is_invalid() {
             self.ensure_foreground()?;
         }
@@ -254,7 +268,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    fn key_down(&self, key: i32) -> Result<()> {
+    pub(in crate::windows_ops) fn key_down(&self, key: i32) -> Result<()> {
         self.ensure_foreground()?;
 
         let mut input: INPUT = unsafe { std::mem::zeroed() };
@@ -269,7 +283,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    fn key_up(&self, key: i32) -> Result<()> {
+    pub(in crate::windows_ops) fn key_up(&self, key: i32) -> Result<()> {
         self.ensure_foreground()?;
 
         let mut input: INPUT = unsafe { std::mem::zeroed() };
@@ -285,7 +299,7 @@ impl SeizeInput {
         Ok(())
     }
 
-    fn scroll(&self, dx: i32, dy: i32) -> Result<()> {
+    pub(in crate::windows_ops) fn scroll(&self, dx: i32, dy: i32) -> Result<()> {
         self.ensure_foreground()?;
 
         self.check_and_block_input()?;
@@ -334,43 +348,4 @@ impl SeizeInput {
 
         Ok(())
     }
-}
-
-// Win32 句柄（HWND 等）跨线程传递安全（访问时由调用方串行化）。
-unsafe impl Send for SeizeInput {}
-
-impl InputBase for SeizeInput {
-    fn new(window: WindowHandle, block_input: bool) -> Self {
-        Self::new(window, block_input)
-    }
-
-    fn touch_down(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
-        Self::touch_down(self, contact, point.x, point.y)
-    }
-
-    fn touch_move(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
-        Self::touch_move(self, contact, point.x, point.y)
-    }
-
-    fn touch_up(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
-        Self::touch_up(self, contact, point.x, point.y)
-    }
-
-    // click 方法使用默认实现
-
-    // swipe 方法使用默认实现
-
-    fn scroll(&mut self, delta: Point2D<i32>) -> Result<()> {
-        Self::scroll(self, delta.x, delta.y)
-    }
-
-    fn key_down(&mut self, vk_code: i32) -> Result<()> {
-        Self::key_down(self, vk_code)
-    }
-
-    fn key_up(&mut self, vk_code: i32) -> Result<()> {
-        Self::key_up(self, vk_code)
-    }
-
-    // press_key 方法使用默认实现
 }

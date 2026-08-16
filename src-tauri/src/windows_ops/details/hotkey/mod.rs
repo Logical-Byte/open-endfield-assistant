@@ -16,12 +16,14 @@ use scopeguard::defer;
 use tracing::{error, info};
 use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    VK_CONTROL, VK_DELETE, VK_LWIN, VK_MENU, VK_OEM_7, VK_RWIN, VK_SHIFT,
+    VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, GetMessageW, HC_ACTION, KBDLLHOOKSTRUCT, LLKHF_ALTDOWN, MSG, SetWindowsHookExW,
     UnhookWindowsHookEx, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
+
+use crate::windows_ops::hotkey::KeyEvent;
 
 /// 修饰键状态位（私有；`KeyEvent::mods` 的位布局与 `RegisterHotKey` 的
 /// `MOD_*` 常量一致：Alt=1、Ctrl=2、Shift=4、Win=8，便于上层直接比较）。
@@ -29,28 +31,6 @@ const MOD_ALT: u32 = 1 << 0;
 const MOD_CTRL: u32 = 1 << 1;
 const MOD_SHIFT: u32 = 1 << 2;
 const MOD_WIN: u32 = 1 << 3;
-
-/// Delete 键的 OEA 键码。
-pub const DELETE_KEY: u32 = VK_DELETE.0 as u32;
-/// `'` 键的 OEA 键码。
-pub const OEM_7_KEY: u32 = VK_OEM_7.0 as u32;
-/// Alt 修饰键的 OEA 状态位。
-pub const ALT_MODIFIER: u32 = MOD_ALT;
-
-/// 一次原始键盘事件。
-///
-/// - `down = true`：按键被按下（首次按下，自动重复已过滤）；
-/// - `down = false`：按键弹起。
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct KeyEvent {
-    /// 虚拟键码（如 `VK_OEM_1`）
-    pub vk: u32,
-    /// 按下（true）或弹起（false）
-    pub down: bool,
-    /// 修饰键状态快照：位 0=Alt、位 1=Ctrl、位 2=Shift、位 3=Win
-    /// （位布局与 `MOD_*` 常量一致，可直接比较）
-    pub modifiers: u32,
-}
 
 /// 钩子线程本地状态（回调由系统在安装钩子的线程消息泵中调用，无并发访问）。
 struct ListenerState {
@@ -149,7 +129,7 @@ unsafe extern "system" fn keyboard_hook_proc(
 ///
 /// 安装 `WH_KEYBOARD_LL` 低级键盘钩子，把键盘消息（按下 / 弹起，自动重复已过滤）
 /// 广播到返回的接收端。钩子只感知、不拦截任何按键。
-pub fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
+pub(in crate::windows_ops) fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
     let (tx, rx) = mpsc::channel();
 
     thread::Builder::new()

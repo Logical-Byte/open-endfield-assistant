@@ -15,18 +15,16 @@
 //! - [`FramePoolScreencap`]：DXGI 帧池（`Direct3D11CaptureFramePool`）捕获窗口，
 //!   窗口尺寸变化时自动重建。
 
-mod base;
+#[allow(dead_code)]
 mod desktop_dup;
+#[allow(dead_code)]
 mod desktop_dup_window;
+#[allow(dead_code)]
 mod frame_pool;
+#[allow(dead_code)]
 mod gdi;
 mod print_window;
+#[allow(dead_code)]
 mod screen_dc;
 
-pub use base::*;
-pub use desktop_dup::*;
-pub use desktop_dup_window::*;
-pub use frame_pool::*;
-pub use gdi::*;
-pub use print_window::*;
-pub use screen_dc::*;
+pub(in crate::windows_ops) use print_window::PrintWindowState;

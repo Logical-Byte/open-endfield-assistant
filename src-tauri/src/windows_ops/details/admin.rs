@@ -16,7 +16,7 @@ use windows::Win32::{
 use windows::core::{PCWSTR, w};
 
 /// 当前进程是否以管理员权限运行（查询进程 token 的提升状态）。
-pub fn is_elevated() -> bool {
+pub(in crate::windows_ops) fn is_elevated() -> bool {
     unsafe {
         let mut token = HANDLE::default();
         if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
@@ -39,7 +39,7 @@ pub fn is_elevated() -> bool {
 /// 以管理员权限重新启动当前应用（触发 UAC 弹窗）；调用方随后应退出当前进程。
 ///
 /// 返回 `Ok` 表示新进程已成功启动；用户取消 UAC 时返回 `Err`。
-pub fn restart_as_admin() -> Result<()> {
+pub(in crate::windows_ops) fn restart_as_admin() -> Result<()> {
     let exe_path = std::env::current_exe().context("获取程序路径失败")?;
     let exe_wide: Vec<u16> = exe_path
         .as_os_str()
@@ -58,14 +58,4 @@ pub fn restart_as_admin() -> Result<()> {
     };
 
     unsafe { ShellExecuteExW(&mut info) }.context("以管理员身份启动失败")
-}
-
-/// 启动时自动请求管理员权限（仅 release 生效）。
-///
-/// 非管理员时自提权重启并退出当前进程；用户取消 UAC 时继续以普通权限运行。
-/// debug 构建不处理，方便 `tauri dev` 在普通终端调试。
-pub fn elevate_at_startup() {
-    if !cfg!(debug_assertions) && !is_elevated() && restart_as_admin().is_ok() {
-        std::process::exit(0);
-    }
 }

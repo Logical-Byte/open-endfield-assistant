@@ -7,13 +7,17 @@
 //! - `window_operation`：窗口操作（前台置顶、确保在屏、DPI 感知等）；
 //! - `hdr`：判断窗口所在显示器是否开启了 HDR。
 
-pub use foreground::*;
-pub use get_window::*;
-pub use window_info::*;
-pub use window_operation::*;
-
-mod foreground;
 mod get_window;
-pub mod hdr;
+pub(in crate::windows_ops) mod hdr;
+#[allow(dead_code)]
 mod window_info;
 mod window_operation;
+
+pub(in crate::windows_ops) use get_window::{
+    get_app_window, get_foreground_window, get_window_by_title,
+};
+pub(in crate::windows_ops) use window_info::get_client_rect;
+pub(in crate::windows_ops) use window_operation::{
+    ensure_foreground_and_topmost, ensure_window_on_screen, restore_window_if_minimized,
+    set_thread_dpi_awareness_context,
+};

@@ -15,13 +15,13 @@ use windows::Win32::Graphics::Dxgi::{
 use windows::Win32::Graphics::Gdi::{HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow};
 use windows::core::Interface;
 
-use super::base::ScreencapBase;
 use crate::windows_ops::WindowHandle;
+use crate::windows_ops::capture::ScreencapBase;
 
 // AcquireNextFrame 的超时参数
 const ACQUIRE_TIMEOUT: u32 = 2000;
 
-pub struct DesktopDupScreencap {
+pub(super) struct DesktopDupScreencap {
     hwnd: HWND,
     d3d_device: Option<ID3D11Device>,
     d3d_context: Option<ID3D11DeviceContext>,
@@ -36,7 +36,7 @@ pub struct DesktopDupScreencap {
 }
 
 impl DesktopDupScreencap {
-    pub fn new(window: WindowHandle) -> Self {
+    pub(super) fn new(window: WindowHandle) -> Self {
         Self {
             hwnd: window.0,
             d3d_device: None,
@@ -52,7 +52,7 @@ impl DesktopDupScreencap {
         }
     }
 
-    pub fn screencap(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+    pub(super) fn screencap(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
         // 初始化 D3D 设备和 DXGI 工厂（只需要初始化一次）
         if self.d3d_device.is_none()
             && let Err(e) = self.init()
@@ -400,9 +400,6 @@ impl DesktopDupScreencap {
 unsafe impl Send for DesktopDupScreencap {}
 
 impl ScreencapBase for DesktopDupScreencap {
-    fn new(window: WindowHandle) -> Self {
-        Self::new(window)
-    }
     fn screencap(&mut self) -> Result<RgbaImage> {
         self.screencap()
     }

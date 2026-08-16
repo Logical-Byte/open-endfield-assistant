@@ -8,11 +8,11 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
-use super::base::ScreencapBase;
 use crate::utils::region::Region2D;
 use crate::windows_ops::WindowHandle;
+use crate::windows_ops::capture::ScreencapBase;
 
-pub struct ScreenDCScreencap {
+struct ScreenDCScreencap {
     hwnd: HWND,
 }
 
@@ -125,10 +125,6 @@ impl ScreenDCScreencap {
 unsafe impl Send for ScreenDCScreencap {}
 
 impl ScreencapBase for ScreenDCScreencap {
-    fn new(window: WindowHandle) -> Self {
-        Self::new(window)
-    }
-
     fn screencap(&mut self) -> Result<RgbaImage> {
         Self::screencap(self)
     }
