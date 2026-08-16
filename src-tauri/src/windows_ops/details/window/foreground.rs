@@ -6,7 +6,7 @@
 
 use windows::Win32::Foundation::HWND;
 
-use crate::window::{get_foreground_window, get_window_by_title};
+use super::{get_foreground_window, get_window_by_title};
 
 /// 终末地游戏窗口标题
 pub const ENDFIELD_WINDOW_TITLE: &str = "Endfield";

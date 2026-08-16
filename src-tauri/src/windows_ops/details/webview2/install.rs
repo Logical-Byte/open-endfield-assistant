@@ -17,7 +17,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use tracing::{debug, error, info, warn};
 
-use crate::window::dialog::{self, DialogIcon};
+use super::super::dialog::{self, DialogIcon};
 
 /// Evergreen Bootstrapper 官方下载链接（微软固定跳转链接，约 2 MB，自动匹配架构）。
 const BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";

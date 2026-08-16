@@ -9,7 +9,6 @@ pub mod controller;
 pub mod crash;
 pub mod data;
 pub mod hotkey;
-mod include;
 pub mod input;
 pub mod logger;
 pub mod ocr;
@@ -27,6 +26,7 @@ pub mod types;
 pub mod utils;
 pub mod webview2;
 pub mod window;
+pub mod windows_ops;
 
 use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicU32};
