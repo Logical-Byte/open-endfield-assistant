@@ -12,9 +12,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SWP_NOSIZE, SetCursorPos, SetWindowPos,
 };
 
-use crate::input::{base::InputBase, input_utils::Contact};
+use super::super::window::ensure_foreground_and_topmost;
+use super::{base::InputBase, input_utils::Contact};
 use crate::utils::point::Point2D;
-use crate::window::ensure_foreground_and_topmost;
 
 pub struct SeizeInput {
     hwnd: HWND,

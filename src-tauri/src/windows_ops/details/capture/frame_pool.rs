@@ -31,7 +31,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use windows::core::Interface;
 
-use crate::screencap::base::ScreencapBase;
+use super::base::ScreencapBase;
 
 /// FramePool 截图器
 pub struct FramePoolScreencap {
