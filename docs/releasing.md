@@ -35,7 +35,10 @@ tauri build --no-bundle && jiti scripts/package.ts
 > **自动化发版**：推送 `v*` tag（如 `v0.1.0`）后，release workflow（`.github/workflows/release.yml`）会自动构建 zip 并发布到 GitHub Releases（自动生成 changelog）。
 > **tag 必须与 `src-tauri/tauri.conf.json` 中的 `version` 一致**（例如版本为 `0.1.0` 时打 `v0.1.0`）。workflow 会在构建前校验二者一致，不一致则构建失败。
 
-1. **更新版本号**：修改 `src-tauri/tauri.conf.json` 中的 `version`。该文件是产品名和版本号的唯一事实来源。
+1. **同步版本号**（三处保持一致，例如要发 `0.1.0`）：
+   - `package.json` 的 `version`
+   - `src-tauri/tauri.conf.json` 的 `version`
+   - `src-tauri/Cargo.toml` 的 `[package] version`
 2. **确认资源完整**：检查 `resources/` 子模块内容（尤其未跟踪的 `data/`、`icons/`），必要时先提交到 `oea-resource` 仓库并更新子模块引用。
 3. **本地全量检查**：
 
