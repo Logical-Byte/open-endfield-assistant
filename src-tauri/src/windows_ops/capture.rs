@@ -5,7 +5,10 @@ use image::{RgbaImage, imageops};
 
 use crate::utils::region::Region2D;
 
-use super::{WindowHandle, details};
+use super::WindowHandle;
+
+#[cfg(target_os = "windows")]
+use super::details;
 
 /// 可替换的窗口截图能力。
 pub trait ScreencapBase: Send {
@@ -28,10 +31,16 @@ pub trait ScreencapBase: Send {
 }
 
 /// 使用 `PrintWindow` 捕获窗口客户区的截图器。
+#[cfg(target_os = "windows")]
 pub struct PrintWindowScreencap {
     state: details::capture::PrintWindowState,
 }
 
+/// macOS 开发外壳使用的空截图器。
+#[cfg(target_os = "macos")]
+pub struct PrintWindowScreencap;
+
+#[cfg(target_os = "windows")]
 impl PrintWindowScreencap {
     /// 绑定要捕获的窗口。
     pub fn new(window: WindowHandle) -> Self {
@@ -46,9 +55,23 @@ impl PrintWindowScreencap {
     }
 }
 
+#[cfg(target_os = "macos")]
+impl PrintWindowScreencap {
+    /// 构造不持有原生资源的 macOS 截图器。
+    pub fn new(_window: WindowHandle) -> Self {
+        Self
+    }
+
+    /// macOS 开发外壳不支持窗口截图。
+    pub fn screencap(&mut self) -> Result<RgbaImage> {
+        Err(super::unsupported("window capture"))
+    }
+}
+
 // 原生窗口句柄跨线程传递安全；截图器由调用方串行访问。
 unsafe impl Send for PrintWindowScreencap {}
 
+#[cfg(target_os = "windows")]
 impl ScreencapBase for PrintWindowScreencap {
     fn screencap(&mut self) -> Result<RgbaImage> {
         self.screencap()
@@ -56,5 +79,16 @@ impl ScreencapBase for PrintWindowScreencap {
 
     fn screencap_region(&mut self, relative_region: Region2D<i32>) -> Result<RgbaImage> {
         self.state.screencap_region(relative_region)
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl ScreencapBase for PrintWindowScreencap {
+    fn screencap(&mut self) -> Result<RgbaImage> {
+        self.screencap()
+    }
+
+    fn screencap_region(&mut self, _relative_region: Region2D<i32>) -> Result<RgbaImage> {
+        Err(super::unsupported("window capture"))
     }
 }

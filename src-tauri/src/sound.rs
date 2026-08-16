@@ -4,15 +4,22 @@
 //! 每次播放将解码后的音源直接混入输出流：`Mixer::add` 即播即忘、播完自动释放。
 //! 音量通过 `amplify` 逐样本增益实现，由 [`crate::config::OeaConfig::sound_volume`] 配置。
 
-use std::{fs::File, io::BufReader, path::Path, sync::OnceLock};
+use std::path::Path;
 
+#[cfg(target_os = "windows")]
+use std::{fs::File, io::BufReader, sync::OnceLock};
+
+#[cfg(target_os = "windows")]
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, source::Source};
+#[cfg(target_os = "windows")]
 use tracing::{debug, warn};
 
 /// 全局默认输出流（首次播放时懒初始化，保活到进程退出）。
+#[cfg(target_os = "windows")]
 static OUTPUT_STREAM: OnceLock<Option<OutputStream>> = OnceLock::new();
 
 /// 播放 wav 音效文件（异步，立即返回；`volume` 取值 0.0–1.0）。
+#[cfg(target_os = "windows")]
 pub fn play_wav(path: &Path, volume: f32) {
     let stream = OUTPUT_STREAM
         .get_or_init(|| OutputStreamBuilder::open_default_stream().ok())
@@ -32,4 +39,10 @@ pub fn play_wav(path: &Path, volume: f32) {
         }
         Err(e) => warn!("解码音效失败 ({}): {e}", path.display()),
     }
+}
+
+/// macOS 开发外壳不执行扫描自动化，因此不播放其提示音。
+#[cfg(target_os = "macos")]
+pub fn play_wav(path: &Path, volume: f32) {
+    let _ = (path, volume);
 }
