@@ -60,7 +60,9 @@ async function main() {
 
   // 组装暂存目录
   console.log(`[package] 组装 ${bundleName}`);
+  // 清理旧的暂存目录
   rmSync(stagingDir, { recursive: true, force: true });
+  // 创建暂存目录
   mkdirSync(stagingDir, { recursive: true });
 
   // 1) 主程序（重命名为 productName）
@@ -82,8 +84,8 @@ async function main() {
   rmSync(zipPath, { force: true });
   await createZip(stagingDir, zipPath);
 
-  // 清理暂存目录
-  rmSync(stagingDir, { recursive: true, force: true });
+  // 不清理暂存目录
+  // rmSync(stagingDir, { recursive: true, force: true });
 
   // 汇总
   const sizeMB = (statSync(zipPath).size / 1024 / 1024).toFixed(1);

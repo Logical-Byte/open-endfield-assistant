@@ -50,7 +50,7 @@ const {
     v-model:open="open"
     :ui="{
       content:
-        'flex flex-col gap-4 overflow-y-auto p-4 inline-80 max-block-[calc(100svh-6rem)] max-inline-[calc(100svw-1rem)]',
+        'flex max-h-[calc(100dvh-var(--ui-header-height)-var(--ui-title-height)-1rem)] flex-col gap-4 overflow-y-auto p-4 inline-80 max-inline-[calc(100svw-1rem)]',
     }"
   >
     <UTooltip text="更改主题">
@@ -151,7 +151,6 @@ const {
           <USelect
             v-model="englishFont"
             class="inline-full"
-            color="neutral"
             :content="{ bodyLock: false }"
             icon="i-lucide-type"
             :items="englishFontOptions"
@@ -179,7 +178,6 @@ const {
           <USelect
             v-model="chineseFont"
             class="inline-full"
-            color="neutral"
             :content="{ bodyLock: false }"
             icon="i-lucide-quote"
             :items="chineseFontOptions"
@@ -207,7 +205,6 @@ const {
           <USelect
             v-model="monospaceFont"
             class="font-mono inline-full"
-            color="neutral"
             :content="{ bodyLock: false }"
             icon="i-lucide-code"
             :items="monospaceFontOptions"

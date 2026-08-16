@@ -123,14 +123,7 @@ onBeforeUnmount(stopMonitor);
         label="开始监控"
         @click="startMonitor"
       />
-      <UButton
-        v-else
-        color="error"
-        icon="i-lucide-square"
-        label="停止监控"
-        variant="outline"
-        @click="stopMonitor"
-      />
+      <UButton v-else color="error" icon="i-lucide-square" label="停止监控" @click="stopMonitor" />
 
       <span v-if="running" class="text-sm text-muted">
         {{ fps }} FPS<template v-if="lastCaptureAt">
@@ -139,7 +132,13 @@ onBeforeUnmount(stopMonitor);
       </span>
     </div>
 
-    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :title="error" />
+    <UAlert
+      v-if="error"
+      color="error"
+      icon="i-lucide-circle-alert"
+      :title="error"
+      variant="subtle"
+    />
 
     <UCard class="min-h-0 flex-1" :ui="{ body: 'h-full p-0!' }">
       <div class="flex h-full items-center justify-center">

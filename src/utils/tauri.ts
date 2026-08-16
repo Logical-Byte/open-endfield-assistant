@@ -53,6 +53,16 @@ export async function saveOeaConfig(oeaConfig: OeaConfig): Promise<void> {
   return await invoke('save_oea_config', { oeaConfig });
 }
 
+/** 用 DPAPI（当前用户作用域）加密 CDK，返回 Base64 密文。 */
+export async function cdkEncrypt(cdk: string): Promise<string> {
+  return await invoke<string>('cdk_encrypt', { cdk });
+}
+
+/** 用 DPAPI（当前用户作用域）解密 CDK 密文，返回明文。 */
+export async function cdkDecrypt(encrypted: string): Promise<string> {
+  return await invoke<string>('cdk_decrypt', { encrypted });
+}
+
 /**
  * 截取游戏窗口画面：按指定尺寸缩放并编码为指定格式，返回 base64 图片数据
  * （不含 data URL 前缀，调用方自行拼接）。帧率控制等轮询逻辑由前端负责。
@@ -63,6 +73,11 @@ export async function screenshot(
   format: ScreenshotFormat,
 ): Promise<string> {
   return await invoke<string>('screenshot', { width, height, format });
+}
+
+/** 读取 WebView2 当前缩放因子（用于初始化缩放滑块）。 */
+export async function getWebviewZoom(): Promise<number> {
+  return await invoke<number>('get_webview_zoom');
 }
 
 /**
@@ -87,4 +102,38 @@ export async function onLog(cb: (entry: LogEntry) => void): Promise<() => void> 
  */
 export async function onScanResult(cb: (result: ScanResult) => void): Promise<() => void> {
   return await listen<ScanResult>('scan-result', (event) => cb(event.payload));
+}
+
+export async function onWebviewZoomChanged(cb: (zoom: number) => void): Promise<() => void> {
+  return await listen<number>('webview-zoom-changed', (event) => cb(event.payload));
+}
+
+/** 写一条 TRACE 级日志到后端日志系统，并同步打印到浏览器控制台。 */
+export async function logTrace(message: string): Promise<void> {
+  console.debug(message);
+  await invoke('log_trace', { message });
+}
+
+/** 写一条 DEBUG 级日志到后端日志系统，并同步打印到浏览器控制台。 */
+export async function logDebug(message: string): Promise<void> {
+  console.debug(message);
+  await invoke('log_debug', { message });
+}
+
+/** 写一条 INFO 级日志到后端日志系统，并同步打印到浏览器控制台。 */
+export async function logInfo(message: string): Promise<void> {
+  console.info(message);
+  await invoke('log_info', { message });
+}
+
+/** 写一条 WARN 级日志到后端日志系统，并同步打印到浏览器控制台。 */
+export async function logWarn(message: string): Promise<void> {
+  console.warn(message);
+  await invoke('log_warn', { message });
+}
+
+/** 写一条 ERROR 级日志到后端日志系统，并同步打印到浏览器控制台。 */
+export async function logError(message: string): Promise<void> {
+  console.error(message);
+  await invoke('log_error', { message });
 }
