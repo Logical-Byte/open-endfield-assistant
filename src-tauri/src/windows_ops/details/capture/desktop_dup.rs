@@ -16,6 +16,7 @@ use windows::Win32::Graphics::Gdi::{HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorF
 use windows::core::Interface;
 
 use super::base::ScreencapBase;
+use crate::windows_ops::WindowHandle;
 
 // AcquireNextFrame 的超时参数
 const ACQUIRE_TIMEOUT: u32 = 2000;
@@ -35,9 +36,9 @@ pub struct DesktopDupScreencap {
 }
 
 impl DesktopDupScreencap {
-    pub fn new(hwnd: HWND) -> Self {
+    pub fn new(window: WindowHandle) -> Self {
         Self {
-            hwnd,
+            hwnd: window.0,
             d3d_device: None,
             d3d_context: None,
             dxgi_factory: None,
@@ -399,8 +400,8 @@ impl DesktopDupScreencap {
 unsafe impl Send for DesktopDupScreencap {}
 
 impl ScreencapBase for DesktopDupScreencap {
-    fn new(hwnd: HWND) -> Self {
-        Self::new(hwnd)
+    fn new(window: WindowHandle) -> Self {
+        Self::new(window)
     }
     fn screencap(&mut self) -> Result<RgbaImage> {
         self.screencap()

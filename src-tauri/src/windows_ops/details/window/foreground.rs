@@ -4,9 +4,8 @@
 //! 避免在其他程序中误触发扫描 / 启动；`Alt+Delete` 退出热键全局生效，
 //! 不受本守卫限制。
 
-use windows::Win32::Foundation::HWND;
-
 use super::{get_foreground_window, get_window_by_title};
+use crate::windows_ops::WindowHandle;
 
 /// 终末地游戏窗口标题
 pub const ENDFIELD_WINDOW_TITLE: &str = "Endfield";
@@ -17,20 +16,20 @@ pub const ENDFIELD_WINDOW_CLASS: &str = "UnityWndClass";
 ///
 /// 仅持有窗口句柄（裸指针封装），且只读、不修改窗口。访问被串行化到热键
 /// 消费线程（`Controller::spawn_hotkey_loop`），与 [`crate::screencap`] 中
-/// 其它持有 HWND 的类型采用相同的 Send/Sync 约定。
+/// 其它持有原生窗口句柄的类型采用相同的 Send/Sync 约定。
 pub struct ForegroundGuard {
     /// OEA 自身主窗口句柄
-    oea_hwnd: HWND,
+    oea_window: WindowHandle,
 }
 
-// HWND 为 `*mut c_void` 封装，本身非 Send/Sync，需手动声明（调用方串行化访问）
+// 原生窗口句柄本身非 Send/Sync，需手动声明（调用方串行化访问）。
 unsafe impl Send for ForegroundGuard {}
 unsafe impl Sync for ForegroundGuard {}
 
 impl ForegroundGuard {
     /// 创建守卫，绑定 OEA 自身主窗口句柄。
-    pub fn new(oea_hwnd: HWND) -> Self {
-        Self { oea_hwnd }
+    pub fn new(oea_window: WindowHandle) -> Self {
+        Self { oea_window }
     }
 
     /// 判断当前前台窗口是否为 OEA 自身或终末地游戏窗口。
@@ -41,7 +40,7 @@ impl ForegroundGuard {
         let foreground = get_foreground_window();
 
         // OEA 自身窗口在前台
-        if foreground == self.oea_hwnd {
+        if foreground == self.oea_window {
             return true;
         }
 

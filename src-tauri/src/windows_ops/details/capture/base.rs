@@ -1,11 +1,10 @@
+use crate::utils::region::Region2D;
+use crate::windows_ops::WindowHandle;
 use anyhow::Result;
 use image::{RgbaImage, imageops};
-use windows::Win32::Foundation::HWND;
-
-use crate::utils::region::Region2D;
 
 pub trait ScreencapBase: Send {
-    fn new(hwnd: HWND) -> Self
+    fn new(window: WindowHandle) -> Self
     where
         Self: Sized;
 

@@ -6,6 +6,7 @@ use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 
 use super::base::ScreencapBase;
 use super::desktop_dup::DesktopDupScreencap;
+use crate::windows_ops::WindowHandle;
 
 /// 基于 Desktop Duplication 的窗口截图器
 /// 先截取全屏，再根据窗口客户区坐标裁剪
@@ -15,10 +16,10 @@ pub struct DesktopDupWindowScreencap {
 }
 
 impl DesktopDupWindowScreencap {
-    pub fn new(hwnd: HWND) -> Self {
+    pub fn new(window: WindowHandle) -> Self {
         Self {
-            hwnd,
-            inner: DesktopDupScreencap::new(hwnd),
+            hwnd: window.0,
+            inner: DesktopDupScreencap::new(window),
         }
     }
 
@@ -118,8 +119,8 @@ impl DesktopDupWindowScreencap {
 unsafe impl Send for DesktopDupWindowScreencap {}
 
 impl ScreencapBase for DesktopDupWindowScreencap {
-    fn new(hwnd: HWND) -> Self {
-        Self::new(hwnd)
+    fn new(window: WindowHandle) -> Self {
+        Self::new(window)
     }
 
     fn screencap(&mut self) -> Result<RgbaImage> {

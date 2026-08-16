@@ -5,7 +5,7 @@ use base64::Engine;
 use image::{ImageFormat, imageops};
 use serde::Deserialize;
 
-use crate::{screencap::PrintWindowScreencap, window};
+use crate::windows_ops;
 
 /// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -30,14 +30,14 @@ impl ScreenshotFormat {
 /// 截图的实际实现（返回 anyhow 错误，由命令层转换为 `String` 供 Tauri IPC 使用）。
 pub fn capture_screenshot(width: u32, height: u32, format: ScreenshotFormat) -> Result<String> {
     // 1. 定位游戏窗口（PrintWindow 可捕获非最小化后台窗口）
-    let hwnd = window::get_window_by_title(
-        Some(window::ENDFIELD_WINDOW_CLASS),
-        Some(window::ENDFIELD_WINDOW_TITLE),
+    let hwnd = windows_ops::window::get_window_by_title(
+        Some(windows_ops::window::ENDFIELD_WINDOW_CLASS),
+        Some(windows_ops::window::ENDFIELD_WINDOW_TITLE),
     )
     .context("未找到游戏窗口")?;
 
     // 2. 截图
-    let mut screencap = PrintWindowScreencap::new(hwnd);
+    let mut screencap = windows_ops::capture::PrintWindowScreencap::new(hwnd);
     let raw = screencap.screencap().context("截图失败")?;
 
     // 3. 缩放到指定尺寸

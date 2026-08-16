@@ -14,6 +14,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use super::{base::InputBase, input_utils::Contact};
 use crate::utils::point::Point2D;
+use crate::windows_ops::WindowHandle;
 use crate::windows_ops::window::ensure_foreground_and_topmost;
 
 pub struct SeizeInput {
@@ -30,9 +31,9 @@ impl Drop for SeizeInput {
 
 impl SeizeInput {
     /// 创建输入器（物理输入，`block_input` 为是否在操作期间屏蔽真实键盘鼠标）。
-    pub fn new(hwnd: HWND, block_input: bool) -> Self {
+    pub fn new(window: WindowHandle, block_input: bool) -> Self {
         Self {
-            hwnd,
+            hwnd: window.0,
             block_input,
             last_pos: None,
         }
@@ -144,7 +145,7 @@ impl SeizeInput {
     }
 
     fn ensure_foreground(&self) -> Result<()> {
-        ensure_foreground_and_topmost(self.hwnd)
+        ensure_foreground_and_topmost(WindowHandle(self.hwnd))
     }
 
     fn get_target_pos(&self) -> (i32, i32) {
@@ -339,8 +340,8 @@ impl SeizeInput {
 unsafe impl Send for SeizeInput {}
 
 impl InputBase for SeizeInput {
-    fn new(hwnd: HWND, block_input: bool) -> Self {
-        Self::new(hwnd, block_input)
+    fn new(window: WindowHandle, block_input: bool) -> Self {
+        Self::new(window, block_input)
     }
 
     fn touch_down(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {

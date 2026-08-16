@@ -1,13 +1,12 @@
 use std::{thread, time::Duration};
 
-use anyhow::Result;
-use windows::Win32::Foundation::HWND;
-
 use super::input_utils::Contact;
 use crate::utils::point::Point2D;
+use crate::windows_ops::WindowHandle;
+use anyhow::Result;
 
 pub trait InputBase: Send {
-    fn new(hwnd: HWND, block_input: bool) -> Self
+    fn new(window: WindowHandle, block_input: bool) -> Self
     where
         Self: Sized;
 

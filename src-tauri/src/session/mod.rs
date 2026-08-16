@@ -20,16 +20,18 @@ use std::time::Duration;
 use anyhow::Result;
 use image::{DynamicImage, RgbaImage, imageops};
 use imageproc::contrast::ThresholdType;
-use windows::Win32::Foundation::HWND;
 
 use crate::{
-    input::{Contact, InputBase},
     ocr::{OcrEngine, text_detection},
     resolution::GameResolution,
-    screencap::ScreencapBase,
     task::TaskStopped,
     template_matching::{MatchResult, TemplateManager},
     utils::{point::Point2D, region::Region2D},
+    windows_ops::{
+        WindowHandle,
+        capture::ScreencapBase,
+        input::{Contact, InputBase},
+    },
 };
 
 /// 停止令牌：热键 / 命令通过它请求中断，Session 每次操作前轮询。
@@ -38,7 +40,7 @@ pub type StopToken = Arc<AtomicBool>;
 /// 游戏会话：一次游戏操作（扫描档案库任务）的统一上下文。
 ///
 /// # Send 安全性
-/// `Session` 持有 Win32 句柄（`HWND` 内部为裸指针），不自动 `Send`。
+/// `Session` 持有非拥有型窗口句柄，不自动 `Send`。
 /// 窗口句柄在 OS 层面对线程无亲和性，且本类型始终由调用方以 `&mut`
 /// 串行使用（同一时刻仅一个线程访问），因此跨线程移动是安全的。
 /// 若未来有人破坏"单线程串行使用"这一前提，本 unsafe 承诺即失效。
@@ -46,7 +48,7 @@ unsafe impl Send for Session {}
 
 pub struct Session {
     /// 游戏窗口句柄（前台判定 / 日志用）
-    pub hwnd: HWND,
+    pub hwnd: WindowHandle,
     /// 游戏实际分辨率（仅支持 16:9）
     pub resolution: GameResolution,
     /// 截图器（可运行时替换，扩展点）
@@ -65,7 +67,7 @@ impl Session {
     /// 创建会话（由 [`crate::connect::connect_to_game`] 组装）。
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        hwnd: HWND,
+        hwnd: WindowHandle,
         screencap: Box<dyn ScreencapBase>,
         input: Box<dyn InputBase>,
         ocr: Arc<Mutex<OcrEngine>>,

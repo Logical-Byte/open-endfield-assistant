@@ -32,24 +32,15 @@ use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::{Arc, Mutex, mpsc};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use rapidocr_core::config::PipelineConfig;
 use tauri::Manager;
 use tracing::{info, warn};
-use windows::Win32::Foundation::HWND;
 
 use crate::{
     app_paths::AppPaths, controller::Controller, data::AppData, ocr::OcrEngine,
-    scene::create_scene_manager, window::ForegroundGuard,
+    scene::create_scene_manager,
 };
-
-/// 获取 OEA 主窗口的原生窗口句柄（用于前台窗口判定）。
-fn get_oea_hwnd(app_handle: &tauri::AppHandle) -> Result<HWND> {
-    let window = app_handle
-        .get_webview_window("main")
-        .ok_or_else(|| anyhow!("未找到 OEA 主窗口"))?;
-    Ok(window.hwnd()?)
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -117,7 +108,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
 
     // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
-    window::set_thread_dpi_awareness_context();
+    windows_ops::window::set_thread_dpi_awareness_context();
 
     // WebView2 缺失时自动下载引导程序并安装。
     webview2::ensure_installed(&app_paths.cache_dir()).inspect_err(|e| warn!("{e:#}"))?;
@@ -161,8 +152,8 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let scenes = Arc::new(create_scene_manager());
 
     // 开始监听热键
-    let oea_hwnd = get_oea_hwnd(app.handle())?;
-    let foreground = ForegroundGuard::new(oea_hwnd);
+    let oea_window = windows_ops::window::get_app_window(app.handle())?;
+    let foreground = windows_ops::window::ForegroundGuard::new(oea_window);
     let hotkey_rx = hotkey::listen()?;
 
     // 状态标志（Controller 唯一归属）
