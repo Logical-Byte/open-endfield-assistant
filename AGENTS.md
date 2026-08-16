@@ -1,23 +1,10 @@
 ## 编码规范
 
-### 依赖管理
-
-- 使用 `pnpm add`、`pnpm remove`、`cargo add` 或 `cargo remove` 添加或移除依赖，拒绝手动更改 `package.json` 或 `Cargo.toml` 依赖项
-- 除非必要，不要在命令中指定依赖版本。
-
-### 前端
-
-- Linter 使用 `pnpm lint:fix`（修复属性排序错误）和 `pnpm fix`（任意修改后都需要运行）。
-- 拒绝写 `anotherFunction(args)` 的简单包装函数。
-
-### 后端
-
-- 在 `src-tauri` 目录中运行 cargo 命令，或使用 `--manifest-path src-tauri/Cargo.toml`。
-- Linter 使用 `cargo check`、`cargo fix --allow-dirty` 和 `cargo clippy --fix --allow-dirty`.
-- 使用 `Arc::clone(&foo)` 克隆原子引用计数指针，拒绝 `foo.clone()`。
-- 在注释中使用反引号 backquote 包裹代码片段。
-- `unsafe` 仅包裹单个函数调用表达式。`? ; =` 放在 unsafe 块外。例：`let foo = unsafe { bar(baz) }?;`。
-- 后端的运行时行为不得更改“根目录”以外的磁盘文件。“根目录”在开发环境下，指 `package.json` 所在目录。在打包后，指可执行文件所在目录。
+- 修改前端代码、配置或依赖前，阅读 `docs/rule-frontend.md`。
+- 修改 `src-tauri/` 下的后端代码、配置或依赖前，阅读 `docs/rule-backend.md`。
+- 修改打包或发版流程前，阅读 `docs/releasing.md`。
+- 修改 `src-tauri/src/scene/` 或 `src-tauri/src/tasks/archive_scan/` 下的档案库自动化逻辑前，阅读 `docs/archive-automation.md`。
+- 修改解包数据处理、档案标题映射或相关数据生成脚本前，阅读 `docs/game-data.md`。
 
 ## 本地/个人偏好
 
