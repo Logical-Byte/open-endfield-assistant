@@ -11,8 +11,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WM_RBUTTONUP, WM_XBUTTONDOWN, WM_XBUTTONUP, XBUTTON1, XBUTTON2,
 };
 
-use crate::MAKELONG;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Contact {
     Left = 0,
@@ -20,6 +18,10 @@ pub enum Contact {
     Middle = 2,
     X1 = 3,
     X2 = 4,
+}
+
+const fn make_message_param(low: u32, high: u32) -> usize {
+    ((low & 0xffff) | ((high & 0xffff) << 16)) as usize
 }
 
 // Contact 到 WM_* 消息的转换结果
@@ -45,11 +47,11 @@ pub fn contact_to_mouse_down_message(contact: Contact) -> MouseMessageInfo {
         },
         Contact::X1 => MouseMessageInfo {
             message: WM_XBUTTONDOWN,
-            w_param: MAKELONG!(MK_XBUTTON1.0, XBUTTON1) as usize,
+            w_param: make_message_param(MK_XBUTTON1.0, XBUTTON1.into()),
         },
         Contact::X2 => MouseMessageInfo {
             message: WM_XBUTTONDOWN,
-            w_param: MAKELONG!(MK_XBUTTON2.0, XBUTTON2) as usize,
+            w_param: make_message_param(MK_XBUTTON2.0, XBUTTON2.into()),
         },
     }
 }
@@ -97,11 +99,11 @@ pub fn contact_to_mouse_up_message(contact: Contact) -> MouseMessageInfo {
         },
         Contact::X1 => MouseMessageInfo {
             message: WM_XBUTTONUP,
-            w_param: MAKELONG!(0u32, XBUTTON1) as usize,
+            w_param: make_message_param(0, XBUTTON1.into()),
         },
         Contact::X2 => MouseMessageInfo {
             message: WM_XBUTTONUP,
-            w_param: MAKELONG!(0u32, XBUTTON2) as usize,
+            w_param: make_message_param(0, XBUTTON2.into()),
         },
     }
 }
