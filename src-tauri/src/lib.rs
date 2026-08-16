@@ -111,7 +111,8 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     windows_ops::window::set_thread_dpi_awareness_context();
 
     // WebView2 缺失时自动下载引导程序并安装。
-    webview2::ensure_installed(&app_paths.cache_dir()).inspect_err(|e| warn!("{e:#}"))?;
+    windows_ops::webview2::ensure_installed(&app_paths.cache_dir())
+        .inspect_err(|e| warn!("{e:#}"))?;
 
     // 解析应用配置文件
     let oea_config = config::load_oea_config(&app_paths.oea_config_file());
@@ -154,7 +155,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     // 开始监听热键
     let oea_window = windows_ops::window::get_app_window(app.handle())?;
     let foreground = windows_ops::window::ForegroundGuard::new(oea_window);
-    let hotkey_rx = hotkey::listen()?;
+    let hotkey_rx = windows_ops::hotkey::listen()?;
 
     // 状态标志（Controller 唯一归属）
     let stop = Arc::new(AtomicBool::new(false));

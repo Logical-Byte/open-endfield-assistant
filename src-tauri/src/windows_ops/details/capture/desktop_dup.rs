@@ -95,7 +95,7 @@ impl DesktopDupScreencap {
     }
 
     /// 获取当前输出（显示器）在虚拟桌面中的坐标
-    pub(crate) fn output_desktop_coordinates(&self) -> Result<RECT> {
+    pub(super) fn output_desktop_coordinates(&self) -> Result<RECT> {
         let dxgi_output = self
             .dxgi_output
             .as_ref()

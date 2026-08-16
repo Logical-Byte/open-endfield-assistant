@@ -1,7 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub};
 
 use az::{Cast, CheckedCast, OverflowingCast, SaturatingCast, StrictCast, WrappingCast};
-use windows::Win32::Foundation::RECT;
 
 use crate::utils::point::Point2D;
 
@@ -295,34 +294,6 @@ where
         let (p0, p0_overflow) = self.p0.overflowing_cast();
         let (p1, p1_overflow) = self.p1.overflowing_cast();
         (Region2D { p0, p1 }, p0_overflow || p1_overflow)
-    }
-}
-
-impl From<RECT> for Region2D<i32> {
-    /// 将 Windows API 的 [`RECT`] 结构转换为 [`Region2D<i32>`]。
-    fn from(rect: RECT) -> Self {
-        Self {
-            p0: Point2D {
-                x: rect.left,
-                y: rect.top,
-            },
-            p1: Point2D {
-                x: rect.right,
-                y: rect.bottom,
-            },
-        }
-    }
-}
-
-impl From<Region2D<i32>> for RECT {
-    /// 将 [`Region2D<i32>`] 转换为 Windows API 的 [`RECT`] 结构。
-    fn from(region: Region2D<i32>) -> Self {
-        Self {
-            left: region.p0.x,
-            top: region.p0.y,
-            right: region.p1.x,
-            bottom: region.p1.y,
-        }
     }
 }
 

@@ -4,7 +4,7 @@ use windows::Win32::Graphics::Gdi::{
     ClientToScreen, GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow,
 };
 use windows::Win32::UI::HiDpi::{
-    DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetThreadDpiAwarenessContext,
+    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetThreadDpiAwarenessContext,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetForegroundWindow, GetWindowRect, HWND_TOP, IsIconic, IsWindow, IsZoomed,
@@ -15,8 +15,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use crate::windows_ops::WindowHandle;
 
 /// 设置当前线程的 DPI 感知上下文为 Per Monitor v2
-pub fn set_thread_dpi_awareness_context() -> DPI_AWARENESS_CONTEXT {
-    unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }
+pub fn set_thread_dpi_awareness_context() {
+    let _ = unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
 }
 
 // 窗口激活并置顶工具函数（强化版本，用于需要前台的物理输入方式）

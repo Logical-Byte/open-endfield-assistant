@@ -1,5 +1,4 @@
 use az::{Cast, CheckedCast, OverflowingCast, SaturatingCast, StrictCast, WrappingCast};
-use windows::Win32::Foundation::POINT;
 
 /// 泛型二维点结构体，表示平面上的一个坐标 `(x, y)`。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -101,25 +100,5 @@ where
         let (x, x_overflow) = self.x.overflowing_cast();
         let (y, y_overflow) = self.y.overflowing_cast();
         (Point2D { x, y }, x_overflow || y_overflow)
-    }
-}
-
-impl From<POINT> for Point2D<i32> {
-    /// 将 Windows API 的 [`POINT`] 结构转换为 [`Point2D<i32>`]。
-    fn from(point: POINT) -> Self {
-        Self {
-            x: point.x,
-            y: point.y,
-        }
-    }
-}
-
-impl From<Point2D<i32>> for POINT {
-    /// 将 [`Point2D<i32>`] 转换为 Windows API 的 [`POINT`] 结构。
-    fn from(point: Point2D<i32>) -> Self {
-        Self {
-            x: point.x,
-            y: point.y,
-        }
     }
 }
