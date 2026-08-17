@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import UpdateDownloadSettings from '@/components/update/UpdateDownloadSettings.vue';
 import {
   checkUpdate,
   downloadAndInstall,
   updatePopoverOpen,
   updateSnapshot,
 } from '@/utils/app/update';
+import { saving } from '@/utils/app/config';
 import { renderMarkdown } from '@/utils/markdown';
 import {
   downloadEtaText,
@@ -55,8 +57,10 @@ const etaText = computed(() => downloadEtaText(updateSnapshot.value));
             <p class="font-semibold">更新失败</p>
           </div>
           <p class="text-sm whitespace-pre-wrap text-toned">{{ updateSnapshot.error }}</p>
+          <UpdateDownloadSettings />
           <UButton
             block
+            :disabled="saving"
             icon="i-lucide-rotate-cw"
             :label="updateSnapshot.availableVersion ? '重试下载并安装' : '重试检查'"
             @click="updateSnapshot.availableVersion ? downloadAndInstall() : checkUpdate()"
@@ -86,6 +90,7 @@ const etaText = computed(() => downloadEtaText(updateSnapshot.value));
             />
             <!-- eslint-enable vue/no-v-html -->
           </div>
+          <UpdateDownloadSettings />
           <div v-if="updateSnapshot.status === 'downloading'" class="space-y-2">
             <div class="flex justify-between text-xs text-toned">
               <span>正在下载</span><span class="tabular-nums">{{ progressText }}</span>
@@ -99,6 +104,7 @@ const etaText = computed(() => downloadEtaText(updateSnapshot.value));
           <UButton
             v-if="updateSnapshot.status === 'available'"
             block
+            :disabled="saving"
             icon="i-lucide-download"
             label="下载并安装"
             @click="downloadAndInstall"

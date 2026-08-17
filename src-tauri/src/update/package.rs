@@ -102,7 +102,7 @@ mod tests {
     }
 
     #[test]
-    fn unsafe_or_incomplete_package_never_publishes_assets() {
+    fn unsafe_package_never_publishes_assets() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("portable");
         let transaction = root.join("cache/updates/current");
@@ -110,6 +110,24 @@ mod tests {
         write_zip(
             &transaction.join("artifact.zip"),
             &[("OEA.exe", b"new exe"), ("../escape", b"bad")],
+        );
+
+        assert!(prepare_full_package(&root, &transaction, "0.2.0").is_err());
+        assert!(!root.join("assets/v0.2.0").exists());
+    }
+
+    #[test]
+    fn incomplete_package_never_publishes_assets() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("portable");
+        let transaction = root.join("cache/updates/current");
+        fs::create_dir_all(&transaction).unwrap();
+        write_zip(
+            &transaction.join("artifact.zip"),
+            &[
+                ("OEA.exe", b"new exe"),
+                ("assets/v0.2.0/resources/data.json", b"data"),
+            ],
         );
 
         assert!(prepare_full_package(&root, &transaction, "0.2.0").is_err());

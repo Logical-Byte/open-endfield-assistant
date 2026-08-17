@@ -31,8 +31,18 @@ pub struct DownloadResult {
 pub fn download(
     client: &Client,
     request: &DownloadRequest,
+    response_ready: impl FnMut(Option<HttpValidator>, Option<u64>, bool) -> Result<()>,
+    report: impl FnMut(Progress),
+) -> Result<DownloadResult> {
+    download_with_clock(client, request, response_ready, report, Instant::now)
+}
+
+fn download_with_clock(
+    client: &Client,
+    request: &DownloadRequest,
     mut response_ready: impl FnMut(Option<HttpValidator>, Option<u64>, bool) -> Result<()>,
     mut report: impl FnMut(Progress),
+    mut now: impl FnMut() -> Instant,
 ) -> Result<DownloadResult> {
     if let Some(parent) = request.part_path.parent() {
         fs::create_dir_all(parent).context("创建下载目录失败")?;
@@ -82,7 +92,7 @@ pub fn download(
         .truncate(!resumed)
         .open(&request.part_path)
         .context("打开部分归档失败")?;
-    let started = Instant::now();
+    let started = now();
     let mut transferred = 0_u64;
     let mut buffer = [0_u8; 64 * 1024];
     loop {
@@ -94,7 +104,7 @@ pub fn download(
             .write_all(&buffer[..count])
             .context("写入部分归档失败")?;
         transferred += count as u64;
-        let elapsed = started.elapsed().as_secs_f64();
+        let elapsed = now().duration_since(started).as_secs_f64();
         report(Progress {
             downloaded_bytes: start + transferred,
             total_bytes: total,
@@ -161,11 +171,12 @@ mod tests {
         io::Cursor,
         sync::{Arc, Mutex},
         thread,
+        time::{Duration, Instant},
     };
 
     use tiny_http::{Header, Response, Server, StatusCode};
 
-    use super::{DownloadRequest, HttpValidator, Progress, download};
+    use super::{DownloadRequest, HttpValidator, Progress, download, download_with_clock};
 
     fn header(name: &'static [u8], value: &'static [u8]) -> Header {
         Header::from_bytes(name, value).unwrap()
@@ -260,6 +271,151 @@ mod tests {
 
         assert_eq!(fs::read(part).unwrap(), b"fresh");
         assert_eq!(progress.first().unwrap().downloaded_bytes, 0);
+    }
+
+    #[test]
+    fn last_modified_validator_can_resume_a_partial_file() {
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let address = format!("http://{}", server.server_addr());
+        let handle = thread::spawn(move || {
+            let request = server.recv().unwrap();
+            assert!(request.headers().iter().any(|header| {
+                header.field.equiv("If-Range")
+                    && header.value.as_str() == "Mon, 17 Aug 2026 12:00:00 GMT"
+            }));
+            request
+                .respond(
+                    Response::from_data(b"world".to_vec())
+                        .with_status_code(StatusCode(206))
+                        .with_header(header(b"Last-Modified", b"Mon, 17 Aug 2026 12:00:00 GMT"))
+                        .with_header(header(b"Content-Range", b"bytes 6-10/11")),
+                )
+                .unwrap();
+        });
+        let temp = tempfile::tempdir().unwrap();
+        let part = temp.path().join("artifact.zip.part");
+        fs::write(&part, b"hello ").unwrap();
+
+        download(
+            &reqwest::blocking::Client::new(),
+            &DownloadRequest {
+                url: address,
+                part_path: part.clone(),
+                validator: Some(HttpValidator::LastModified(
+                    "Mon, 17 Aug 2026 12:00:00 GMT".into(),
+                )),
+            },
+            |_, _, resumed| {
+                assert!(resumed);
+                Ok(())
+            },
+            |_| {},
+        )
+        .unwrap();
+        handle.join().unwrap();
+
+        assert_eq!(fs::read(part).unwrap(), b"hello world");
+    }
+
+    #[test]
+    fn changed_validator_on_partial_response_restarts_with_a_full_request() {
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let address = format!("http://{}", server.server_addr());
+        let handle = thread::spawn(move || {
+            let resumed = server.recv().unwrap();
+            resumed
+                .respond(
+                    Response::from_data(b"wrong".to_vec())
+                        .with_status_code(StatusCode(206))
+                        .with_header(header(b"ETag", b"\"v2\""))
+                        .with_header(header(b"Content-Range", b"bytes 5-9/10")),
+                )
+                .unwrap();
+            let restarted = server.recv().unwrap();
+            assert!(
+                restarted
+                    .headers()
+                    .iter()
+                    .all(|header| !header.field.equiv("Range"))
+            );
+            restarted
+                .respond(
+                    Response::from_data(b"fresh".to_vec()).with_header(header(b"ETag", b"\"v2\"")),
+                )
+                .unwrap();
+        });
+        let temp = tempfile::tempdir().unwrap();
+        let part = temp.path().join("artifact.zip.part");
+        fs::write(&part, b"stale").unwrap();
+        let mut progress = Vec::<Progress>::new();
+
+        download(
+            &reqwest::blocking::Client::new(),
+            &DownloadRequest {
+                url: address,
+                part_path: part.clone(),
+                validator: Some(HttpValidator::Etag("\"v1\"".into())),
+            },
+            |_, _, resumed| {
+                assert!(!resumed);
+                Ok(())
+            },
+            |value| progress.push(value),
+        )
+        .unwrap();
+        handle.join().unwrap();
+
+        assert_eq!(fs::read(part).unwrap(), b"fresh");
+        assert_eq!(progress.first().unwrap().downloaded_bytes, 0);
+    }
+
+    #[test]
+    fn resumed_speed_counts_only_bytes_transferred_in_this_run() {
+        let partial_len = 1024 * 1024;
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let address = format!("http://{}", server.server_addr());
+        let handle = thread::spawn(move || {
+            let request = server.recv().unwrap();
+            request
+                .respond(
+                    Response::from_data(b"fresh".to_vec())
+                        .with_status_code(StatusCode(206))
+                        .with_header(header(b"ETag", b"\"v1\""))
+                        .with_header(header(b"Content-Range", b"bytes 1048576-1048580/1048581")),
+                )
+                .unwrap();
+        });
+        let temp = tempfile::tempdir().unwrap();
+        let part = temp.path().join("artifact.zip.part");
+        fs::write(&part, vec![b'x'; partial_len]).unwrap();
+        let mut progress = Vec::<Progress>::new();
+
+        let started = Instant::now();
+        let mut clock_calls = 0;
+        download_with_clock(
+            &reqwest::blocking::Client::new(),
+            &DownloadRequest {
+                url: address,
+                part_path: part,
+                validator: Some(HttpValidator::Etag("\"v1\"".into())),
+            },
+            |_, _, _| Ok(()),
+            |value| progress.push(value),
+            || {
+                clock_calls += 1;
+                if clock_calls == 1 {
+                    started
+                } else {
+                    started + Duration::from_millis(100)
+                }
+            },
+        )
+        .unwrap();
+        handle.join().unwrap();
+
+        let final_progress = progress.last().unwrap();
+        assert_eq!(final_progress.downloaded_bytes, partial_len as u64 + 5);
+        assert!(final_progress.bytes_per_second < 10_000);
     }
 
     #[test]

@@ -102,8 +102,30 @@ impl UpdateManager {
     }
 
     pub fn check(&self, config: &OeaConfig, mut emit: impl FnMut(UpdateSnapshot)) -> Result<()> {
-        self.change_status(UpdateStatus::Checking, None, &mut emit);
-        match source::check(config, env!("CARGO_PKG_VERSION")) {
+        self.check_with(
+            || source::check(config, env!("CARGO_PKG_VERSION")),
+            &mut emit,
+        )
+    }
+
+    fn check_with(
+        &self,
+        lookup: impl FnOnce() -> Result<Option<AvailableUpdate>>,
+        mut emit: impl FnMut(UpdateSnapshot),
+    ) -> Result<()> {
+        {
+            let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            state.available = None;
+            state.snapshot.status = UpdateStatus::Checking;
+            state.snapshot.available_version = None;
+            state.snapshot.release_notes = None;
+            state.snapshot.downloaded_bytes = 0;
+            state.snapshot.total_bytes = None;
+            state.snapshot.bytes_per_second = 0;
+            state.snapshot.error = None;
+            emit(state.snapshot.clone());
+        }
+        match lookup() {
             Ok(Some(available)) => {
                 let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
                 state.snapshot.status = UpdateStatus::Available;
@@ -461,5 +483,110 @@ mod tests {
         ] {
             assert!(statuses.contains(&expected));
         }
+    }
+
+    #[test]
+    fn failed_recheck_discards_previously_available_update() {
+        let manager = UpdateManager::new(AppPaths::for_build(
+            "/portable",
+            env!("CARGO_PKG_VERSION"),
+            false,
+        ));
+        {
+            let mut state = manager.state.lock().unwrap();
+            state.available = Some(AvailableUpdate {
+                version: "0.2.0".into(),
+                release_notes: "old notes".into(),
+                artifact_url: "https://old.example/OEA.zip".into(),
+                sha256: "a".repeat(64),
+                size: Some(42),
+                source: DownloadSource::Github,
+            });
+            state.snapshot.available_version = Some("0.2.0".into());
+            state.snapshot.release_notes = Some("old notes".into());
+        }
+
+        assert!(
+            manager
+                .check_with(|| anyhow::bail!("source failed"), |_| {})
+                .is_err()
+        );
+
+        let state = manager.state.lock().unwrap();
+        assert!(state.available.is_none());
+        assert_eq!(state.snapshot.status, UpdateStatus::Failed);
+        assert_eq!(state.snapshot.available_version, None);
+        assert_eq!(state.snapshot.release_notes, None);
+    }
+
+    #[test]
+    fn retry_after_asset_publication_reuses_prepared_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("portable");
+        let transaction_dir = root.join("cache/updates/current");
+        let published_assets = root.join("assets/v0.2.0");
+        fs::create_dir_all(transaction_dir.join("candidate")).unwrap();
+        fs::create_dir_all(&published_assets).unwrap();
+        fs::write(transaction_dir.join("artifact.zip"), b"verified archive").unwrap();
+        fs::write(transaction_dir.join("candidate/OEA.exe"), b"prepared exe").unwrap();
+        fs::write(published_assets.join("marker"), b"published assets").unwrap();
+        let current_exe = root.join("OEA.exe");
+        fs::write(&current_exe, b"old exe").unwrap();
+        let available = AvailableUpdate {
+            version: "0.2.0".into(),
+            release_notes: "notes".into(),
+            artifact_url: "https://unused.example/OEA.zip".into(),
+            sha256: "a".repeat(64),
+            size: Some(16),
+            source: DownloadSource::Github,
+        };
+        Transaction {
+            schema_version: 1,
+            transaction_id: "existing".into(),
+            stage: TransactionStage::Prepared,
+            source_version: env!("CARGO_PKG_VERSION").into(),
+            target_version: available.version.clone(),
+            download_source: available.source,
+            artifact_url: available.artifact_url.clone(),
+            expected_sha256: available.sha256.clone(),
+            expected_size: available.size,
+            http_validator: None,
+            caller_pid: Some(1),
+        }
+        .save(&transaction_dir.join(TRANSACTION_FILE))
+        .unwrap();
+        let manager = UpdateManager::new(AppPaths::for_build(
+            root.clone(),
+            env!("CARGO_PKG_VERSION"),
+            false,
+        ));
+        manager.state.lock().unwrap().available = Some(available);
+        let mut snapshots = Vec::new();
+
+        manager
+            .download_and_prepare(&OeaConfig::default(), &current_exe, 4321, |snapshot| {
+                snapshots.push(snapshot)
+            })
+            .unwrap();
+
+        assert_eq!(
+            fs::read(published_assets.join("marker")).unwrap(),
+            b"published assets"
+        );
+        assert_eq!(
+            fs::read(transaction_dir.join("candidate/OEA.exe")).unwrap(),
+            b"prepared exe"
+        );
+        assert_eq!(
+            fs::read(transaction_dir.join("bootstrap.exe")).unwrap(),
+            b"old exe"
+        );
+        assert_eq!(
+            snapshots
+                .iter()
+                .map(|snapshot| snapshot.status)
+                .collect::<Vec<_>>(),
+            [UpdateStatus::BootstrapReady]
+        );
     }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { oeaConfig, saving } from '@/utils/app/config';
 import { checkUpdate, updateSnapshot } from '@/utils/app/update';
+import { UPDATE_PROXY_MODE_ITEMS, UPDATE_SOURCE_ITEMS } from '@/utils/update-options';
 import { computed } from 'vue';
 
 /**
@@ -21,16 +22,6 @@ const soundVolume = computed<number>({
     }
   },
 });
-
-const updateSourceItems = [
-  { label: 'Mirror酱', value: 'mirrorchyan' },
-  { label: 'GitHub', value: 'github' },
-];
-const proxyModeItems = [
-  { label: '不使用代理', value: 'none' },
-  { label: '系统代理', value: 'system' },
-  { label: '自定义代理', value: 'custom' },
-];
 
 async function manualCheckUpdate(): Promise<void> {
   await checkUpdate();
@@ -102,7 +93,7 @@ async function manualCheckUpdate(): Promise<void> {
                 <p class="font-medium">下载源</p>
                 <p class="text-sm text-toned">Mirror酱未填写 CDK 时使用 GitHub</p>
               </div>
-              <USelect v-model="oeaConfig.updateSource" class="w-52" :items="updateSourceItems" />
+              <USelect v-model="oeaConfig.updateSource" class="w-52" :items="UPDATE_SOURCE_ITEMS" />
             </div>
 
             <div
@@ -121,7 +112,11 @@ async function manualCheckUpdate(): Promise<void> {
                 <p class="font-medium">下载代理</p>
                 <p class="text-sm text-toned">用于检查和下载更新包</p>
               </div>
-              <USelect v-model="oeaConfig.updateProxyMode" class="w-52" :items="proxyModeItems" />
+              <USelect
+                v-model="oeaConfig.updateProxyMode"
+                class="w-52"
+                :items="UPDATE_PROXY_MODE_ITEMS"
+              />
             </div>
 
             <div
