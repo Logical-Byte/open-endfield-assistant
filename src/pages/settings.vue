@@ -4,6 +4,8 @@ import { checkUpdate, updateSnapshot } from '@/utils/app/update';
 import { UPDATE_PROXY_MODE_ITEMS, UPDATE_SOURCE_ITEMS } from '@/utils/update-options';
 import { computed } from 'vue';
 
+// 应用更新的来源、CDK 和代理产品设置改编自 PR #6。
+
 /**
  * 音量（本地数字中转）。
  *

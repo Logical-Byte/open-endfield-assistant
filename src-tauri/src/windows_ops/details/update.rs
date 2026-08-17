@@ -1,3 +1,5 @@
+//! Bootstrap 使用的底层 Win32 进程与文件操作。
+
 use anyhow::{Context, Result, bail};
 use windows::{
     Win32::{
@@ -10,6 +12,9 @@ use windows::{
 
 use crate::update::{bootstrap::BootstrapInput, transaction::CANDIDATE_EXE};
 
+/// 打开调用方进程并无限等待，直到 Windows 报告它已经退出。
+///
+/// `ERROR_INVALID_PARAMETER` 在这里通常表示 PID 对应的进程已经结束，等价于等待成功。
 pub fn wait_for_process(pid: u32) -> Result<()> {
     let handle = match unsafe { OpenProcess(PROCESS_SYNCHRONIZE, false, pid) } {
         Ok(handle) => handle,
@@ -24,6 +29,10 @@ pub fn wait_for_process(pid: u32) -> Result<()> {
     Ok(())
 }
 
+/// 原子替换根 `OEA.exe`，并把旧入口保存为带源版本号的备份。
+///
+/// `ReplaceFileW(replaced, replacement, backup, ...)` 由 Windows 完成同卷替换：
+/// 第一个参数是旧入口，第二个是候选入口，第三个是旧入口的备份位置。
 pub fn replace_entrypoint(input: &BootstrapInput, source_version: &str) -> Result<()> {
     let entrypoint = HSTRING::from(
         input

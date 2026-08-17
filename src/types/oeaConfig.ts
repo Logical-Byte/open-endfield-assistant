@@ -7,8 +7,12 @@ export interface OeaConfig {
   soundVolume: number;
   /** 启动时检查新版本。 */
   checkUpdates: boolean;
+  /** 更新来源；该产品选项改编自 PR #6。 */
   updateSource: 'mirrorchyan' | 'github';
+  /** MirrorChyan 凭据；留空时后端使用 GitHub。 */
   mirrorchyanCdk: string;
+  /** 更新 HTTP 请求的代理策略；该产品选项改编自 PR #6。 */
   updateProxyMode: 'none' | 'system' | 'custom';
+  /** 自定义模式下的完整代理 URL。 */
   updateProxyUrl: string;
 }

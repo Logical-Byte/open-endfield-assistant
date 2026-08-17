@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 弹出层的产品交互与视觉表现改编自 PR #6；更新事务改由 Issue #21 的 Rust 后端拥有。
 import UpdateDownloadSettings from '@/components/update/UpdateDownloadSettings.vue';
 import {
   checkUpdate,
@@ -19,6 +20,7 @@ import {
 } from '@/utils/update-display';
 import { computed } from 'vue';
 
+// 下列 computed 只把 Rust 快照转换成展示值，不推进更新状态机。
 const visible = computed(() => isUpdatePopoverVisible(updateSnapshot.value.status));
 const attention = computed(() => needsUpdateAttention(updateSnapshot.value.status));
 const progress = computed(() => downloadPercentage(updateSnapshot.value));

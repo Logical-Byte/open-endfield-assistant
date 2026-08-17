@@ -1,3 +1,9 @@
+//! 自动更新的可移植工作流。
+//!
+//! `UpdateManager` 是 Rust 侧的事务所有者：前端只发送“检查”和“下载并安装”意图，
+//! 本模块负责状态快照、下载、校验、解压、资源发布和 Bootstrap 交接。
+//! Windows 文件替换被隔离在 `bootstrap::PlatformOps` 之后。
+
 use std::{
     fs,
     io::Read,
@@ -23,34 +29,56 @@ use super::{
 
 pub const UPDATE_EVENT: &str = "update-state-changed";
 
+/// 前端可观察的更新状态机。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum UpdateStatus {
+    /// 尚未检查。
     Idle,
+    /// 正在获取少量版本元数据。
     Checking,
+    /// 当前版本不低于来源最新版本。
     UpToDate,
+    /// 已缓存一个可安装完整包的元数据。
     Available,
+    /// 正在下载或续传完整包。
     Downloading,
+    /// 正在验证完整包 SHA-256。
     Verifying,
+    /// 正在解压候选程序并发布版本资源。
     Preparing,
+    /// Bootstrap 已复制，可以退出当前应用完成替换。
     BootstrapReady,
+    /// 最近一次检查或准备失败，`error` 包含原因。
     Failed,
 }
 
+/// Rust 发给前端的完整更新快照。
+///
+/// 每次事件都携带全部字段，因此前端事件丢失后可通过 snapshot 命令恢复。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateSnapshot {
+    /// 当前状态机节点。
     pub status: UpdateStatus,
+    /// 当前运行程序的内置版本。
     pub current_version: String,
+    /// 检查成功且有更新时的新版本。
     pub available_version: Option<String>,
+    /// 新版本 Markdown 更新日志。
     pub release_notes: Option<String>,
+    /// 当前部分文件已写入的总字节数。
     pub downloaded_bytes: u64,
+    /// 总大小未知时为 `None`，前端应显示不确定进度。
     pub total_bytes: Option<u64>,
+    /// 本次运行新传输字节的平均速度。
     pub bytes_per_second: u64,
+    /// 失败状态的人类可读错误链。
     pub error: Option<String>,
 }
 
 impl UpdateSnapshot {
+    /// 创建尚未检查更新的初始快照。
     fn idle() -> Self {
         Self {
             status: UpdateStatus::Idle,
@@ -65,24 +93,35 @@ impl UpdateSnapshot {
     }
 }
 
+/// 主程序交给 Bootstrap 启动命令的三个绝对路径。
 #[derive(Debug, Clone)]
 pub struct BootstrapHandoff {
+    /// 事务目录中的旧版本程序副本。
     pub bootstrap_path: PathBuf,
+    /// 包含根入口和版本资源的便携目录。
     pub portable_root: PathBuf,
+    /// 包含 transaction、candidate 与 bootstrap 的目录。
     pub transaction_dir: PathBuf,
 }
 
+/// 仅存在于当前进程内的更新状态。
 struct State {
+    /// 发给前端的展示快照。
     snapshot: UpdateSnapshot,
+    /// 最近检查得到的可信下载元数据；失败重检时必须清空。
     available: Option<AvailableUpdate>,
 }
 
+/// 串行拥有更新快照和当前候选元数据的工作流入口。
+///
+/// `Mutex` 让 Tauri 命令和进度回调可以共享状态；文件系统恢复信息则保存在事务中。
 pub struct UpdateManager {
     paths: AppPaths,
     state: Mutex<State>,
 }
 
 impl UpdateManager {
+    /// 为指定便携根目录创建空闲的更新管理器。
     pub fn new(paths: AppPaths) -> Self {
         Self {
             paths,
@@ -93,6 +132,7 @@ impl UpdateManager {
         }
     }
 
+    /// 返回当前完整快照的副本，供首次加载或事件丢失后恢复 UI。
     pub fn snapshot(&self) -> UpdateSnapshot {
         self.state
             .lock()
@@ -101,6 +141,7 @@ impl UpdateManager {
             .clone()
     }
 
+    /// 使用已保存配置检查更新，并在每次状态变化时发送完整快照。
     pub fn check(&self, config: &OeaConfig, mut emit: impl FnMut(UpdateSnapshot)) -> Result<()> {
         self.check_with(
             || source::check(config, env!("CARGO_PKG_VERSION")),
@@ -108,6 +149,10 @@ impl UpdateManager {
         )
     }
 
+    /// 检查流程的可控来源实现。
+    ///
+    /// `lookup` 使测试可以模拟来源成功或失败；开始新检查时先清空旧元数据，
+    /// 防止一次失败重检后仍安装旧 URL 和校验值。
     fn check_with(
         &self,
         lookup: impl FnOnce() -> Result<Option<AvailableUpdate>>,
@@ -147,6 +192,9 @@ impl UpdateManager {
         }
     }
 
+    /// 下载、校验并准备当前 `AvailableUpdate`，返回 Bootstrap 交接参数。
+    ///
+    /// 本函数不退出进程，也不替换根入口；这些副作用由 Tauri 命令和 Bootstrap 完成。
     pub fn download_and_prepare(
         &self,
         config: &OeaConfig,
@@ -168,10 +216,12 @@ impl UpdateManager {
         result
     }
 
+    /// 把命令层发生的错误写入管理器，并立即发出失败快照。
     pub fn fail(&self, error: impl Into<String>, mut emit: impl FnMut(UpdateSnapshot)) {
         self.change_status(UpdateStatus::Failed, Some(error.into()), &mut emit);
     }
 
+    /// 执行可恢复的完整包事务，跳过已经可靠完成的阶段。
     fn prepare(
         &self,
         config: &OeaConfig,
@@ -190,6 +240,7 @@ impl UpdateManager {
 
         let part_path = transaction_dir.join(PARTIAL_ARTIFACT);
         let artifact_path = transaction_dir.join(ARTIFACT);
+        // 已校验归档存在时，无需重新下载或重新计算哈希。
         let has_verified_artifact = matches!(
             transaction.stage,
             TransactionStage::Verified
@@ -202,6 +253,7 @@ impl UpdateManager {
                 transaction.save(&transaction_path)?;
                 self.change_status(UpdateStatus::Downloading, None, emit);
                 let client = source::build_client(config)?;
+                // 下载器逐块报告；工作流最多约每 150 ms 向 Tauri 发一次完整快照。
                 let last_emit = Mutex::new(Instant::now() - Duration::from_secs(1));
                 let expected_total = transaction.expected_size;
                 download::download(
@@ -247,6 +299,7 @@ impl UpdateManager {
             .root_dir()
             .join("assets")
             .join(format!("v{}", transaction.target_version));
+        // 资源目录一旦整体发布即视为完整；第一阶段按规格不重新校验其内容。
         let already_prepared = matches!(
             transaction.stage,
             TransactionStage::Prepared | TransactionStage::BootstrapReady
@@ -276,6 +329,7 @@ impl UpdateManager {
         })
     }
 
+    /// 修改阶段或错误并立即发出完整快照。
     fn change_status(
         &self,
         status: UpdateStatus,
@@ -291,6 +345,7 @@ impl UpdateManager {
         emit(state.snapshot.clone());
     }
 
+    /// 合并下载器进度到管理器快照并发送给前端。
     fn set_progress(&self, progress: Progress, emit: &mut impl FnMut(UpdateSnapshot)) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         state.snapshot.downloaded_bytes = progress.downloaded_bytes;
@@ -300,6 +355,9 @@ impl UpdateManager {
     }
 }
 
+/// 复用与本次来源元数据完全匹配的事务，否则创建新事务。
+///
+/// 版本、URL 或 SHA-256 任一变化都意味着旧的部分文件不能再被当前事务信任。
 fn recover_or_create(
     path: &Path,
     available: &AvailableUpdate,
@@ -334,6 +392,9 @@ fn recover_or_create(
     })
 }
 
+/// 流式计算文件 SHA-256，并与来源提供的期望值比较。
+///
+/// 校验失败只返回错误，不移动部分文件，也不发布任何候选资源。
 fn verify_sha256(path: &Path, expected: &str) -> Result<()> {
     let mut file = fs::File::open(path).context("打开待校验归档失败")?;
     let mut hasher = Sha256::new();

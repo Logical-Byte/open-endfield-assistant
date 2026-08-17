@@ -1,3 +1,9 @@
+//! 完整发布包的安全解压与版本资源发布。
+//!
+//! ZIP 先解压到事务内的候选目录。目标版本资源尚未发布时，只有根入口、`models/`
+//! 和 `resources/` 都存在后，才会把整个版本资源目录一次性移动到便携根目录。
+//! 目标目录已存在时按 Issue #21 的第一阶段规则直接复用，不重新检查内容。
+
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -8,11 +14,14 @@ use anyhow::{Context, Result, bail};
 use super::transaction::{ARTIFACT, CANDIDATE_EXE};
 
 /// 将完整发布包装入事务候选区，并一次性发布目标版本资源目录。
+///
+/// 返回候选 `OEA.exe` 的路径；调用方随后复制 Bootstrap 并交给平台替换逻辑。
 pub fn prepare_full_package(
     portable_root: &Path,
     transaction_dir: &Path,
     target_version: &str,
 ) -> Result<PathBuf> {
+    // 候选区是可重建的临时状态，每次准备都从空目录开始。
     let candidate_dir = transaction_dir.join("candidate");
     if candidate_dir.exists() {
         fs::remove_dir_all(&candidate_dir).context("重置候选目录失败")?;
@@ -24,6 +33,7 @@ pub fn prepare_full_package(
     let mut archive = zip::ZipArchive::new(archive_file).context("读取更新归档失败")?;
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).context("读取归档条目失败")?;
+        // `enclosed_name` 拒绝 `../`、绝对路径等会逃出候选目录的 ZIP 条目。
         let enclosed = entry.enclosed_name().context("归档包含危险路径")?;
         let destination = candidate_dir.join(enclosed);
         if entry.is_dir() {
@@ -37,6 +47,7 @@ pub fn prepare_full_package(
         io::copy(&mut entry, &mut output).context("解压候选文件失败")?;
     }
 
+    // 完整包的顶层布局必须与发布脚本生成的便携 ZIP 完全一致。
     let candidate_exe = transaction_dir.join(CANDIDATE_EXE);
     if !candidate_exe.is_file() {
         bail!("完整包缺少根入口 OEA.exe");
@@ -53,8 +64,10 @@ pub fn prepare_full_package(
         if let Some(parent) = published_assets.parent() {
             fs::create_dir_all(parent).context("创建版本资源父目录失败")?;
         }
+        // 同一文件系统内的目录 `rename` 对观察者是整体切换，不会暴露半套资源。
         fs::rename(&candidate_assets, &published_assets).context("发布版本资源目录失败")?;
     }
+    // 已存在的版本目录按 Issue #21 第一阶段规格直接复用，不验证其来源或内容。
 
     Ok(candidate_exe)
 }

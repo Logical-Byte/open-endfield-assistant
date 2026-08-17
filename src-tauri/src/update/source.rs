@@ -1,3 +1,9 @@
+//! 更新源元数据查询。
+//!
+//! 这里只下载很小的版本、URL 与校验值元数据。真正的 ZIP 下载由 `download` 模块负责。
+//! MirrorChyan 的端点、参数约定以及 GitHub/MirrorChyan 产品选择改编自 PR #6；
+//! 与 PR #6 不同，网络访问和来源选择现在完全由 Rust 后端拥有。
+
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
@@ -16,16 +22,24 @@ const MIRROR_BASES: [&str; 2] = [
 const GITHUB_LATEST_RELEASE: &str =
     "https://api.github.com/repos/Logical-Byte/open-endfield-assistant/releases/latest";
 
+/// 已通过来源规则验证、可以交给下载工作流的完整包描述。
 #[derive(Debug, Clone)]
 pub struct AvailableUpdate {
+    /// 不带 `v` 前缀的语义化版本号。
     pub version: String,
+    /// 给前端展示的 Markdown 更新日志。
     pub release_notes: String,
+    /// 完整 ZIP 的下载地址。
     pub artifact_url: String,
+    /// 规范化为 64 位小写十六进制的 SHA-256。
     pub sha256: String,
+    /// 来源已知文件大小时为 `Some`。
     pub size: Option<u64>,
+    /// 实际提供该 ZIP 的来源。
     pub source: DownloadSource,
 }
 
+/// MirrorChyan API 的外层业务响应。
 #[derive(Deserialize)]
 struct MirrorResponse {
     code: i64,
@@ -33,6 +47,7 @@ struct MirrorResponse {
     data: Option<MirrorData>,
 }
 
+/// MirrorChyan 成功响应中的版本与完整包字段。
 #[derive(Deserialize)]
 struct MirrorData {
     version_name: String,
@@ -43,6 +58,7 @@ struct MirrorData {
     update_type: Option<String>,
 }
 
+/// GitHub `/releases/latest` 响应中本工作流需要的字段。
 #[derive(Deserialize)]
 struct GithubRelease {
     tag_name: String,
@@ -50,6 +66,7 @@ struct GithubRelease {
     assets: Vec<GithubAsset>,
 }
 
+/// GitHub Release 附件的最小表示。
 #[derive(Debug, Clone, Deserialize)]
 struct GithubAsset {
     name: String,
@@ -58,6 +75,10 @@ struct GithubAsset {
     digest: Option<String>,
 }
 
+/// 按用户代理设置构造阻塞式 HTTP 客户端。
+///
+/// 更新命令运行在 Tauri 的 blocking worker 中，因此这里使用 `reqwest` blocking API。
+/// 连接超时限制握手等待；较长总超时允许大型完整包在慢速网络下载。
 pub fn build_client(config: &OeaConfig) -> Result<Client> {
     let mut builder = Client::builder()
         .user_agent(format!("OEA/{}", env!("CARGO_PKG_VERSION")))
@@ -76,6 +97,10 @@ pub fn build_client(config: &OeaConfig) -> Result<Client> {
     builder.build().context("创建更新 HTTP 客户端失败")
 }
 
+/// 根据配置选择一个来源并检查是否存在更高版本。
+///
+/// PR #6 的产品规则是：选择 MirrorChyan 且填写 CDK 时使用镜像，否则使用 GitHub。
+/// 返回 `None` 表示当前版本已是最新，而不是请求失败。
 pub fn check(config: &OeaConfig, current_version: &str) -> Result<Option<AvailableUpdate>> {
     let client = build_client(config)?;
     if config.update_source == UpdateSource::Mirrorchyan
@@ -87,6 +112,7 @@ pub fn check(config: &OeaConfig, current_version: &str) -> Result<Option<Availab
     }
 }
 
+/// 查询 MirrorChyan，并拒绝增量包或缺少 SHA-256 的响应。
 fn check_mirror(
     client: &Client,
     current_version: &str,
@@ -117,6 +143,7 @@ fn check_mirror(
     }))
 }
 
+/// 独立查询 GitHub 最新 Release，并只接受精确命名的 Windows x86_64 完整包。
 fn check_github(client: &Client, current_version: &str) -> Result<Option<AvailableUpdate>> {
     let release: GithubRelease = client
         .get(GITHUB_LATEST_RELEASE)
@@ -149,6 +176,7 @@ fn check_github(client: &Client, current_version: &str) -> Result<Option<Availab
     }))
 }
 
+/// 在 Release 附件中选择唯一允许的完整包文件名，不回退到任意 ZIP。
 fn select_github_asset<'a>(assets: &'a [GithubAsset], version: &str) -> Result<&'a GithubAsset> {
     let exact = format!("OEA-windows-x86_64-v{version}.zip");
     assets
@@ -157,6 +185,7 @@ fn select_github_asset<'a>(assets: &'a [GithubAsset], version: &str) -> Result<&
         .with_context(|| format!("GitHub Release 缺少完整包 {exact}"))
 }
 
+/// 当 GitHub asset digest 缺失时，从 checksum 附件查找该 ZIP 的 SHA-256。
 fn fetch_checksum(
     client: &Client,
     assets: &[GithubAsset],
@@ -181,6 +210,7 @@ fn fetch_checksum(
     Ok(None)
 }
 
+/// 解析常见 checksum 文件格式，并要求文件名与所选 ZIP 完全相同。
 fn checksum_for(contents: &str, artifact_name: &str) -> Option<String> {
     contents.lines().find_map(|line| {
         let line = line.trim();
@@ -196,6 +226,9 @@ fn checksum_for(contents: &str, artifact_name: &str) -> Option<String> {
     })
 }
 
+/// 依次请求 MirrorChyan 主、备域名，并返回第一个业务成功响应。
+///
+/// 查询参数名称沿用 PR #6 的 MirrorChyan 客户端实现。
 fn fetch_mirror(client: &Client, cdk: &str) -> Result<MirrorData> {
     let mut last_error = None;
     for base in MIRROR_BASES {
@@ -228,6 +261,7 @@ fn fetch_mirror(client: &Client, cdk: &str) -> Result<MirrorData> {
     Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Mirror酱检查失败")))
 }
 
+/// 接受 GitHub 的 `sha256:<hex>` 或纯 `<hex>`，并规范化为小写。
 fn normalize_sha256(value: Option<&str>) -> Option<String> {
     let raw = value?;
     let value = raw

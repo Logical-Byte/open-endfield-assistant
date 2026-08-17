@@ -56,6 +56,7 @@
 }
 
 @layer components {
+  /* 更新日志排版改编自 PR #6，HTML 在插入页面前由 DOMPurify 清洗。 */
   .markdown-body {
     @apply text-sm;
 

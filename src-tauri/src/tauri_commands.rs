@@ -123,11 +123,15 @@ pub async fn screenshot(
     screenshot::capture_screenshot(width, height, format).map_err(|e| e.to_string())
 }
 
+/// 返回 Rust 更新管理器的完整快照，供前端首次加载或事件丢失后重新同步。
 #[tauri::command]
 pub fn update_get_snapshot(state: tauri::State<Arc<UpdateManager>>) -> UpdateSnapshot {
     state.snapshot()
 }
 
+/// 在阻塞线程检查更新，并把每个完整状态快照作为 Tauri 事件发给前端。
+///
+/// `reqwest` 使用阻塞 API；`spawn_blocking` 避免网络请求占住 Tauri 的异步执行线程。
 #[tauri::command]
 pub async fn update_check(
     app: tauri::AppHandle,
@@ -151,6 +155,10 @@ pub async fn update_check(
 }
 
 #[cfg(target_os = "windows")]
+/// 下载并准备完整包，然后启动独立 Bootstrap 完成 Windows 入口替换。
+///
+/// Rust 工作线程拥有下载、校验和磁盘事务。准备成功后主程序只负责启动 Bootstrap，
+/// 再退出自身以释放 `OEA.exe`；前端不会编排这些文件系统操作。
 #[tauri::command]
 pub async fn update_download_and_install(
     app: tauri::AppHandle,
@@ -176,6 +184,7 @@ pub async fn update_download_and_install(
     .map_err(|error| format!("安装更新任务失败: {error}"))?
     .map_err(|error| format!("{error:#}"))?;
 
+    // Bootstrap 必须是独立进程，才能等当前 OEA 退出后替换仍被 Windows 锁定的入口。
     if let Err(error) = std::process::Command::new(&handoff.bootstrap_path)
         .arg("--bootstrap-update")
         .arg(&handoff.portable_root)
@@ -193,6 +202,7 @@ pub async fn update_download_and_install(
 }
 
 #[cfg(target_os = "macos")]
+/// macOS 开发外壳只支持前端和可移植逻辑调试，不安装 Windows 便携包。
 #[tauri::command]
 pub async fn update_download_and_install() -> Result<(), String> {
     Err("自动安装仅支持 Windows 绿色便携版".into())

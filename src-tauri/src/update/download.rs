@@ -1,3 +1,9 @@
+//! 可续传的完整更新包下载器。
+//!
+//! 本模块只负责 HTTP 与 `artifact.zip.part`：它不理解 Tauri，也不决定何时安装。
+//! 续传必须同时具备本地部分文件和服务端 validator（校验标识），并使用
+//! `Range` + `If-Range`，避免把两个不同版本的 ZIP 拼在一起。
+
 use std::{
     fs::{self, OpenOptions},
     io::{Read, Write},
@@ -10,24 +16,42 @@ use reqwest::{StatusCode, blocking::Client, header};
 
 use super::transaction::HttpValidator;
 
+/// 一次下载所需的稳定输入。
+///
+/// `validator` 来自上一次响应，并随事务持久化；没有校验标识时即使部分文件存在，
+/// 也会从零下载，因为客户端无法证明远端文件仍是同一个对象。
 pub struct DownloadRequest {
+    /// 完整更新包 URL。
     pub url: String,
+    /// 未完成归档的固定落盘位置。
     pub part_path: PathBuf,
+    /// 上一次响应的 `ETag` 或 `Last-Modified`。
     pub validator: Option<HttpValidator>,
 }
 
+/// 下载器向工作流报告的一次进度快照。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Progress {
+    /// 文件当前总长度；有效续传时包含此前已下载的字节。
     pub downloaded_bytes: u64,
+    /// 服务端可推导总长度时为 `Some`，未知时必须保持 `None`。
     pub total_bytes: Option<u64>,
+    /// 本次进程新传输字节的平均速度，不包含旧的部分文件。
     pub bytes_per_second: u64,
 }
 
+/// 下载完成后需要写回事务的 HTTP 元数据。
 pub struct DownloadResult {
+    /// 最终响应给出的校验标识，供下次中断续传使用。
     pub validator: Option<HttpValidator>,
+    /// 最终响应声明或推导出的归档总长度。
     pub total_bytes: Option<u64>,
 }
 
+/// 下载完整包，并通过两个回调把持久化时机和 UI 进度交给上层。
+///
+/// `response_ready` 在写正文前调用，使工作流先保存校验标识；`report` 可高频调用，
+/// 由工作流负责节流。生产代码使用单调时钟 `Instant::now` 计算速度。
 pub fn download(
     client: &Client,
     request: &DownloadRequest,
@@ -37,6 +61,9 @@ pub fn download(
     download_with_clock(client, request, response_ready, report, Instant::now)
 }
 
+/// `download` 的可控时钟实现。
+///
+/// 单独传入 `now` 只为了让速度测试不依赖真实网络耗时；下载行为与公开入口相同。
 fn download_with_clock(
     client: &Client,
     request: &DownloadRequest,
@@ -47,6 +74,7 @@ fn download_with_clock(
     if let Some(parent) = request.part_path.parent() {
         fs::create_dir_all(parent).context("创建下载目录失败")?;
     }
+    // 只有“部分文件 + 对应校验标识”同时存在时才有资格尝试续传。
     let partial_len = fs::metadata(&request.part_path).map_or(0, |metadata| metadata.len());
     let can_resume = partial_len > 0 && request.validator.is_some();
     let mut builder = client.get(&request.url);
@@ -61,11 +89,13 @@ fn download_with_clock(
         bail!("下载请求返回 HTTP {}", response.status());
     }
 
+    // `206` 只表示服务端接受了 `Range`。校验标识也必须未变化，才能安全追加。
     let initial_validator = response_validator(&response);
     let resumed = can_resume
         && response.status() == StatusCode::PARTIAL_CONTENT
         && initial_validator == request.validator;
     if can_resume && response.status() == StatusCode::PARTIAL_CONTENT && !resumed {
+        // 服务端返回了另一份对象的区间：丢弃该响应，再发一次不带 Range 的完整请求。
         response = client
             .get(&request.url)
             .send()
@@ -85,6 +115,7 @@ fn download_with_clock(
         bytes_per_second: 0,
     });
 
+    // 只有已验证的续传才 `append`；其他情况 `truncate`，保证旧字节不会混入新归档。
     let mut output = OpenOptions::new()
         .create(true)
         .write(true)
@@ -104,6 +135,7 @@ fn download_with_clock(
             .write_all(&buffer[..count])
             .context("写入部分归档失败")?;
         transferred += count as u64;
+        // `transferred` 从零开始，仅累计本次运行读到的正文，因此续传速度不会虚高。
         let elapsed = now().duration_since(started).as_secs_f64();
         report(Progress {
             downloaded_bytes: start + transferred,
@@ -129,6 +161,7 @@ fn download_with_clock(
 }
 
 impl HttpValidator {
+    /// 返回可直接放入 `If-Range` 请求头的原始 header 值。
     fn value(&self) -> &str {
         match self {
             Self::Etag(value) | Self::LastModified(value) => value,
@@ -136,6 +169,7 @@ impl HttpValidator {
     }
 }
 
+/// 优先读取 `ETag`，否则读取 `Last-Modified`，并保留校验标识的具体种类。
 fn response_validator(response: &reqwest::blocking::Response) -> Option<HttpValidator> {
     response
         .headers()
@@ -151,6 +185,10 @@ fn response_validator(response: &reqwest::blocking::Response) -> Option<HttpVali
         })
 }
 
+/// 从 `Content-Range` 或 `Content-Length` 推导完整文件大小。
+///
+/// 普通响应的 `Content-Length` 是本次正文长度；续传响应必须使用
+/// `Content-Range: bytes start-end/total` 中的 `total`。
 fn total_size(response: &reqwest::blocking::Response, start: u64) -> Option<u64> {
     if response.status() == StatusCode::PARTIAL_CONTENT {
         response

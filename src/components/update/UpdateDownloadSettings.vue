@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 下载源、CDK 和代理控件的产品设计改编自 PR #6。
 import { oeaConfig } from '@/utils/app/config';
 import { UPDATE_PROXY_MODE_ITEMS, UPDATE_SOURCE_ITEMS } from '@/utils/update-options';
 </script>

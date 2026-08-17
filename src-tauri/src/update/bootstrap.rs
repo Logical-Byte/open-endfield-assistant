@@ -1,3 +1,8 @@
+//! 更新 Bootstrap 的平台无关控制流。
+//!
+//! Bootstrap 是从旧 `OEA.exe` 复制出的临时进程。它在主程序退出后替换根入口，
+//! 因而不启动 Tauri、不开窗口，也不访问网络。
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -12,6 +17,9 @@ pub struct BootstrapInput {
 }
 
 impl BootstrapInput {
+    /// 验证命令行传入的根目录与事务目录，并保存为可信路径。
+    ///
+    /// 两条路径都必须是绝对路径，且事务必须直接位于 `<root>/cache/updates/` 下。
     pub fn new(portable_root: &Path, transaction_dir: &Path) -> Result<Self> {
         if !portable_root.is_absolute() || !transaction_dir.is_absolute() {
             bail!("Bootstrap 路径必须是绝对路径");
@@ -33,10 +41,12 @@ impl BootstrapInput {
         })
     }
 
+    /// 返回包含 `OEA.exe`、`assets/` 与 `cache/` 的便携根目录。
     pub fn portable_root(&self) -> &Path {
         &self.portable_root
     }
 
+    /// 返回包含候选程序、事务 JSON 与 Bootstrap 副本的事务目录。
     pub fn transaction_dir(&self) -> &Path {
         &self.transaction_dir
     }
@@ -44,12 +54,18 @@ impl BootstrapInput {
 
 /// Bootstrap 唯一的平台差异边界。
 pub trait PlatformOps {
+    /// 等待发起更新的旧 OEA 进程完全退出。
     fn wait_for_process(&self, pid: u32) -> Result<()>;
+    /// 用候选入口替换根 `OEA.exe`，同时保留旧版本备份。
     fn replace_entrypoint(&self, input: &BootstrapInput, source_version: &str) -> Result<()>;
+    /// 从便携根目录启动替换后的 `OEA.exe`。
     fn launch_entrypoint(&self, input: &BootstrapInput) -> Result<()>;
 }
 
 /// 等待旧进程、替换根入口，再启动新入口。
+///
+/// 顺序很重要：Windows 不允许覆盖仍在运行的 EXE。若最后的启动步骤失败，
+/// 已替换的文件不会自动回滚，而是留下备份路径和人工恢复说明。
 pub fn run(
     input: &BootstrapInput,
     caller_pid: u32,
@@ -70,11 +86,15 @@ pub fn run(
     Ok(())
 }
 
+/// 写入 Bootstrap 的人工恢复说明，并补充失败路径到错误链。
 fn fs_err_write(path: &Path, bytes: &[u8]) -> Result<()> {
     std::fs::write(path, bytes).with_context(|| format!("写入 {} 失败", path.display()))
 }
 
 /// 在普通应用初始化前识别并执行 Bootstrap 模式。
+///
+/// 返回 `None` 表示这是普通启动，调用方应继续初始化 Tauri；返回 `Some(code)`
+/// 表示参数选择了 Bootstrap 模式，调用方应直接以该退出码结束进程。
 pub fn try_run_from_args() -> Option<i32> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
     if args.first().and_then(|arg| arg.to_str()) != Some("--bootstrap-update") {

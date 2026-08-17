@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 安装弹窗的产品交互与视觉表现改编自 PR #6；下载和安装步骤由 Rust 状态机驱动。
 import {
   checkUpdate,
   downloadAndInstall,
@@ -16,12 +17,14 @@ import {
 } from '@/utils/update-display';
 import { computed } from 'vue';
 
+// 这些 computed 只格式化 Rust 快照，不在前端编排安装步骤。
 const stageLabel = computed(() => updateStageLabel(updateSnapshot.value.status));
 const busy = computed(() => isUpdateInstalling(updateSnapshot.value.status));
 const progress = computed(() => downloadPercentage(updateSnapshot.value));
 const progressText = computed(() => downloadProgressText(updateSnapshot.value));
 const etaText = computed(() => downloadEtaText(updateSnapshot.value));
 
+/** 根据来源设置是否过期，选择重新检查元数据或重试同一安装请求。 */
 function retry(): void {
   if (updateMetadataStale.value) {
     installUpdateModalOpen.value = false;

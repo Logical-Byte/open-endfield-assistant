@@ -4,20 +4,31 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
+/// 检查和下载更新时使用的服务。
+///
+/// MirrorChyan/GitHub 的产品选项改编自 PR #6；具体请求由 Rust 更新模块执行。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum UpdateSource {
+    /// 优先使用 MirrorChyan；CDK 为空时工作流回退到 GitHub。
     #[default]
     Mirrorchyan,
+    /// 直接使用项目的 GitHub Release。
     Github,
 }
 
+/// `reqwest` 客户端如何选择代理。
+///
+/// 这些用户设置改编自 PR #6 的下载配置界面。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum UpdateProxyMode {
+    /// 禁用系统和环境提供的代理。
     None,
+    /// 使用 `reqwest` 默认的系统代理发现行为。
     #[default]
     System,
+    /// 仅使用 `update_proxy_url` 指定的代理。
     Custom,
 }
 
@@ -36,12 +47,16 @@ pub struct OeaConfig {
     #[serde(default = "default_check_updates")]
     pub check_updates: bool,
     #[serde(default)]
+    /// 用户选择的更新元数据和完整包来源。
     pub update_source: UpdateSource,
     #[serde(default)]
+    /// MirrorChyan 的访问凭据；为空时不向该服务发请求。
     pub mirrorchyan_cdk: String,
     #[serde(default)]
+    /// 更新 HTTP 客户端使用的代理策略。
     pub update_proxy_mode: UpdateProxyMode,
     #[serde(default)]
+    /// 自定义代理模式下传给 `reqwest` 的完整代理 URL。
     pub update_proxy_url: String,
 }
 
@@ -50,6 +65,7 @@ const fn default_sound_volume() -> f32 {
     0.5
 }
 
+/// 是否在应用启动后仅检查更新元数据的默认值。
 const fn default_check_updates() -> bool {
     true
 }
