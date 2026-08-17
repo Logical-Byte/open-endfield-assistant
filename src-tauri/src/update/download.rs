@@ -40,14 +40,6 @@ pub struct Progress {
     pub bytes_per_second: u64,
 }
 
-/// 下载完成后需要写回事务的 HTTP 元数据。
-pub struct DownloadResult {
-    /// 最终响应给出的校验标识，供下次中断续传使用。
-    pub validator: Option<HttpValidator>,
-    /// 最终响应声明或推导出的归档总长度。
-    pub total_bytes: Option<u64>,
-}
-
 /// 下载完整包，并通过两个回调把持久化时机和 UI 进度交给上层。
 ///
 /// `response_ready` 在写正文前调用，使工作流先保存校验标识；`report` 可高频调用，
@@ -57,7 +49,7 @@ pub fn download(
     request: &DownloadRequest,
     response_ready: impl FnMut(Option<HttpValidator>, Option<u64>, bool) -> Result<()>,
     report: impl FnMut(Progress),
-) -> Result<DownloadResult> {
+) -> Result<()> {
     download_with_clock(client, request, response_ready, report, Instant::now)
 }
 
@@ -70,7 +62,7 @@ fn download_with_clock(
     mut response_ready: impl FnMut(Option<HttpValidator>, Option<u64>, bool) -> Result<()>,
     mut report: impl FnMut(Progress),
     mut now: impl FnMut() -> Instant,
-) -> Result<DownloadResult> {
+) -> Result<()> {
     if let Some(parent) = request.part_path.parent() {
         fs::create_dir_all(parent).context("创建下载目录失败")?;
     }
@@ -154,10 +146,7 @@ fn download_with_clock(
             bail!("下载大小不匹配: 期望 {expected}，实际 {actual}");
         }
     }
-    Ok(DownloadResult {
-        validator,
-        total_bytes: total,
-    })
+    Ok(())
 }
 
 impl HttpValidator {
@@ -248,7 +237,7 @@ mod tests {
         fs::write(&part, b"hello ").unwrap();
         let mut progress = Vec::<Progress>::new();
 
-        let result = download(
+        download(
             &reqwest::blocking::Client::new(),
             &DownloadRequest {
                 url: address,
@@ -263,7 +252,6 @@ mod tests {
 
         assert_eq!(fs::read(part).unwrap(), b"hello world");
         assert_eq!(progress.first().unwrap().downloaded_bytes, 6);
-        assert_eq!(result.total_bytes, Some(11));
         let headers = observed.lock().unwrap();
         assert!(
             headers
@@ -476,7 +464,7 @@ mod tests {
         let part = temp.path().join("artifact.zip.part");
         let mut progress = Vec::<Progress>::new();
 
-        let result = download(
+        download(
             &reqwest::blocking::Client::new(),
             &DownloadRequest {
                 url: address,
@@ -492,7 +480,6 @@ mod tests {
         .unwrap();
         handle.join().unwrap();
 
-        assert_eq!(result.total_bytes, None);
         assert!(progress.iter().all(|value| value.total_bytes.is_none()));
         assert!(
             progress

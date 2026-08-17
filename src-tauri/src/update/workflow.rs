@@ -372,6 +372,8 @@ fn recover_or_create(
             return Ok(existing);
         }
     }
+    // 固定事务目录可能仍有旧文件；新事务不带 validator，下载会截断部分文件，
+    // 后续阶段也会替换其他固定文件，因此不需要先清空整个目录。
     let transaction_id = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .context("系统时间早于 Unix epoch")?

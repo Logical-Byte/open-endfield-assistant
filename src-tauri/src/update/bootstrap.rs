@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
+#[cfg(target_os = "windows")]
 use super::transaction::{TRANSACTION_FILE, Transaction};
 
 /// 已验证的 Bootstrap 路径输入。
@@ -95,6 +96,7 @@ fn fs_err_write(path: &Path, bytes: &[u8]) -> Result<()> {
 ///
 /// 返回 `None` 表示这是普通启动，调用方应继续初始化 Tauri；返回 `Some(code)`
 /// 表示参数选择了 Bootstrap 模式，调用方应直接以该退出码结束进程。
+#[cfg(target_os = "windows")]
 pub fn try_run_from_args() -> Option<i32> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
     if args.first().and_then(|arg| arg.to_str()) != Some("--bootstrap-update") {

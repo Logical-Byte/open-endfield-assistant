@@ -35,14 +35,14 @@ scopeguard = "1.2.0"
 semver = "1.0.27"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-sha2 = "0.11.0"
+sha2 = "0.10.9"
 tauri = { version = "2.11.3", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.23", features = ["chrono"] }
-zip = "7.2.0"
+zip = { version = "7.2.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -53,9 +53,6 @@ overflow-checks = false
 
 [target."cfg(windows)".dependencies]
 windows = { version = "0.61", features = ["Foundation_Metadata", "Graphics_Capture", "Graphics_DirectX", "Graphics_DirectX_Direct3D11", "Security_Authorization_AppCapabilityAccess", "Win32_Devices_Display", "Win32_Foundation", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Storage_FileSystem", "Win32_Storage_Xps", "Win32_System_Registry", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WinRT_Direct3D11", "Win32_System_WinRT_Graphics_Capture", "Win32_UI_HiDpi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-libc = "0.2.189"
 
 [dev-dependencies]
 tempfile = "3.23.0"

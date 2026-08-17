@@ -3,6 +3,7 @@
 
 fn main() {
     // Bootstrap 必须在提权、panic hook、日志、路径、配置、WebView 与 Tauri 之前分流。
+    #[cfg(target_os = "windows")]
     if let Some(exit_code) = oea_lib::update::bootstrap::try_run_from_args() {
         std::process::exit(exit_code);
     }
