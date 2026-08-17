@@ -4,6 +4,7 @@ use std::sync::mpsc;
 
 use anyhow::Result;
 
+#[cfg(target_os = "windows")]
 use super::details;
 
 /// Delete 键的 OEA 键码。
@@ -27,6 +28,14 @@ pub struct KeyEvent {
 /// 启动只感知、不拦截按键的全局键盘监听。
 ///
 /// 自动重复在监听层过滤，返回端只收到首次按下与弹起事件。
+#[cfg(target_os = "windows")]
 pub fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
     details::hotkey::listen()
+}
+
+/// 返回不会产生事件的 macOS 热键接收端。
+#[cfg(target_os = "macos")]
+pub fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
+    let (_tx, rx) = mpsc::channel();
+    Ok(rx)
 }

@@ -35,6 +35,30 @@ use crate::{
     scene::create_scene_manager,
 };
 
+#[cfg(target_os = "windows")]
+fn configure_main_window<'a, R, M>(
+    builder: tauri::WebviewWindowBuilder<'a, R, M>,
+    app_paths: &AppPaths,
+) -> tauri::WebviewWindowBuilder<'a, R, M>
+where
+    R: tauri::Runtime,
+    M: tauri::Manager<R>,
+{
+    builder.data_directory(app_paths.webview_data_dir())
+}
+
+#[cfg(target_os = "macos")]
+fn configure_main_window<'a, R, M>(
+    builder: tauri::WebviewWindowBuilder<'a, R, M>,
+    _app_paths: &AppPaths,
+) -> tauri::WebviewWindowBuilder<'a, R, M>
+where
+    R: tauri::Runtime,
+    M: tauri::Manager<R>,
+{
+    builder.incognito(true)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -125,8 +149,9 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
             .min_inner_size(864.0, 540.0)
             .resizable(true)
             .decorations(false) // 移除系统标题栏
-            .shadow(true)
-            .data_directory(app_paths.webview_data_dir());
+            .shadow(true);
+
+    let main_window_builder = configure_main_window(main_window_builder, &app_paths);
 
     let _main_window = main_window_builder.build()?;
 

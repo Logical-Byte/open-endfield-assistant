@@ -68,13 +68,17 @@ pnpm download:models
 
 ## 本地调试
 
-### 启动完整应用（推荐）
+### 启动完整应用（Windows，推荐）
 
 ```bash
 pnpm tauri dev
 ```
 
 同时启动 Vite 开发服务器（`http://localhost:1420`，热更新）与 Tauri 调试窗口。前端改动即时生效；Rust 改动会触发重新编译。
+
+### macOS 开发外壳（可选）
+
+macOS 外壳是可选的本地调试入口；能力边界和维护要求见[后端代码规范](docs/rule-backend.md#平台支持)。使用前，手动复制或软链接一个兼容的 PNG 图标到不纳入版本控制的 `src-tauri/icons/icon.png`，然后运行 `pnpm tauri dev`。
 
 ### 只启动前端
 
@@ -99,7 +103,7 @@ pnpm build
 pnpm check        # typecheck + eslint + prettier 检查
 ```
 
-后端命令在 `src-tauri/` 目录中运行：
+后端命令在 Windows 的 `src-tauri/` 目录中运行：
 
 ```bash
 cargo check --all-targets
