@@ -1,5 +1,6 @@
 import type { UpdateSnapshot } from '@/types/update';
 import { oeaConfig } from '@/utils/app/config';
+import { isUpdateInstalling, needsUpdateAttention } from '@/utils/update-display';
 import {
   checkForUpdate,
   downloadAndInstallUpdate,
@@ -26,10 +27,10 @@ let initialized = false;
 
 function applySnapshot(snapshot: UpdateSnapshot): void {
   updateSnapshot.value = snapshot;
-  if (snapshot.status === 'available' || snapshot.status === 'failed') {
+  if (needsUpdateAttention(snapshot.status)) {
     updatePopoverOpen.value = true;
   }
-  if (['downloading', 'verifying', 'preparing', 'bootstrapReady'].includes(snapshot.status)) {
+  if (isUpdateInstalling(snapshot.status)) {
     installUpdateModalOpen.value = true;
   }
 }

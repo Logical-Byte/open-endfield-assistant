@@ -6,32 +6,21 @@ import {
   updateSnapshot,
 } from '@/utils/app/update';
 import { renderMarkdown } from '@/utils/markdown';
+import {
+  downloadEtaText,
+  downloadPercentage,
+  downloadProgressText,
+  formatBytes,
+  isUpdatePopoverVisible,
+  needsUpdateAttention,
+} from '@/utils/update-display';
 import { computed } from 'vue';
 
-const visible = computed(() => !['idle', 'upToDate'].includes(updateSnapshot.value.status));
-const progress = computed<number | null>(() => {
-  const total = updateSnapshot.value.totalBytes;
-  return total && total > 0 ? (updateSnapshot.value.downloadedBytes / total) * 100 : null;
-});
-const progressText = computed(() => {
-  const downloaded = formatBytes(updateSnapshot.value.downloadedBytes);
-  const total = updateSnapshot.value.totalBytes;
-  return total === null ? downloaded : `${downloaded} / ${formatBytes(total)}`;
-});
-const etaText = computed<string | null>(() => {
-  const { bytesPerSecond, downloadedBytes, totalBytes } = updateSnapshot.value;
-  if (!totalBytes || bytesPerSecond <= 0 || downloadedBytes >= totalBytes) return null;
-  const seconds = Math.ceil((totalBytes - downloadedBytes) / bytesPerSecond);
-  return seconds < 60 ? `约 ${seconds} 秒` : `约 ${Math.ceil(seconds / 60)} 分钟`;
-});
-
-function formatBytes(bytes: number): string {
-  if (bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  const value = bytes / 1024 ** index;
-  return `${value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
-}
+const visible = computed(() => isUpdatePopoverVisible(updateSnapshot.value.status));
+const attention = computed(() => needsUpdateAttention(updateSnapshot.value.status));
+const progress = computed(() => downloadPercentage(updateSnapshot.value));
+const progressText = computed(() => downloadProgressText(updateSnapshot.value));
+const etaText = computed(() => downloadEtaText(updateSnapshot.value));
 </script>
 
 <template>
@@ -46,7 +35,7 @@ function formatBytes(bytes: number): string {
           :variant="updatePopoverOpen ? 'soft' : 'ghost'"
         />
         <span
-          v-if="updateSnapshot.status === 'available' || updateSnapshot.status === 'failed'"
+          v-if="attention"
           class="absolute top-0 right-0 size-2 rounded-full"
           :class="updateSnapshot.status === 'failed' ? 'bg-error' : 'bg-success'"
         />

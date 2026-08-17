@@ -8,11 +8,12 @@ use std::{
 use anyhow::{Context, Result, bail};
 use reqwest::{StatusCode, blocking::Client, header};
 
+use super::transaction::HttpValidator;
+
 pub struct DownloadRequest {
     pub url: String,
     pub part_path: PathBuf,
-    /// `etag:<value>` 或 `last-modified:<value>`。
-    pub validator: Option<String>,
+    pub validator: Option<HttpValidator>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,14 +24,14 @@ pub struct Progress {
 }
 
 pub struct DownloadResult {
-    pub validator: Option<String>,
+    pub validator: Option<HttpValidator>,
     pub total_bytes: Option<u64>,
 }
 
 pub fn download(
     client: &Client,
     request: &DownloadRequest,
-    mut response_ready: impl FnMut(Option<String>, Option<u64>, bool) -> Result<()>,
+    mut response_ready: impl FnMut(Option<HttpValidator>, Option<u64>, bool) -> Result<()>,
     mut report: impl FnMut(Progress),
 ) -> Result<DownloadResult> {
     if let Some(parent) = request.part_path.parent() {
@@ -41,8 +42,8 @@ pub fn download(
     let mut builder = client.get(&request.url);
     if can_resume {
         builder = builder.header(header::RANGE, format!("bytes={partial_len}-"));
-        if let Some(value) = request.validator.as_deref().and_then(validator_value) {
-            builder = builder.header(header::IF_RANGE, value);
+        if let Some(validator) = request.validator.as_ref() {
+            builder = builder.header(header::IF_RANGE, validator.value());
         }
     }
     let mut response = builder.send().context("下载请求失败")?;
@@ -117,24 +118,26 @@ pub fn download(
     })
 }
 
-fn validator_value(validator: &str) -> Option<&str> {
-    validator
-        .strip_prefix("etag:")
-        .or_else(|| validator.strip_prefix("last-modified:"))
+impl HttpValidator {
+    fn value(&self) -> &str {
+        match self {
+            Self::Etag(value) | Self::LastModified(value) => value,
+        }
+    }
 }
 
-fn response_validator(response: &reqwest::blocking::Response) -> Option<String> {
+fn response_validator(response: &reqwest::blocking::Response) -> Option<HttpValidator> {
     response
         .headers()
         .get(header::ETAG)
         .and_then(|value| value.to_str().ok())
-        .map(|value| format!("etag:{value}"))
+        .map(|value| HttpValidator::Etag(value.to_string()))
         .or_else(|| {
             response
                 .headers()
                 .get(header::LAST_MODIFIED)
                 .and_then(|value| value.to_str().ok())
-                .map(|value| format!("last-modified:{value}"))
+                .map(|value| HttpValidator::LastModified(value.to_string()))
         })
 }
 
@@ -155,13 +158,14 @@ fn total_size(response: &reqwest::blocking::Response, start: u64) -> Option<u64>
 mod tests {
     use std::{
         fs,
+        io::Cursor,
         sync::{Arc, Mutex},
         thread,
     };
 
     use tiny_http::{Header, Response, Server, StatusCode};
 
-    use super::{DownloadRequest, Progress, download};
+    use super::{DownloadRequest, HttpValidator, Progress, download};
 
     fn header(name: &'static [u8], value: &'static [u8]) -> Header {
         Header::from_bytes(name, value).unwrap()
@@ -200,7 +204,7 @@ mod tests {
             &DownloadRequest {
                 url: address,
                 part_path: part.clone(),
-                validator: Some("etag:\"v1\"".into()),
+                validator: Some(HttpValidator::Etag("\"v1\"".into())),
             },
             |_, _, _| Ok(()),
             |value| progress.push(value),
@@ -246,7 +250,7 @@ mod tests {
             &DownloadRequest {
                 url: address,
                 part_path: part.clone(),
-                validator: Some("etag:\"v1\"".into()),
+                validator: Some(HttpValidator::Etag("\"v1\"".into())),
             },
             |_, _, _| Ok(()),
             |value| progress.push(value),
@@ -256,5 +260,50 @@ mod tests {
 
         assert_eq!(fs::read(part).unwrap(), b"fresh");
         assert_eq!(progress.first().unwrap().downloaded_bytes, 0);
+    }
+
+    #[test]
+    fn unknown_total_stays_unknown_and_progress_is_monotonic() {
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let address = format!("http://{}", server.server_addr());
+        let handle = thread::spawn(move || {
+            let request = server.recv().unwrap();
+            request
+                .respond(Response::new(
+                    StatusCode(200),
+                    Vec::new(),
+                    Cursor::new(b"unknown length".to_vec()),
+                    None,
+                    None,
+                ))
+                .unwrap();
+        });
+        let temp = tempfile::tempdir().unwrap();
+        let part = temp.path().join("artifact.zip.part");
+        let mut progress = Vec::<Progress>::new();
+
+        let result = download(
+            &reqwest::blocking::Client::new(),
+            &DownloadRequest {
+                url: address,
+                part_path: part,
+                validator: None,
+            },
+            |_, total, _| {
+                assert_eq!(total, None);
+                Ok(())
+            },
+            |value| progress.push(value),
+        )
+        .unwrap();
+        handle.join().unwrap();
+
+        assert_eq!(result.total_bytes, None);
+        assert!(progress.iter().all(|value| value.total_bytes.is_none()));
+        assert!(
+            progress
+                .windows(2)
+                .all(|pair| pair[0].downloaded_bytes <= pair[1].downloaded_bytes)
+        );
     }
 }

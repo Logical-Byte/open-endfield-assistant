@@ -13,8 +13,8 @@ const MIRROR_BASES: [&str; 2] = [
     "https://mirrorchyan.com/api/resources/OEA/latest",
     "https://mirrorchyan.net/api/resources/OEA/latest",
 ];
-const GITHUB_RELEASES: &str =
-    "https://api.github.com/repos/Logical-Byte/open-endfield-assistant/releases/tags";
+const GITHUB_LATEST_RELEASE: &str =
+    "https://api.github.com/repos/Logical-Byte/open-endfield-assistant/releases/latest";
 
 #[derive(Debug, Clone)]
 pub struct AvailableUpdate {
@@ -45,10 +45,12 @@ struct MirrorData {
 
 #[derive(Deserialize)]
 struct GithubRelease {
+    tag_name: String,
+    body: Option<String>,
     assets: Vec<GithubAsset>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct GithubAsset {
     name: String,
     size: u64,
@@ -76,7 +78,21 @@ pub fn build_client(config: &OeaConfig) -> Result<Client> {
 
 pub fn check(config: &OeaConfig, current_version: &str) -> Result<Option<AvailableUpdate>> {
     let client = build_client(config)?;
-    let mirror = fetch_mirror(&client, &config.mirrorchyan_cdk)?;
+    if config.update_source == UpdateSource::Mirrorchyan
+        && !config.mirrorchyan_cdk.trim().is_empty()
+    {
+        check_mirror(&client, current_version, &config.mirrorchyan_cdk)
+    } else {
+        check_github(&client, current_version)
+    }
+}
+
+fn check_mirror(
+    client: &Client,
+    current_version: &str,
+    cdk: &str,
+) -> Result<Option<AvailableUpdate>> {
+    let mirror = fetch_mirror(client, cdk)?;
     let current = Version::parse(current_version).context("当前版本号无效")?;
     let latest_text = mirror.version_name.trim_start_matches('v');
     let latest = Version::parse(latest_text).context("更新源版本号无效")?;
@@ -84,56 +100,100 @@ pub fn check(config: &OeaConfig, current_version: &str) -> Result<Option<Availab
         return Ok(None);
     }
 
-    if config.update_source == UpdateSource::Mirrorchyan
-        && !config.mirrorchyan_cdk.trim().is_empty()
+    if mirror
+        .update_type
+        .as_deref()
+        .is_some_and(|kind| kind != "full")
     {
-        if mirror
-            .update_type
-            .as_deref()
-            .is_some_and(|kind| kind != "full")
-        {
-            bail!("Mirror酱未提供完整更新包");
-        }
-        return Ok(Some(AvailableUpdate {
-            version: latest_text.to_string(),
-            release_notes: mirror.release_note,
-            artifact_url: mirror.url.context("Mirror酱未提供下载地址")?,
-            sha256: normalize_sha256(mirror.sha256.as_deref())
-                .context("Mirror酱未提供有效 SHA-256")?,
-            size: mirror.filesize,
-            source: DownloadSource::Mirrorchyan,
-        }));
+        bail!("Mirror酱未提供完整更新包");
     }
-
-    let release: GithubRelease = client
-        .get(format!("{GITHUB_RELEASES}/v{latest_text}"))
-        .send()
-        .context("请求 GitHub Release 失败")?
-        .error_for_status()
-        .context("GitHub Release 返回错误")?
-        .json()
-        .context("解析 GitHub Release 失败")?;
-    let exact = format!("OEA-windows-x86_64-v{latest_text}.zip");
-    let asset = release
-        .assets
-        .iter()
-        .find(|asset| asset.name == exact)
-        .or_else(|| {
-            release
-                .assets
-                .iter()
-                .filter(|asset| asset.name.to_ascii_lowercase().ends_with(".zip"))
-                .max_by_key(|asset| asset.size)
-        })
-        .context("GitHub Release 中没有完整 ZIP")?;
     Ok(Some(AvailableUpdate {
         version: latest_text.to_string(),
         release_notes: mirror.release_note,
+        artifact_url: mirror.url.context("Mirror酱未提供下载地址")?,
+        sha256: normalize_sha256(mirror.sha256.as_deref()).context("Mirror酱未提供有效 SHA-256")?,
+        size: mirror.filesize,
+        source: DownloadSource::Mirrorchyan,
+    }))
+}
+
+fn check_github(client: &Client, current_version: &str) -> Result<Option<AvailableUpdate>> {
+    let release: GithubRelease = client
+        .get(GITHUB_LATEST_RELEASE)
+        .send()
+        .context("请求 GitHub 最新 Release 失败")?
+        .error_for_status()
+        .context("GitHub 最新 Release 返回错误")?
+        .json()
+        .context("解析 GitHub Release 失败")?;
+    let current = Version::parse(current_version).context("当前版本号无效")?;
+    let latest_text = release.tag_name.trim_start_matches('v');
+    let latest = Version::parse(latest_text).context("GitHub Release 版本号无效")?;
+    if latest <= current {
+        return Ok(None);
+    }
+
+    let asset = select_github_asset(&release.assets, latest_text)?;
+    let sha256 = match normalize_sha256(asset.digest.as_deref()) {
+        Some(digest) => digest,
+        None => fetch_checksum(client, &release.assets, &asset.name)?
+            .context("GitHub Release 未提供此完整包的有效 SHA-256")?,
+    };
+    Ok(Some(AvailableUpdate {
+        version: latest_text.to_string(),
+        release_notes: release.body.unwrap_or_default(),
         artifact_url: asset.browser_download_url.clone(),
-        sha256: normalize_sha256(asset.digest.as_deref()).context("GitHub 资产缺少有效 SHA-256")?,
+        sha256,
         size: Some(asset.size),
         source: DownloadSource::Github,
     }))
+}
+
+fn select_github_asset<'a>(assets: &'a [GithubAsset], version: &str) -> Result<&'a GithubAsset> {
+    let exact = format!("OEA-windows-x86_64-v{version}.zip");
+    assets
+        .iter()
+        .find(|asset| asset.name == exact)
+        .with_context(|| format!("GitHub Release 缺少完整包 {exact}"))
+}
+
+fn fetch_checksum(
+    client: &Client,
+    assets: &[GithubAsset],
+    artifact_name: &str,
+) -> Result<Option<String>> {
+    for checksum_asset in assets.iter().filter(|asset| {
+        let name = asset.name.to_ascii_lowercase();
+        name.contains("sha256") || name.contains("checksum")
+    }) {
+        let contents = client
+            .get(&checksum_asset.browser_download_url)
+            .send()
+            .with_context(|| format!("下载 GitHub 校验文件 {} 失败", checksum_asset.name))?
+            .error_for_status()
+            .with_context(|| format!("GitHub 校验文件 {} 返回错误", checksum_asset.name))?
+            .text()
+            .with_context(|| format!("读取 GitHub 校验文件 {} 失败", checksum_asset.name))?;
+        if let Some(checksum) = checksum_for(&contents, artifact_name) {
+            return Ok(Some(checksum));
+        }
+    }
+    Ok(None)
+}
+
+fn checksum_for(contents: &str, artifact_name: &str) -> Option<String> {
+    contents.lines().find_map(|line| {
+        let line = line.trim();
+        if let Some((digest, name)) = line.split_once(char::is_whitespace) {
+            let name = name.trim_start().trim_start_matches('*');
+            if name == artifact_name {
+                return normalize_sha256(Some(digest));
+            }
+        }
+        let prefix = format!("SHA256 ({artifact_name}) = ");
+        line.strip_prefix(&prefix)
+            .and_then(|digest| normalize_sha256(Some(digest)))
+    })
 }
 
 fn fetch_mirror(client: &Client, cdk: &str) -> Result<MirrorData> {
@@ -175,4 +235,43 @@ fn normalize_sha256(value: Option<&str>) -> Option<String> {
         .unwrap_or(raw)
         .to_ascii_lowercase();
     (value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())).then_some(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GithubAsset, checksum_for, select_github_asset};
+
+    fn asset(name: &str) -> GithubAsset {
+        GithubAsset {
+            name: name.into(),
+            size: 42,
+            browser_download_url: format!("https://example.test/{name}"),
+            digest: None,
+        }
+    }
+
+    #[test]
+    fn github_requires_the_exact_windows_x86_64_full_package() {
+        let assets = vec![
+            asset("OEA-windows-aarch64-v0.2.0.zip"),
+            asset("unrelated-large.zip"),
+        ];
+
+        assert!(select_github_asset(&assets, "0.2.0").is_err());
+    }
+
+    #[test]
+    fn checksum_file_must_name_the_selected_asset_exactly() {
+        let expected = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let contents = format!(
+            "{expected}  OEA-windows-x86_64-v0.2.0.zip\n{}  other.zip\n",
+            "f".repeat(64)
+        );
+
+        assert_eq!(
+            checksum_for(&contents, "OEA-windows-x86_64-v0.2.0.zip"),
+            Some(expected.into())
+        );
+        assert_eq!(checksum_for(&contents, "missing.zip"), None);
+    }
 }

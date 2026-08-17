@@ -27,6 +27,13 @@ pub enum DownloadSource {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
+pub enum HttpValidator {
+    Etag(String),
+    LastModified(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     pub schema_version: u32,
@@ -38,7 +45,7 @@ pub struct Transaction {
     pub artifact_url: String,
     pub expected_sha256: String,
     pub expected_size: Option<u64>,
-    pub http_validator: Option<String>,
+    pub http_validator: Option<HttpValidator>,
     pub caller_pid: Option<u32>,
 }
 
@@ -60,7 +67,7 @@ impl Transaction {
 
 #[cfg(test)]
 mod tests {
-    use super::{DownloadSource, Transaction, TransactionStage};
+    use super::{DownloadSource, HttpValidator, Transaction, TransactionStage};
 
     #[test]
     fn transaction_round_trips_all_resume_fields() {
@@ -76,7 +83,7 @@ mod tests {
             artifact_url: "https://example.test/OEA.zip".into(),
             expected_sha256: "a".repeat(64),
             expected_size: Some(42),
-            http_validator: Some("etag-value".into()),
+            http_validator: Some(HttpValidator::Etag("etag-value".into())),
             caller_pid: Some(1234),
         };
 

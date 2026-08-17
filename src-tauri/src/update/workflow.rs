@@ -336,9 +336,39 @@ fn verify_sha256(path: &Path, expected: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{fs, io::Write, thread};
 
-    use super::verify_sha256;
+    use sha2::{Digest, Sha256};
+    use tiny_http::{Header, Response, Server};
+
+    use crate::{app_paths::AppPaths, config::OeaConfig};
+
+    use super::{UpdateManager, UpdateStatus, verify_sha256};
+    use crate::update::{
+        source::AvailableUpdate,
+        transaction::{DownloadSource, TRANSACTION_FILE, Transaction, TransactionStage},
+    };
+
+    fn full_package(version: &str) -> Vec<u8> {
+        let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        for (name, contents) in [
+            ("OEA.exe".to_string(), b"new exe".as_slice()),
+            (
+                format!("assets/v{version}/models/model.onnx"),
+                b"model".as_slice(),
+            ),
+            (
+                format!("assets/v{version}/resources/data.json"),
+                b"data".as_slice(),
+            ),
+        ] {
+            archive
+                .start_file(name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            archive.write_all(contents).unwrap();
+        }
+        archive.finish().unwrap().into_inner()
+    }
 
     #[test]
     fn sha256_mismatch_is_rejected_without_changing_the_file() {
@@ -348,5 +378,88 @@ mod tests {
 
         assert!(verify_sha256(&path, &"0".repeat(64)).is_err());
         assert_eq!(fs::read(path).unwrap(), b"payload");
+    }
+
+    #[test]
+    fn update_manager_prepares_a_complete_portable_handoff() {
+        let package = full_package("0.2.0");
+        let sha256 = Sha256::digest(&package)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", server.server_addr());
+        let package_for_server = package.clone();
+        let server_handle = thread::spawn(move || {
+            let request = server.recv().unwrap();
+            request
+                .respond(
+                    Response::from_data(package_for_server)
+                        .with_header(Header::from_bytes(b"ETag", b"\"package-v1\"").unwrap()),
+                )
+                .unwrap();
+        });
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("portable");
+        fs::create_dir_all(&root).unwrap();
+        let current_exe = root.join("OEA.exe");
+        fs::write(&current_exe, b"old exe").unwrap();
+        let manager = UpdateManager::new(AppPaths::for_build(
+            root.clone(),
+            env!("CARGO_PKG_VERSION"),
+            false,
+        ));
+        manager.state.lock().unwrap().available = Some(AvailableUpdate {
+            version: "0.2.0".into(),
+            release_notes: "notes".into(),
+            artifact_url: url,
+            sha256,
+            size: Some(package.len() as u64),
+            source: DownloadSource::Github,
+        });
+        let mut snapshots = Vec::new();
+
+        let handoff = manager
+            .download_and_prepare(&OeaConfig::default(), &current_exe, 1234, |snapshot| {
+                snapshots.push(snapshot)
+            })
+            .unwrap();
+        server_handle.join().unwrap();
+
+        let transaction_dir = root.join("cache/updates/current");
+        let transaction = Transaction::load(&transaction_dir.join(TRANSACTION_FILE)).unwrap();
+        assert_eq!(transaction.stage, TransactionStage::BootstrapReady);
+        assert_eq!(transaction.caller_pid, Some(1234));
+        assert_eq!(
+            fs::read(root.join("assets/v0.2.0/resources/data.json")).unwrap(),
+            b"data"
+        );
+        assert_eq!(
+            fs::read(transaction_dir.join("candidate/OEA.exe")).unwrap(),
+            b"new exe"
+        );
+        assert_eq!(
+            fs::read(transaction_dir.join("bootstrap.exe")).unwrap(),
+            b"old exe"
+        );
+        assert_eq!(handoff.portable_root, root);
+        assert_eq!(handoff.transaction_dir, transaction_dir);
+        assert_eq!(
+            handoff.bootstrap_path,
+            handoff.transaction_dir.join("bootstrap.exe")
+        );
+        assert_eq!(fs::read(&current_exe).unwrap(), b"old exe");
+        let statuses = snapshots
+            .iter()
+            .map(|snapshot| snapshot.status)
+            .collect::<Vec<_>>();
+        for expected in [
+            UpdateStatus::Downloading,
+            UpdateStatus::Verifying,
+            UpdateStatus::Preparing,
+            UpdateStatus::BootstrapReady,
+        ] {
+            assert!(statuses.contains(&expected));
+        }
     }
 }

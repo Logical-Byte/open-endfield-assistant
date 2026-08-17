@@ -201,6 +201,22 @@ mod tests {
     }
 
     #[test]
+    fn bootstrap_stops_after_wait_failure() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("portable");
+        let transaction = root.join("cache/updates/current");
+        std::fs::create_dir_all(&transaction).unwrap();
+        let input = BootstrapInput::new(&root, &transaction).unwrap();
+        let ops = FakeOps {
+            calls: Mutex::new(Vec::new()),
+            fail_at: Some("wait"),
+        };
+
+        assert!(run(&input, 123, "0.1.0", &ops).is_err());
+        assert_eq!(*ops.calls.lock().unwrap(), ["wait"]);
+    }
+
+    #[test]
     fn launch_failure_writes_manual_recovery_instructions() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("portable");

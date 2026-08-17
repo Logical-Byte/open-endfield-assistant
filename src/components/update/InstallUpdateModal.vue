@@ -1,26 +1,20 @@
 <script setup lang="ts">
 import { downloadAndInstall, installUpdateModalOpen, updateSnapshot } from '@/utils/app/update';
+import {
+  downloadEtaText,
+  downloadPercentage,
+  downloadProgressText,
+  formatBytes,
+  isUpdateInstalling,
+  updateStageLabel,
+} from '@/utils/update-display';
 import { computed } from 'vue';
 
-const stageLabel = computed(() => {
-  switch (updateSnapshot.value.status) {
-    case 'downloading':
-      return '正在下载完整更新包';
-    case 'verifying':
-      return '正在校验 SHA-256';
-    case 'preparing':
-      return '正在准备新版本资源';
-    case 'bootstrapReady':
-      return '准备完成，即将重启';
-    case 'failed':
-      return '更新失败';
-    default:
-      return '正在准备';
-  }
-});
-const busy = computed(
-  () => !['failed', 'available', 'idle', 'upToDate'].includes(updateSnapshot.value.status),
-);
+const stageLabel = computed(() => updateStageLabel(updateSnapshot.value.status));
+const busy = computed(() => isUpdateInstalling(updateSnapshot.value.status));
+const progress = computed(() => downloadPercentage(updateSnapshot.value));
+const progressText = computed(() => downloadProgressText(updateSnapshot.value));
+const etaText = computed(() => downloadEtaText(updateSnapshot.value));
 </script>
 
 <template>
@@ -45,7 +39,20 @@ const busy = computed(
             {{ updateSnapshot.error }}
           </p>
         </div>
-        <UProgress v-if="busy" class="w-full" size="sm" :value="null" />
+        <div v-if="updateSnapshot.status === 'downloading'" class="w-full space-y-2 text-left">
+          <div class="flex justify-between gap-4 text-xs text-toned">
+            <span class="tabular-nums">{{ progressText }}</span>
+            <span class="tabular-nums">
+              {{ progress === null ? '总大小未知' : `${Math.round(progress)}%` }}
+            </span>
+          </div>
+          <UProgress size="sm" :value="progress" />
+          <div class="flex justify-between gap-4 text-xs text-dimmed">
+            <span>{{ formatBytes(updateSnapshot.bytesPerSecond) }}/s</span>
+            <span v-if="etaText">{{ etaText }}</span>
+          </div>
+        </div>
+        <UProgress v-else-if="busy" class="w-full" size="sm" :value="null" />
         <div v-else class="flex gap-2">
           <UButton
             color="neutral"

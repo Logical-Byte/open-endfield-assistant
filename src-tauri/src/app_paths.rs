@@ -1,12 +1,13 @@
 //! 应用资源路径模块。
 //!
-//! 集中解析 `resources/`、`models/`、`logs/` 等资源目录的绝对路径，
+//! 集中解析版本化资源、模型、日志等目录的绝对路径，
 //! 避免代码依赖运行时的工作目录（cwd）。
 //!
-//! 定位策略（根目录下应有 `models`、`resources`、`logs` 三个文件夹）：
+//! 定位策略：
 //! - 开发期（debug 构建）：以 `CARGO_MANIFEST_DIR`（编译时指向 `src-tauri/`）的
 //!   上一级作为项目根，再拼接各资源目录；
-//! - 打包期（release 构建）：以 exe 所在目录作为根目录（便携式分发，资源与 exe 同目录）。
+//! - 打包期（release 构建）：以 exe 所在目录作为根目录，资源位于
+//!   `assets/v<内置版本>/models` 与 `assets/v<内置版本>/resources`。
 //!
 //! 注意：不能用 `env!("CARGO_MANIFEST_DIR")` 直接当作运行时路径——它是编译期常量，
 //! 会把开发机路径（如 `D:\BioHazard\...`）烧进二进制，换机器后必然失效。
@@ -128,7 +129,7 @@ impl AppPaths {
         self.cache_dir().join("webview-data")
     }
 
-    /// 模板图片根目录（`<root_dir>/resources/templates`）。
+    /// 模板图片根目录。正式构建位于内置版本资源目录。
     pub fn templates_dir(&self) -> PathBuf {
         self.resources_dir().join("templates")
     }
