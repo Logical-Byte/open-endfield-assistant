@@ -24,8 +24,8 @@ export const updateSnapshot = ref<UpdateSnapshot>({
 export const updatePopoverOpen = ref(false);
 export const installUpdateModalOpen = ref(false);
 
-// 事件监听只注册一次，避免页面重建时重复处理同一 Rust 事件。
-let initialized = false;
+// 首次显式更新操作创建此 Promise；后续操作等待同一次监听器和快照初始化。
+let initialization: Promise<void> | null = null;
 // 记录可用版本元数据对应的来源设置，防止设置变更后继续安装旧 URL。
 const checkedMetadataKey = ref<string | null>(null);
 
@@ -61,21 +61,30 @@ function applySnapshot(snapshot: UpdateSnapshot): void {
   }
 }
 
-/** 注册 Rust 状态事件、读取当前快照，再在后台按配置启动更新检查。 */
-export async function initUpdateState(): Promise<void> {
-  if (initialized) return;
-  initialized = true;
+/** 在首次显式更新操作前注册 Rust 事件并同步当前快照。 */
+async function ensureUpdateState(): Promise<void> {
   if (!isTauri()) return;
-  await onUpdateState(applySnapshot);
-  applySnapshot(await getUpdateSnapshot());
-  if (oeaConfig.value.checkUpdates) {
-    // 更新源是非关键外部服务，不能让网络延迟阻塞应用首屏。
-    void checkUpdate();
+  const pending = (initialization ??= (async () => {
+    const unlisten = await onUpdateState(applySnapshot);
+    try {
+      applySnapshot(await getUpdateSnapshot());
+    } catch (error) {
+      unlisten();
+      throw error;
+    }
+  })());
+  try {
+    await pending;
+  } catch (error) {
+    // 不缓存失败结果，让下一次用户操作重新注册监听器并读取快照。
+    if (initialization === pending) initialization = null;
+    throw error;
   }
 }
 
 /** 请求 Rust 获取更新元数据；失败详情仍以 Rust 发出的快照为准。 */
 export async function checkUpdate(): Promise<void> {
+  await ensureUpdateState();
   try {
     await checkForUpdate();
     applySnapshot(await getUpdateSnapshot());
@@ -86,6 +95,7 @@ export async function checkUpdate(): Promise<void> {
 
 /** 请求 Rust 完成下载和准备；前端只负责切换到安装进度界面。 */
 export async function downloadAndInstall(): Promise<void> {
+  await ensureUpdateState();
   installUpdateModalOpen.value = true;
   updatePopoverOpen.value = false;
   try {
