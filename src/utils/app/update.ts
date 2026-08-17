@@ -61,7 +61,7 @@ function applySnapshot(snapshot: UpdateSnapshot): void {
   }
 }
 
-/** 注册 Rust 状态事件、读取当前快照，并按配置执行一次启动检查。 */
+/** 注册 Rust 状态事件、读取当前快照，再在后台按配置启动更新检查。 */
 export async function initUpdateState(): Promise<void> {
   if (initialized) return;
   initialized = true;
@@ -69,7 +69,8 @@ export async function initUpdateState(): Promise<void> {
   await onUpdateState(applySnapshot);
   applySnapshot(await getUpdateSnapshot());
   if (oeaConfig.value.checkUpdates) {
-    await checkUpdate();
+    // 更新源是非关键外部服务，不能让网络延迟阻塞应用首屏。
+    void checkUpdate();
   }
 }
 
