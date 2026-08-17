@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { downloadAndInstall, installUpdateModalOpen, updateSnapshot } from '@/utils/app/update';
+import {
+  checkUpdate,
+  downloadAndInstall,
+  installUpdateModalOpen,
+  updateMetadataStale,
+  updateSnapshot,
+} from '@/utils/app/update';
 import {
   downloadEtaText,
   downloadPercentage,
@@ -15,6 +21,15 @@ const busy = computed(() => isUpdateInstalling(updateSnapshot.value.status));
 const progress = computed(() => downloadPercentage(updateSnapshot.value));
 const progressText = computed(() => downloadProgressText(updateSnapshot.value));
 const etaText = computed(() => downloadEtaText(updateSnapshot.value));
+
+function retry(): void {
+  if (updateMetadataStale.value) {
+    installUpdateModalOpen.value = false;
+    void checkUpdate();
+  } else {
+    void downloadAndInstall();
+  }
+}
 </script>
 
 <template>
@@ -62,9 +77,9 @@ const etaText = computed(() => downloadEtaText(updateSnapshot.value));
           />
           <UButton
             v-if="updateSnapshot.availableVersion"
-            icon="i-lucide-refresh-cw"
-            label="重试"
-            @click="downloadAndInstall"
+            :icon="updateMetadataStale ? 'i-lucide-refresh-cw' : 'i-lucide-download'"
+            :label="updateMetadataStale ? '重新检查' : '重试'"
+            @click="retry"
           />
         </div>
       </div>

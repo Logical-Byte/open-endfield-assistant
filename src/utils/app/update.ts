@@ -7,7 +7,7 @@ import {
   getUpdateSnapshot,
   onUpdateState,
 } from '@/utils/tauri';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { isTauri } from '@tauri-apps/api/core';
 
 export const updateSnapshot = ref<UpdateSnapshot>({
@@ -24,9 +24,29 @@ export const updatePopoverOpen = ref(false);
 export const installUpdateModalOpen = ref(false);
 
 let initialized = false;
+const checkedMetadataKey = ref<string | null>(null);
+
+function metadataKey(): string {
+  const { updateSource, mirrorchyanCdk } = oeaConfig.value;
+  return updateSource === 'mirrorchyan' && mirrorchyanCdk.trim()
+    ? `mirrorchyan:${mirrorchyanCdk.trim()}`
+    : 'github';
+}
+
+export const updateMetadataStale = computed(
+  () =>
+    updateSnapshot.value.availableVersion !== null &&
+    checkedMetadataKey.value !== null &&
+    checkedMetadataKey.value !== metadataKey(),
+);
 
 function applySnapshot(snapshot: UpdateSnapshot): void {
   updateSnapshot.value = snapshot;
+  if (snapshot.status === 'available') {
+    checkedMetadataKey.value = metadataKey();
+  } else if (snapshot.availableVersion === null) {
+    checkedMetadataKey.value = null;
+  }
   if (needsUpdateAttention(snapshot.status)) {
     updatePopoverOpen.value = true;
   }

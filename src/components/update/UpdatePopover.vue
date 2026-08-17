@@ -3,6 +3,7 @@ import UpdateDownloadSettings from '@/components/update/UpdateDownloadSettings.v
 import {
   checkUpdate,
   downloadAndInstall,
+  updateMetadataStale,
   updatePopoverOpen,
   updateSnapshot,
 } from '@/utils/app/update';
@@ -23,6 +24,9 @@ const attention = computed(() => needsUpdateAttention(updateSnapshot.value.statu
 const progress = computed(() => downloadPercentage(updateSnapshot.value));
 const progressText = computed(() => downloadProgressText(updateSnapshot.value));
 const etaText = computed(() => downloadEtaText(updateSnapshot.value));
+const canInstall = computed(
+  () => updateSnapshot.value.availableVersion !== null && !updateMetadataStale.value,
+);
 </script>
 
 <template>
@@ -62,8 +66,8 @@ const etaText = computed(() => downloadEtaText(updateSnapshot.value));
             block
             :disabled="saving"
             icon="i-lucide-rotate-cw"
-            :label="updateSnapshot.availableVersion ? '重试下载并安装' : '重试检查'"
-            @click="updateSnapshot.availableVersion ? downloadAndInstall() : checkUpdate()"
+            :label="canInstall ? '重试下载并安装' : '重新检查'"
+            @click="canInstall ? downloadAndInstall() : checkUpdate()"
           />
         </template>
 
@@ -102,7 +106,15 @@ const etaText = computed(() => downloadEtaText(updateSnapshot.value));
             </div>
           </div>
           <UButton
-            v-if="updateSnapshot.status === 'available'"
+            v-if="updateSnapshot.status === 'available' && updateMetadataStale"
+            block
+            :disabled="saving"
+            icon="i-lucide-refresh-cw"
+            label="重新检查以应用下载源"
+            @click="checkUpdate"
+          />
+          <UButton
+            v-else-if="updateSnapshot.status === 'available'"
             block
             :disabled="saving"
             icon="i-lucide-download"
