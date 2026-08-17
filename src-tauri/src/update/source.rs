@@ -126,13 +126,7 @@ fn check_mirror(
         return Ok(None);
     }
 
-    if mirror
-        .update_type
-        .as_deref()
-        .is_some_and(|kind| kind != "full")
-    {
-        bail!("Mirror酱未提供完整更新包");
-    }
+    require_full_package(mirror.update_type.as_deref())?;
     Ok(Some(AvailableUpdate {
         version: latest_text.to_string(),
         release_notes: mirror.release_note,
@@ -141,6 +135,14 @@ fn check_mirror(
         size: mirror.filesize,
         source: DownloadSource::Mirrorchyan,
     }))
+}
+
+/// 第一阶段只接受来源明确标记为 `full` 的完整包。
+fn require_full_package(update_type: Option<&str>) -> Result<()> {
+    if update_type != Some("full") {
+        bail!("Mirror酱未提供完整更新包");
+    }
+    Ok(())
 }
 
 /// 独立查询 GitHub 最新 Release，并只接受精确命名的 Windows x86_64 完整包。
@@ -273,7 +275,7 @@ fn normalize_sha256(value: Option<&str>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{GithubAsset, checksum_for, select_github_asset};
+    use super::{GithubAsset, checksum_for, require_full_package, select_github_asset};
 
     fn asset(name: &str) -> GithubAsset {
         GithubAsset {
@@ -307,5 +309,12 @@ mod tests {
             Some(expected.into())
         );
         assert_eq!(checksum_for(&contents, "missing.zip"), None);
+    }
+
+    #[test]
+    fn mirror_package_must_explicitly_be_full() {
+        assert!(require_full_package(Some("full")).is_ok());
+        assert!(require_full_package(Some("incremental")).is_err());
+        assert!(require_full_package(None).is_err());
     }
 }
