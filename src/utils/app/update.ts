@@ -1,5 +1,5 @@
 import type { UpdateSnapshot } from '@/types/update';
-import { oeaConfig } from '@/utils/app/config';
+import { initOeaConfig, oeaConfig } from '@/utils/app/config';
 import { isUpdateInstalling, needsUpdateAttention } from '@/utils/update-display';
 import {
   checkForUpdate,
@@ -65,6 +65,7 @@ function applySnapshot(snapshot: UpdateSnapshot): void {
 async function ensureUpdateState(): Promise<void> {
   if (!isTauri()) return;
   const pending = (initialization ??= (async () => {
+    await initOeaConfig();
     const unlisten = await onUpdateState(applySnapshot);
     try {
       applySnapshot(await getUpdateSnapshot());

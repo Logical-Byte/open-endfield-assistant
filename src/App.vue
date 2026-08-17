@@ -24,7 +24,7 @@ useHead({
 initAppStatus();
 initAppVersion();
 initLogState();
-await initOeaConfig();
+void initOeaConfig();
 initArchiveAcquisitionContract();
 initPrtsData();
 initScanResults();

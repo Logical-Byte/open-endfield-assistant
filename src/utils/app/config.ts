@@ -17,6 +17,8 @@ export const DEFAULT_OEA_CONFIG: OeaConfig = {
 
 export const oeaConfig = ref<OeaConfig>(DEFAULT_OEA_CONFIG);
 export const saving = ref(false);
+// 设置页在后端配置覆盖默认值前保持不可编辑，避免丢失过早的用户输入。
+export const configReady = ref(false);
 
 /**
  * 深拷贝配置。
@@ -33,14 +35,17 @@ let lastSaved: OeaConfig = deepClone(DEFAULT_OEA_CONFIG);
 /** 回滚进行中标志：拦截回滚赋值触发的重复保存。 */
 let restoring = false;
 
-let initialized = false;
+// 共享正在进行的加载，使需要配置的操作可以等待同一次初始化。
+let initialization: Promise<void> | null = null;
 
-export async function initOeaConfig() {
-  if (initialized) {
-    return;
-  }
-  initialized = true;
+/** 启动配置加载；重复调用会返回同一个初始化 Promise。 */
+export function initOeaConfig(): Promise<void> {
+  initialization ??= loadAndWatchOeaConfig();
+  return initialization;
+}
 
+/** 从后端加载配置，并在加载完成后监听后续修改。 */
+async function loadAndWatchOeaConfig(): Promise<void> {
   const toast = useToast();
 
   try {
@@ -82,4 +87,5 @@ export async function initOeaConfig() {
     },
     { deep: true, flush: 'sync' },
   );
+  configReady.value = true;
 }

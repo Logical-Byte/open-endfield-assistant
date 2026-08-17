@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { oeaConfig, saving } from '@/utils/app/config';
+import { configReady, oeaConfig, saving } from '@/utils/app/config';
 import { checkUpdate, updateSnapshot } from '@/utils/app/update';
 import { UPDATE_PROXY_MODE_ITEMS, UPDATE_SOURCE_ITEMS } from '@/utils/update-options';
 import { computed } from 'vue';
@@ -41,7 +41,7 @@ async function manualCheckUpdate(): Promise<void> {
 <template>
   <UContainer>
     <UPage>
-      <UPageBody>
+      <UPageBody :inert="!configReady">
         <UCard description="托盘图标与窗口行为" title="系统托盘">
           <div class="flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">
