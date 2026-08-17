@@ -15,7 +15,7 @@ use super::transaction::{ARTIFACT, CANDIDATE_EXE};
 
 /// 将完整发布包装入事务候选区，并一次性发布目标版本资源目录。
 ///
-/// 返回候选 `OEA.exe` 的路径；调用方随后复制 Bootstrap 并交给平台替换逻辑。
+/// 返回候选 `OEA.exe` 的路径；更新工作流随后复制 Bootstrap 并准备平台交接参数。
 pub fn prepare_full_package(
     portable_root: &Path,
     transaction_dir: &Path,

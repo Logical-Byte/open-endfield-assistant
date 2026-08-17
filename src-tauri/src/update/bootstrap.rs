@@ -66,7 +66,8 @@ pub trait PlatformOps {
 /// 等待旧进程、替换根入口，再启动新入口。
 ///
 /// 顺序很重要：Windows 不允许覆盖仍在运行的 EXE。若最后的启动步骤失败，
-/// 已替换的文件不会自动回滚，而是留下备份路径和人工恢复说明。
+/// 已替换的文件不会自动回滚；便携根目录会保留 `OEA-backup-v<version>.exe`，
+/// 并写入 `update-error.txt` 说明如何手动恢复。
 pub fn run(
     input: &BootstrapInput,
     caller_pid: u32,
@@ -94,8 +95,8 @@ fn fs_err_write(path: &Path, bytes: &[u8]) -> Result<()> {
 
 /// 在普通应用初始化前识别并执行 Bootstrap 模式。
 ///
-/// 返回 `None` 表示这是普通启动，调用方应继续初始化 Tauri；返回 `Some(code)`
-/// 表示参数选择了 Bootstrap 模式，调用方应直接以该退出码结束进程。
+/// 返回 `None` 表示这是普通启动，`main` 应继续初始化 Tauri；返回 `Some(code)`
+/// 表示参数选择了 Bootstrap 模式，`main` 应直接以该退出码结束进程。
 #[cfg(target_os = "windows")]
 pub fn try_run_from_args() -> Option<i32> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();

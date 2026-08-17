@@ -40,10 +40,11 @@ pub struct Progress {
     pub bytes_per_second: u64,
 }
 
-/// 下载完整包，并通过两个回调把持久化时机和 UI 进度交给上层。
+/// 下载完整包，并通过 `response_ready` 和 `report` 回调向更新工作流报告状态。
 ///
-/// `response_ready` 在写正文前调用，使工作流先保存校验标识；`report` 可高频调用，
-/// 由工作流负责节流。生产代码使用单调时钟 `Instant::now` 计算速度。
+/// `response_ready` 在写正文前报告 `validator` 与总大小，供工作流先持久化续传依据；
+/// `report` 报告原始下载进度，可被高频调用，由 `UpdateManager` 负责节流。
+/// 生产代码使用单调时钟 `Instant::now` 计算速度。
 pub fn download(
     client: &Client,
     request: &DownloadRequest,

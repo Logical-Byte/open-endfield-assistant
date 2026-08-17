@@ -124,7 +124,7 @@ impl AppPaths {
         self.root_dir.join("cache")
     }
 
-    /// WebView2 用户数据目录（`<root_dir>/cache/webview-data`，不写入 `%LOCALAPPDATA%`，）。
+    /// WebView2 用户数据目录（`<root_dir>/cache/webview-data`，不写入 `%LOCALAPPDATA%`）。
     pub fn webview_data_dir(&self) -> PathBuf {
         self.cache_dir().join("webview-data")
     }

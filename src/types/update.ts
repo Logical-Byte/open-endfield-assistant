@@ -11,7 +11,7 @@ export type UpdateStatus =
   | 'failed';
 
 /**
- * Rust 更新管理器发出的完整状态快照。
+ * Rust 更新管理器维护、由 `update-state-changed` 事件发布的完整状态快照。
  *
  * 前端直接替换整份快照，不自行推断下载或文件事务状态。
  */

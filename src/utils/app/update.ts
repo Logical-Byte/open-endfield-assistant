@@ -24,7 +24,8 @@ export const updateSnapshot = ref<UpdateSnapshot>({
 export const updatePopoverOpen = ref(false);
 export const installUpdateModalOpen = ref(false);
 
-// 首次显式更新操作创建此 Promise；后续操作等待同一次监听器和快照初始化。
+// 应用启动时创建此 Promise；初始化失败后由下一次更新操作重建。
+// 其他更新操作等待同一次事件监听和快照同步。
 let initialization: Promise<void> | null = null;
 // 记录可用版本元数据对应的来源设置，防止设置变更后继续安装旧 URL。
 const checkedMetadataKey = ref<string | null>(null);
@@ -46,7 +47,7 @@ export const updateMetadataStale = computed(
     checkedMetadataKey.value !== metadataKey(),
 );
 
-/** 用 Rust 的完整快照替换本地状态，并同步需要用户注意的界面。 */
+/** 用 Rust 的完整快照替换本地状态，并按状态打开 `UpdatePopover` 或 `InstallUpdateModal`。 */
 function applySnapshot(snapshot: UpdateSnapshot): void {
   updateSnapshot.value = snapshot;
   if (snapshot.status === 'available') {
@@ -62,7 +63,7 @@ function applySnapshot(snapshot: UpdateSnapshot): void {
   }
 }
 
-/** 在首次显式更新操作前注册 Rust 事件并同步当前快照。 */
+/** 监听 `update-state-changed` 事件，并通过 `update_get_snapshot` 同步当前快照。 */
 async function ensureUpdateState(): Promise<void> {
   if (!isTauri()) return;
   const pending = (initialization ??= (async () => {
@@ -84,7 +85,7 @@ async function ensureUpdateState(): Promise<void> {
   }
 }
 
-/** 初始化更新事件，并按配置在后台执行只获取元数据的启动检查。 */
+/** 初始化更新事件监听，并按配置执行只获取元数据的启动检查。 */
 export async function initUpdateState(): Promise<void> {
   try {
     await ensureUpdateState();
@@ -96,14 +97,14 @@ export async function initUpdateState(): Promise<void> {
   }
 }
 
-/** 请求 Rust 获取更新元数据；失败详情仍以 Rust 发出的快照为准。 */
+/** 请求 Rust 获取更新元数据；失败详情以 `update-state-changed` 事件中的快照为准。 */
 export async function checkUpdate(): Promise<void> {
   await ensureUpdateState();
   try {
     await checkForUpdate();
     applySnapshot(await getUpdateSnapshot());
   } catch {
-    // Rust emits the authoritative Failed snapshot.
+    // Rust 已保存权威的 `failed` 快照；界面状态由快照驱动，无需另建错误状态。
   }
 }
 
@@ -115,6 +116,6 @@ export async function downloadAndInstall(): Promise<void> {
   try {
     await downloadAndInstallUpdate();
   } catch {
-    // Rust emits preparation failures. Platform launch errors are returned to the caller.
+    // Rust 已保存权威的 `failed` 快照；界面状态由快照驱动，无需另建错误状态。
   }
 }

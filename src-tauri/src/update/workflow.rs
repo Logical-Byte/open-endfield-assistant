@@ -53,9 +53,10 @@ pub enum UpdateStatus {
     Failed,
 }
 
-/// Rust 发给前端的完整更新快照。
+/// Rust 更新工作流维护、由 Tauri 命令层发布给前端的完整更新快照。
 ///
-/// 每次事件都携带全部字段，因此前端事件丢失后可通过 snapshot 命令恢复。
+/// 每个 `update-state-changed` 事件都携带全部字段；前端丢失事件后可调用
+/// `update_get_snapshot` 命令重新同步。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateSnapshot {
@@ -106,7 +107,7 @@ pub struct BootstrapHandoff {
 
 /// 仅存在于当前进程内的更新状态。
 struct State {
-    /// 发给前端的展示快照。
+    /// 供 Tauri 命令层读取或发布的最新展示快照。
     snapshot: UpdateSnapshot,
     /// 最近检查得到的可信下载元数据；失败重检时必须清空。
     available: Option<AvailableUpdate>,
@@ -141,7 +142,9 @@ impl UpdateManager {
             .clone()
     }
 
-    /// 使用已保存配置检查更新，并在每次状态变化时发送完整快照。
+    /// 使用已保存配置检查更新，并在每次状态变化时通过 `emit` 回调报告完整快照。
+    ///
+    /// Tauri 命令层负责把生产环境中的回调结果发布为 `update-state-changed` 事件。
     pub fn check(&self, config: &OeaConfig, mut emit: impl FnMut(UpdateSnapshot)) -> Result<()> {
         self.check_with(
             || source::check(config, env!("CARGO_PKG_VERSION")),
@@ -216,7 +219,7 @@ impl UpdateManager {
         result
     }
 
-    /// 把命令层发生的错误写入管理器，并立即发出失败快照。
+    /// 把 Tauri 命令层发生的错误写入管理器，并立即通过 `emit` 回调报告失败快照。
     pub fn fail(&self, error: impl Into<String>, mut emit: impl FnMut(UpdateSnapshot)) {
         self.change_status(UpdateStatus::Failed, Some(error.into()), &mut emit);
     }
@@ -253,7 +256,7 @@ impl UpdateManager {
                 transaction.save(&transaction_path)?;
                 self.change_status(UpdateStatus::Downloading, None, emit);
                 let client = source::build_client(config)?;
-                // 下载器逐块报告；工作流最多约每 150 ms 向 Tauri 发一次完整快照。
+                // 下载器逐块报告；工作流最多约每 150 ms 通过 `emit` 回调报告一次完整快照。
                 let last_emit = Mutex::new(Instant::now() - Duration::from_secs(1));
                 let expected_total = transaction.expected_size;
                 download::download(
@@ -329,7 +332,7 @@ impl UpdateManager {
         })
     }
 
-    /// 修改阶段或错误并立即发出完整快照。
+    /// 修改阶段或错误，并立即通过 `emit` 回调报告完整快照。
     fn change_status(
         &self,
         status: UpdateStatus,
@@ -345,7 +348,7 @@ impl UpdateManager {
         emit(state.snapshot.clone());
     }
 
-    /// 合并下载器进度到管理器快照并发送给前端。
+    /// 合并下载器进度到管理器快照，并调用 `emit` 回调报告完整快照。
     fn set_progress(&self, progress: Progress, emit: &mut impl FnMut(UpdateSnapshot)) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         state.snapshot.downloaded_bytes = progress.downloaded_bytes;

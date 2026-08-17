@@ -95,7 +95,9 @@ impl Transaction {
         Ok(transaction)
     }
 
-    /// 把完整状态写回 JSON；调用方在关键阶段变化前后负责调用。
+    /// 把调用时的完整状态写回 JSON。
+    ///
+    /// 本方法不自动跟踪字段变化；更新工作流修改阶段或续传字段后必须显式调用。
     pub fn save(&self, path: &Path) -> Result<()> {
         let parent = path.parent().context("事务文件缺少父目录")?;
         fs::create_dir_all(parent).context("创建事务目录失败")?;

@@ -129,7 +129,7 @@ pub fn update_get_snapshot(state: tauri::State<Arc<UpdateManager>>) -> UpdateSna
     state.snapshot()
 }
 
-/// 在阻塞线程检查更新，并把每个完整状态快照作为 Tauri 事件发给前端。
+/// 在阻塞线程检查更新，并把每个完整状态快照作为 `update-state-changed` 事件发给前端。
 ///
 /// `reqwest` 使用阻塞 API；`spawn_blocking` 避免网络请求占住 Tauri 的异步执行线程。
 #[tauri::command]
