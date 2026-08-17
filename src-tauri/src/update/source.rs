@@ -106,14 +106,14 @@ pub fn check(config: &OeaConfig, current_version: &str) -> Result<Option<Availab
     if config.update_source == UpdateSource::Mirrorchyan
         && !config.mirrorchyan_cdk.trim().is_empty()
     {
-        check_mirror(&client, current_version, &config.mirrorchyan_cdk)
+        check_mirrorchyan(&client, current_version, &config.mirrorchyan_cdk)
     } else {
-        check_github(&client, current_version)
+        check_github_release(&client, current_version)
     }
 }
 
 /// 查询 MirrorChyan，并拒绝增量包或缺少 SHA-256 的响应。
-fn check_mirror(
+fn check_mirrorchyan(
     client: &Client,
     current_version: &str,
     cdk: &str,
@@ -140,7 +140,7 @@ fn check_mirror(
 }
 
 /// 独立查询 GitHub 最新 Release，并只接受精确命名的 Windows x86_64 完整包。
-fn check_github(client: &Client, current_version: &str) -> Result<Option<AvailableUpdate>> {
+fn check_github_release(client: &Client, current_version: &str) -> Result<Option<AvailableUpdate>> {
     let release: GithubRelease = client
         .get(GITHUB_LATEST_RELEASE)
         .send()
