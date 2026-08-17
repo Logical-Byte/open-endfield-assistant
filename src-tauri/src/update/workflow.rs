@@ -212,30 +212,21 @@ impl UpdateManager {
             .available
             .clone()
             .context("没有可安装的更新")?;
-        let result = (|| {
-            let transaction_dir = self.paths.cache_dir().join("updates/current");
-            fs::create_dir_all(&transaction_dir).context("创建更新事务目录失败")?;
-            let transaction_path = transaction_dir.join(TRANSACTION_FILE);
-            let mut transaction =
-                recover_or_create(&transaction_path, &available, env!("CARGO_PKG_VERSION"))?;
-            transaction.caller_pid = Some(caller_pid);
-            transaction.save(&transaction_path)?;
+        let transaction_dir = self.paths.cache_dir().join("updates/current");
+        let result = fs::create_dir_all(&transaction_dir)
+            .context("创建更新事务目录失败")
+            .and_then(|()| {
+                let mut transaction = recover_or_create(
+                    &transaction_dir.join(TRANSACTION_FILE),
+                    &available,
+                    env!("CARGO_PKG_VERSION"),
+                )?;
+                transaction.caller_pid = Some(caller_pid);
+                transaction.save(&transaction_dir.join(TRANSACTION_FILE))?;
 
-            self.download(
-                config,
-                &transaction_dir,
-                &transaction_path,
-                &mut transaction,
-                &mut emit,
-            )?;
-            self.prepare(
-                current_exe,
-                &transaction_dir,
-                &transaction_path,
-                &mut transaction,
-                &mut emit,
-            )
-        })();
+                self.download(config, &transaction_dir, &mut transaction, &mut emit)?;
+                self.prepare(current_exe, &transaction_dir, &mut transaction, &mut emit)
+            });
         if let Err(error) = &result {
             self.change_status(UpdateStatus::Failed, Some(format!("{error:#}")), &mut emit);
         }
@@ -252,10 +243,10 @@ impl UpdateManager {
         &self,
         config: &OeaConfig,
         transaction_dir: &Path,
-        transaction_path: &Path,
         transaction: &mut Transaction,
         emit: &mut impl FnMut(UpdateSnapshot),
     ) -> Result<()> {
+        let transaction_file = transaction_dir.join(TRANSACTION_FILE);
         let part_path = transaction_dir.join(PARTIAL_ARTIFACT);
         let artifact_path = transaction_dir.join(ARTIFACT);
         let has_verified_artifact = matches!(
@@ -271,7 +262,7 @@ impl UpdateManager {
         }
 
         transaction.stage = TransactionStage::Downloading;
-        transaction.save(transaction_path)?;
+        transaction.save(&transaction_file)?;
         self.change_status(UpdateStatus::Downloading, None, emit);
         let client = source::build_client(config)?;
         // 下载器逐块报告；工作流最多约每 150 ms 通过 `emit` 回调报告一次完整快照。
@@ -287,7 +278,7 @@ impl UpdateManager {
             |validator, total, _resumed| {
                 transaction.http_validator = validator;
                 transaction.expected_size = transaction.expected_size.or(total);
-                transaction.save(transaction_path)
+                transaction.save(&transaction_file)
             },
             |mut progress| {
                 progress.total_bytes = progress.total_bytes.or(expected_total);
@@ -301,7 +292,7 @@ impl UpdateManager {
             },
         )?;
         transaction.stage = TransactionStage::Downloaded;
-        transaction.save(transaction_path)
+        transaction.save(&transaction_file)
     }
 
     /// 校验已下载归档、发布版本资源并准备 Bootstrap 交接参数。
@@ -309,10 +300,10 @@ impl UpdateManager {
         &self,
         current_exe: &Path,
         transaction_dir: &Path,
-        transaction_path: &Path,
         transaction: &mut Transaction,
         emit: &mut impl FnMut(UpdateSnapshot),
     ) -> Result<BootstrapHandoff> {
+        let transaction_file = transaction_dir.join(TRANSACTION_FILE);
         let part_path = transaction_dir.join(PARTIAL_ARTIFACT);
         let artifact_path = transaction_dir.join(ARTIFACT);
         let has_verified_artifact = matches!(
@@ -329,7 +320,7 @@ impl UpdateManager {
             }
             fs::rename(&part_path, &artifact_path).context("发布已校验归档失败")?;
             transaction.stage = TransactionStage::Verified;
-            transaction.save(transaction_path)?;
+            transaction.save(&transaction_file)?;
         }
 
         let candidate_exe = transaction_dir.join(super::transaction::CANDIDATE_EXE);
@@ -352,13 +343,13 @@ impl UpdateManager {
                 &transaction.target_version,
             )?;
             transaction.stage = TransactionStage::Prepared;
-            transaction.save(transaction_path)?;
+            transaction.save(&transaction_file)?;
         }
 
         let bootstrap_path = transaction_dir.join(BOOTSTRAP_EXE);
         fs::copy(current_exe, &bootstrap_path).context("复制 Bootstrap 可执行文件失败")?;
         transaction.stage = TransactionStage::BootstrapReady;
-        transaction.save(transaction_path)?;
+        transaction.save(&transaction_file)?;
         self.change_status(UpdateStatus::BootstrapReady, None, emit);
 
         Ok(BootstrapHandoff {
