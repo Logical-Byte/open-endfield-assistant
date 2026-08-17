@@ -16,7 +16,7 @@ tauri build --no-bundle && jiti scripts/package.ts
 
 - `tauri build --no-bundle`：编译 release 版 exe（前端已内嵌）。`tauri.conf.json` 中 `bundle.targets` 为空数组，因此**不会**生成 NSIS/MSI 安装程序。
 - `scripts/package.ts`：组装并打 zip：
-  1. 读取 `src-tauri/tauri.conf.json` 的 `productName` / `version` 与 `process.arch`，得到产物名 `OEA-windows-x86_64-v0.1.0.zip`；
+  1. 检查 `package.json`、`src-tauri/tauri.conf.json` 与 `src-tauri/Cargo.toml` 的版本一致，再读取产品名与 `process.arch`，得到产物名 `OEA-windows-x86_64-v0.1.0.zip`；
   2. 将 `src-tauri/target/release/oea.exe`（`--no-bundle` 下二进制沿用 Cargo 包名，需自行重命名）重命名为 `OEA.exe`，把 `models/`、`resources/` 拷入 `assets/v<版本>/`（跳过 `.` 开头的条目，如子模块 `.git`）；
   3. 断言根入口、版本化模型目录和资源目录均存在，避免发布无法启动或无法更新的不完整 ZIP；
   4. 使用 `yazl` 打 zip。

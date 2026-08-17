@@ -20,6 +20,7 @@ import {
   rmSync,
   statSync,
 } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ZipFile } from 'yazl';
@@ -29,15 +30,51 @@ interface TauriConfig {
   version?: string;
 }
 
+interface PackageConfig {
+  version?: string;
+}
+
+interface CargoMetadata {
+  packages: Array<{ manifest_path: string; version: string }>;
+}
+
 // 项目根目录（本文件位于 <root>/scripts/ 下），不依赖运行时 cwd
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// 读取 tauri.conf.json（版本与产品名的唯一事实来源）
+// 读取 Tauri 产品名和发布布局版本；下方再与其他版本来源交叉检查。
 const tauriConfig = JSON.parse(
   readFileSync(path.join(rootDir, 'src-tauri', 'tauri.conf.json'), 'utf8'),
 ) as TauriConfig;
 const productName = tauriConfig.productName ?? 'OEA';
-const version = tauriConfig.version ?? '0.0.0';
+const version = tauriConfig.version;
+
+const packageConfig = JSON.parse(
+  readFileSync(path.join(rootDir, 'package.json'), 'utf8'),
+) as PackageConfig;
+const cargoManifestPath = path.join(rootDir, 'src-tauri', 'Cargo.toml');
+const cargoMetadata = JSON.parse(
+  execFileSync(
+    'cargo',
+    ['metadata', '--no-deps', '--format-version', '1', '--manifest-path', cargoManifestPath],
+    { encoding: 'utf8' },
+  ),
+) as CargoMetadata;
+const cargoVersion = cargoMetadata.packages.find(
+  (pkg) => path.resolve(pkg.manifest_path) === cargoManifestPath,
+)?.version;
+
+if (
+  !version ||
+  !packageConfig.version ||
+  !cargoVersion ||
+  packageConfig.version !== version ||
+  cargoVersion !== version
+) {
+  throw new Error(
+    `[package] 版本号不一致: package.json=${packageConfig.version ?? 'missing'}, ` +
+      `tauri.conf.json=${version ?? 'missing'}, Cargo.toml=${cargoVersion ?? 'missing'}`,
+  );
+}
 
 // 目标架构：Node 的 arch 命名 → 产物命名
 const ARCH_MAP: Record<string, string> = { x64: 'x86_64', arm64: 'aarch64', ia32: 'i686' };
