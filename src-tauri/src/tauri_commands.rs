@@ -146,7 +146,9 @@ pub async fn update_check(
         .clone();
     tauri::async_runtime::spawn_blocking(move || {
         updater.check(&config, |snapshot| {
-            let _ = app.emit(UPDATE_EVENT, snapshot);
+            let _ = app
+                .emit(UPDATE_EVENT, snapshot)
+                .inspect_err(|error| error!("向前端推送更新状态失败: {error}"));
         })
     })
     .await
@@ -177,7 +179,9 @@ pub async fn update_download_and_install(
     let worker_updater = Arc::clone(&updater);
     let handoff = tauri::async_runtime::spawn_blocking(move || {
         worker_updater.download_and_prepare(&config, &current_exe, caller_pid, |snapshot| {
-            let _ = worker_app.emit(UPDATE_EVENT, snapshot);
+            let _ = worker_app
+                .emit(UPDATE_EVENT, snapshot)
+                .inspect_err(|error| error!("向前端推送更新状态失败: {error}"));
         })
     })
     .await
@@ -193,7 +197,9 @@ pub async fn update_download_and_install(
     {
         let message = format!("启动 Bootstrap 失败: {error}");
         updater.fail(message.clone(), |snapshot| {
-            let _ = app.emit(UPDATE_EVENT, snapshot);
+            let _ = app
+                .emit(UPDATE_EVENT, snapshot)
+                .inspect_err(|error| error!("向前端推送更新状态失败: {error}"));
         });
         return Err(message);
     }

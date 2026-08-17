@@ -104,7 +104,11 @@ export async function checkUpdate(): Promise<void> {
     await checkForUpdate();
     applySnapshot(await getUpdateSnapshot());
   } catch {
-    // Rust 已保存权威的 `failed` 快照；界面状态由快照驱动，无需另建错误状态。
+    try {
+      applySnapshot(await getUpdateSnapshot());
+    } catch (error) {
+      console.error('检查更新失败后同步状态失败', error);
+    }
   }
 }
 
@@ -116,6 +120,10 @@ export async function downloadAndInstall(): Promise<void> {
   try {
     await downloadAndInstallUpdate();
   } catch {
-    // Rust 已保存权威的 `failed` 快照；界面状态由快照驱动，无需另建错误状态。
+    try {
+      applySnapshot(await getUpdateSnapshot());
+    } catch (error) {
+      console.error('安装更新失败后同步状态失败', error);
+    }
   }
 }
