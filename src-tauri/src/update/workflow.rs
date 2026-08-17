@@ -216,15 +216,23 @@ impl UpdateManager {
         let result = fs::create_dir_all(&transaction_dir)
             .context("创建更新事务目录失败")
             .and_then(|()| {
-                let mut transaction = recover_or_create(
+                recover_or_create(
                     &transaction_dir.join(TRANSACTION_FILE),
                     &available,
                     env!("CARGO_PKG_VERSION"),
-                )?;
+                )
+            })
+            .and_then(|mut transaction| {
                 transaction.caller_pid = Some(caller_pid);
-                transaction.save(&transaction_dir.join(TRANSACTION_FILE))?;
-
-                self.download(config, &transaction_dir, &mut transaction, &mut emit)?;
+                transaction
+                    .save(&transaction_dir.join(TRANSACTION_FILE))
+                    .map(|()| transaction)
+            })
+            .and_then(|mut transaction| {
+                self.download(config, &transaction_dir, &mut transaction, &mut emit)
+                    .map(|()| transaction)
+            })
+            .and_then(|mut transaction| {
                 self.prepare(current_exe, &transaction_dir, &mut transaction, &mut emit)
             });
         if let Err(error) = &result {
