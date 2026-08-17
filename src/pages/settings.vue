@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { oeaConfig, saving } from '@/utils/app/config';
+import { checkUpdate, updateSnapshot } from '@/utils/app/update';
 import { computed } from 'vue';
 
 /**
@@ -20,6 +21,28 @@ const soundVolume = computed<number>({
     }
   },
 });
+
+const updateSourceItems = [
+  { label: 'Mirror酱', value: 'mirrorchyan' },
+  { label: 'GitHub', value: 'github' },
+];
+const proxyModeItems = [
+  { label: '不使用代理', value: 'none' },
+  { label: '系统代理', value: 'system' },
+  { label: '自定义代理', value: 'custom' },
+];
+
+async function manualCheckUpdate(): Promise<void> {
+  await checkUpdate();
+  if (updateSnapshot.value.status === 'upToDate') {
+    useToast().add({
+      title: '当前已是最新版本',
+      description: `v${updateSnapshot.value.currentVersion}`,
+      icon: 'i-lucide-circle-check',
+      color: 'success',
+    });
+  }
+}
 </script>
 
 <template>
@@ -57,6 +80,73 @@ const soundVolume = computed<number>({
               <span class="w-10 text-end text-sm tabular-nums">
                 {{ Math.round(soundVolume * 100) }}%
               </span>
+            </div>
+          </div>
+        </UCard>
+
+        <UCard description="版本检查与完整包下载" title="应用更新">
+          <div class="divide-y divide-default">
+            <div class="flex items-center justify-between gap-4 py-4 first:pt-0">
+              <div class="flex items-center gap-3">
+                <UIcon class="size-6 text-primary" name="i-lucide-refresh-cw" />
+                <div>
+                  <p class="font-medium">启动时检查更新</p>
+                  <p class="text-sm text-toned">仅获取版本和下载元数据，不会自动下载</p>
+                </div>
+              </div>
+              <USwitch v-model="oeaConfig.checkUpdates" :loading="saving" />
+            </div>
+
+            <div class="flex items-center justify-between gap-4 py-4">
+              <div>
+                <p class="font-medium">下载源</p>
+                <p class="text-sm text-toned">Mirror酱未填写 CDK 时使用 GitHub</p>
+              </div>
+              <USelect v-model="oeaConfig.updateSource" class="w-52" :items="updateSourceItems" />
+            </div>
+
+            <div
+              v-if="oeaConfig.updateSource === 'mirrorchyan'"
+              class="flex items-center justify-between gap-4 py-4"
+            >
+              <div>
+                <p class="font-medium">Mirror酱 CDK</p>
+                <p class="text-sm text-toned">第三方加速下载服务凭据</p>
+              </div>
+              <UInput v-model="oeaConfig.mirrorchyanCdk" class="w-52" type="password" />
+            </div>
+
+            <div class="flex items-center justify-between gap-4 py-4">
+              <div>
+                <p class="font-medium">下载代理</p>
+                <p class="text-sm text-toned">用于检查和下载更新包</p>
+              </div>
+              <USelect v-model="oeaConfig.updateProxyMode" class="w-52" :items="proxyModeItems" />
+            </div>
+
+            <div
+              v-if="oeaConfig.updateProxyMode === 'custom'"
+              class="flex items-center justify-between gap-4 py-4"
+            >
+              <div>
+                <p class="font-medium">代理地址</p>
+                <p class="text-sm text-toned">例如 http://127.0.0.1:7890</p>
+              </div>
+              <UInput
+                v-model="oeaConfig.updateProxyUrl"
+                class="w-52"
+                placeholder="http://127.0.0.1:7890"
+              />
+            </div>
+
+            <div class="pt-4">
+              <UButton
+                block
+                icon="i-lucide-refresh-cw"
+                label="检查更新"
+                :loading="updateSnapshot.status === 'checking'"
+                @click="manualCheckUpdate"
+              />
             </div>
           </div>
         </UCard>

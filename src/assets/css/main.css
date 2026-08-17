@@ -55,6 +55,87 @@
   --color-green-900: oklch(17.276% 0.02184 161.78); */
 }
 
+@layer components {
+  .markdown-body {
+    @apply text-sm;
+
+    :first-child {
+      @apply mt-0;
+    }
+    :last-child {
+      @apply mb-0;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      @apply mt-[1em] mb-[0.5em] font-bold;
+    }
+    h1 {
+      @apply text-xl;
+    }
+    h2 {
+      @apply text-lg;
+    }
+    h3 {
+      @apply text-base;
+    }
+    p,
+    ul,
+    ol,
+    li {
+      @apply my-1.5;
+    }
+    ul,
+    ol {
+      @apply ps-4;
+    }
+    ul {
+      @apply list-disc;
+    }
+    ol {
+      @apply list-decimal;
+    }
+    a {
+      @apply text-primary hover:text-primary/75;
+    }
+    code {
+      @apply rounded-sm bg-elevated px-1 font-mono;
+    }
+    pre {
+      @apply my-1.5 overflow-x-auto rounded-md border border-default bg-elevated px-3 py-2;
+    }
+    pre code {
+      @apply rounded-none bg-transparent p-0;
+    }
+    blockquote {
+      @apply my-3 border-s-2 border-default ps-2 text-muted;
+    }
+    hr {
+      @apply my-3;
+    }
+    strong {
+      @apply font-bold;
+    }
+    table {
+      @apply my-3 w-full border-collapse border-y border-inverted;
+    }
+    thead tr {
+      @apply border-b border-inverted bg-elevated;
+    }
+    tbody tr:nth-child(even) {
+      @apply bg-elevated;
+    }
+    th,
+    td {
+      @apply px-2 py-1;
+    }
+  }
+}
+
 .dark {
   /* --ui-primary: var(--ui-color-primary-500); */
 }

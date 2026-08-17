@@ -8,6 +8,11 @@ export const DEFAULT_OEA_CONFIG: OeaConfig = {
   version: VERSION,
   minimizeToTray: false,
   soundVolume: 0.5,
+  checkUpdates: true,
+  updateSource: 'mirrorchyan',
+  mirrorchyanCdk: '',
+  updateProxyMode: 'system',
+  updateProxyUrl: '',
 };
 
 export const oeaConfig = ref<OeaConfig>(DEFAULT_OEA_CONFIG);

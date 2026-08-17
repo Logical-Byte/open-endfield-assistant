@@ -7,6 +7,7 @@ import type { OeaConfig } from '@/types/oeaConfig';
 import type { PrtsData } from '@/types/prts';
 import type { ScanResult } from '@/types/scanResult';
 import type { ScreenshotFormat } from '@/types/screenshot';
+import type { UpdateSnapshot } from '@/types/update';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -87,4 +88,20 @@ export async function onLog(cb: (entry: LogEntry) => void): Promise<() => void> 
  */
 export async function onScanResult(cb: (result: ScanResult) => void): Promise<() => void> {
   return await listen<ScanResult>('scan-result', (event) => cb(event.payload));
+}
+
+export async function getUpdateSnapshot(): Promise<UpdateSnapshot> {
+  return await invoke('update_get_snapshot');
+}
+
+export async function checkForUpdate(): Promise<void> {
+  await invoke('update_check');
+}
+
+export async function downloadAndInstallUpdate(): Promise<void> {
+  await invoke('update_download_and_install');
+}
+
+export async function onUpdateState(cb: (snapshot: UpdateSnapshot) => void): Promise<() => void> {
+  return await listen<UpdateSnapshot>('update-state-changed', (event) => cb(event.payload));
 }

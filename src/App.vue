@@ -7,6 +7,7 @@ import { initOeaConfig } from '@/utils/app/config';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
+import { initUpdateState } from '@/utils/app/update';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';
 import { computed } from 'vue';
@@ -24,7 +25,8 @@ useHead({
 initAppStatus();
 initAppVersion();
 initLogState();
-initOeaConfig();
+await initOeaConfig();
+await initUpdateState();
 initArchiveAcquisitionContract();
 initPrtsData();
 initScanResults();
@@ -44,6 +46,7 @@ initScanResults();
         <!-- <AppFooter /> -->
 
         <AppImagePreview />
+        <InstallUpdateModal />
       </div>
     </UApp>
   </Suspense>
