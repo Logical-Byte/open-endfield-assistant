@@ -212,7 +212,30 @@ impl UpdateManager {
             .available
             .clone()
             .context("没有可安装的更新")?;
-        let result = self.prepare(config, current_exe, caller_pid, &available, &mut emit);
+        let result = (|| {
+            let transaction_dir = self.paths.cache_dir().join("updates/current");
+            fs::create_dir_all(&transaction_dir).context("创建更新事务目录失败")?;
+            let transaction_path = transaction_dir.join(TRANSACTION_FILE);
+            let mut transaction =
+                recover_or_create(&transaction_path, &available, env!("CARGO_PKG_VERSION"))?;
+            transaction.caller_pid = Some(caller_pid);
+            transaction.save(&transaction_path)?;
+
+            self.download(
+                config,
+                &transaction_dir,
+                &transaction_path,
+                &mut transaction,
+                &mut emit,
+            )?;
+            self.prepare(
+                current_exe,
+                &transaction_dir,
+                &transaction_path,
+                &mut transaction,
+                &mut emit,
+            )
+        })();
         if let Err(error) = &result {
             self.change_status(UpdateStatus::Failed, Some(format!("{error:#}")), &mut emit);
         }
@@ -224,26 +247,74 @@ impl UpdateManager {
         self.change_status(UpdateStatus::Failed, Some(error.into()), &mut emit);
     }
 
-    /// 执行可恢复的完整包事务，跳过已经可靠完成的阶段。
-    fn prepare(
+    /// 下载完整包并把事务推进到 `Downloaded`；已下载或已校验的归档直接复用。
+    fn download(
         &self,
         config: &OeaConfig,
-        current_exe: &Path,
-        caller_pid: u32,
-        available: &AvailableUpdate,
+        transaction_dir: &Path,
+        transaction_path: &Path,
+        transaction: &mut Transaction,
         emit: &mut impl FnMut(UpdateSnapshot),
-    ) -> Result<BootstrapHandoff> {
-        let transaction_dir = self.paths.cache_dir().join("updates/current");
-        fs::create_dir_all(&transaction_dir).context("创建更新事务目录失败")?;
-        let transaction_path = transaction_dir.join(TRANSACTION_FILE);
-        let mut transaction =
-            recover_or_create(&transaction_path, available, env!("CARGO_PKG_VERSION"))?;
-        transaction.caller_pid = Some(caller_pid);
-        transaction.save(&transaction_path)?;
-
+    ) -> Result<()> {
         let part_path = transaction_dir.join(PARTIAL_ARTIFACT);
         let artifact_path = transaction_dir.join(ARTIFACT);
-        // 已校验归档存在时，无需重新下载或重新计算哈希。
+        let has_verified_artifact = matches!(
+            transaction.stage,
+            TransactionStage::Verified
+                | TransactionStage::Prepared
+                | TransactionStage::BootstrapReady
+        ) && artifact_path.is_file();
+        if has_verified_artifact
+            || (transaction.stage == TransactionStage::Downloaded && part_path.is_file())
+        {
+            return Ok(());
+        }
+
+        transaction.stage = TransactionStage::Downloading;
+        transaction.save(transaction_path)?;
+        self.change_status(UpdateStatus::Downloading, None, emit);
+        let client = source::build_client(config)?;
+        // 下载器逐块报告；工作流最多约每 150 ms 通过 `emit` 回调报告一次完整快照。
+        let last_emit = Mutex::new(Instant::now() - Duration::from_secs(1));
+        let expected_total = transaction.expected_size;
+        download::download(
+            &client,
+            &DownloadRequest {
+                url: transaction.artifact_url.clone(),
+                part_path,
+                validator: transaction.http_validator.clone(),
+            },
+            |validator, total, _resumed| {
+                transaction.http_validator = validator;
+                transaction.expected_size = transaction.expected_size.or(total);
+                transaction.save(transaction_path)
+            },
+            |mut progress| {
+                progress.total_bytes = progress.total_bytes.or(expected_total);
+                let mut last = last_emit.lock().unwrap_or_else(|e| e.into_inner());
+                if last.elapsed() >= Duration::from_millis(150)
+                    || progress.total_bytes == Some(progress.downloaded_bytes)
+                {
+                    self.set_progress(progress, emit);
+                    *last = Instant::now();
+                }
+            },
+        )?;
+        transaction.stage = TransactionStage::Downloaded;
+        transaction.save(transaction_path)
+    }
+
+    /// 校验已下载归档、发布版本资源并准备 Bootstrap 交接参数。
+    fn prepare(
+        &self,
+        current_exe: &Path,
+        transaction_dir: &Path,
+        transaction_path: &Path,
+        transaction: &mut Transaction,
+        emit: &mut impl FnMut(UpdateSnapshot),
+    ) -> Result<BootstrapHandoff> {
+        let part_path = transaction_dir.join(PARTIAL_ARTIFACT);
+        let artifact_path = transaction_dir.join(ARTIFACT);
         let has_verified_artifact = matches!(
             transaction.stage,
             TransactionStage::Verified
@@ -251,41 +322,6 @@ impl UpdateManager {
                 | TransactionStage::BootstrapReady
         ) && artifact_path.is_file();
         if !has_verified_artifact {
-            if transaction.stage != TransactionStage::Downloaded || !part_path.is_file() {
-                transaction.stage = TransactionStage::Downloading;
-                transaction.save(&transaction_path)?;
-                self.change_status(UpdateStatus::Downloading, None, emit);
-                let client = source::build_client(config)?;
-                // 下载器逐块报告；工作流最多约每 150 ms 通过 `emit` 回调报告一次完整快照。
-                let last_emit = Mutex::new(Instant::now() - Duration::from_secs(1));
-                let expected_total = transaction.expected_size;
-                download::download(
-                    &client,
-                    &DownloadRequest {
-                        url: transaction.artifact_url.clone(),
-                        part_path: part_path.clone(),
-                        validator: transaction.http_validator.clone(),
-                    },
-                    |validator, total, _resumed| {
-                        transaction.http_validator = validator;
-                        transaction.expected_size = transaction.expected_size.or(total);
-                        transaction.save(&transaction_path)
-                    },
-                    |mut progress| {
-                        progress.total_bytes = progress.total_bytes.or(expected_total);
-                        let mut last = last_emit.lock().unwrap_or_else(|e| e.into_inner());
-                        if last.elapsed() >= Duration::from_millis(150)
-                            || progress.total_bytes == Some(progress.downloaded_bytes)
-                        {
-                            self.set_progress(progress, emit);
-                            *last = Instant::now();
-                        }
-                    },
-                )?;
-                transaction.stage = TransactionStage::Downloaded;
-                transaction.save(&transaction_path)?;
-            }
-
             self.change_status(UpdateStatus::Verifying, None, emit);
             verify_sha256(&part_path, &transaction.expected_sha256)?;
             if artifact_path.exists() {
@@ -293,7 +329,7 @@ impl UpdateManager {
             }
             fs::rename(&part_path, &artifact_path).context("发布已校验归档失败")?;
             transaction.stage = TransactionStage::Verified;
-            transaction.save(&transaction_path)?;
+            transaction.save(transaction_path)?;
         }
 
         let candidate_exe = transaction_dir.join(super::transaction::CANDIDATE_EXE);
@@ -312,23 +348,23 @@ impl UpdateManager {
             self.change_status(UpdateStatus::Preparing, None, emit);
             prepare_full_package(
                 self.paths.root_dir(),
-                &transaction_dir,
+                transaction_dir,
                 &transaction.target_version,
             )?;
             transaction.stage = TransactionStage::Prepared;
-            transaction.save(&transaction_path)?;
+            transaction.save(transaction_path)?;
         }
 
         let bootstrap_path = transaction_dir.join(BOOTSTRAP_EXE);
         fs::copy(current_exe, &bootstrap_path).context("复制 Bootstrap 可执行文件失败")?;
         transaction.stage = TransactionStage::BootstrapReady;
-        transaction.save(&transaction_path)?;
+        transaction.save(transaction_path)?;
         self.change_status(UpdateStatus::BootstrapReady, None, emit);
 
         Ok(BootstrapHandoff {
             bootstrap_path,
             portable_root: self.paths.root_dir().to_path_buf(),
-            transaction_dir,
+            transaction_dir: transaction_dir.to_path_buf(),
         })
     }
 
