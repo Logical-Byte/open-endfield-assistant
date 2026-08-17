@@ -2,6 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    // Bootstrap 必须在提权、panic hook、日志、路径、配置、WebView 与 Tauri 之前分流。
+    if let Some(exit_code) = oea_lib::update::bootstrap::try_run_from_args() {
+        std::process::exit(exit_code);
+    }
+
     // 启动时自动请求管理员权限（仅 release；用户取消则继续以普通权限运行）
     #[cfg(target_os = "windows")]
     oea_lib::windows_ops::admin::elevate_at_startup();

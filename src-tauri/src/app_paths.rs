@@ -55,6 +55,8 @@ fn get_root_dir_for_release() -> Result<PathBuf> {
 pub struct AppPaths {
     /// 应用根目录
     root_dir: PathBuf,
+    /// 正式构建使用的内置版本号；开发构建为 `None`。
+    release_version: Option<String>,
 }
 
 impl AppPaths {
@@ -64,12 +66,26 @@ impl AppPaths {
     /// - debug 构建（`tauri dev` / `cargo run`）：`CARGO_MANIFEST_DIR` 的上一级 = 项目根；
     /// - release 构建（`tauri build` / `cargo build --release`）：exe 所在目录。
     pub fn new() -> Result<Self> {
-        Ok(Self::with_root_dir(get_root_dir()?))
+        Ok(Self::for_build(
+            get_root_dir()?,
+            env!("CARGO_PKG_VERSION"),
+            cfg!(debug_assertions),
+        ))
     }
 
     pub fn with_root_dir(root_dir: impl Into<PathBuf>) -> Self {
+        Self::for_build(root_dir, env!("CARGO_PKG_VERSION"), cfg!(debug_assertions))
+    }
+
+    /// 以显式构建模式构造路径，用于验证开发与正式资源布局。
+    pub fn for_build(
+        root_dir: impl Into<PathBuf>,
+        version: impl Into<String>,
+        development: bool,
+    ) -> Self {
         Self {
             root_dir: root_dir.into(),
+            release_version: (!development).then(|| version.into()),
         }
     }
 
@@ -80,14 +96,21 @@ impl AppPaths {
         &self.root_dir
     }
 
-    /// 共享资源目录（`<root_dir>/resources`，前后端共用，submodule）。
-    pub fn resources_dir(&self) -> PathBuf {
-        self.root_dir.join("resources")
+    fn asset_root(&self) -> PathBuf {
+        self.release_version.as_ref().map_or_else(
+            || self.root_dir.clone(),
+            |version| self.root_dir.join("assets").join(format!("v{version}")),
+        )
     }
 
-    /// OCR 模型目录（`<root_dir>/models`）。
+    /// 共享资源目录。开发构建位于根目录，正式构建位于内置版本目录。
+    pub fn resources_dir(&self) -> PathBuf {
+        self.asset_root().join("resources")
+    }
+
+    /// OCR 模型目录。开发构建位于根目录，正式构建位于内置版本目录。
     pub fn models_dir(&self) -> PathBuf {
-        self.root_dir.join("models")
+        self.asset_root().join("models")
     }
 
     /// 运行日志目录（`<root_dir>/logs`）。
@@ -118,5 +141,32 @@ impl AppPaths {
     /// OEA 应用配置文件（`<root_dir>/config/oea_config.json`）。
     pub fn oea_config_file(&self) -> PathBuf {
         self.config_dir().join("oea_config.json")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn development_resources_stay_at_the_repository_root() {
+        let paths = AppPaths::for_build(PathBuf::from("/repo"), "1.2.3", true);
+
+        assert_eq!(paths.models_dir(), PathBuf::from("/repo/models"));
+        assert_eq!(paths.resources_dir(), PathBuf::from("/repo/resources"));
+    }
+
+    #[test]
+    fn release_resources_are_selected_by_embedded_version() {
+        let paths = AppPaths::for_build(PathBuf::from("/portable"), "1.2.3", false);
+
+        assert_eq!(
+            paths.models_dir(),
+            PathBuf::from("/portable/assets/v1.2.3/models")
+        );
+        assert_eq!(
+            paths.resources_dir(),
+            PathBuf::from("/portable/assets/v1.2.3/resources")
+        );
     }
 }

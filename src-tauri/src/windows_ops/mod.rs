@@ -14,6 +14,7 @@ pub mod capture;
 pub mod dialog;
 pub mod hotkey;
 pub mod input;
+pub mod update;
 pub mod webview2;
 pub mod window;
 

@@ -18,6 +18,7 @@ pub mod tauri_commands;
 pub mod template_matching;
 pub mod tray;
 pub mod types;
+pub mod update;
 pub mod utils;
 pub mod windows_ops;
 
@@ -80,6 +81,9 @@ pub fn run() {
             tauri_commands::screenshot,
             tauri_commands::is_elevated,
             tauri_commands::restart_as_admin,
+            tauri_commands::update_get_snapshot,
+            tauri_commands::update_check,
+            tauri_commands::update_download_and_install,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
@@ -120,6 +124,7 @@ pub fn run() {
 fn setup_app(app: &mut tauri::App) -> Result<()> {
     // 解析资源目录（resources/models/logs），不依赖运行时工作目录
     let app_paths = AppPaths::new()?;
+    let updater = Arc::new(update::workflow::UpdateManager::new(app_paths.clone()));
 
     // 初始化日志系统：控制台输出 DEBUG+，文件输出 TRACE+，前端转发 TRACE+（界面可过滤等级）。
     let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
@@ -198,6 +203,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     Controller::spawn_scan_result_loop(scan_rx, app.handle().clone());
     controller.spawn_hotkey_loop(hotkey_rx);
     app.manage(controller);
+    app.manage(updater);
 
     // 初始化系统托盘（依赖已托管的 Controller，托盘菜单事件直接驱动它）
     tray::init_tray(app.handle())?;

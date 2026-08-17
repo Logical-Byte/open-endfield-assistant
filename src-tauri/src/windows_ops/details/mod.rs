@@ -6,5 +6,6 @@ pub(super) mod dialog;
 mod geometry;
 pub(super) mod hotkey;
 pub(super) mod input;
+pub(super) mod update;
 pub(super) mod webview2;
 pub(super) mod window;

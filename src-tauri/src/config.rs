@@ -4,6 +4,23 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateSource {
+    #[default]
+    Mirrorchyan,
+    Github,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateProxyMode {
+    None,
+    #[default]
+    System,
+    Custom,
+}
+
 /// 应用配置。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,11 +32,26 @@ pub struct OeaConfig {
     /// 扫描音效音量（0.0–1.0）
     #[serde(default = "default_sound_volume")]
     pub sound_volume: f32,
+    /// 启动时检查更新。
+    #[serde(default = "default_check_updates")]
+    pub check_updates: bool,
+    #[serde(default)]
+    pub update_source: UpdateSource,
+    #[serde(default)]
+    pub mirrorchyan_cdk: String,
+    #[serde(default)]
+    pub update_proxy_mode: UpdateProxyMode,
+    #[serde(default)]
+    pub update_proxy_url: String,
 }
 
 /// `sound_volume` 字段默认值。
 const fn default_sound_volume() -> f32 {
     0.5
+}
+
+const fn default_check_updates() -> bool {
+    true
 }
 
 impl Default for OeaConfig {
@@ -28,6 +60,11 @@ impl Default for OeaConfig {
             version: (0, 0),
             minimize_to_tray: false,
             sound_volume: default_sound_volume(),
+            check_updates: default_check_updates(),
+            update_source: UpdateSource::default(),
+            mirrorchyan_cdk: String::new(),
+            update_proxy_mode: UpdateProxyMode::default(),
+            update_proxy_url: String::new(),
         }
     }
 }

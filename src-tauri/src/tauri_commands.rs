@@ -2,6 +2,7 @@
 
 use std::{fs, sync::Arc};
 
+use tauri::Emitter;
 use tracing::{debug, error, info};
 
 use crate::{
@@ -10,6 +11,7 @@ use crate::{
     controller::{AppStatus, Controller},
     tasks::screenshot::{self, ScreenshotFormat},
     types::{ArchiveAcquisitionContract, PrtsData},
+    update::workflow::{UPDATE_EVENT, UpdateManager, UpdateSnapshot},
     windows_ops,
 };
 
@@ -119,4 +121,79 @@ pub async fn screenshot(
     format: ScreenshotFormat,
 ) -> Result<String, String> {
     screenshot::capture_screenshot(width, height, format).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_get_snapshot(state: tauri::State<Arc<UpdateManager>>) -> UpdateSnapshot {
+    state.snapshot()
+}
+
+#[tauri::command]
+pub async fn update_check(
+    app: tauri::AppHandle,
+    updater: tauri::State<'_, Arc<UpdateManager>>,
+    controller: tauri::State<'_, Arc<Controller>>,
+) -> Result<(), String> {
+    let updater = Arc::clone(updater.inner());
+    let config = controller
+        .oea_config()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        updater.check(&config, |snapshot| {
+            let _ = app.emit(UPDATE_EVENT, snapshot);
+        })
+    })
+    .await
+    .map_err(|error| format!("检查更新任务失败: {error}"))?
+    .map_err(|error| format!("{error:#}"))
+}
+
+#[cfg(target_os = "windows")]
+#[tauri::command]
+pub async fn update_download_and_install(
+    app: tauri::AppHandle,
+    updater: tauri::State<'_, Arc<UpdateManager>>,
+    controller: tauri::State<'_, Arc<Controller>>,
+) -> Result<(), String> {
+    let updater = Arc::clone(updater.inner());
+    let config = controller
+        .oea_config()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let current_exe = std::env::current_exe().map_err(|error| error.to_string())?;
+    let caller_pid = std::process::id();
+    let worker_app = app.clone();
+    let worker_updater = Arc::clone(&updater);
+    let handoff = tauri::async_runtime::spawn_blocking(move || {
+        worker_updater.download_and_prepare(&config, &current_exe, caller_pid, |snapshot| {
+            let _ = worker_app.emit(UPDATE_EVENT, snapshot);
+        })
+    })
+    .await
+    .map_err(|error| format!("安装更新任务失败: {error}"))?
+    .map_err(|error| format!("{error:#}"))?;
+
+    if let Err(error) = std::process::Command::new(&handoff.bootstrap_path)
+        .arg("--bootstrap-update")
+        .arg(&handoff.portable_root)
+        .arg(&handoff.transaction_dir)
+        .spawn()
+    {
+        let message = format!("启动 Bootstrap 失败: {error}");
+        updater.fail(message.clone(), |snapshot| {
+            let _ = app.emit(UPDATE_EVENT, snapshot);
+        });
+        return Err(message);
+    }
+    app.exit(0);
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub async fn update_download_and_install() -> Result<(), String> {
+    Err("自动安装仅支持 Windows 绿色便携版".into())
 }
