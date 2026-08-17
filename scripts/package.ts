@@ -3,8 +3,8 @@
  *
  * 产物结构（zip 根目录）：
  *   OEA.exe
- *   models/
- *   resources/
+ *   assets/v<version>/models/
+ *   assets/v<version>/resources/
  *
  * 产物命名：`<productName>-windows-<arch>-v<version>.zip`，例如 `OEA-windows-x86_64-v0.1.0.zip`。
  *
@@ -66,14 +66,26 @@ async function main() {
   // 1) 主程序（重命名为 productName）
   copyFileSync(exePath, path.join(stagingDir, `${productName}.exe`));
 
-  // 2) models / resources（跳过 `.` 开头的条目：子模块 .git、.gitignore 等）
+  // 2) 版本化 models / resources（跳过 `.` 开头的条目：子模块 .git、.gitignore 等）
+  const versionAssetsDir = path.join(stagingDir, 'assets', `v${version}`);
   for (const dir of ['models', 'resources']) {
     const src = path.join(rootDir, dir);
     if (!existsSync(src)) {
       console.error(`[package] 缺少 ${dir}/ 目录: ${src}`);
       process.exit(1);
     }
-    copyDirFiltered(src, path.join(stagingDir, dir));
+    copyDirFiltered(src, path.join(versionAssetsDir, dir));
+  }
+
+  // 更新器和手动解压都依赖这个固定发布布局，打包时直接拒绝不完整产物。
+  for (const required of [
+    path.join(stagingDir, `${productName}.exe`),
+    path.join(versionAssetsDir, 'models'),
+    path.join(versionAssetsDir, 'resources'),
+  ]) {
+    if (!existsSync(required)) {
+      throw new Error(`[package] 发布布局缺少 ${required}`);
+    }
   }
 
   // 打 zip：使用 yazl（自动为中文等非 ASCII 文件名设置 UTF-8 编码标志，
