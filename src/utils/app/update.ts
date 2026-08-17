@@ -32,6 +32,7 @@ const checkedMetadataKey = ref<string | null>(null);
 /** 把会影响下载地址的配置压缩成可比较的来源标识。 */
 function metadataKey(): string {
   const { updateSource, mirrorchyanCdk } = oeaConfig.value;
+  // 代理只影响传输路径，不改变已经检查得到的包身份，因此无需让元数据过期。
   return updateSource === 'mirrorchyan' && mirrorchyanCdk.trim()
     ? `mirrorchyan:${mirrorchyanCdk.trim()}`
     : 'github';
@@ -80,6 +81,18 @@ async function ensureUpdateState(): Promise<void> {
     // 不缓存失败结果，让下一次用户操作重新注册监听器并读取快照。
     if (initialization === pending) initialization = null;
     throw error;
+  }
+}
+
+/** 初始化更新事件，并按配置在后台执行只获取元数据的启动检查。 */
+export async function initUpdateState(): Promise<void> {
+  try {
+    await ensureUpdateState();
+    if (oeaConfig.value.checkUpdates) {
+      await checkUpdate();
+    }
+  } catch (error) {
+    console.error('初始化更新状态失败', error);
   }
 }
 
