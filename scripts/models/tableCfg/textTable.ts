@@ -1,3 +1,3 @@
-import type { TranslationKey } from './common';
+import type { TranslationKey } from '../common';
 
 export type TextTable = Record<string, TranslationKey>;

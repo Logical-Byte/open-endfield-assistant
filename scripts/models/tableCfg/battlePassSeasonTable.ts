@@ -1,4 +1,4 @@
-import type { TranslationKey } from './common';
+import type { TranslationKey } from '../common';
 
 export interface BattlePassSeason {
   bannerPresetId: string;
