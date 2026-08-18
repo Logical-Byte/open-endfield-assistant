@@ -6,7 +6,9 @@
 //! - `cache/old` **保留目录结构**：`target/sub/file.txt` 移入后为
 //!   `old/sub/file.txt`。这样即使 apply 中途失败（返回 Err 不带部分数据），
 //!   前端也能用 `restore_from_old` 把 old 里**全部**内容原样搬回，回滚天然可靠；
-//! - `cache/old` 在安装开始前清空一次，安装过程中只写入本次安装的旧文件。
+//! - `cache/old` 在安装开始前清空一次，安装过程中只写入本次安装的旧文件；
+//! - `cache/config_backup` 滚动保留最近 [`CONFIG_BACKUP_MAX`] 份（目录名 `{index}-{datetime}`，
+//!   index 决定排序，datetime 仅作注释）。
 
 use std::{
     fs,
@@ -112,8 +114,13 @@ pub fn move_to_old_folder(
             .map_err(|e| format!("无法创建 old 子目录 [{}]: {e}", parent.display()))?;
     }
 
-    fs::rename(source, &dest)
-        .map_err(|e| format!("无法移动 [{}] -> [{}]: {e}", source.display(), dest.display()))?;
+    fs::rename(source, &dest).map_err(|e| {
+        format!(
+            "无法移动 [{}] -> [{}]: {e}",
+            source.display(),
+            dest.display()
+        )
+    })?;
     info!("已移入 old: {} -> {}", source.display(), dest.display());
     Ok(dest)
 }
@@ -164,10 +171,10 @@ fn copy_dir_recursive(
             }
         }
     }
-    fs::create_dir_all(dst)
-        .map_err(|e| format!("无法创建目录 [{}]: {e}", dst.display()))?;
+    fs::create_dir_all(dst).map_err(|e| format!("无法创建目录 [{}]: {e}", dst.display()))?;
 
-    for entry in fs::read_dir(src).map_err(|e| format!("无法读取目录 [{}]: {e}", src.display()))? {
+    for entry in fs::read_dir(src).map_err(|e| format!("无法读取目录 [{}]: {e}", src.display()))?
+    {
         let entry = entry.map_err(|e| format!("无法读取目录条目: {e}"))?;
         let src_item = entry.path();
         let dst_item = dst.join(entry.file_name());
@@ -190,7 +197,8 @@ fn copy_dir_contents(
 ) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| format!("无法创建目录 [{}]: {e}", dst.display()))?;
 
-    for entry in fs::read_dir(src).map_err(|e| format!("无法读取目录 [{}]: {e}", src.display()))? {
+    for entry in fs::read_dir(src).map_err(|e| format!("无法读取目录 [{}]: {e}", src.display()))?
+    {
         let entry = entry.map_err(|e| format!("无法读取目录条目: {e}"))?;
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
@@ -212,8 +220,7 @@ fn copy_dir_contents(
 pub fn extract_zip_file(zip_path: &Path, dest_dir: &Path) -> Result<(), String> {
     let file = fs::File::open(zip_path)
         .map_err(|e| format!("无法打开 ZIP 文件 [{}]: {e}", zip_path.display()))?;
-    let mut archive =
-        zip::ZipArchive::new(file).map_err(|e| format!("无法解析 ZIP 文件: {e}"))?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("无法解析 ZIP 文件: {e}"))?;
 
     if dest_dir.exists() {
         fs::remove_dir_all(dest_dir)
@@ -255,8 +262,8 @@ pub fn read_changes_json(extract_dir: &Path) -> Result<Option<ChangesJson>, Stri
     if !changes_path.exists() {
         return Ok(None);
     }
-    let content = fs::read_to_string(&changes_path)
-        .map_err(|e| format!("无法读取 changes.json: {e}"))?;
+    let content =
+        fs::read_to_string(&changes_path).map_err(|e| format!("无法读取 changes.json: {e}"))?;
     let changes: ChangesJson =
         serde_json::from_str(&content).map_err(|e| format!("无法解析 changes.json: {e}"))?;
     Ok(Some(changes))
@@ -294,24 +301,24 @@ pub fn apply_incremental(
     }
 
     // 2. 复制解压内容（增量包只含变更文件）
-    copy_dir_contents(extract_dir, target_dir, target_dir, old_dir, &["changes.json"])
+    copy_dir_contents(
+        extract_dir,
+        target_dir,
+        target_dir,
+        old_dir,
+        &["changes.json"],
+    )
 }
 
 /// 应用全量更新：顶层同名项整体移 old（失败兜底删），再复制解压内容（跳过 `changes.json`）。
-pub fn apply_full(
-    extract_dir: &Path,
-    target_dir: &Path,
-    old_dir: &Path,
-) -> Result<(), String> {
+pub fn apply_full(extract_dir: &Path, target_dir: &Path, old_dir: &Path) -> Result<(), String> {
     info!(
         "应用全量更新: extract={} target={}",
         extract_dir.display(),
         target_dir.display()
     );
 
-    for entry in fs::read_dir(extract_dir)
-        .map_err(|e| format!("无法读取解压目录: {e}"))?
-    {
+    for entry in fs::read_dir(extract_dir).map_err(|e| format!("无法读取解压目录: {e}"))? {
         let entry = entry.map_err(|e| format!("无法读取目录条目: {e}"))?;
         let name = entry.file_name();
         if name == "changes.json" {
@@ -332,7 +339,13 @@ pub fn apply_full(
         }
     }
 
-    copy_dir_contents(extract_dir, target_dir, target_dir, old_dir, &["changes.json"])
+    copy_dir_contents(
+        extract_dir,
+        target_dir,
+        target_dir,
+        old_dir,
+        &["changes.json"],
+    )
 }
 
 /// 把 `old_dir` 中的全部内容原样搬回 `target_dir`（尽力而为，逐项容错）。
@@ -343,12 +356,7 @@ pub fn restore_from_old_files(target_dir: &Path, old_dir: &Path) -> Result<(), S
         return Ok(());
     }
 
-    fn restore_recursive(
-        old_dir: &Path,
-        target_dir: &Path,
-        rel: &Path,
-        failures: &mut usize,
-    ) {
+    fn restore_recursive(old_dir: &Path, target_dir: &Path, rel: &Path, failures: &mut usize) {
         let old_path = old_dir.join(rel);
         let target_path = target_dir.join(rel);
 
@@ -381,7 +389,12 @@ pub fn restore_from_old_files(target_dir: &Path, old_dir: &Path) -> Result<(), S
     let mut failures = 0usize;
     if let Ok(entries) = fs::read_dir(old_dir) {
         for entry in entries.flatten() {
-            restore_recursive(old_dir, target_dir, &PathBuf::from(entry.file_name()), &mut failures);
+            restore_recursive(
+                old_dir,
+                target_dir,
+                &PathBuf::from(entry.file_name()),
+                &mut failures,
+            );
         }
     }
     if failures > 0 {
@@ -401,7 +414,101 @@ pub fn backup_config_dir(config_dir: &Path, backup_dir: &Path) -> Result<(), Str
             .map_err(|e| format!("无法清理旧配置备份 [{}]: {e}", backup_dir.display()))?;
     }
     copy_dir_contents(config_dir, backup_dir, backup_dir, backup_dir, &[])?;
-    info!("配置已备份: {} -> {}", config_dir.display(), backup_dir.display());
+    info!(
+        "配置已备份: {} -> {}",
+        config_dir.display(),
+        backup_dir.display()
+    );
+    Ok(())
+}
+
+/// 配置备份数量上限（滚动保留最近 [`CONFIG_BACKUP_MAX`] 份）。
+pub const CONFIG_BACKUP_MAX: usize = 16;
+
+/// 生成备份目录名：`{index}-{YYYYMMDD-HHMMSS}`。index 决定排序，datetime 仅作注释。
+fn backup_dir_name(index: u64) -> String {
+    let now = chrono::Local::now().format("%Y%m%d-%H%M%S");
+    format!("{index}-{now}")
+}
+
+/// 解析备份目录名的 index（第一个 `-` 前的十进制数字段）；非本命名格式返回 `None`。
+fn parse_backup_index(name: &str) -> Option<u64> {
+    name.split_once('-')?.0.parse().ok()
+}
+
+/// 滚动裁剪：保留 index 最大的 `max_backups` 份，删除更旧的备份目录。
+///
+/// - 仅处理符合 `{index}-{datetime}` 命名的子目录，其余条目忽略；
+/// - 排序按 index 数值（非字典序），与 datetime 注释无关；
+/// - 只删 index 最小的旧备份，不移动任何目录（写入原子性好）。
+fn prune_config_backups(backup_root: &Path, max_backups: usize) -> Result<(), String> {
+    let mut backups: Vec<(u64, PathBuf)> = Vec::new();
+    if let Ok(entries) = fs::read_dir(backup_root) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            if let Some(index) = parse_backup_index(name) {
+                backups.push((index, path));
+            }
+        }
+    }
+    // 按 index 升序；同 index（异常）按路径排序保证确定性
+    backups.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+
+    // 保留尾部（index 最大）的 max_backups 份，删除更旧的
+    let keep_from = backups.len().saturating_sub(max_backups);
+    for (_, path) in backups.into_iter().take(keep_from) {
+        let _ = fs::remove_dir_all(&path);
+    }
+    Ok(())
+}
+
+/// 滚动备份配置：新增一份带 index 的备份，并裁剪到最多 `max_backups` 份。
+///
+/// - 新备份 index = 现有最大 index + 1（无备份时为 1），单调递增、永不重用；
+/// - 目录名 `{index}-{YYYYMMDD-HHMMSS}`，index 决定排序，datetime 仅作注释；
+/// - 裁剪只删 index 最小的旧备份，不移动任何目录。
+pub fn backup_config_rotating(
+    config_dir: &Path,
+    backup_root: &Path,
+    max_backups: usize,
+) -> Result<(), String> {
+    if !config_dir.exists() {
+        info!("config 目录不存在，跳过备份");
+        return Ok(());
+    }
+
+    // 现有最大 index
+    let mut max_index = 0u64;
+    if let Ok(entries) = fs::read_dir(backup_root) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            if let Some(index) = parse_backup_index(name) {
+                max_index = max_index.max(index);
+            }
+        }
+    }
+    let index = max_index.saturating_add(1);
+    let backup_dir = backup_root.join(backup_dir_name(index));
+
+    backup_config_dir(config_dir, &backup_dir)?;
+    prune_config_backups(backup_root, max_backups)?;
+    info!(
+        "配置已备份（滚动保留 {max_backups} 份）: {} -> {}",
+        config_dir.display(),
+        backup_dir.display()
+    );
     Ok(())
 }
 
@@ -445,11 +552,15 @@ pub fn clear_stale_update_files(cache_dir: &Path) -> Result<(), String> {
 
 // ============ tauri 命令（薄封装） ============
 
-/// 备份配置到 `cache/config_backup`（失败仅 warn，不阻断安装）。
+/// 滚动备份配置到 `cache/config_backup`（保留最近 [`CONFIG_BACKUP_MAX`] 份；失败仅 warn，不阻断安装）。
 #[tauri::command]
 pub fn backup_config() -> Result<(), String> {
     let paths = root_paths()?;
-    match backup_config_dir(&paths.config_dir(), &paths.cache_dir().join("config_backup")) {
+    match backup_config_rotating(
+        &paths.config_dir(),
+        &paths.cache_dir().join("config_backup"),
+        CONFIG_BACKUP_MAX,
+    ) {
         Ok(()) => Ok(()),
         Err(e) => {
             warn!("备份配置失败（不阻断安装）: {e}");
@@ -462,7 +573,10 @@ pub fn backup_config() -> Result<(), String> {
 #[tauri::command]
 pub fn extract_zip(zip_path: String) -> Result<(), String> {
     let paths = root_paths()?;
-    extract_zip_file(Path::new(&zip_path), &paths.cache_dir().join("update_extract"))
+    extract_zip_file(
+        Path::new(&zip_path),
+        &paths.cache_dir().join("update_extract"),
+    )
 }
 
 /// 检查解压目录中是否存在 `changes.json`。
@@ -567,10 +681,8 @@ mod tests {
 
     /// 在系统临时目录创建唯一测试根目录。
     fn temp_root(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "oea-update-test-{name}-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("oea-update-test-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -651,7 +763,10 @@ mod tests {
         let moved = move_to_old_folder(&target.join("sub/file.txt"), &target, &old).unwrap();
         assert_eq!(moved, old.join("sub/file.txt.bak001"));
         assert_eq!(fs::read_to_string(&moved).unwrap(), "v2");
-        assert_eq!(fs::read_to_string(old.join("sub/file.txt")).unwrap(), "occupied");
+        assert_eq!(
+            fs::read_to_string(old.join("sub/file.txt")).unwrap(),
+            "occupied"
+        );
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -716,13 +831,7 @@ mod tests {
         fs::create_dir_all(&extract).unwrap();
         write_file(&target.join("sub/a.txt"), "old");
 
-        apply_incremental(
-            &extract,
-            &target,
-            &old,
-            &["sub/a.txt".to_string()],
-        )
-        .unwrap();
+        apply_incremental(&extract, &target, &old, &["sub/a.txt".to_string()]).unwrap();
         // 模拟"复制新文件成功后某一步失败"的中间态
         write_file(&target.join("sub/a.txt"), "new");
         write_file(&target.join("sub/new_c.txt"), "partial");
@@ -732,6 +841,62 @@ mod tests {
         // 中间态残留的新文件不会被回滚（不属于 old），回滚只负责搬回旧文件
         assert!(target.join("sub/new_c.txt").exists());
         assert!(!old.exists() || !old.join("sub/a.txt").exists());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_parse_backup_index() {
+        assert_eq!(parse_backup_index("1-20260819-102530"), Some(1));
+        assert_eq!(parse_backup_index("16-20260819-102530"), Some(16));
+        assert_eq!(parse_backup_index("not-a-backup"), None);
+        assert_eq!(parse_backup_index("-20260819-102530"), None);
+        assert_eq!(parse_backup_index(""), None);
+    }
+
+    #[test]
+    fn test_backup_rotating() {
+        let root = temp_root("backup-rotating");
+        let config = root.join("config");
+        let backup_root = root.join("config_backup");
+        write_file(&config.join("oea_config.json"), r#"{"n":0}"#);
+
+        // 连续备份 20 次（超过上限 16），验证滚动只保留最近 16 份、index 单调递增
+        for i in 1..=20u64 {
+            write_file(&config.join("oea_config.json"), &format!(r#"{{"n":{i}}}"#));
+            backup_config_rotating(&config, &backup_root, 16).unwrap();
+        }
+
+        // 收集剩余备份的 index
+        let mut indices: Vec<u64> = fs::read_dir(&backup_root)
+            .unwrap()
+            .flatten()
+            .filter_map(|entry| {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                parse_backup_index(&name)
+            })
+            .collect();
+        indices.sort_unstable();
+        // 保留的是最大的 16 个 index：5..=20
+        assert_eq!(indices, (5..=20).collect::<Vec<u64>>());
+
+        // 按 index 定位最新 / 最旧备份，校验内容对应其写入时刻
+        let mut by_index: std::collections::HashMap<u64, PathBuf> = fs::read_dir(&backup_root)
+            .unwrap()
+            .flatten()
+            .filter_map(|entry| {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                parse_backup_index(&name).map(|index| (index, entry.path()))
+            })
+            .collect();
+        assert_eq!(
+            fs::read_to_string(by_index.remove(&20).unwrap().join("oea_config.json")).unwrap(),
+            r#"{"n":20}"#
+        );
+        assert_eq!(
+            fs::read_to_string(by_index.remove(&5).unwrap().join("oea_config.json")).unwrap(),
+            r#"{"n":5}"#
+        );
+
         let _ = fs::remove_dir_all(&root);
     }
 
