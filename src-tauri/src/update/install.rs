@@ -436,12 +436,11 @@ fn parse_backup_index(name: &str) -> Option<u64> {
     name.split_once('-')?.0.parse().ok()
 }
 
-/// 滚动裁剪：保留 index 最大的 `max_backups` 份，删除更旧的备份目录。
+/// 收集 `backup_root` 下所有符合 `{index}-{datetime}` 命名的子目录及对应 index。
 ///
-/// - 仅处理符合 `{index}-{datetime}` 命名的子目录，其余条目忽略；
-/// - 排序按 index 数值（非字典序），与 datetime 注释无关；
-/// - 只删 index 最小的旧备份，不移动任何目录（写入原子性好）。
-fn prune_config_backups(backup_root: &Path, max_backups: usize) -> Result<(), String> {
+/// - 仅处理目录且名字可解析 index 的条目，其余忽略；
+/// - 返回按 index 升序（同 index 异常时按路径）排序的列表。
+fn collect_backup_indices(backup_root: &Path) -> Vec<(u64, PathBuf)> {
     let mut backups: Vec<(u64, PathBuf)> = Vec::new();
     if let Ok(entries) = fs::read_dir(backup_root) {
         for entry in entries.flatten() {
@@ -459,11 +458,23 @@ fn prune_config_backups(backup_root: &Path, max_backups: usize) -> Result<(), St
     }
     // 按 index 升序；同 index（异常）按路径排序保证确定性
     backups.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    backups
+}
+
+/// 滚动裁剪：保留 index 最大的 `max_backups` 份，删除更旧的备份目录。
+///
+/// - 仅处理符合 `{index}-{datetime}` 命名的子目录，其余条目忽略；
+/// - 排序按 index 数值（非字典序），与 datetime 注释无关；
+/// - 只删 index 最小的旧备份，不移动任何目录（写入原子性好）。
+fn prune_config_backups(backup_root: &Path, max_backups: usize) -> Result<(), String> {
+    let backups = collect_backup_indices(backup_root);
 
     // 保留尾部（index 最大）的 max_backups 份，删除更旧的
     let keep_from = backups.len().saturating_sub(max_backups);
     for (_, path) in backups.into_iter().take(keep_from) {
-        let _ = fs::remove_dir_all(&path);
+        if let Err(e) = fs::remove_dir_all(&path) {
+            warn!("清理旧备份失败 [{}]: {e}", path.display());
+        }
     }
     Ok(())
 }
@@ -483,22 +494,11 @@ pub fn backup_config_rotating(
         return Ok(());
     }
 
-    // 现有最大 index
-    let mut max_index = 0u64;
-    if let Ok(entries) = fs::read_dir(backup_root) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !path.is_dir() {
-                continue;
-            }
-            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-                continue;
-            };
-            if let Some(index) = parse_backup_index(name) {
-                max_index = max_index.max(index);
-            }
-        }
-    }
+    // 现有最大 index（collect_backup_indices 已按 index 升序）
+    let max_index = collect_backup_indices(backup_root)
+        .last()
+        .map(|(index, _)| *index)
+        .unwrap_or(0);
     let index = max_index.saturating_add(1);
     let backup_dir = backup_root.join(backup_dir_name(index));
 
