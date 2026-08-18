@@ -46,7 +46,7 @@ const canClose = computed(
           <div class="space-y-1">
             <p class="font-semibold">更新完成</p>
             <p class="text-sm text-toned">
-              v{{ justUpdatedInfo?.previousVersion }} → v{{ justUpdatedInfo?.newVersion }}
+              v{{ justUpdatedInfo?.previousVersion }} → {{ justUpdatedInfo?.newVersion }}
             </p>
           </div>
           <!-- eslint-disable vue/no-v-html 渲染结果经 DOMPurify 消毒 -->

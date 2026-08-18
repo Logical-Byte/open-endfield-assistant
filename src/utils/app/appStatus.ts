@@ -7,7 +7,7 @@ export const appStatus = ref<AppStatus>({ running: false, scanError: null });
 
 export async function initAppStatus() {
   appStatus.value = await getStatus();
-  onAppStatus((s) => {
+  await onAppStatus((s) => {
     appStatus.value = s;
   });
 }

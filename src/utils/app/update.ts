@@ -1,5 +1,8 @@
 import { oeaVersion } from '@/main';
-import { MirrorchyanResourcesLatestResponse } from '@/types/mirrorchyan';
+import {
+  MirrorchyanResourcesLatestResponse,
+  MirrorchyanResourcesLatestResponseData,
+} from '@/types/mirrorchyan';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import {
   ChangesJson,
@@ -21,6 +24,7 @@ import { logError, logInfo, logWarn, onAppStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { join } from '@tauri-apps/api/path';
 import { ClientOptions, fetch } from '@tauri-apps/plugin-http';
 import { arch, platform, version } from '@tauri-apps/plugin-os';
 import { gt } from 'semver';
@@ -272,7 +276,7 @@ export async function checkUpdate(): Promise<void> {
       // 「自动下载更新」开启时直接开始下载（无需用户点击）。
       // 安装进行中不触发自动下载，避免与续装流程互相干扰。
       if (oeaConfig.value.autoDownloadUpdates && installStatus.value === UpdateInstallStatus.Idle) {
-        void startDownload();
+        void startDownload(maybePayload.data);
       }
     } else {
       logInfo(`检查更新：已是最新版本 v${oeaVersion}`);
@@ -301,7 +305,9 @@ export async function checkUpdate(): Promise<void> {
  * Rust 端 `download_update` 会流式读完整响应体（含磁盘写入与 sha256 校验）后才 resolve，
  * 下载期间的状态由独立的 `download-progress` 事件上报。
  */
-export async function startDownload(): Promise<void> {
+export async function startDownload(
+  checkUpdateData: MirrorchyanResourcesLatestResponseData,
+): Promise<void> {
   if (isDownloading) {
     return;
   }
@@ -312,11 +318,12 @@ export async function startDownload(): Promise<void> {
   downloadCancelled = false;
   currentSessionId = null;
   downloadStatus.value = UpdateDownloadStatus.Downloading;
+  updatePopoverOpen.value = true;
 
   let unlisten: (() => void) | null = null;
   try {
     // 准备下载信息：MirrorChyan 直连 / GitHub 匹配资产（含 digest）。
-    const prepared = await prepareDownload();
+    const prepared = await prepareDownload(checkUpdateData);
     if (!prepared) {
       handleDownloadFailure(new Error('未获取到可用的下载链接'), '准备下载失败');
       return;
@@ -335,8 +342,8 @@ export async function startDownload(): Promise<void> {
     };
 
     const saveDir = await invoke<string>('get_update_download_dir');
-    const defaultName = `OEA-windows-x86_64-v${prepared.versionName.replace(/^v/i, '')}.zip`;
-    const savePath = `${saveDir}/${prepared.filename ?? defaultName}`;
+    const defaultName = `OEA-windows-x86_64-${prepared.versionName}.zip`;
+    const savePath = await join(saveDir, prepared.filename ?? defaultName);
 
     unlisten = await listen<DownloadProgressEventPayload>('download-progress', (event) => {
       // 只处理当前 session 的进度事件，忽略旧任务的迟到事件。
@@ -349,12 +356,7 @@ export async function startDownload(): Promise<void> {
       if (downloadCancelled) {
         return;
       }
-      downloadProgress.value = {
-        downloadedSize: event.payload.downloadedSize,
-        totalSize: event.payload.totalSize,
-        speed: event.payload.speed,
-        progress: event.payload.progress,
-      };
+      downloadProgress.value = event.payload;
     });
 
     const { updateProxyMode, updateProxyUrl } = oeaConfig.value;
@@ -631,12 +633,9 @@ function handleInstallFailure(error: unknown): void {
  * 2. 更新源为 GitHub，或 CDK 未填写（MirrorChyan 源回退）、或 MirrorChyan 未给 url
  *    → 从 GitHub 匹配 tag 与资产（含 digest）。错误码场景已在 `checkUpdate` 抛错，不会走到这里。
  */
-async function prepareDownload(): Promise<PreparedUpdate | null> {
-  const state = updateCheckResult.value;
-  if (state.status !== UpdateCheckStatus.HasUpdate || !state.result.data) {
-    return null;
-  }
-  const data = state.result.data;
+async function prepareDownload(
+  data: MirrorchyanResourcesLatestResponseData,
+): Promise<PreparedUpdate | null> {
   const cdk = mirrorchyanCdk.value.trim();
   const versionName = data.version_name;
 
@@ -699,18 +698,16 @@ async function resolveGithubDownload(
     ...(await buildProxyClientOptions()),
   };
 
-  const target = normalizeVersion(versionName);
-  const tag = `v${target}`;
   let response: Response;
   try {
-    response = await fetch(`${GITHUB_RELEASES_URL}/tags/${encodeURIComponent(tag)}`, init);
+    response = await fetch(`${GITHUB_RELEASES_URL}/tags/${encodeURIComponent(versionName)}`, init);
   } catch (error) {
     throw new Error(
       `GitHub API 请求失败: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
   if (response.status === 404) {
-    throw new Error(`GitHub 上未找到版本 ${tag} 的 Release`);
+    throw new Error(`GitHub 上未找到版本 ${versionName} 的 Release`);
   }
   if (!response.ok) {
     throw new Error(`GitHub API 错误（HTTP ${response.status}），GitHub 下载暂不可用`);
@@ -718,8 +715,8 @@ async function resolveGithubDownload(
 
   const release: GitHubRelease = await response.json();
 
-  // 匹配资产：优先精确匹配 `OEA-<平台>-<架构>-v<版本>.zip`，无精确匹配时取体积最大的 zip 资产。
-  const exactName = `OEA-${platform()}-${arch()}-${tag}.zip`;
+  // 匹配资产：优先精确匹配 `OEA-<平台>-<架构>-<版本>.zip`，无精确匹配时取体积最大的 zip 资产。
+  const exactName = `OEA-${platform()}-${arch()}-${versionName}.zip`;
   const candidates = release.assets.filter((asset) => asset.name.toLowerCase().endsWith('.zip'));
   let asset = candidates.find((item) => item.name === exactName) ?? null;
   if (!asset && candidates.length > 0) {
@@ -756,11 +753,6 @@ async function buildProxyClientOptions(): Promise<ClientOptions> {
     }
   }
   return {};
-}
-
-/** 归一化版本号（去 `v` 前缀、小写）。 */
-function normalizeVersion(version: string): string {
-  return version.replace(/^v/i, '').toLowerCase();
 }
 
 /** 下载失败统一处理：置状态 + 日志 + toast。 */

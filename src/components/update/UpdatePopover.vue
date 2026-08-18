@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { oeaVersion } from '@/main';
+import { MirrorchyanResourcesLatestResponseData } from '@/types/mirrorchyan';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import { UpdateCheckStatus, UpdateDownloadStatus } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
@@ -19,22 +20,15 @@ import { computed, ref } from 'vue';
 
 const settingsOpen = ref(false);
 
-/** 新版本号（服务端 version_name 带 v 前缀，此处去掉以统一显示 v 前缀）。 */
-const newVersion = computed<string | null>(() => {
-  if (updateCheckResult.value.status === UpdateCheckStatus.HasUpdate) {
-    const version = updateCheckResult.value.result.data?.version_name;
-    return version ? version.replace(/^v/, '') : null;
-  } else {
+/** 检查到新版本时的数据快照（未检测到更新时为 `null`）。 */
+const checkUpdateData = computed<MirrorchyanResourcesLatestResponseData | null>(() => {
+  if (
+    updateCheckResult.value.status !== UpdateCheckStatus.HasUpdate ||
+    !updateCheckResult.value.result.data
+  ) {
     return null;
   }
-});
-
-const releaseNote = computed<string | null>(() => {
-  if (updateCheckResult.value.status === UpdateCheckStatus.HasUpdate) {
-    return updateCheckResult.value.result.data?.release_note ?? null;
-  } else {
-    return null;
-  }
+  return updateCheckResult.value.result.data;
 });
 
 const maybeStatusChipColor = computed<string | null>(() => {
@@ -166,7 +160,9 @@ function formatSpeed(bytesPerSecond: number): string {
           <div class="flex items-center gap-1.5">
             <UBadge color="neutral" variant="subtle">v{{ oeaVersion }}</UBadge>
             <UIcon class="text-toned" name="i-lucide-arrow-right" />
-            <UBadge color="primary" variant="subtle">v{{ newVersion ?? '未知' }}</UBadge>
+            <UBadge color="primary" variant="subtle">{{
+              checkUpdateData?.version_name ?? '未知'
+            }}</UBadge>
           </div>
         </div>
 
@@ -175,7 +171,7 @@ function formatSpeed(bytesPerSecond: number): string {
           <!-- eslint-disable vue/no-v-html 渲染结果经 DOMPurify 消毒 -->
           <div
             class="markdown-body max-h-128 min-h-0 scrollbar-gutter-stable overflow-y-auto pr-1"
-            v-html="renderMarkdown(releaseNote ?? '暂无更新日志')"
+            v-html="renderMarkdown(checkUpdateData?.release_note ?? '暂无更新日志')"
           />
           <!-- eslint-enable vue/no-v-html -->
         </div>
@@ -236,12 +232,25 @@ function formatSpeed(bytesPerSecond: number): string {
           class="flex items-center justify-between gap-2 rounded-md bg-error/10 p-3"
         >
           <p class="text-sm text-error">下载失败</p>
-          <UButton color="error" label="重试" size="xs" variant="soft" @click="startDownload" />
+          <UButton
+            v-if="checkUpdateData"
+            color="error"
+            label="重试"
+            size="xs"
+            variant="soft"
+            @click="startDownload(checkUpdateData)"
+          />
         </div>
 
         <!-- 仅下载前（Idle）显示「立即更新」与下载设置；下载中/已下载/失败均不显示 -->
         <div v-if="downloadStatus === UpdateDownloadStatus.Idle" class="flex w-full gap-2">
-          <UButton block icon="i-lucide-download" label="立即更新" @click="startDownload" />
+          <UButton
+            v-if="checkUpdateData"
+            block
+            icon="i-lucide-download"
+            label="立即更新"
+            @click="startDownload(checkUpdateData)"
+          />
           <UPopover v-model:open="settingsOpen">
             <UButton aria-label="下载设置" icon="i-lucide-settings-2" variant="subtle" />
             <template #content>
