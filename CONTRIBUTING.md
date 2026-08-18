@@ -8,12 +8,12 @@
 
 ## 项目概览
 
-- **技术栈**：前端 Vue 3 + Nuxt UI（Vue 版）+ Vite + TypeScript；桌面壳 Tauri 2（Rust）；OCR 使用 RapidOCR（ONNX 模型，位于 `models/`）。
+- **技术栈**：前端 Vue 3 + Nuxt UI（Vue 版）+ Vite + TypeScript；桌面壳 Tauri 2（Rust）；OCR 使用 RapidOCR（ONNX 模型，位于 `resources/ocr-models/`）。
 - **仓库结构**：
   - `src/` — 前端（Nuxt UI Vue 版）
   - `src-tauri/` — Rust 后端（Tauri 2）
   - `resources/` — git submodule（`Logical-Byte/oea-resource`），前后端共享资产（模板图、游戏数据、图标）
-  - `models/` — OCR ONNX 模型（约 32MB，已 git 忽略）
+  - `resources/ocr-models/` — OCR ONNX 模型（约 32MB，已 git 忽略）
   - `scripts/` — 数据生成（`makeAllData.ts`）、打包（`package.ts`）等脚本
   - `.github/workflows/ci.yml` — CI（前端 check + 后端 fmt/clippy/test）
 
@@ -48,7 +48,7 @@ pnpm install
 
 ### 下载 OCR 模型
 
-`models/` 目录已被 git 忽略（体积较大，不入库），克隆仓库后需要先下载 OCR 模型才能正常识别档案标题：
+`resources/ocr-models/` 目录已被 git 忽略（体积较大，不入库），克隆仓库后需要先下载 OCR 模型才能正常识别档案标题：
 
 ```bash
 pnpm download:models

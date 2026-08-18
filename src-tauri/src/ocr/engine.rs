@@ -28,7 +28,7 @@ impl OcrEngine {
             .ensure_model_set_for_pipeline(&model_set, pipeline_config, ModelDownloadMode::Never)
             .with_context(|| {
                 format!(
-                    "初始化 OCR 模型失败（模型目录: {}），请确认 models 目录包含识别模型文件",
+                    "初始化 OCR 模型失败（模型目录: {}），请确认 ocr-models 目录包含识别模型文件",
                     model_dir.display()
                 )
             })?;

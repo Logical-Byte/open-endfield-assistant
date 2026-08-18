@@ -1,7 +1,7 @@
 /**
- * 模型下载脚本：将 OCR 所需的模型文件下载到 <root>/models/。
+ * 模型下载脚本：将 OCR 所需的模型文件下载到 <root>/resources/ocr-models/。
  *
- * 模型文件体积较大且已被 git 忽略（见 models/.gitignore），克隆仓库后需要先执行：
+ * 模型文件体积较大且已被 git 忽略（见 resources/ocr-models/.gitignore），克隆仓库后需要先执行：
  *   pnpm download:models
  *
  * 已存在的文件会被跳过，可用 `--force` 强制重新下载。
@@ -16,13 +16,13 @@ import { fileURLToPath } from 'node:url';
 interface ModelFile {
   /** ModelScope 下载地址 */
   url: string;
-  /** 保存到 models/ 下的文件名 */
+  /** 保存到 resources/ocr-models/ 下的文件名 */
   name: string;
 }
 
 // 项目根目录（本文件位于 <root>/scripts/ 下），不依赖运行时 cwd
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const modelsDir = path.join(rootDir, 'models');
+const modelsDir = path.join(rootDir, 'resources', 'ocr-models');
 
 // 需要下载的模型（来自 ModelScope: RapidAI/RapidOCR）
 const MODEL_FILES: ModelFile[] = [

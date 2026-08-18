@@ -806,18 +806,18 @@ mod tests {
         let target = root.join("target");
         let extract = root.join("extract");
         let old = root.join("old");
-        write_file(&target.join("models/old-model.onnx"), "old");
+        write_file(&target.join("resources/ocr-models/old-model.onnx"), "old");
         write_file(&target.join("stale.dat"), "stale");
-        write_file(&extract.join("models/new-model.onnx"), "new");
+        write_file(&extract.join("resources/ocr-models/new-model.onnx"), "new");
         write_file(&extract.join("OEA.exe"), "exe");
 
         apply_full(&extract, &target, &old).unwrap();
 
-        assert!(target.join("models/new-model.onnx").exists());
-        assert!(!target.join("models/old-model.onnx").exists());
+        assert!(target.join("resources/ocr-models/new-model.onnx").exists());
+        assert!(!target.join("resources/ocr-models/old-model.onnx").exists());
         assert!(target.join("OEA.exe").exists());
         // 顶层同名项整体移入 old（结构保留）；`stale.dat` 不在新包中则保留
-        assert!(old.join("models/old-model.onnx").exists());
+        assert!(old.join("resources/ocr-models/old-model.onnx").exists());
         assert!(target.join("stale.dat").exists());
         let _ = fs::remove_dir_all(&root);
     }
