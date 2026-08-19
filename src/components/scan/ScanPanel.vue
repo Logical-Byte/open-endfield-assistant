@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CollectType, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
 import { appStatus } from '@/utils/app/appStatus';
-import { getAcquisitionMethod } from '@/utils/app/archiveAcquisitionContract';
+import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { prtsData } from '@/utils/app/prtsData';
 import { clearScanResults, scanResults } from '@/utils/app/scanResults';
 import { startScan, stopScan } from '@/utils/tauri';

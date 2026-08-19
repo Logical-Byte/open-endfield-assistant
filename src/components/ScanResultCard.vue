@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { AcquisitionMethod } from '@/types/archiveAcquisitionContract';
+import type { ArchiveAcquisitionMethod } from '@/types/archiveContract';
 import type { ScanResultCardProps } from '@/types/scanResult';
 import { CollectType } from '@/types/scanResult';
-import { getAcquisitionMethod } from '@/utils/app/archiveAcquisitionContract';
+import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { openImagePreviewKey } from '@/utils/provideInject';
 import { getCategoryName, getCategoryTitles, getPageName } from '@/utils/prts';
 import { computed, inject } from 'vue';
@@ -14,12 +14,12 @@ const { collectType, category, subCategory, imageUrl, title, archiveId } =
 const candidates = computed(() => getCategoryTitles(subCategory));
 
 /** 非地图获取方式的展示文本（仅地图交互点位显示 OEM 按钮） */
-const ACQUISITION_METHOD_LABELS: Record<Exclude<AcquisitionMethod, 'map'>, string> = {
-  mission: '完成任务获取',
-  spec: '特殊交互获取',
+const ACQUISITION_METHOD_LABELS: Record<ArchiveAcquisitionMethod, string> = {
+  map: '地图拾取',
+  mission: '跟随任务',
   auto: '自动解锁',
-  shop: '商店兑换获取',
-  invstgt: '研究提交解锁',
+  shop: '商店购买',
+  invstgt: '报告摘要',
 };
 
 /** 当前档案的获取方式（未知 / 未收录时为 null） */

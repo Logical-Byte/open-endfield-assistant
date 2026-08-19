@@ -1,5 +1,5 @@
 /**
- * 生成档案库运行时契约（scripts/archive_contract.json）。
+ * 生成档案库运行时契约（resources/data/archive_contract.json）。
  *
  * 由 scripts/export_archive_contract.mjs 用 TypeScript 重写而来，利用
  * scripts/models 下各解包数据表模型与 src/types/archiveContract 的契约类型，
@@ -14,7 +14,7 @@
  *
  * ## 输出
  * `ArchiveContract`（类型见 src/types/archiveContract.ts），由 makeAllData 写入
- * `scripts/archive_contract.json`，供 scripts/export_archive_contract.py 校验。
+ * `resources/data/archive_contract.json`（打包运行时数据）。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -747,7 +747,7 @@ function buildContract({
 
 /**
  * 生成档案库运行时契约。
- * 由 makeAllData 调用并写入 scripts/archive_contract.json。
+ * 由 makeAllData 调用并写入 resources/data/archive_contract.json。
  */
 export function exportArchiveContract(): ArchiveContract {
   const read = <T>(relativePath: string): T =>

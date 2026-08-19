@@ -53,7 +53,7 @@ pub fn run() {
             tauri_commands::stop_scan,
             tauri_commands::get_status,
             tauri_commands::get_prts_data,
-            tauri_commands::get_archive_acquisition_contract,
+            tauri_commands::get_archive_contract,
             tauri_commands::quit,
             tauri_commands::open_log_dir,
             tauri_commands::load_oea_config,

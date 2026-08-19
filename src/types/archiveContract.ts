@@ -87,8 +87,8 @@ export interface ArchiveContractRow {
 }
 
 /**
- * scripts/archive_contract.json（export_archive_contract.mjs 的输出、
- * export_archive_contract.py 的输入）的运行时契约。
+ * resources/data/archive_contract.json（makeAllData 的 exportArchiveContract 输出）
+ * 的运行时契约，供前端按档案 id 查询获取方式。
  */
 export interface ArchiveContract {
   version: 1;

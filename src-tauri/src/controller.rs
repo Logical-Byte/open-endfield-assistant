@@ -26,7 +26,7 @@ use crate::{
     sound,
     task::{TaskStopped, run_task},
     tasks::archive_scan::{ArchiveScanTask, ScanReporter, ScanResult},
-    types::{ArchiveAcquisitionContract, PrtsData},
+    types::{ArchiveContract, PrtsData},
     windows_ops,
 };
 
@@ -157,8 +157,8 @@ impl Controller {
     }
 
     /// 返回档案获取契约完整数据（供前端按档案 id 查询获取方式）。
-    pub fn archive_acquisition_contract_data(&self) -> Arc<ArchiveAcquisitionContract> {
-        self.app_data.archive_acquisition_contract()
+    pub fn archive_contract_data(&self) -> Arc<ArchiveContract> {
+        self.app_data.archive_contract()
     }
 
     // ========== 启动 / 停止 / 退出 ==========

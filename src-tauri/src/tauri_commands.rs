@@ -10,7 +10,7 @@ use crate::{
     config::{self, OeaConfig},
     controller::{AppStatus, Controller},
     tasks::screenshot::{self, ScreenshotFormat},
-    types::{ArchiveAcquisitionContract, PrtsData},
+    types::{ArchiveContract, PrtsData},
     windows_ops,
 };
 
@@ -40,12 +40,10 @@ pub fn get_prts_data(state: tauri::State<Arc<Controller>>) -> Arc<PrtsData> {
     state.prts_data()
 }
 
-/// 返回 archive_acquisition_contract.json 完整数据（前端用于按档案 id 查询获取方式）。
+/// 返回 archive_contract.json 完整数据（前端用于按档案 id 查询获取方式）。
 #[tauri::command]
-pub fn get_archive_acquisition_contract(
-    state: tauri::State<Arc<Controller>>,
-) -> Arc<ArchiveAcquisitionContract> {
-    state.archive_acquisition_contract_data()
+pub fn get_archive_contract(state: tauri::State<Arc<Controller>>) -> Arc<ArchiveContract> {
+    state.archive_contract_data()
 }
 
 /// 退出程序。
