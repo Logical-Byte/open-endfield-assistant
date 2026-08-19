@@ -63,12 +63,9 @@ export function buildUploadData(): UploadData {
 
 /** Uint8Array → URL-safe Base64（RFC 4648 §5 base64url，无 `=` 填充）。 */
 function bytesToBase64Url(bytes: Uint8Array): string {
-  const chunkSize = 0x8000;
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  // 参考 MDN：`Array.from` 逐个映射避免 `...` 展开的栈溢出，无需分块
+  const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join('');
+  return btoa(binString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /** 导出扫描结果到地图集：在系统浏览器中打开导入链接。 */
@@ -78,9 +75,15 @@ export async function exportToOem(): Promise<void> {
     return;
   }
   try {
-    const json = JSON.stringify(buildUploadData());
+    // 构建上传数据
+    const uploadData = buildUploadData();
+    // JSON 序列化
+    const json = JSON.stringify(uploadData);
+    // gzip 压缩
     const gzip = gzipSync(strToU8(json));
+    // URL-safe Base64
     const base64Url = bytesToBase64Url(gzip);
+    // 拼接导入链接
     const url = `${OEM_IMPORT_URL}${base64Url}`;
     logDebug(`导出到地图集数据：${json}`);
     logDebug(`导出到地图集链接：${url}`);
