@@ -2,6 +2,8 @@
 import { CollectType, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
 import { appStatus } from '@/utils/app/appStatus';
 import { getAcquisitionMethod } from '@/utils/app/archiveContract';
+import { applyCorrection } from '@/utils/app/correction';
+import { exportToOem } from '@/utils/app/exportOem';
 import { prtsData } from '@/utils/app/prtsData';
 import { clearScanResults, scanResults } from '@/utils/app/scanResults';
 import { startScan, stopScan } from '@/utils/tauri';
@@ -41,9 +43,15 @@ function statusToCollectType(status: ScanResultStatus): CollectType {
   }
 }
 
-/** 导出扫描结果到地图集。 */
-function exportToOem() {
-  // TODO: 待实现导出逻辑
+/** 应用人工纠错：更新对应扫描结果（标记为已收集或无法识别）。 */
+function onCorrect(scanResultIndex: number | null, title: string): void {
+  if (scanResultIndex === null) {
+    return;
+  }
+  const scanResult = scanResults.value.find((result) => result.index === scanResultIndex);
+  if (scanResult !== undefined) {
+    applyCorrection(scanResult, title);
+  }
 }
 
 const hideCollected = ref(false);
@@ -58,9 +66,11 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
   const result: ScanResultCardProps[] = [];
   for (const {
     status,
+    index,
     category,
     subCategory,
     correctedTitle,
+    ocrResult,
     image,
     itemIds,
   } of scanResults.value) {
@@ -72,8 +82,9 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
       category,
       subCategory,
       imageUrl: image,
-      title: correctedTitle ?? '',
+      title: correctedTitle ?? ocrResult,
       archiveId: itemIds[0] ?? null,
+      scanResultIndex: index,
     });
   }
 
@@ -84,7 +95,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
     }
     const maybeScanResult = scanResults.value.find((r) => r.itemIds.includes(id));
     if (maybeScanResult !== undefined) {
-      const { status, category, subCategory, correctedTitle, image } = maybeScanResult;
+      const { status, index, category, subCategory, correctedTitle, image } = maybeScanResult;
       if (hideCollected.value && status === 'success') {
         continue;
       }
@@ -95,6 +106,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
         imageUrl: image,
         title: correctedTitle ?? title,
         archiveId: id,
+        scanResultIndex: index,
       });
     } else {
       result.push({
@@ -104,6 +116,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
         imageUrl: null,
         title,
         archiveId: id,
+        scanResultIndex: null,
       });
     }
   }
@@ -189,7 +202,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
             overscan: 8,
           }"
         >
-          <ScanResultCard v-bind="item" />
+          <ScanResultCard v-bind="item" @correct="onCorrect(item.scanResultIndex, $event)" />
         </UScrollArea>
       </div>
     </div>

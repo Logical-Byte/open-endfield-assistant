@@ -21,3 +21,10 @@ export function getCategoryTitles(categoryId: string): string[] {
     .filter((item) => item.categoryId === categoryId)
     .map((item) => item.title);
 }
+
+/** 某子分类下标题完全匹配的档案 id（同标题多条时返回全部）。 */
+export function getItemIdsByTitle(categoryId: string, title: string): string[] {
+  return Object.values(prtsData.value?.allItems ?? {})
+    .filter((item) => item.categoryId === categoryId && item.title === title)
+    .map((item) => item.id);
+}

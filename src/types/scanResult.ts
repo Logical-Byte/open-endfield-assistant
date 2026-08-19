@@ -34,4 +34,6 @@ export interface ScanResultCardProps {
   imageUrl: string | null;
   title: string;
   archiveId: string | null;
+  /** 对应扫描结果的全局序号（未收集卡片为 null，不可纠错） */
+  scanResultIndex: number | null;
 }

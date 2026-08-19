@@ -10,6 +10,10 @@ import { computed, inject } from 'vue';
 const { collectType, category, subCategory, imageUrl, title, archiveId } =
   defineProps<ScanResultCardProps>();
 
+const emit = defineEmits<{
+  correct: [title: string];
+}>();
+
 // 自动补全候选：当前子分类下所有档案标题（prts 数据加载幂等）
 const candidates = computed(() => getCategoryTitles(subCategory));
 
@@ -126,7 +130,14 @@ const openImagePreview = inject(openImagePreviewKey, () => {
         <p v-if="collectType === CollectType.NotCollected" class="text-center">{{ title }}</p>
         <div v-else class="flex flex-col">
           <!-- <p class="text-xs font-medium text-muted">标题识别纠错</p> -->
-          <UInputMenu color="neutral" :items="candidates" :model-value="title ?? ''" />
+          <UInputMenu
+            color="neutral"
+            :items="candidates"
+            mode="autocomplete"
+            :model-value="title ?? ''"
+            placeholder="选择或输入档案标题"
+            @update:model-value="(value) => emit('correct', value)"
+          />
         </div>
       </div>
 

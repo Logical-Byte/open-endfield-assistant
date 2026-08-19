@@ -53,7 +53,7 @@ useScrollToBottom(logContainerRef, filteredLogLines);
               'text-error': level === 'ERROR',
             }"
             >{{ `[${level}]`.padStart(7, ' ') }}</span
-          > <span class="whitespace-pre-wrap">{{ message }}</span></pre>
+          > <span class="whitespace-pre-wrap wrap-break-word">{{ message }}</span></pre>
       </div>
     </UCard>
   </UContainer>
