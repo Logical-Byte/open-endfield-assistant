@@ -15,7 +15,7 @@ const emit = defineEmits<{
 }>();
 
 // 自动补全候选：当前子分类下所有档案标题（prts 数据加载幂等）
-const candidates = computed(() => getCategoryTitles(subCategory));
+const candidates = computed<string[]>(() => getCategoryTitles(subCategory));
 
 /** 非地图获取方式的展示文本（仅地图交互点位显示 OEM 按钮） */
 const ACQUISITION_METHOD_LABELS: Record<ArchiveAcquisitionMethod, string> = {
@@ -27,19 +27,25 @@ const ACQUISITION_METHOD_LABELS: Record<ArchiveAcquisitionMethod, string> = {
 };
 
 /** 当前档案的获取方式（未知 / 未收录时为 null） */
-const acquisitionMethod = computed(() => (archiveId ? getAcquisitionMethod(archiveId) : null));
-
-/** 是否为地图交互点位（仅该类显示 OEM 按钮） */
-const isMapPoint = computed(() => acquisitionMethod.value === 'map');
+const acquisitionMethod = computed<ArchiveAcquisitionMethod | null>(() =>
+  archiveId ? getAcquisitionMethod(archiveId) : null,
+);
 
 /** 非地图获取方式的展示文本（地图点位 / 未知时不显示） */
-const acquisitionLabel = computed(() => {
+const acquisitionLabel = computed<string | null>(() => {
   const method = acquisitionMethod.value;
   return method && method !== 'map' ? ACQUISITION_METHOD_LABELS[method] : null;
 });
 
-/** OEM 档案链接（地图交互点位，指向 https://oem.re/?type=<档案 id>） */
-const oemUrl = computed(() => (archiveId ? `https://oem.re/?type=${archiveId}` : null));
+/** OEM 档案链接（地图交互点位，指向 https://oem.re/?type=<档案 id>；URL 由 `new URL` + `URLSearchParams` 构造） */
+const oemUrl = computed<string | null>(() => {
+  if (!archiveId) {
+    return null;
+  }
+  const url = new URL('https://oem.re/');
+  url.searchParams.set('type', archiveId);
+  return url.toString();
+});
 
 /** 基准分辨率（16:9，实际分辨率不同时按此等比例缩放） */
 const BASE_WIDTH = 1280;
@@ -143,7 +149,7 @@ const openImagePreview = inject(openImagePreviewKey, () => {
 
       <div class="flex w-36 justify-center">
         <UButton
-          v-if="isMapPoint && collectType === CollectType.Collected"
+          v-if="acquisitionMethod === 'map' && collectType === CollectType.Collected"
           class="text-muted"
           color="neutral"
           label="在 OEM 中查看"
@@ -153,7 +159,7 @@ const openImagePreview = inject(openImagePreviewKey, () => {
           variant="outline"
         />
         <UButton
-          v-else-if="isMapPoint && collectType === CollectType.NotCollected"
+          v-else-if="acquisitionMethod === 'map' && collectType === CollectType.NotCollected"
           label="前往 OEM 收集"
           target="_blank"
           :to="oemUrl ?? undefined"

@@ -10,8 +10,8 @@ import { logDebug, logError, logInfo } from '@/utils/tauri';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { gzipSync, strToU8 } from 'fflate';
 
-/** 地图集导入链接地址（`<base64>` 为 gzip 压缩后 JSON 的 URL-safe Base64）。 */
-const OEM_IMPORT_URL = 'https://oem.re/oea/?import=';
+/** 地图集导入页地址（`import` 查询参数为 gzip 压缩后 JSON 的 URL-safe Base64）。 */
+const OEM_IMPORT_PAGE_URL = 'https://oem.re/oea/';
 
 /**
  * 构建上传数据：已收集 / 未收集档案 id 列表。
@@ -83,8 +83,9 @@ export async function exportToOem(): Promise<void> {
     const gzip = gzipSync(strToU8(json));
     // URL-safe Base64
     const base64Url = bytesToBase64Url(gzip);
-    // 拼接导入链接
-    const url = `${OEM_IMPORT_URL}${base64Url}`;
+    // 构造导入链接
+    const url = new URL(OEM_IMPORT_PAGE_URL);
+    url.searchParams.set('import', base64Url);
     logDebug(`导出到地图集数据：${json}`);
     logDebug(`导出到地图集链接：${url}`);
     openUrl(url);

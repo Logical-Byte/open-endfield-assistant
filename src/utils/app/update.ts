@@ -55,6 +55,21 @@ function buildUpdateUserAgent(): string {
   return `OEA/${oeaVersion} (Windows NT ${nt}; ${archToken})`;
 }
 
+/** 构造检查更新请求 URL（主备站共用同一套查询参数；query 必须用 URLSearchParams，禁止字符串拼接）。 */
+function buildCheckUpdateUrl(base: string): URL {
+  const url = new URL(base);
+  url.searchParams.set('current_version', `v${oeaVersion}`);
+  url.searchParams.set('user_agent', 'oea_client');
+  url.searchParams.set('channel', 'stable');
+  url.searchParams.set('os', 'windows');
+  url.searchParams.set('arch', 'amd64');
+  const cdk = mirrorchyanCdk.value.trim();
+  if (cdk) {
+    url.searchParams.set('cdk', cdk);
+  }
+  return url;
+}
+
 /** 检查更新结果（弹 Popover 的依据）。 */
 export const updateCheckResult = ref<UpdateCheckResult>({ status: UpdateCheckStatus.Idle });
 /** 下载阶段状态。 */
@@ -208,19 +223,6 @@ export async function checkUpdate(): Promise<void> {
   updateCheckResult.value = { status: UpdateCheckStatus.Checking };
   let maybePayload: MirrorchyanResourcesLatestResponse | undefined = undefined;
   try {
-    // 构造请求参数（主备站共用同一套参数）。
-    const url = new URL(CHECK_URL_BASES[0]);
-    url.searchParams.set('current_version', `v${oeaVersion}`);
-    url.searchParams.set('user_agent', 'oea_client');
-    url.searchParams.set('channel', 'stable');
-    url.searchParams.set('os', 'windows');
-    url.searchParams.set('arch', 'amd64');
-    const cdk = mirrorchyanCdk.value.trim();
-    if (cdk) {
-      url.searchParams.set('cdk', cdk);
-    }
-    const params = url.searchParams.toString();
-
     const headers: Record<string, string> = {
       'User-Agent': buildUpdateUserAgent(),
       Accept: 'application/json',
@@ -233,7 +235,7 @@ export async function checkUpdate(): Promise<void> {
     let lastError: Error | undefined = undefined;
     for (const base of CHECK_URL_BASES) {
       try {
-        const response = await fetch(`${base}?${params}`, {
+        const response = await fetch(buildCheckUpdateUrl(base), {
           method: 'GET',
           headers,
           ...proxyInit,
