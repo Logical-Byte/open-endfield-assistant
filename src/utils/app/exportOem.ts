@@ -83,9 +83,11 @@ export async function exportToOem(): Promise<void> {
     const gzip = gzipSync(strToU8(json));
     // URL-safe Base64
     const base64Url = bytesToBase64Url(gzip);
+    // 拼接魔法前缀
+    const importQuery = `OEA-0-${base64Url}`;
     // 构造导入链接
     const url = new URL(OEM_IMPORT_PAGE_URL);
-    url.searchParams.set('import', base64Url);
+    url.searchParams.set('import', importQuery);
     logDebug(`导出到地图集数据：${json}`);
     logDebug(`导出到地图集链接：${url}`);
     openUrl(url);
