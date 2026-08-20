@@ -63,6 +63,10 @@ function dismissScanGuide(): void {
         <span class="w-8 flex-none text-right text-primary">4.</span>
         <span>点击左上角<strong class="text-primary">开始扫描</strong></span>
       </li>
+      <li class="flex items-baseline gap-4">
+        <span class="w-8 flex-none text-right text-primary">5.</span>
+        <span>扫完点击右上角<strong class="text-primary">导出到地图集</strong></span>
+      </li>
     </ol>
 
     <div class="flex flex-col items-center gap-4">
