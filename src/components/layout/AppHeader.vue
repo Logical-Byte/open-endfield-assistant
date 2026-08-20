@@ -24,13 +24,18 @@ const navigationMenuItems: NavigationMenuItem[] = [
     to: '/settings',
   },
   {
-    label: '终末地一图流',
+    label: '帮助',
+    icon: 'i-lucide-circle-help',
+    to: '/help',
+  },
+  {
+    label: '一图流',
     icon: 'i-mdi-numeric-1-box-outline',
     to: 'https://ef.yituliu.cn/',
     target: '_blank',
   },
   {
-    label: '终末地地图集',
+    label: '地图集',
     icon: 'i-lucide-map',
     to: 'https://oem.re/',
     target: '_blank',
