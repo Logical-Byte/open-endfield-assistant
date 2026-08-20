@@ -73,7 +73,7 @@ export default defineConfig(({ mode }) => {
       ui({
         ui: {
           colors: {
-            primary: 'green',
+            primary: 'pink',
             neutral: 'zinc',
           },
         },

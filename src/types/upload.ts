@@ -2,7 +2,7 @@
  * 导出到地图集（OEM）的导入数据结构。
  *
  * 生成 upload.json 文本 → zip 压缩 → URL-safe Base64 → 作为
- * `https://oem.re/oea/?import=<base64>` 的 query 参数。
+ * `https://oem.re/i/<base64>` 的路径。
  */
 export interface UploadData {
   /** 数据格式主版本 */

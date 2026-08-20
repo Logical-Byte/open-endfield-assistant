@@ -47,6 +47,16 @@ const oemUrl = computed<string | null>(() => {
   return url.toString();
 });
 
+/** 档案收集专题链接（非地图点位，指向 https://opendfieldmap.org/intel/?type=<档案 id>） */
+const intelUrl = computed<string | null>(() => {
+  if (!archiveId) {
+    return null;
+  }
+  const url = new URL('https://opendfieldmap.org/intel/');
+  url.searchParams.set('type', archiveId);
+  return url.toString();
+});
+
 /** 基准分辨率（16:9，实际分辨率不同时按此等比例缩放） */
 const BASE_WIDTH = 1280;
 const BASE_HEIGHT = 720;
@@ -166,10 +176,15 @@ const openImagePreview = inject(openImagePreviewKey, () => {
           trailing-icon="i-lucide-external-link"
           variant="outline"
         />
-        <UBadge
+        <UButton
           v-else-if="acquisitionLabel"
+          :class="{ 'text-muted': collectType === CollectType.Collected }"
           color="neutral"
           :label="acquisitionLabel"
+          size="sm"
+          target="_blank"
+          :to="intelUrl ?? undefined"
+          trailing-icon="i-lucide-external-link"
           variant="outline"
         />
       </div>

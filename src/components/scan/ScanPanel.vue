@@ -3,7 +3,7 @@ import { CollectType, ScanResultCardProps, ScanResultStatus } from '@/types/scan
 import { appStatus } from '@/utils/app/appStatus';
 import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { applyCorrection } from '@/utils/app/correction';
-import { exportToOem } from '@/utils/app/exportOem';
+import { buildUploadData, exportToOem } from '@/utils/app/exportOem';
 import { prtsData } from '@/utils/app/prtsData';
 import { clearScanResults, scanResults } from '@/utils/app/scanResults';
 import { startScan, stopScan } from '@/utils/tauri';
@@ -122,6 +122,19 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
   }
   return result;
 });
+/**
+ * 扫描结果统计（与导出到地图集口径一致：重名档案只要有一个已收集，全部视为已收集）。
+ * 已收集 / 未收集为档案数，识别错误为扫描失败（failed / unrecognized）条数。
+ */
+const summary = computed(() => {
+  const { data } = buildUploadData();
+  const error = scanResults.value.filter((result) => result.status !== 'success').length;
+  return {
+    error,
+    notCollected: data.prtsAllItems.notCollected.length,
+    collected: data.prtsAllItems.collected.length,
+  };
+});
 </script>
 
 <template>
@@ -169,7 +182,20 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
 
       <div class="flex flex-1 flex-col gap-2 overflow-y-hidden">
         <div class="flex flex-0 flex-wrap items-center justify-between">
-          <p class="text-sm font-medium">扫描结果</p>
+          <div class="flex items-center gap-2">
+            <p class="text-sm font-medium">扫描结果</p>
+            <div class="flex items-center gap-1.5">
+              <span class="rounded bg-error/10 px-1.5 py-0.5 text-xs text-error">
+                识别错误 {{ summary.error }}
+              </span>
+              <span class="rounded bg-elevated px-1.5 py-0.5 text-xs text-muted">
+                未收集 {{ summary.notCollected }}
+              </span>
+              <span class="rounded bg-success/10 px-1.5 py-0.5 text-xs text-success">
+                已收集 {{ summary.collected }}
+              </span>
+            </div>
+          </div>
           <div class="flex flex-wrap gap-4">
             <UCheckbox v-model="hideCollected" color="info" label="隐藏已收集" />
             <UCheckbox
@@ -179,17 +205,14 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
             />
           </div>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="ml-auto text-xs text-muted">共 {{ scanResults.length }} 条</span>
-            <UButton
-              color="error"
-              icon="i-lucide-trash-2"
-              label="清空"
-              size="xs"
-              variant="ghost"
-              @click="clearScanResults()"
-            />
-          </div>
+          <UButton
+            color="error"
+            icon="i-lucide-trash-2"
+            label="清空"
+            size="xs"
+            variant="ghost"
+            @click="clearScanResults()"
+          />
         </div>
 
         <UScrollArea

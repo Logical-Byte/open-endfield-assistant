@@ -1,7 +1,7 @@
 //! 导出扫描结果到地图集（OEM）。
 //!
 //! 流程：构建 upload 数据 → gzip 压缩（单流、无文件名）→ URL-safe Base64 → 打开
-//! `https://oem.re/oea/?import=<base64>`（由 opener 插件交给系统浏览器）。
+//! `https://oem.re/i/<base64>`（由 opener 插件交给系统浏览器）。
 
 import type { UploadData } from '@/types/upload';
 import { prtsData } from '@/utils/app/prtsData';
@@ -10,8 +10,8 @@ import { logDebug, logError, logInfo } from '@/utils/tauri';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { gzipSync, strToU8 } from 'fflate';
 
-/** 地图集导入页地址（`import` 查询参数为 gzip 压缩后 JSON 的 URL-safe Base64）。 */
-const OEM_IMPORT_PAGE_URL = 'https://oem.re/oea/';
+/** 地图集导入地址前缀（`<base64>` 为 gzip 压缩后 JSON 的 URL-safe Base64）。 */
+const OEM_IMPORT_URL_PREFIX = 'https://oem.re/i/';
 
 /**
  * 构建上传数据：已收集 / 未收集档案 id 列表。
@@ -83,11 +83,8 @@ export async function exportToOem(): Promise<void> {
     const gzip = gzipSync(strToU8(json));
     // URL-safe Base64
     const base64Url = bytesToBase64Url(gzip);
-    // 拼接魔法前缀
-    const importQuery = `OEA-0-${base64Url}`;
     // 构造导入链接
-    const url = new URL(OEM_IMPORT_PAGE_URL);
-    url.searchParams.set('import', importQuery);
+    const url = `${OEM_IMPORT_URL_PREFIX}OEA-0-${base64Url}`;
     logDebug(`导出到地图集数据：${json}`);
     logDebug(`导出到地图集链接：${url}`);
     openUrl(url);
