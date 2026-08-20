@@ -2,33 +2,6 @@
 import type { AccordionItem } from '@nuxt/ui';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 
-/** 官网地址 */
-const OFFICIAL_SITE_URL = 'https://ef.yituliu.cn/resources/oea';
-/** GitHub 仓库地址 */
-const GITHUB_REPO_URL = 'https://github.com/Logical-Byte/open-endfield-assistant';
-/** GitHub Releases 下载地址 */
-const GITHUB_RELEASES_URL = 'https://github.com/Logical-Byte/open-endfield-assistant/releases';
-/** GitHub Issues 反馈地址 */
-const GITHUB_ISSUES_URL = 'https://github.com/Logical-Byte/open-endfield-assistant/issues';
-/** 反馈交流 QQ 群号 */
-const QQ_GROUP_NUMBER = '954628501';
-/** 反馈交流 QQ 群链接 */
-const QQ_GROUP_URL = 'https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms';
-/** Mirror酱 官网地址 */
-const MIRRORCHYAN_URL = 'https://mirrorchyan.com/';
-/** 终末地一图流 */
-const YITULIU_URL = 'https://ef.yituliu.cn/';
-/** 终末地地图集 */
-const OEM_URL = 'https://oem.re/';
-/** 逻辑元 LogicalByte 哔哩哔哩空间 */
-const LOGICAL_BYTE_SPACE_URL = 'https://space.bilibili.com/688411531';
-/** MaaFramework 仓库 */
-const MAA_FRAMEWORK_URL = 'https://github.com/MaaXYZ/MaaFramework';
-/** MXU 仓库 */
-const MXU_URL = 'https://github.com/MistEO/MXU';
-/** MaaEnd 仓库 */
-const MAA_END_URL = 'https://github.com/MaaEnd/MaaEnd';
-
 /** 常见问题（含链接的条目通过自定义 slot 渲染）。 */
 const faqItems: AccordionItem[] = [
   {
@@ -136,7 +109,7 @@ onBeforeUnmount(() => {
             label="OEA 官网"
             rel="noopener noreferrer"
             target="_blank"
-            :to="OFFICIAL_SITE_URL"
+            to="https://ef.yituliu.cn/resources/oea"
           />
           <UButton
             color="neutral"
@@ -144,14 +117,14 @@ onBeforeUnmount(() => {
             label="GitHub 仓库"
             rel="noopener noreferrer"
             target="_blank"
-            :to="GITHUB_REPO_URL"
+            to="https://github.com/Logical-Byte/open-endfield-assistant"
           />
           <UButton
             icon="i-simple-icons:qq"
-            :label="`反馈交流群：${QQ_GROUP_NUMBER}`"
+            label="反馈交流群：954628501"
             rel="noopener noreferrer"
             target="_blank"
-            :to="QQ_GROUP_URL"
+            to="https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms"
           />
         </div>
 
@@ -202,13 +175,6 @@ onBeforeUnmount(() => {
           </template>
           <div class="flex flex-col gap-6">
             <div>
-              <p class="mbe-3 font-medium text-highlighted">快捷键</p>
-              <ul class="flex list-disc flex-col gap-3 ps-6 text-muted marker:text-muted">
-                <li>按 <UKbd>'</UKbd>（引号键）开始扫描档案库；扫描过程中再次按下可停止</li>
-                <li>按 <UKbd>Alt</UKbd> + <UKbd>Delete</UKbd> 退出程序</li>
-              </ul>
-            </div>
-            <div>
               <p class="mbe-3 font-medium text-highlighted">使用前准备</p>
               <ul class="flex list-disc flex-col gap-3 ps-6 text-muted marker:text-muted">
                 <li>
@@ -227,6 +193,13 @@ onBeforeUnmount(() => {
                 <li>
                   请<strong class="text-primary">关闭 HDR</strong>，关闭任何会遮挡终末地窗口的软件。
                 </li>
+              </ul>
+            </div>
+            <div>
+              <p class="mbe-3 font-medium text-highlighted">快捷键</p>
+              <ul class="flex list-disc flex-col gap-3 ps-6 text-muted marker:text-muted">
+                <li>按 <UKbd>'</UKbd>（引号键）开始扫描档案库；扫描过程中再次按下可停止</li>
+                <li>按 <UKbd>Alt</UKbd> + <UKbd>Delete</UKbd> 退出程序</li>
               </ul>
             </div>
           </div>
@@ -264,7 +237,7 @@ onBeforeUnmount(() => {
                   class="text-primary hover:text-primary/75"
                   rel="noopener noreferrer"
                   target="_blank"
-                  :to="GITHUB_RELEASES_URL"
+                  to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
                   >GitHub Release</ULink
                 >
                 免费下载和使用 OEA。
@@ -278,7 +251,7 @@ onBeforeUnmount(() => {
                   class="text-primary hover:text-primary/75"
                   rel="noopener noreferrer"
                   target="_blank"
-                  :to="MIRRORCHYAN_URL"
+                  to="https://mirrorchyan.com/"
                   >Mirror酱</ULink
                 >
                 是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。OEA
@@ -287,7 +260,7 @@ onBeforeUnmount(() => {
                   class="text-primary hover:text-primary/75"
                   rel="noopener noreferrer"
                   target="_blank"
-                  :to="GITHUB_RELEASES_URL"
+                  to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
                   >GitHub Release</ULink
                 >
                 免费下载和使用。
@@ -308,10 +281,10 @@ onBeforeUnmount(() => {
             <div class="flex flex-wrap gap-2">
               <UButton
                 icon="i-simple-icons:qq"
-                :label="`反馈交流群：${QQ_GROUP_NUMBER}`"
+                label="反馈交流群：954628501"
                 rel="noopener noreferrer"
                 target="_blank"
-                :to="QQ_GROUP_URL"
+                to="https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms"
               />
               <UButton
                 color="neutral"
@@ -319,7 +292,7 @@ onBeforeUnmount(() => {
                 label="提交 GitHub Issue"
                 rel="noopener noreferrer"
                 target="_blank"
-                :to="GITHUB_ISSUES_URL"
+                to="https://github.com/Logical-Byte/open-endfield-assistant/issues"
               />
             </div>
             <p class="text-sm text-muted">
@@ -344,7 +317,7 @@ onBeforeUnmount(() => {
               label="终末地一图流"
               rel="noopener noreferrer"
               target="_blank"
-              :to="YITULIU_URL"
+              to="https://ef.yituliu.cn/"
               trailing-icon="i-lucide-external-link"
               variant="link"
             />
@@ -354,7 +327,7 @@ onBeforeUnmount(() => {
               label="终末地地图集"
               rel="noopener noreferrer"
               target="_blank"
-              :to="OEM_URL"
+              to="https://oem.re/"
               trailing-icon="i-lucide-external-link"
               variant="link"
             />
@@ -364,7 +337,7 @@ onBeforeUnmount(() => {
               label="逻辑元LogicalByte"
               rel="noopener noreferrer"
               target="_blank"
-              :to="LOGICAL_BYTE_SPACE_URL"
+              to="https://space.bilibili.com/688411531"
               trailing-icon="i-lucide-external-link"
               variant="link"
             />
@@ -374,7 +347,7 @@ onBeforeUnmount(() => {
               label="Mirror酱"
               rel="noopener noreferrer"
               target="_blank"
-              :to="MIRRORCHYAN_URL"
+              to="https://mirrorchyan.com/"
               trailing-icon="i-lucide-external-link"
               variant="link"
             />
@@ -384,7 +357,7 @@ onBeforeUnmount(() => {
               label="MaaXYZ/MaaFramework"
               rel="noopener noreferrer"
               target="_blank"
-              :to="MAA_FRAMEWORK_URL"
+              to="https://github.com/MaaXYZ/MaaFramework"
               trailing-icon="i-simple-icons:github"
               variant="link"
             />
@@ -394,7 +367,7 @@ onBeforeUnmount(() => {
               label="MistEO/MXU"
               rel="noopener noreferrer"
               target="_blank"
-              :to="MXU_URL"
+              to="https://github.com/MistEO/MXU"
               trailing-icon="i-simple-icons:github"
               variant="link"
             />
@@ -404,7 +377,7 @@ onBeforeUnmount(() => {
               label="MaaEnd/MaaEnd"
               rel="noopener noreferrer"
               target="_blank"
-              :to="MAA_END_URL"
+              to="https://github.com/MaaEnd/MaaEnd"
               trailing-icon="i-simple-icons:github"
               variant="link"
             />
