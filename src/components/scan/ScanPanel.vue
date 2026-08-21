@@ -134,14 +134,7 @@ const summary = computed(() => {
           :label="appStatus.running ? '停止扫描' : '开始扫描'"
           @click="toggleScan"
         />
-        <UButton
-          class="ms-auto"
-          color="neutral"
-          icon="i-lucide-map"
-          label="导出到地图集"
-          variant="outline"
-          @click="exportToOem"
-        />
+        <UButton class="ms-auto" icon="i-lucide-map" label="导出到地图集" @click="exportToOem" />
       </div>
 
       <UAlert
