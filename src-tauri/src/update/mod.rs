@@ -108,33 +108,38 @@ impl Drop for ProgressEmitterGuard {
 /// 解析 Windows 系统代理（读注册表 `Internet Settings`）。
 ///
 /// 返回可直接交给 reqwest 的 `http://host:port`；未启用或格式无法解析时返回 `Ok(None)`。
+/// 复用 [`crate::windows_ops::registry`] 的 `RegGetValueW` 实现（与 WebView2 检测共用）。
+#[cfg(target_os = "windows")]
 fn resolve_system_proxy_inner() -> Result<Option<String>, String> {
-    use winreg::RegKey;
-    use winreg::enums::HKEY_CURRENT_USER;
+    use windows::Win32::System::Registry::HKEY_CURRENT_USER;
+
+    use crate::windows_ops::registry::{read_registry_dword, read_registry_string};
 
     const INTERNET_SETTINGS: &str = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
 
-    let root = RegKey::predef(HKEY_CURRENT_USER);
-    let key = match root.open_subkey(INTERNET_SETTINGS) {
-        Ok(key) => key,
-        Err(error) => {
-            warn!("打开系统代理注册表失败: {error}");
-            return Ok(None);
-        }
-    };
-
-    let enabled: u32 = key.get_value("ProxyEnable").unwrap_or(0);
+    // 读取失败或值缺失一律按未启用处理（无法解析系统代理时退化为直连）
+    let enabled = read_registry_dword(HKEY_CURRENT_USER, INTERNET_SETTINGS, "ProxyEnable")
+        .unwrap_or_default()
+        .unwrap_or_default();
     if enabled == 0 {
         return Ok(None);
     }
 
-    let server: String = key.get_value("ProxyServer").unwrap_or_default();
+    let server = read_registry_string(HKEY_CURRENT_USER, INTERNET_SETTINGS, "ProxyServer")
+        .unwrap_or_default()
+        .unwrap_or_default();
     let Some(proxy) = normalize_proxy_server(&server) else {
         warn!("系统代理 ProxyServer 格式无法解析: {server:?}");
         return Ok(None);
     };
     info!("解析到系统代理: {proxy}");
     Ok(Some(proxy))
+}
+
+/// 非 Windows 平台不解析系统代理（reqwest 默认直连）。
+#[cfg(not(target_os = "windows"))]
+fn resolve_system_proxy_inner() -> Result<Option<String>, String> {
+    Ok(None)
 }
 
 /// 归一化注册表 `ProxyServer` 值：
