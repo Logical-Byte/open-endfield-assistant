@@ -1,9 +1,9 @@
 //! 应用资源路径模块。
 //!
-//! 集中解析 `resources/`、`models/`、`logs/` 等资源目录的绝对路径，
+//! 集中解析 `resources/`、`logs/` 等资源目录的绝对路径，
 //! 避免代码依赖运行时的工作目录（cwd）。
 //!
-//! 定位策略（根目录下应有 `models`、`resources`、`logs` 三个文件夹）：
+//! 定位策略（根目录下应有 `resources`、`logs` 等文件夹，OCR 模型位于 `resources/ocr-models/`）：
 //! - 开发期（debug 构建）：以 `CARGO_MANIFEST_DIR`（编译时指向 `src-tauri/`）的
 //!   上一级作为项目根，再拼接各资源目录；
 //! - 打包期（release 构建）：以 exe 所在目录作为根目录（便携式分发，资源与 exe 同目录）。
@@ -85,9 +85,9 @@ impl AppPaths {
         self.root_dir.join("resources")
     }
 
-    /// OCR 模型目录（`<root_dir>/models`）。
+    /// OCR 模型目录（`<root_dir>/resources/ocr-models`）。
     pub fn models_dir(&self) -> PathBuf {
-        self.root_dir.join("models")
+        self.root_dir.join("resources").join("ocr-models")
     }
 
     /// 运行日志目录（`<root_dir>/logs`）。

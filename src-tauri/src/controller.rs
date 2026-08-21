@@ -7,7 +7,7 @@
 //!
 //! 依赖方向：应用层 → 领域层（connect/session/scene/task）→ 基础设施层。
 
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 
@@ -26,7 +26,7 @@ use crate::{
     sound,
     task::{TaskStopped, run_task},
     tasks::archive_scan::{ArchiveScanTask, ScanReporter, ScanResult},
-    types::{ArchiveAcquisitionContract, PrtsData},
+    types::{ArchiveContract, PrtsData},
     windows_ops,
 };
 
@@ -70,8 +70,6 @@ pub struct Controller {
     running: Arc<AtomicBool>,
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
-    /// 全局扫描序号（跨扫描档案库任务连续递增）
-    scan_index: Arc<AtomicU32>,
     /// 前台窗口守卫（应用层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
     foreground: windows_ops::window::ForegroundGuard,
     /// Tauri 应用句柄（向前端 emit 事件）
@@ -93,7 +91,6 @@ impl Controller {
         stop: Arc<AtomicBool>,
         running: Arc<AtomicBool>,
         scan_tx: mpsc::Sender<ScanResult>,
-        scan_index: Arc<AtomicU32>,
         foreground: windows_ops::window::ForegroundGuard,
         handle: AppHandle,
         app_data: AppData,
@@ -107,7 +104,6 @@ impl Controller {
             stop,
             running,
             scan_tx: Mutex::new(scan_tx),
-            scan_index,
             foreground,
             handle,
             app_data,
@@ -131,12 +127,9 @@ impl Controller {
         }
     }
 
-    /// 创建扫描结果上报器（每次游戏操作一个，序号全局连续）。
+    /// 创建扫描结果上报器（每次游戏操作一个，只负责转发结果）。
     fn reporter(&self) -> ScanReporter {
-        ScanReporter::new(
-            self.scan_tx.lock().unwrap().clone(),
-            Arc::clone(&self.scan_index),
-        )
+        ScanReporter::new(self.scan_tx.lock().unwrap().clone())
     }
 
     /// 播放扫描提示音（音量取配置；开始/自然完成播 enable，失败/被停止播 disable）。
@@ -157,8 +150,8 @@ impl Controller {
     }
 
     /// 返回档案获取契约完整数据（供前端按档案 id 查询获取方式）。
-    pub fn archive_acquisition_contract_data(&self) -> Arc<ArchiveAcquisitionContract> {
-        self.app_data.archive_acquisition_contract()
+    pub fn archive_contract_data(&self) -> Arc<ArchiveContract> {
+        self.app_data.archive_contract()
     }
 
     // ========== 启动 / 停止 / 退出 ==========
@@ -260,6 +253,10 @@ impl Controller {
 
     /// 退出程序：请求停止后退出 Tauri 应用。
     pub fn quit(&self) {
+        if crate::update::is_installing() {
+            warn!("正在安装更新，拒绝退出");
+            return;
+        }
         self.stop.store(true, Ordering::Relaxed);
         info!("收到退出请求，正在退出程序...");
         self.handle.exit(0);

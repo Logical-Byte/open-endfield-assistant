@@ -3,8 +3,7 @@
  *
  * 产物结构（zip 根目录）：
  *   OEA.exe
- *   models/
- *   resources/
+ *   resources/（含 data/、templates/、ocr-models/ 等）
  *
  * 产物命名：`<productName>-windows-<arch>-v<version>.zip`，例如 `OEA-windows-x86_64-v0.1.0.zip`。
  *
@@ -60,14 +59,16 @@ async function main() {
 
   // 组装暂存目录
   console.log(`[package] 组装 ${bundleName}`);
+  // 清理旧的暂存目录
   rmSync(stagingDir, { recursive: true, force: true });
+  // 创建暂存目录
   mkdirSync(stagingDir, { recursive: true });
 
   // 1) 主程序（重命名为 productName）
   copyFileSync(exePath, path.join(stagingDir, `${productName}.exe`));
 
-  // 2) models / resources（跳过 `.` 开头的条目：子模块 .git、.gitignore 等）
-  for (const dir of ['models', 'resources']) {
+  // 2) resources（含 data/、ocr-models/ 等；跳过 `.` 开头的条目：子模块 .git、.gitignore 等）
+  for (const dir of ['resources']) {
     const src = path.join(rootDir, dir);
     if (!existsSync(src)) {
       console.error(`[package] 缺少 ${dir}/ 目录: ${src}`);
@@ -82,8 +83,8 @@ async function main() {
   rmSync(zipPath, { force: true });
   await createZip(stagingDir, zipPath);
 
-  // 清理暂存目录
-  rmSync(stagingDir, { recursive: true, force: true });
+  // 不清理暂存目录
+  // rmSync(stagingDir, { recursive: true, force: true });
 
   // 汇总
   const sizeMB = (statSync(zipPath).size / 1024 / 1024).toFixed(1);

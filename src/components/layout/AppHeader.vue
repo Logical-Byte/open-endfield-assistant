@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { appVersion } from '@/utils/app/appVersion';
-import type { NavigationMenuItem } from '@nuxt/ui';
+import { oeaVersion } from '@/main';
+import { NavigationMenuItem } from '@nuxt/ui';
 
 const navigationMenuItems: NavigationMenuItem[] = [
   {
@@ -24,13 +24,18 @@ const navigationMenuItems: NavigationMenuItem[] = [
     to: '/settings',
   },
   {
-    label: '终末地一图流',
+    label: '帮助',
+    icon: 'i-lucide-circle-help',
+    to: '/help',
+  },
+  {
+    label: '一图流',
     icon: 'i-mdi-numeric-1-box-outline',
     to: 'https://ef.yituliu.cn/',
     target: '_blank',
   },
   {
-    label: '终末地地图集',
+    label: '地图集',
     icon: 'i-lucide-map',
     to: 'https://oem.re/',
     target: '_blank',
@@ -52,7 +57,7 @@ const navigationMenuItems: NavigationMenuItem[] = [
   >
     <template #title>
       <span>OEA</span
-      ><span v-if="appVersion" class="text-base font-medium text-muted"> v{{ appVersion }}</span>
+      ><span v-if="oeaVersion" class="text-base font-medium text-muted"> v{{ oeaVersion }}</span>
     </template>
 
     <UNavigationMenu :items="navigationMenuItems" />
@@ -63,6 +68,7 @@ const navigationMenuItems: NavigationMenuItem[] = [
 
     <template #right>
       <div class="flex items-center gap-1">
+        <UpdatePopover />
         <ThemePicker />
         <UTooltip text="切换颜色模式">
           <UColorModeButton />

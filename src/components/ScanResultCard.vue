@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { AcquisitionMethod } from '@/types/archiveAcquisitionContract';
+import type { ArchiveAcquisitionMethod } from '@/types/archiveContract';
 import type { ScanResultCardProps } from '@/types/scanResult';
 import { CollectType } from '@/types/scanResult';
-import { getAcquisitionMethod } from '@/utils/app/archiveAcquisitionContract';
+import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { openImagePreviewKey } from '@/utils/provideInject';
 import { getCategoryName, getCategoryTitles, getPageName } from '@/utils/prts';
 import { computed, inject } from 'vue';
@@ -10,32 +10,52 @@ import { computed, inject } from 'vue';
 const { collectType, category, subCategory, imageUrl, title, archiveId } =
   defineProps<ScanResultCardProps>();
 
+const emit = defineEmits<{
+  correct: [title: string];
+}>();
+
 // 自动补全候选：当前子分类下所有档案标题（prts 数据加载幂等）
-const candidates = computed(() => getCategoryTitles(subCategory));
+const candidates = computed<string[]>(() => getCategoryTitles(subCategory));
 
 /** 非地图获取方式的展示文本（仅地图交互点位显示 OEM 按钮） */
-const ACQUISITION_METHOD_LABELS: Record<Exclude<AcquisitionMethod, 'map'>, string> = {
-  mission: '完成任务获取',
-  spec: '特殊交互获取',
+const ACQUISITION_METHOD_LABELS: Record<ArchiveAcquisitionMethod, string> = {
+  map: '地图拾取',
+  mission: '跟随任务',
   auto: '自动解锁',
-  shop: '商店兑换获取',
-  invstgt: '研究提交解锁',
+  shop: '商店购买',
+  invstgt: '报告摘要',
 };
 
 /** 当前档案的获取方式（未知 / 未收录时为 null） */
-const acquisitionMethod = computed(() => (archiveId ? getAcquisitionMethod(archiveId) : null));
-
-/** 是否为地图交互点位（仅该类显示 OEM 按钮） */
-const isMapPoint = computed(() => acquisitionMethod.value === 'map');
+const acquisitionMethod = computed<ArchiveAcquisitionMethod | null>(() =>
+  archiveId ? getAcquisitionMethod(archiveId) : null,
+);
 
 /** 非地图获取方式的展示文本（地图点位 / 未知时不显示） */
-const acquisitionLabel = computed(() => {
+const acquisitionLabel = computed<string | null>(() => {
   const method = acquisitionMethod.value;
   return method && method !== 'map' ? ACQUISITION_METHOD_LABELS[method] : null;
 });
 
-/** OEM 档案链接（地图交互点位，指向 https://oem.re/?type=<档案 id>） */
-const oemUrl = computed(() => (archiveId ? `https://oem.re/?type=${archiveId}` : null));
+/** OEM 档案链接（地图交互点位，指向 https://oem.re/?type=<档案 id>；URL 由 `new URL` + `URLSearchParams` 构造） */
+const oemUrl = computed<string | null>(() => {
+  if (!archiveId) {
+    return null;
+  }
+  const url = new URL('https://oem.re/');
+  url.searchParams.set('type', archiveId);
+  return url.toString();
+});
+
+/** 档案收集专题链接（非地图点位，指向 https://opendfieldmap.org/intel/?type=<档案 id>） */
+const intelUrl = computed<string | null>(() => {
+  if (!archiveId) {
+    return null;
+  }
+  const url = new URL('https://opendfieldmap.org/intel/');
+  url.searchParams.set('type', archiveId);
+  return url.toString();
+});
 
 /** 基准分辨率（16:9，实际分辨率不同时按此等比例缩放） */
 const BASE_WIDTH = 1280;
@@ -94,7 +114,7 @@ const openImagePreview = inject(openImagePreviewKey, () => {
         />
       </div>
 
-      <div class="w-72">
+      <div class="relative w-72">
         <ImagePreviewContainer
           v-if="imageUrl"
           class="relative w-full overflow-hidden"
@@ -117,22 +137,52 @@ const openImagePreview = inject(openImagePreviewKey, () => {
             :style="cropImageStyle"
           />
         </ImagePreviewContainer>
-        <div v-else class="flex h-12 items-center justify-center bg-accented">
-          <p class="text-sm text-muted">待收集</p>
-        </div>
+        <div v-else class="flex h-12 items-center justify-center bg-accented" />
+        <!-- 图片预览右下角状态标记：已收集 / 需纠错 -->
+        <UBadge
+          v-if="collectType === CollectType.Collected"
+          class="absolute right-1 bottom-1"
+          color="success"
+          label="已收集"
+          leading-icon="i-lucide-check"
+          size="sm"
+        />
+        <UBadge
+          v-else-if="collectType === CollectType.Unrecognized || collectType === CollectType.Failed"
+          class="absolute right-1 bottom-1"
+          color="error"
+          label="需纠错"
+          leading-icon="i-lucide-pencil-line"
+          size="sm"
+        />
+        <UBadge
+          v-else-if="collectType === CollectType.NotCollected"
+          class="absolute right-1 bottom-1"
+          color="neutral"
+          label="未收集"
+          leading-icon="i-lucide-eye"
+          size="sm"
+        />
       </div>
 
       <div class="min-w-0 flex-1">
         <p v-if="collectType === CollectType.NotCollected" class="text-center">{{ title }}</p>
         <div v-else class="flex flex-col">
           <!-- <p class="text-xs font-medium text-muted">标题识别纠错</p> -->
-          <UInputMenu color="neutral" :items="candidates" :model-value="title ?? ''" />
+          <UInputMenu
+            color="neutral"
+            :items="candidates"
+            mode="autocomplete"
+            :model-value="title ?? ''"
+            placeholder="选择或输入档案标题"
+            @update:model-value="(value) => emit('correct', value)"
+          />
         </div>
       </div>
 
       <div class="flex w-36 justify-center">
         <UButton
-          v-if="isMapPoint && collectType === CollectType.Collected"
+          v-if="acquisitionMethod === 'map' && collectType === CollectType.Collected"
           class="text-muted"
           color="neutral"
           label="在 OEM 中查看"
@@ -142,17 +192,22 @@ const openImagePreview = inject(openImagePreviewKey, () => {
           variant="outline"
         />
         <UButton
-          v-else-if="isMapPoint && collectType === CollectType.NotCollected"
+          v-else-if="acquisitionMethod === 'map' && collectType === CollectType.NotCollected"
           label="前往 OEM 收集"
           target="_blank"
           :to="oemUrl ?? undefined"
           trailing-icon="i-lucide-external-link"
           variant="outline"
         />
-        <UBadge
+        <UButton
           v-else-if="acquisitionLabel"
+          :class="{ 'text-muted': collectType === CollectType.Collected }"
           color="neutral"
           :label="acquisitionLabel"
+          size="sm"
+          target="_blank"
+          :to="intelUrl ?? undefined"
+          trailing-icon="i-lucide-external-link"
           variant="outline"
         />
       </div>

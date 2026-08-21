@@ -5,14 +5,6 @@ import { ref } from 'vue';
 /** prts.json 完整数据（加载完成前为 null） */
 export const prtsData = ref<PrtsData | null>(null);
 
-let initialized = false;
-
-export function initPrtsData() {
-  if (!initialized) {
-    initialized = true;
-
-    getPrtsData().then((data) => {
-      prtsData.value = data;
-    });
-  }
+export async function initPrtsData() {
+  prtsData.value = await getPrtsData();
 }

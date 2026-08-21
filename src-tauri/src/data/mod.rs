@@ -1,7 +1,7 @@
 //! 静态数据文件统一管理。
 //!
 //! 集中加载 `resources/data/` 下的运行时数据文件（如 `prts.json`、
-//! `archive_acquisition_contract.json`），统一读取、解析、日志与错误处理。
+//! `archive_contract.json`），统一读取、解析、日志与错误处理。
 //!
 //! 应用启动时调用 [`AppData::load`] 一次，之后各模块只读共享（E1 严格策略：
 //! 任一数据文件缺失或损坏即视为致命错误，启动失败并指明是哪个文件）。
@@ -17,15 +17,15 @@ use tracing::info;
 use crate::{
     app_paths::AppPaths,
     tasks::archive_scan::CorrectionIndex,
-    types::{ArchiveAcquisitionContract, PrtsData},
+    types::{ArchiveContract, PrtsData},
 };
 
 /// 运行时加载的静态数据（不可变，跨线程只读共享）。
 pub struct AppData {
     /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选，并派生纠错索引）
     prts: Arc<PrtsData>,
-    /// 档案获取契约（archive_acquisition_contract.json，供前端按档案 id 查询获取方式）
-    archive_acquisition_contract: Arc<ArchiveAcquisitionContract>,
+    /// 档案获取契约（archive_contract.json，供前端按档案 id 查询获取方式）
+    archive_contract: Arc<ArchiveContract>,
     /// 档案标题纠错索引（启动时从 prts.json 派生构建一次）
     correction: Arc<CorrectionIndex>,
 }
@@ -39,17 +39,15 @@ impl AppData {
         let correction = Arc::new(CorrectionIndex::from_prts(&prts));
         info!("已加载 prts.json（{} 个档案条目）", correction.len());
 
-        let archive_acquisition_contract = Arc::new(Self::load_json::<ArchiveAcquisitionContract>(
-            &data_dir.join("archive_acquisition_contract.json"),
+        let archive_contract = Arc::new(Self::load_json::<ArchiveContract>(
+            &data_dir.join("archive_contract.json"),
         )?);
-        info!(
-            "已加载 archive_acquisition_contract.json（{} 条获取契约）",
-            archive_acquisition_contract.len()
-        );
+        let row_count: usize = archive_contract.categories.values().map(Vec::len).sum();
+        info!("已加载 archive_contract.json（{} 条获取契约）", row_count);
 
         Ok(Self {
             prts,
-            archive_acquisition_contract,
+            archive_contract,
             correction,
         })
     }
@@ -60,8 +58,8 @@ impl AppData {
     }
 
     /// 档案获取契约完整数据。
-    pub fn archive_acquisition_contract(&self) -> Arc<ArchiveAcquisitionContract> {
-        Arc::clone(&self.archive_acquisition_contract)
+    pub fn archive_contract(&self) -> Arc<ArchiveContract> {
+        Arc::clone(&self.archive_contract)
     }
 
     /// 档案标题纠错索引。

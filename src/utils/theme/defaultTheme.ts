@@ -1,7 +1,7 @@
 export const defaultTheme = {
   ui: {
     colors: {
-      primary: 'green',
+      primary: 'pink',
       secondary: 'blue',
       neutral: 'zinc',
     },

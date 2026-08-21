@@ -4,8 +4,6 @@ export type ScanResultStatus = 'success' | 'unrecognized' | 'failed';
 export interface ScanResult {
   /** 识别状态：success（纠错成功）| unrecognized（识别到文本但无法纠错）| failed（OCR 为空） */
   status: ScanResultStatus;
-  /** 全局序号（从 1 开始，跨分类连续递增） */
-  index: number;
   /** 档案库大类 id（pageType：multi_media / text / document） */
   category: string;
   /** 档案库小类 id（categoryId） */
@@ -34,4 +32,6 @@ export interface ScanResultCardProps {
   imageUrl: string | null;
   title: string;
   archiveId: string | null;
+  /** 对应的扫描结果对象（未收集卡片为 null，不可纠错） */
+  scanResult: ScanResult | null;
 }
