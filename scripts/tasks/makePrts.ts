@@ -18,7 +18,9 @@
  * 3. 四个部分统一按 (页面、分类 order、一级条目 order、条目 order) 层级排序；
  * 4. 构建顺序遵循 页面 → 分类 → 一级条目 → 条目 的逻辑层级，具体条目放在最后；
  *    条目的标题解析 / 输出构建抽成独立函数（resolveItemTitle / buildAllItemOutputs），
- *    一级条目的单 item 名称一致性检查直接读取源表，不依赖条目中间产物。
+ *    一级条目的单 item 名称一致性检查直接读取源表，不依赖条目中间产物；
+ * 5. 移除 sm 档案的 _2 / _3 变体（与 exportArchiveContract 的 logicalArchiveId 归并逻辑一致），
+ *    其所属一级条目若因此清空则一并移除。
  */
 import type {
   PrtsAllItem,
@@ -40,6 +42,18 @@ import type { PrtsAllItemEntry, PrtsFirstLvEntry } from '../models';
 
 /** 档案库页面展示顺序：音像存档、见闻辑录、中枢档案 */
 const PAGE_ORDER = ['multi_media', 'text', 'document'] as const;
+
+/**
+ * sm 档案的 _2 / _3 变体（与 exportArchiveContract 的 logicalArchiveId 使用同一正则）。
+ * 这些变体是同一份档案的重复条目：契约里被归一到 _1，prts.json 同样直接移除，
+ * 避免档案库出现重复项。
+ */
+const REDUNDANT_ARCHIVE_ID = /^(nar_sm\d+l\d+m\d+_(?:hatman|Alexander|Hans))_[23]$/;
+
+/** 判断档案 id 是否为应移除的 sm _2 / _3 变体 */
+function isRedundantArchiveId(archiveId: string): boolean {
+  return REDUNDANT_ARCHIVE_ID.test(archiveId);
+}
 
 /**
  * 将有序的 [key, value] 列表转换为对象。
@@ -149,6 +163,22 @@ function warnIfSingleItemNameMismatch(entry: PrtsFirstLvEntry, name: string): vo
 
 /** 生成 prts.json 的完整数据（PrtsData）。 */
 export function makePrts(): PrtsData {
+  // ===== 第零步：确定需要移除的冗余档案（sm 档案的 _2 / _3 变体）及其一级条目 =====
+  const redundantItemIds = new Set(
+    Object.values(prtsAllItemTable)
+      .filter((entry) => isRedundantArchiveId(entry.id))
+      .map((entry) => entry.id),
+  );
+  // itemIds 全部为冗余档案的一级条目同样移除（否则会留下空的一级条目）
+  const redundantFirstLvIds = new Set(
+    Object.values(prtsFirstLvTable)
+      .filter(
+        (entry) =>
+          entry.itemIds.length > 0 && entry.itemIds.every((itemId) => redundantItemIds.has(itemId)),
+      )
+      .map((entry) => entry.firstLvId),
+  );
+
   // ===== 第一步：计算各层级的父子从属关系（分类 → 页面、页面 → 分类、分类 → 一级条目） =====
   const categoryToPageType = computeCategoryToPageType();
 
@@ -161,9 +191,10 @@ export function makePrts(): PrtsData {
     pageToCategoryIds[page].sort((a, b) => prtsCategoryTable[a].order - prtsCategoryTable[b].order);
   }
 
-  // 分类 → 其下的一级条目 id 列表（按一级条目 order 排序）
+  // 分类 → 其下的一级条目 id 列表（按一级条目 order 排序；跳过冗余的一级条目）
   const categoryToFirstLvIds: Record<string, string[]> = {};
   for (const entry of Object.values(prtsFirstLvTable)) {
+    if (redundantFirstLvIds.has(entry.firstLvId)) continue;
     (categoryToFirstLvIds[entry.categoryId] ??= []).push(entry.firstLvId);
   }
   for (const categoryId of Object.keys(categoryToFirstLvIds)) {
@@ -217,6 +248,7 @@ export function makePrts(): PrtsData {
   // ===== 第四步：一级条目部分（构建输出，含单 item 名称一致性检查） =====
   const firstLv = toRecord(
     Object.values(prtsFirstLvTable)
+      .filter((entry) => !redundantFirstLvIds.has(entry.firstLvId))
       .map((entry) => {
         const name = getTranslation(entry.name, 'CN');
         // 仅含单个 item 的一级条目：名称与唯一 item 的名称或标题不一致时打印警告
@@ -226,7 +258,7 @@ export function makePrts(): PrtsData {
           {
             categoryId: entry.categoryId,
             firstLvId: entry.firstLvId,
-            itemIds: entry.itemIds,
+            itemIds: entry.itemIds.filter((itemId) => !redundantItemIds.has(itemId)),
             name,
             order: entry.order,
             type: categoryToPageType[entry.categoryId],
@@ -249,6 +281,7 @@ export function makePrts(): PrtsData {
   // ===== 第五步：具体条目部分（构建输出后，按 页面、分类 order、一级条目 order、条目 order 排序） =====
   const allItemOutputs: Record<string, PrtsAllItem> = {};
   for (const entry of Object.values(prtsAllItemTable)) {
+    if (redundantItemIds.has(entry.id)) continue;
     const name = getTranslation(entry.name, 'CN');
     const title = resolveItemTitle(entry, name);
     // 标题与名称不一致时打印警告，便于核对源数据是否有误
@@ -269,6 +302,7 @@ export function makePrts(): PrtsData {
 
   const allItems = toRecord(
     Object.values(prtsAllItemTable)
+      .filter((entry) => !redundantItemIds.has(entry.id))
       .map((entry) => [entry.id, allItemOutputs[entry.id]] as [string, PrtsAllItem])
       .sort((a, b) => {
         // 每个 item 的层级位置由所属一级条目决定，故先查其 firstLv 再逐级比较
