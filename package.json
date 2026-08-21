@@ -16,7 +16,8 @@
     "tauri": "tauri",
     "makedata": "jiti scripts/makeAllData.ts",
     "download:models": "jiti scripts/downloadModels.ts",
-    "package": "tauri build --no-bundle && jiti scripts/package.ts"
+    "package": "tauri build --no-bundle && jiti scripts/package.ts",
+    "bump:version": "jiti scripts/bumpVersion.ts"
   },
   "dependencies": {
     "@nuxt/ui": "^4.10.0",
