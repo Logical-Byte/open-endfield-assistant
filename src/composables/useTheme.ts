@@ -440,16 +440,25 @@ const chineseFontOptions: FontOption[] = [
         {
           id: 'font-harmonyos-sans-sc',
           rel: 'stylesheet',
-          href: 'https://cdn.jsdelivr.net/npm/harmonyos-sans-sc@1.0.0/index.min.css',
+          href: 'https://cdn.jsdelivr.net/gh/BiologyHazard/harmonyos-sans-sc@1.0.0/result.css',
         },
       ],
     },
   },
   {
-    label: '阿里巴巴普惠体（需本地安装）',
+    label: '阿里巴巴普惠体',
     value: 'alibaba-puhuiti',
     family: 'Alibaba PuHuiTi 3.0',
-    source: { type: 'local' },
+    source: {
+      type: 'link',
+      links: [
+        {
+          id: 'font-alibaba-puhuiti',
+          rel: 'stylesheet',
+          href: 'https://cdn.jsdelivr.net/gh/BiologyHazard/alibaba-puhuiti-3.0@1.0.0/result.css',
+        },
+      ],
+    },
   },
   {
     label: '思源黑体',
