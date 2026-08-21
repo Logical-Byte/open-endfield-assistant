@@ -114,7 +114,7 @@ const openImagePreview = inject(openImagePreviewKey, () => {
         />
       </div>
 
-      <div class="w-72">
+      <div class="relative w-72">
         <ImagePreviewContainer
           v-if="imageUrl"
           class="relative w-full overflow-hidden"
@@ -137,9 +137,32 @@ const openImagePreview = inject(openImagePreviewKey, () => {
             :style="cropImageStyle"
           />
         </ImagePreviewContainer>
-        <div v-else class="flex h-12 items-center justify-center bg-accented">
-          <p class="text-sm text-muted">待收集</p>
-        </div>
+        <div v-else class="flex h-12 items-center justify-center bg-accented" />
+        <!-- 图片预览右下角状态标记：已收集 / 需纠错 -->
+        <UBadge
+          v-if="collectType === CollectType.Collected"
+          class="absolute right-1 bottom-1"
+          color="success"
+          label="已收集"
+          leading-icon="i-lucide-check"
+          size="sm"
+        />
+        <UBadge
+          v-else-if="collectType === CollectType.Unrecognized || collectType === CollectType.Failed"
+          class="absolute right-1 bottom-1"
+          color="error"
+          label="需纠错"
+          leading-icon="i-lucide-pencil-line"
+          size="sm"
+        />
+        <UBadge
+          v-else-if="collectType === CollectType.NotCollected"
+          class="absolute right-1 bottom-1"
+          color="neutral"
+          label="未收集"
+          leading-icon="i-lucide-eye"
+          size="sm"
+        />
       </div>
 
       <div class="min-w-0 flex-1">
