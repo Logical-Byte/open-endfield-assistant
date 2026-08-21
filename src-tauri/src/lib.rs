@@ -24,7 +24,7 @@ pub mod utils;
 pub mod windows_ops;
 
 use std::fs;
-use std::sync::atomic::{AtomicBool, AtomicU32};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
 use anyhow::{Context, Result};
@@ -169,7 +169,6 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     // 扫描结果通道：任务线程产生 → 转发线程 emit 给前端
     let (scan_tx, scan_rx) = mpsc::channel();
-    let scan_index = Arc::new(AtomicU32::new(0));
 
     // 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
     let pipeline_config = PipelineConfig::recognition_only();
@@ -200,7 +199,6 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
         stop,
         running,
         scan_tx,
-        scan_index,
         foreground,
         app.handle().clone(),
         app_data,

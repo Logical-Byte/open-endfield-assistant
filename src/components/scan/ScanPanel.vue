@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CollectType, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
+import { CollectType, ScanResult, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
 import { appStatus } from '@/utils/app/appStatus';
 import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { applyCorrection } from '@/utils/app/correction';
@@ -44,14 +44,11 @@ function statusToCollectType(status: ScanResultStatus): CollectType {
 }
 
 /** 应用人工纠错：更新对应扫描结果（标记为已收集或无法识别）。 */
-function onCorrect(scanResultIndex: number | null, title: string): void {
-  if (scanResultIndex === null) {
+function onCorrect(scanResult: ScanResult | null, title: string): void {
+  if (scanResult === null) {
     return;
   }
-  const scanResult = scanResults.value.find((result) => result.index === scanResultIndex);
-  if (scanResult !== undefined) {
-    applyCorrection(scanResult, title);
-  }
+  applyCorrection(scanResult, title);
 }
 
 const hideCollected = ref(false);
@@ -64,27 +61,18 @@ function isNotObtainableInOverworld(archiveId: string | null): boolean {
 
 const filteredScanResults = computed<ScanResultCardProps[]>(() => {
   const result: ScanResultCardProps[] = [];
-  for (const {
-    status,
-    index,
-    category,
-    subCategory,
-    correctedTitle,
-    ocrResult,
-    image,
-    itemIds,
-  } of scanResults.value) {
-    if (status === 'success') {
+  for (const scanResult of scanResults.value) {
+    if (scanResult.status === 'success') {
       continue;
     }
     result.push({
-      collectType: statusToCollectType(status),
-      category,
-      subCategory,
-      imageUrl: image,
-      title: correctedTitle ?? ocrResult,
-      archiveId: itemIds[0] ?? null,
-      scanResultIndex: index,
+      collectType: statusToCollectType(scanResult.status),
+      category: scanResult.category,
+      subCategory: scanResult.subCategory,
+      imageUrl: scanResult.image,
+      title: scanResult.correctedTitle ?? scanResult.ocrResult,
+      archiveId: scanResult.itemIds[0] ?? null,
+      scanResult,
     });
   }
 
@@ -95,18 +83,17 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
     }
     const maybeScanResult = scanResults.value.find((r) => r.itemIds.includes(id));
     if (maybeScanResult !== undefined) {
-      const { status, index, category, subCategory, correctedTitle, image } = maybeScanResult;
-      if (hideCollected.value && status === 'success') {
+      if (hideCollected.value && maybeScanResult.status === 'success') {
         continue;
       }
       result.push({
-        collectType: statusToCollectType(status),
-        category,
-        subCategory,
-        imageUrl: image,
-        title: correctedTitle ?? title,
+        collectType: statusToCollectType(maybeScanResult.status),
+        category: maybeScanResult.category,
+        subCategory: maybeScanResult.subCategory,
+        imageUrl: maybeScanResult.image,
+        title: maybeScanResult.correctedTitle ?? title,
         archiveId: id,
-        scanResultIndex: index,
+        scanResult: maybeScanResult,
       });
     } else {
       result.push({
@@ -116,7 +103,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
         imageUrl: null,
         title,
         archiveId: id,
-        scanResultIndex: null,
+        scanResult: null,
       });
     }
   }
@@ -225,7 +212,7 @@ const summary = computed(() => {
             overscan: 8,
           }"
         >
-          <ScanResultCard v-bind="item" @correct="onCorrect(item.scanResultIndex, $event)" />
+          <ScanResultCard v-bind="item" @correct="onCorrect(item.scanResult, $event)" />
         </UScrollArea>
       </div>
     </div>

@@ -1,12 +1,11 @@
 //! 档案库扫描结果的数据结构与上报器。
 //!
 //! `ScanResult` 与游戏强相关（档案扫描的产出），故归入档案库扫描任务模块，
-//! 不属于基础设施层。上报机制（通道 + 序号）由应用层（`crate::controller`）
+//! 不属于基础设施层。上报机制（通道）由应用层（`crate::controller`）
 //! 创建并注入，保持依赖方向"应用 → 领域"。
 
 use std::io::Cursor;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, mpsc};
+use std::sync::mpsc;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use image::{DynamicImage, RgbaImage, imageops};
@@ -19,8 +18,6 @@ pub struct ScanResult {
     /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
     /// `failed`（OCR 结果为空）
     pub status: String,
-    /// 全局序号（从 1 开始，跨扫描档案库任务连续递增）
-    pub index: u32,
     /// 档案库大类 id（pageType：multi_media / text / document）
     pub category: String,
     /// 档案库小类 id（categoryId）
@@ -61,22 +58,20 @@ pub fn encode_png_data_url(img: &RgbaImage) -> String {
 
 /// 扫描结果上报器：任务层 → 前端事件通道。
 ///
-/// 持有通道发送端与全局序号（跨扫描档案库任务连续递增）；
-/// 由 [`crate::controller::Controller`] 创建并注入任务函数。
+/// 持有通道发送端；由 [`crate::controller::Controller`] 创建并注入任务函数。
 /// 任务只负责"报了什么结果"，不关心通道如何到达前端。
 #[derive(Clone)]
 pub struct ScanReporter {
     tx: mpsc::Sender<ScanResult>,
-    index: Arc<AtomicU32>,
 }
 
 impl ScanReporter {
     /// 创建上报器。
-    pub fn new(tx: mpsc::Sender<ScanResult>, index: Arc<AtomicU32>) -> Self {
-        Self { tx, index }
+    pub fn new(tx: mpsc::Sender<ScanResult>) -> Self {
+        Self { tx }
     }
 
-    /// 上报一份扫描结果（序号自动递增，从 1 开始）。
+    /// 上报一份扫描结果。
     pub fn report(
         &self,
         status: &str,
@@ -86,14 +81,12 @@ impl ScanReporter {
         ocr_result: String,
         corrected: Option<super::correction::Corrected>,
     ) {
-        let index = self.index.fetch_add(1, Ordering::Relaxed) + 1;
         let (corrected_title, item_ids) = match corrected {
             Some(c) => (Some(c.title), c.item_ids),
             None => (None, Vec::new()),
         };
         let _ = self.tx.send(ScanResult {
             status: status.to_string(),
-            index,
             category: category.to_string(),
             sub_category: sub_category.to_string(),
             image,
