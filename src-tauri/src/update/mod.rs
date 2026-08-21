@@ -188,8 +188,7 @@ fn build_client(
         .user_agent(user_agent)
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(30 * 60))
-        // GitHub asset 端点会 302 到签名 CDN 地址，需要跟随重定向；
-        // 默认策略会跨主机丢弃 `Authorization`，不会把 token 泄露给 CDN。
+        // GitHub asset 端点会 302 到签名 CDN 地址，需要跟随重定向。
         .redirect(reqwest::redirect::Policy::limited(10));
 
     match proxy_mode.as_deref().unwrap_or("none") {
@@ -336,7 +335,7 @@ fn extract_filename_from_response(response: &reqwest::Response) -> Option<String
 /// - 校验失败 / 网络错误 / 取消时，`TempFileGuard` 负责删除半成品；
 /// - 进度事件 `download-progress` 每 100ms 上报一次，带 `session_id` 供前端过滤；
 /// - `accept` 由前端按下载源传入（GitHub 资产端点需要 `application/octet-stream`），
-///   配合 `auth_token` 实现 private 仓库的资产下载；客户端自动跟随 302 重定向。
+///   客户端自动跟随 302 重定向。
 #[allow(clippy::too_many_arguments)] // 参数多但均为简单值，封装成结构体反而降低可读性
 #[tauri::command]
 pub async fn download_update(
@@ -347,7 +346,6 @@ pub async fn download_update(
     expected_sha256: Option<String>,
     proxy_mode: Option<String>,
     proxy_url: Option<String>,
-    auth_token: Option<String>,
     accept: Option<String>,
     user_agent: Option<String>,
 ) -> Result<DownloadResult, String> {
@@ -367,9 +365,6 @@ pub async fn download_update(
     let client = build_client(&user_agent, proxy_mode, proxy_url)?;
 
     let mut request = client.get(&url);
-    if let Some(token) = auth_token.filter(|token| !token.trim().is_empty()) {
-        request = request.header("Authorization", format!("token {}", token.trim()));
-    }
     if let Some(accept) = accept.filter(|accept| !accept.trim().is_empty()) {
         request = request.header(reqwest::header::ACCEPT, accept.trim());
     }

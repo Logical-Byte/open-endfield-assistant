@@ -373,7 +373,6 @@ export async function startDownload(
       expectedSha256: prepared.sha256 ?? null,
       proxyMode,
       proxyUrl: proxyMode === UpdateProxyMode.Custom ? updateProxyUrl : null,
-      authToken: prepared.source === UpdateSource.Github ? __OEA_GITHUB_TOKEN__ : null,
       accept: prepared.source === UpdateSource.Github ? 'application/octet-stream' : null,
       userAgent: buildUpdateUserAgent(),
     });
@@ -679,9 +678,8 @@ async function prepareDownload(
  *   避免列表接口只返回前 100 条导致的分页遗漏；
  * - 匹配资产：优先精确匹配 `OEA-<平台>-<架构>-v<版本>.zip`，无精确匹配时取体积最大的 zip 资产；
  * - 校验信息：取 asset `digest`（须为 `sha256:<hex>` 格式，否则视为无校验信息）；
- * - 下载地址：使用 asset 的 API `url`（`/releases/assets/{id}`）而非 `browser_download_url`，
- *   后者在 private 仓库中不可用；Rust 下载端会带 `Authorization` 与
- *   `Accept: application/octet-stream` 请求并跟随 302 重定向。
+ * - 下载地址：使用 asset 的 API `url`（`/releases/assets/{id}`），
+ *   Rust 下载端会带 `Accept: application/octet-stream` 请求并跟随 302 重定向。
  */
 async function resolveGithubDownload(
   versionName: string,
@@ -690,9 +688,6 @@ async function resolveGithubDownload(
     Accept: 'application/vnd.github+json',
     'User-Agent': buildUpdateUserAgent(),
   };
-  if (__OEA_GITHUB_TOKEN__) {
-    headers.Authorization = `Bearer ${__OEA_GITHUB_TOKEN__}`;
-  }
 
   const init: RequestInit & ClientOptions = {
     method: 'GET',

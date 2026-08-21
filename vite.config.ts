@@ -5,7 +5,7 @@ import process from 'node:process';
 import { fileURLToPath, URL } from 'node:url';
 import { valid } from 'semver';
 import type { Plugin } from 'vite';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import { createHtmlPlugin } from 'vite-plugin-html';
 import vueRouter from 'vue-router/vite';
 
@@ -58,9 +58,7 @@ function readOeaVersion(): string {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  // 读取 .env 中全部变量（含 GITHUB_TOKEN，仓库 public 后删除 define 即可）。
-  const env = loadEnv(mode, process.cwd(), '');
+export default defineConfig(() => {
   const oeaVersion = readOeaVersion();
 
   return {
@@ -81,9 +79,7 @@ export default defineConfig(({ mode }) => {
       createHtmlPlugin({ minify: true }),
     ],
 
-    // 构建期注入 GitHub 只读 token（仅本仓库读权限；仓库 public 后随 define 一起移除）
     define: {
-      __OEA_GITHUB_TOKEN__: JSON.stringify(env.GITHUB_TOKEN ?? ''),
       __OEA_VERSION__: JSON.stringify(oeaVersion),
     },
 
