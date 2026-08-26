@@ -109,7 +109,7 @@ onBeforeUnmount(() => {
             label="OEA 官网"
             rel="noopener noreferrer"
             target="_blank"
-            to="https://ef.yituliu.cn/resources/oea"
+            to="https://oea.biohazard.top/"
           />
           <UButton
             color="neutral"
@@ -398,7 +398,8 @@ onBeforeUnmount(() => {
             </li>
             <li>机器识别，可能存在错误。若发现错误，欢迎反馈。</li>
             <li>
-              本工具按“原样”、“包含全部错误”和“视可用性情况”提供，作者不对可用性、准确性或使用效果做出任何承诺或保证。
+              本工具按 “原样”、“包含全部错误” 和 “视可用性情况”
+              提供，作者不对可用性、准确性或使用效果做出任何承诺或保证。
             </li>
             <li>
               使用者必须确保使用本工具符合相关法律法规与服务条款，禁止用于任何违法或侵权行为。
