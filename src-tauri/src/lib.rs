@@ -10,6 +10,7 @@ pub mod dpapi;
 pub mod logger;
 pub mod ocr;
 pub mod resolution;
+pub(crate) mod scan_runtime;
 pub mod scene;
 pub mod session;
 pub mod sound;
@@ -24,7 +25,6 @@ pub mod utils;
 pub mod windows_ops;
 
 use std::fs;
-use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
 use anyhow::{Context, Result};
@@ -34,7 +34,7 @@ use tracing::{info, warn};
 
 use crate::{
     app_paths::AppPaths, controller::Controller, data::AppData, ocr::OcrEngine,
-    scene::create_scene_manager,
+    scan_runtime::ScanRuntime, scene::create_scene_manager,
 };
 
 #[cfg(target_os = "windows")]
@@ -167,7 +167,9 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
         .inspect_err(|e| warn!("{e:#}"))?;
 
     // 解析应用配置文件
-    let oea_config = config::load_oea_config(&app_paths.oea_config_file());
+    let oea_config = Arc::new(Mutex::new(config::load_oea_config(
+        &app_paths.oea_config_file(),
+    )));
 
     // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。
     fs::create_dir_all(app_paths.webview_data_dir()).with_context(|| {
@@ -212,18 +214,15 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let foreground = windows_ops::window::ForegroundGuard::new(oea_window);
     let hotkey_rx = windows_ops::hotkey::listen()?;
 
-    // 状态标志（Controller 唯一归属）
-    let stop = Arc::new(AtomicBool::new(false));
-    let running = Arc::new(AtomicBool::new(false));
+    let scan_runtime = Arc::new(ScanRuntime::new());
 
     // 组装 Controller 并托管为 State，启动后台线程
     let controller = Arc::new(Controller::new(
         app_paths,
-        Mutex::new(oea_config),
+        oea_config,
         ocr,
         scenes,
-        stop,
-        running,
+        scan_runtime,
         scan_tx,
         foreground,
         app.handle().clone(),

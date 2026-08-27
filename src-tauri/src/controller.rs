@@ -1,45 +1,33 @@
 //! 应用控制器（Tauri 托管状态）。
 //!
 //! 职责边界：
-//! - **状态机**：`running`（CAS 防重入启动）与 `stop`（秒停）两个原子标志的**唯一归属**；
-//! - **线程编排**：扫描档案库任务线程、热键消费线程、日志 / 结果转发线程；
+//! - **应用编排**：为扫描任务创建运行上下文；
+//! - **线程编排**：热键消费线程、日志 / 结果转发线程；
 //! - **热键动作分发**（应用层）：键位常量（[`TOGGLE_MAIN_TASK_HOTKEY`] / [`EXIT_HOTKEY`]）+ 前台窗口过滤 + [`Controller::spawn_hotkey_loop`]；
 //!
-//! 依赖方向：应用层 → 领域层（connect/session/scene/task）→ 基础设施层。
+//! 扫描任务的状态机与执行线程由 [`ScanRuntime`] 拥有。
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 
-use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use tracing::{debug, error, info, warn};
 
 use crate::{
     app_paths::AppPaths,
     config::OeaConfig,
-    connect::connect_to_game,
     data::AppData,
     logger::LogEntry,
     ocr::OcrEngine,
+    scan_runtime::{ScanRunContext, ScanRuntime},
     scene::SceneManager,
-    sound,
-    task::{TaskStopped, run_task},
-    tasks::archive_scan::{ArchiveScanTask, ScanReporter, ScanResult},
+    tasks::archive_scan::{ScanReporter, ScanResult},
     types::{ArchiveContract, PrtsData},
     windows_ops,
 };
 
 /// 推送给前端的应用状态。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AppStatus {
-    /// 扫描档案库任务是否正在运行
-    pub running: bool,
-    /// 扫描档案库任务结束时的失败原因（仅失败时随结束状态推送一次；成功 / 被停止 / 查询状态时为 `None`）
-    #[serde(default)]
-    pub scan_error: Option<String>,
-}
+pub use crate::scan_runtime::AppStatus;
 
 /// 引号 `'` → 切换扫描档案库任务
 pub const TOGGLE_MAIN_TASK_HOTKEY: windows_ops::hotkey::KeyEvent = windows_ops::hotkey::KeyEvent {
@@ -59,20 +47,18 @@ pub struct Controller {
     /// 应用根目录
     app_path: AppPaths,
     /// 应用配置
-    oea_config: Mutex<OeaConfig>,
+    oea_config: Arc<Mutex<OeaConfig>>,
     /// 共享 OCR 引擎（跨会话复用模型）
     ocr: Arc<Mutex<OcrEngine>>,
     /// 场景管理器（本游戏全部场景，跨线程共享只读）
     scenes: Arc<SceneManager>,
-    /// 停止标志（独立于锁：命令 / 热键均可快速请求停止，任务内部轮询）
-    stop: Arc<AtomicBool>,
-    /// 扫描档案库任务运行标志（CAS 占用防重入）
-    running: Arc<AtomicBool>,
+    /// 扫描档案库任务运行时
+    scan_runtime: Arc<ScanRuntime>,
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
     /// 前台窗口守卫（应用层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
     foreground: windows_ops::window::ForegroundGuard,
-    /// Tauri 应用句柄（向前端 emit 事件）
+    /// Tauri 应用句柄（创建扫描运行上下文）
     handle: AppHandle,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
     app_data: AppData,
@@ -83,13 +69,12 @@ pub struct Controller {
 impl Controller {
     /// 创建控制器。
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         app_path: AppPaths,
-        oea_config: Mutex<OeaConfig>,
+        oea_config: Arc<Mutex<OeaConfig>>,
         ocr: Arc<Mutex<OcrEngine>>,
         scenes: Arc<SceneManager>,
-        stop: Arc<AtomicBool>,
-        running: Arc<AtomicBool>,
+        scan_runtime: Arc<ScanRuntime>,
         scan_tx: mpsc::Sender<ScanResult>,
         foreground: windows_ops::window::ForegroundGuard,
         handle: AppHandle,
@@ -101,8 +86,7 @@ impl Controller {
             oea_config,
             ocr,
             scenes,
-            stop,
-            running,
+            scan_runtime,
             scan_tx: Mutex::new(scan_tx),
             foreground,
             handle,
@@ -115,33 +99,18 @@ impl Controller {
         &self.app_path
     }
 
-    pub fn oea_config(&self) -> &Mutex<OeaConfig> {
+    pub fn oea_config(&self) -> &Arc<Mutex<OeaConfig>> {
         &self.oea_config
     }
 
     /// 读取当前状态（只读原子标志；失败原因不存储，由结束事件一次性推送）。
     pub fn get_status(&self) -> AppStatus {
-        AppStatus {
-            running: self.running.load(Ordering::Relaxed),
-            scan_error: None,
-        }
+        self.scan_runtime.status()
     }
 
     /// 创建扫描结果上报器（每次游戏操作一个，只负责转发结果）。
     fn reporter(&self) -> ScanReporter {
         ScanReporter::new(self.scan_tx.lock().unwrap().clone())
-    }
-
-    /// 播放扫描提示音（音量取配置；开始/自然完成播 enable，失败/被停止播 disable）。
-    fn play_scan_sound(&self, enable: bool) {
-        let volume = self
-            .oea_config()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .sound_volume;
-        let name = if enable { "enable.wav" } else { "disable.wav" };
-        let path = self.app_path.resources_dir().join("sounds").join(name);
-        sound::play_wav(&path, volume);
     }
 
     /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
@@ -158,93 +127,16 @@ impl Controller {
 
     /// 启动扫描档案库任务：CAS 占用运行标志 → 推送状态 → 后台线程执行。
     pub fn start_scan(self: &Arc<Self>) {
-        if self
-            .running
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_err()
-        {
-            warn!("扫描档案库任务正在运行中，忽略重复的启动请求");
-            return;
-        }
-        info!("收到启动扫描档案库任务请求");
-        // 启动状态不携带失败原因（失败原因仅在任务结束时推送一次）
-        self.emit_status(None);
-
-        let this = Arc::clone(self);
-        thread::Builder::new()
-            .name("oea-scan".to_string())
-            .spawn(move || {
-                // 任务开始时才连接游戏（游戏未打开则报错并复位）
-                let mut session = match connect_to_game(
-                    &this.ocr,
-                    &this.app_path.templates_dir(),
-                    this.stop.clone(),
-                ) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        error!("连接游戏失败: {e:#}");
-                        this.play_scan_sound(false);
-                        this.finish_scan(Some(format!("连接游戏失败: {e:#}")));
-                        return;
-                    }
-                };
-
-                // 扫描档案库任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）
-                if let Err(e) = windows_ops::window::ensure_foreground_and_topmost(session.hwnd) {
-                    warn!("无法将游戏窗口置于前台: {e:#}，继续尝试执行任务");
-                }
-
-                // 清除上一次可能残留的停止信号
-                session.reset_stop();
-
-                // 启动检查通过、任务真正开始执行前播放 enable 提示音
-                // （避免"启动后立即失败"时 enable/disable 两个音效同时播放）
-                this.play_scan_sound(true);
-
-                // 执行扫描档案库任务（阻塞，期间任务内部轮询停止标志）
-                let task = ArchiveScanTask::new(this.reporter(), this.app_data.correction());
-                let result = run_task(&task, &mut session, &this.scenes);
-
-                // 区分"被停止"与"出错"
-                match result {
-                    Ok(_) => {
-                        info!("========== 扫描档案库任务执行完毕 ==========");
-                        this.play_scan_sound(true);
-                        this.finish_scan(None);
-                    }
-                    Err(e) if e.downcast_ref::<TaskStopped>().is_some() => {
-                        info!("扫描档案库任务已被用户停止");
-                        this.play_scan_sound(false);
-                        this.finish_scan(None);
-                    }
-                    Err(e) => {
-                        error!("扫描档案库任务执行失败: {e:#}");
-                        this.play_scan_sound(false);
-                        this.finish_scan(Some(format!("扫描档案库任务执行失败: {e:#}")));
-                    }
-                }
-            })
-            .expect("启动扫描档案库任务线程失败");
-    }
-
-    /// 复位运行标志并推送"空闲"状态（携带本次任务的失败原因，无失败时为 `None`）。
-    fn finish_scan(&self, scan_error: Option<String>) {
-        self.running.store(false, Ordering::Relaxed);
-        self.emit_status(scan_error);
+        self.scan_runtime.start(|| self.scan_context());
     }
 
     /// 请求停止扫描档案库任务（原子置位，由任务内部轮询实现优雅停止）。
     pub fn stop_scan(&self) {
-        if !self.running.load(Ordering::Relaxed) {
-            warn!("扫描档案库任务未在运行，忽略停止请求");
-            return;
-        }
-        self.stop.store(true, Ordering::Relaxed);
-        info!("收到停止请求，正在停止扫描档案库任务...");
+        self.scan_runtime.stop();
     }
 
     pub fn toggle_scan(self: &Arc<Self>) {
-        if self.running.load(Ordering::Relaxed) {
+        if self.get_status().running {
             self.stop_scan();
         } else {
             self.start_scan();
@@ -257,7 +149,7 @@ impl Controller {
             warn!("正在安装更新，拒绝退出");
             return;
         }
-        self.stop.store(true, Ordering::Relaxed);
+        self.scan_runtime.request_stop_for_shutdown();
         info!("收到退出请求，正在退出程序...");
         self.handle.exit(0);
     }
@@ -314,14 +206,15 @@ impl Controller {
             .expect("启动扫描结果转发线程失败");
     }
 
-    /// 向前端推送当前状态（running 标志 + 本次任务结束时的失败原因）。
-    fn emit_status(&self, scan_error: Option<String>) {
-        let status = AppStatus {
-            running: self.running.load(Ordering::Relaxed),
-            scan_error,
-        };
-        if let Err(e) = self.handle.emit("app-status", &status) {
-            error!("向前端推送状态失败: {e}");
-        }
+    fn scan_context(&self) -> ScanRunContext {
+        ScanRunContext::new(
+            self.app_path.clone(),
+            Arc::clone(&self.oea_config),
+            Arc::clone(&self.ocr),
+            Arc::clone(&self.scenes),
+            self.app_data.correction(),
+            self.reporter(),
+            self.handle.clone(),
+        )
     }
 }
