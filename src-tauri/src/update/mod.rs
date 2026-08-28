@@ -18,7 +18,9 @@ use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tauri::Emitter;
-use tracing::{info, warn};
+use tracing::info;
+#[cfg(target_os = "windows")]
+use tracing::warn;
 
 /// 下载进度事件（前端按 `session_id` 过滤旧任务的迟到事件）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,6 +148,7 @@ fn resolve_system_proxy_inner() -> Result<Option<String>, String> {
 /// - `host:port` → `http://host:port`
 /// - `http=host:port;https=host2:port` → 优先 `https=`，否则 `http=`
 /// - 仅含 `socks=` 或无法解析时返回 `None`（reqwest 未启用 socks 特性）
+#[cfg(any(target_os = "windows", test))]
 fn normalize_proxy_server(raw: &str) -> Option<String> {
     let raw = raw.trim();
     if raw.is_empty() {

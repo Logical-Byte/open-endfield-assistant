@@ -20,3 +20,25 @@ pub fn ensure_installed(cache_dir: &Path) -> Result<bool> {
 pub fn ensure_installed(_cache_dir: &Path) -> Result<bool> {
     Ok(true)
 }
+
+/// 读取 WebView2 当前缩放因子。
+#[cfg(target_os = "windows")]
+pub fn get_zoom(window: tauri::WebviewWindow) -> Result<f64> {
+    details::webview2::get_zoom(window)
+}
+
+/// macOS 开发外壳不跟踪 WebView2 缩放，使用默认缩放因子。
+#[cfg(target_os = "macos")]
+pub fn get_zoom(_window: tauri::WebviewWindow) -> Result<f64> {
+    Ok(1.0)
+}
+
+/// 注册 WebView2 原生缩放变化监听。
+#[cfg(target_os = "windows")]
+pub fn register_zoom_changed_listener(window: &tauri::WebviewWindow) {
+    details::webview2::register_zoom_changed_listener(window);
+}
+
+/// WKWebView 不提供 WebView2 原生缩放事件。
+#[cfg(target_os = "macos")]
+pub fn register_zoom_changed_listener(_window: &tauri::WebviewWindow) {}

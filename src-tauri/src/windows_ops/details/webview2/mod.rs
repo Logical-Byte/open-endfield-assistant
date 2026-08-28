@@ -10,5 +10,7 @@
 
 mod detection;
 mod install;
+mod zoom;
 
 pub(in crate::windows_ops) use install::ensure_installed;
+pub(in crate::windows_ops) use zoom::{get_zoom, register_zoom_changed_listener};

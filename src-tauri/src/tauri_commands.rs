@@ -72,22 +72,7 @@ pub fn restart_as_admin(app_handle: tauri::AppHandle) -> Result<(), String> {
 /// 前端只把它当作内存镜像，不再额外持久化。
 #[tauri::command]
 pub fn get_webview_zoom(window: tauri::WebviewWindow) -> Result<f64, String> {
-    use std::sync::mpsc;
-
-    let (tx, rx) = mpsc::channel();
-    window
-        .with_webview(move |platform_webview| {
-            let controller = platform_webview.controller();
-            let mut factor = 0.0f64;
-            let zoom = unsafe { controller.ZoomFactor(&mut factor) }
-                .ok()
-                .map(|_| factor);
-            let _ = tx.send(zoom);
-        })
-        .map_err(|e| e.to_string())?;
-    rx.recv()
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "读取 WebView2 缩放因子失败".to_string())
+    windows_ops::webview2::get_zoom(window).map_err(|e| e.to_string())
 }
 
 /// 在系统文件管理器中打开日志目录（不存在时先创建）。
@@ -134,7 +119,7 @@ pub fn save_oea_config(
 /// 用 DPAPI（当前用户作用域）加密 CDK，返回 Base64 密文。
 #[tauri::command]
 pub fn cdk_encrypt(cdk: String) -> Result<String, String> {
-    let encrypted = crate::dpapi::encrypt(cdk.trim().as_bytes()).map_err(|e| {
+    let encrypted = windows_ops::dpapi::encrypt(cdk.trim().as_bytes()).map_err(|e| {
         error!("加密 CDK 失败: {e}");
         e.to_string()
     })?;
@@ -148,7 +133,7 @@ pub fn cdk_decrypt(encrypted: String) -> Result<String, String> {
         error!("CDK 密文 Base64 解码失败: {e}");
         e.to_string()
     })?;
-    let plain = crate::dpapi::decrypt(&blob).map_err(|e| {
+    let plain = windows_ops::dpapi::decrypt(&blob).map_err(|e| {
         error!("解密 CDK 失败: {e}");
         e.to_string()
     })?;

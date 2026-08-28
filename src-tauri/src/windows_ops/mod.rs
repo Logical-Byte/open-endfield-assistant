@@ -12,6 +12,7 @@ mod details;
 pub mod admin;
 pub mod capture;
 pub mod dialog;
+pub mod dpapi;
 pub mod hotkey;
 pub mod input;
 #[cfg(target_os = "windows")]
