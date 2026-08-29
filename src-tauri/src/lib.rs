@@ -9,6 +9,7 @@ pub mod data;
 pub mod dpapi;
 pub mod logger;
 pub mod ocr;
+pub mod portable;
 pub mod resolution;
 pub mod scene;
 pub mod session;
@@ -155,6 +156,10 @@ pub fn run() {
 fn setup_app(app: &mut tauri::App) -> Result<()> {
     // 解析资源目录（resources/models/logs），不依赖运行时工作目录
     let app_paths = AppPaths::new()?;
+
+    // 压缩包内直接运行检测：命中则弹原生框提示解压并退出。
+    // 必须在建窗口 / 写 cache / 初始化日志之前调用（只读临时目录里这些步骤没有意义）。
+    portable::ensure_extracted(&app_paths);
 
     // 初始化日志系统：控制台输出 DEBUG+，文件输出 TRACE+，前端转发 TRACE+（界面可过滤等级）。
     let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());

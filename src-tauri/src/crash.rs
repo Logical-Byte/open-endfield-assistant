@@ -84,7 +84,7 @@ pub fn report_fatal(error: &anyhow::Error, app_handle: &tauri::AppHandle) -> ! {
 /// panic（或并发测试）也不会互相覆盖。优先写日志目录（与当日日志同目录，用户容易
 /// 找到）；失败（如目录不可写 / 无法定位）时回退到系统临时目录，保证尽量留下记录。
 /// 返回实际写入的文件路径。
-fn write_crash_log(title: &str, body: &str) -> Option<PathBuf> {
+pub(crate) fn write_crash_log(title: &str, body: &str) -> Option<PathBuf> {
     let candidates = [
         AppPaths::new().map(|p| p.logs_dir()).ok(),
         Some(std::env::temp_dir()),
