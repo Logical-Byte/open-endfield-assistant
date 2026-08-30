@@ -71,6 +71,13 @@ impl ScanRunContext {
     }
 }
 
+/// 一次扫描运行的终态。
+enum ScanOutcome {
+    Completed,
+    Stopped,
+    Failed(String),
+}
+
 /// 扫描档案库任务的生命周期状态。
 pub(crate) struct ScanRuntime {
     /// 停止请求标志：`true` 表示当前扫描应尽快停止。
@@ -82,7 +89,7 @@ pub(crate) struct ScanRuntime {
     /// 运行标志：`true` 表示一个扫描已获准启动，直至其工作线程到达终态。
     ///
     /// [`Self::claim_start`] 用 CAS 写入 `true`；状态查询、停止与切换操作读取；
-    /// 工作线程的 [`Self::finish`] 在成功、停止或失败后写回 `false`。
+    /// 工作线程的 [`Self::handle_run_exit`] 在成功、停止或失败后写回 `false`。
     running: AtomicBool,
 }
 
@@ -107,7 +114,10 @@ impl ScanRuntime {
         let runtime = Arc::clone(self);
         thread::Builder::new()
             .name("oea-scan".to_string())
-            .spawn(move || runtime.run(context))
+            .spawn(move || {
+                let outcome = runtime.run(&context);
+                runtime.handle_run_exit(&context, outcome);
+            })
             .expect("启动扫描档案库任务线程失败");
     }
 
@@ -140,8 +150,8 @@ impl ScanRuntime {
             .is_ok()
     }
 
-    fn run(self: Arc<Self>, context: ScanRunContext) {
-        // 任务开始时才连接游戏（游戏未打开则报错并复位）
+    fn run(&self, context: &ScanRunContext) -> ScanOutcome {
+        // 任务开始时才连接游戏
         let mut session = match connect_to_game(
             &context.ocr,
             &context.app_path.templates_dir(),
@@ -149,10 +159,7 @@ impl ScanRuntime {
         ) {
             Ok(session) => session,
             Err(error) => {
-                error!("连接游戏失败: {error:#}");
-                self.play_scan_sound(&context, false);
-                self.finish(&context.handle, Some(format!("连接游戏失败: {error:#}")));
-                return;
+                return ScanOutcome::Failed(format!("连接游戏失败: {error:#}"));
             }
         };
 
@@ -166,33 +173,41 @@ impl ScanRuntime {
 
         // 启动检查通过、任务真正开始执行前播放 enable 提示音
         // （避免"启动后立即失败"时 enable/disable 两个音效同时播放）
-        self.play_scan_sound(&context, true);
+        self.play_scan_sound(context, true);
 
         // 执行扫描档案库任务（阻塞，期间任务内部轮询停止标志）
         let task = ArchiveScanTask::new(context.reporter.clone(), Arc::clone(&context.correction));
         let result = run_task(&task, &mut session, &context.scenes);
 
-        // 区分"被停止"与"出错"
         match result {
-            Ok(()) => {
-                info!("========== 扫描档案库任务执行完毕 ==========");
-                self.play_scan_sound(&context, true);
-                self.finish(&context.handle, None);
-            }
-            Err(error) if error.downcast_ref::<TaskStopped>().is_some() => {
-                info!("扫描档案库任务已被用户停止");
-                self.play_scan_sound(&context, false);
-                self.finish(&context.handle, None);
-            }
-            Err(error) => {
-                error!("扫描档案库任务执行失败: {error:#}");
-                self.play_scan_sound(&context, false);
-                self.finish(
-                    &context.handle,
-                    Some(format!("扫描档案库任务执行失败: {error:#}")),
-                );
-            }
+            Ok(()) => ScanOutcome::Completed,
+            Err(error) if error.downcast_ref::<TaskStopped>().is_some() => ScanOutcome::Stopped,
+            Err(error) => ScanOutcome::Failed(format!("扫描档案库任务执行失败: {error:#}")),
         }
+    }
+
+    /// 处理扫描终态：记录结果、播放提示音、释放运行标志并推送空闲状态。
+    fn handle_run_exit(&self, context: &ScanRunContext, outcome: ScanOutcome) {
+        let scan_error = match outcome {
+            ScanOutcome::Completed => {
+                info!("========== 扫描档案库任务执行完毕 ==========");
+                self.play_scan_sound(context, true);
+                None
+            }
+            ScanOutcome::Stopped => {
+                info!("扫描档案库任务已被用户停止");
+                self.play_scan_sound(context, false);
+                None
+            }
+            ScanOutcome::Failed(message) => {
+                error!("{message}");
+                self.play_scan_sound(context, false);
+                Some(message)
+            }
+        };
+
+        self.running.store(false, Ordering::Relaxed);
+        self.emit_status(&context.handle, scan_error);
     }
 
     /// 播放扫描提示音（音量取配置；开始/自然完成播 enable，失败/被停止播 disable）。
@@ -205,16 +220,6 @@ impl ScanRuntime {
         let name = if enable { "enable.wav" } else { "disable.wav" };
         let path = context.app_path.resources_dir().join("sounds").join(name);
         sound::play_wav(&path, volume);
-    }
-
-    /// 复位运行标志并推送"空闲"状态（携带本次任务的失败原因，无失败时为 `None`）。
-    fn finish(&self, handle: &AppHandle, scan_error: Option<String>) {
-        self.release_run();
-        self.emit_status(handle, scan_error);
-    }
-
-    fn release_run(&self) {
-        self.running.store(false, Ordering::Relaxed);
     }
 
     /// 向前端推送当前状态（running 标志 + 本次任务结束时的失败原因）。
@@ -247,7 +252,8 @@ mod tests {
         assert!(runtime.claim_start());
         assert!(!runtime.claim_start());
 
-        runtime.release_run();
+        // 模拟工作线程处理终态后释放运行标志。
+        runtime.running.store(false, Ordering::Relaxed);
         assert!(runtime.claim_start());
     }
 
