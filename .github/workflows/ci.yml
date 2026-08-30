@@ -79,11 +79,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
+        id: checkout
         uses: actions/checkout@v7
         with:
           submodules: recursive
 
       - name: Setup rust
+        id: setup_rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -102,5 +104,6 @@ jobs:
         run: cargo test
 
       - name: Backend clippy
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' && steps.setup_rust.outcome == 'success' }}
         working-directory: src-tauri
         run: cargo clippy --all-targets -- -D warnings
