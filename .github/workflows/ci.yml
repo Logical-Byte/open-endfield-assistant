@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 concurrency:
@@ -9,6 +11,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect backend changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Detect backend changes
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            backend:
+              - '.cargo/**'
+              - '.github/workflows/ci.yml'
+              - '.gitattributes'
+              - '.gitmodules'
+              - 'resources'
+              - 'rust-toolchain'
+              - 'rust-toolchain.toml'
+              - 'src-tauri/**'
+
   frontend-ci:
     name: Frontend CI
     runs-on: windows-latest
@@ -45,6 +74,8 @@ jobs:
 
   backend-ci:
     name: Backend CI
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -62,14 +93,6 @@ jobs:
         with:
           workspaces: 'src-tauri -> target'
 
-      - name: Backend check
-        working-directory: src-tauri
-        run: cargo check --all-targets
-
-      - name: Backend clippy
-        working-directory: src-tauri
-        run: cargo clippy --all-targets -- -D warnings
-
       - name: Backend format check
         working-directory: src-tauri
         run: cargo fmt --all -- --check
@@ -77,3 +100,7 @@ jobs:
       - name: Backend test
         working-directory: src-tauri
         run: cargo test
+
+      - name: Backend clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
