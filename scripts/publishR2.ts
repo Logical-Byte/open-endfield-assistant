@@ -40,6 +40,7 @@ interface ImmutableObjectInput {
   contentDisposition: string;
   cacheControl: string;
   expectedSize: number;
+  expectedSha256: string;
   expectedMetadata: Metadata;
   metadata?: Metadata;
 }
@@ -125,6 +126,10 @@ async function uploadImmutableObject(
   const existing = await headObject(client, input.key);
   if (existing) {
     verifyHead(existing, input.key, input.expectedSize, input.expectedMetadata);
+    const existingSha256 = await sha256Object(client, input.key);
+    if (existingSha256 !== input.expectedSha256) {
+      throw new Error(`R2 对象内容与预期 SHA-256 不一致，拒绝覆盖: ${input.key}`);
+    }
     console.log(`[r2] 对象已存在且校验一致，跳过上传: ${input.key}`);
     return existing;
   }
@@ -150,6 +155,10 @@ async function uploadImmutableObject(
   const uploaded = await headObject(client, input.key);
   if (!uploaded) throw new Error(`上传完成后无法读取 R2 对象: ${input.key}`);
   verifyHead(uploaded, input.key, input.expectedSize, input.expectedMetadata);
+  const uploadedSha256 = await sha256Object(client, input.key);
+  if (uploadedSha256 !== input.expectedSha256) {
+    throw new Error(`上传后 R2 对象内容与预期 SHA-256 不一致: ${input.key}`);
+  }
   return uploaded;
 }
 
@@ -250,6 +259,7 @@ async function publish(client: S3Client, options: CliOptions): Promise<void> {
     contentDisposition: `attachment; filename="${filename}"`,
     cacheControl: 'public, max-age=31536000, immutable',
     expectedSize: size,
+    expectedSha256: actualSha256,
     expectedMetadata: {
       sha256: actualSha256,
       tag: options.tag,
@@ -271,6 +281,7 @@ async function publish(client: S3Client, options: CliOptions): Promise<void> {
     contentDisposition: `attachment; filename="${checksumFilename}"`,
     cacheControl: 'public, max-age=31536000, immutable',
     expectedSize: statSync(checksumPath).size,
+    expectedSha256: await sha256File(checksumPath),
     expectedMetadata: {
       sha256: actualSha256,
       tag: options.tag,
@@ -309,10 +320,11 @@ async function promote(client: S3Client, options: CliOptions): Promise<void> {
     await checksumResponse.Body.transformToString(),
     filename,
   );
-  const metadataSha256 = head.Metadata?.sha256;
-  if (!metadataSha256 && (await sha256Object(client, key)) !== sidecarSha256) {
+  const objectSha256 = await sha256Object(client, key);
+  if (objectSha256 !== sidecarSha256) {
     throw new Error(`R2 对象内容与 checksum 不一致: ${key}`);
   }
+  const metadataSha256 = head.Metadata?.sha256;
   if (metadataSha256 && metadataSha256 !== sidecarSha256) {
     throw new Error(`checksum 与对象 metadata 不一致: ${key}`);
   }

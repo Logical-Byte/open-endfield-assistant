@@ -212,7 +212,7 @@ jobs:
 
   mirrorchyan:
     name: Trigger MirrorChyan workflows
-    if: github.event_name == 'push' && needs.github-release.result == 'success'
+    if: github.event_name == 'push' && needs['github-release'].result == 'success'
     needs: github-release
     runs-on: ubuntu-latest
     permissions:

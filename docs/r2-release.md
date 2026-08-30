@@ -45,7 +45,7 @@
 - `operation=publish`、`tag=v0.1.2`：重建并上传版本对象，然后推进 stable；
 - `operation=promote`、`tag=v0.1.2`：只验证并切换已有 R2 对象，用于回滚。
 
-OEA 版本对象位于 `releases/oea/<tag>/`，稳定指针是 `channels/oea/stable.json`。普通发布不会覆盖对象或倒退 stable；回滚必须通过受保护的 `promote` 手动运行。其他应用应使用自己的 `<app-id>` 命名空间，避免对象和 stable 指针冲突。
+OEA 版本对象位于 `releases/oea/<tag>/`，稳定指针是 `channels/oea/stable.json`。普通发布不会覆盖对象或倒退 stable；回滚必须通过受保护的 `promote` 手动运行。其他应用应使用自己的 `<app-id>` 命名空间，避免对象和 stable 指针冲突。即使对象已存在且 metadata、大小一致，发布和 promote 仍会重新读取对象计算 SHA-256，防止内容被替换后错误进入 stable。
 
 ## 验收命令
 
