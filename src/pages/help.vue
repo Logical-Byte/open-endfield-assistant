@@ -411,4 +411,6 @@ onBeforeUnmount(() => {
       </UPageBody>
     </UPage>
   </UContainer>
+
+  <AppFooter />
 </template>
