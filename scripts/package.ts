@@ -47,6 +47,8 @@ const bundleName = `${productName}-windows-${arch}-v${version}`;
 const outDir = path.join(rootDir, 'releases');
 const zipPath = path.join(outDir, `${bundleName}.zip`);
 const stagingDir = path.join(outDir, bundleName);
+// Tauri 构建时已将平台图标嵌入可执行文件；Windows 绿色包无需重复携带。
+const WINDOWS_PACKAGE_EXCLUDED_PATHS = new Set([path.join(rootDir, 'resources', 'icons')]);
 
 async function main() {
   // 定位 release 主程序：--no-bundle 构建时二进制沿用 Cargo 包名（如 oea.exe），
@@ -107,12 +109,13 @@ function findReleaseExe(): string | null {
   return exePath ?? null;
 }
 
-// 递归拷贝目录，跳过 `.` 开头的条目（.git、.gitignore 等）
+// 递归拷贝目录，跳过 `.` 开头的条目以及打包时无需复制的构建资源
 function copyDirFiltered(src: string, dest: string) {
   mkdirSync(dest, { recursive: true });
   for (const entry of readdirSync(src)) {
     if (entry.startsWith('.')) continue;
     const s = path.join(src, entry);
+    if (WINDOWS_PACKAGE_EXCLUDED_PATHS.has(s)) continue;
     const d = path.join(dest, entry);
     if (statSync(s).isDirectory()) copyDirFiltered(s, d);
     else copyFileSync(s, d);
