@@ -126,12 +126,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UContainer>
+  <UContainer class="min-h-[calc(100lvh-var(--ui-header-height)-var(--ui-title-height))]">
     <UPage>
       <template #left>
         <UPageAside
           :ui="{
-            root: 'lg:sticky lg:top-0 lg:max-h-[calc(100vh-var(--ui-header-height)-var(--ui-title-height))] lg:overflow-y-auto',
+            root: 'lg:sticky lg:top-0 lg:max-h-[calc(100lvh-var(--ui-header-height)-var(--ui-title-height))] lg:overflow-y-auto',
           }"
         >
           <nav class="flex flex-col gap-1">
@@ -311,4 +311,6 @@ onBeforeUnmount(() => {
       </UPageBody>
     </UPage>
   </UContainer>
+
+  <AppFooter />
 </template>
