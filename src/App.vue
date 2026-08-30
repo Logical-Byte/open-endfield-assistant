@@ -46,7 +46,7 @@ void initApp();
         <TitleBar />
         <AppHeader class="static z-auto backdrop-blur-none" />
 
-        <UMain class="flex min-h-0 flex-1 overflow-y-auto">
+        <UMain class="min-h-0 flex-1 overflow-y-auto">
           <RouterView />
         </UMain>
 
