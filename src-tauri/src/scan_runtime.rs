@@ -19,8 +19,11 @@ use crate::{
     ocr::OcrEngine,
     scene::SceneManager,
     sound,
-    task::{TaskStopped, run_task},
-    tasks::archive_scan::{ArchiveScanTask, CorrectionIndex, ScanReporter},
+    task::{
+        TaskStopped,
+        archive_scan::{ArchiveScanTask, CorrectionIndex, ScanReporter},
+        run_task,
+    },
     windows_ops,
 };
 

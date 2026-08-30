@@ -9,7 +9,7 @@ use crate::{
     app_paths::AppPaths,
     config::{self, OeaConfig},
     controller::{AppStatus, Controller},
-    tasks::screenshot::{self, ScreenshotFormat},
+    screenshot::{self, ScreenshotFormat},
     types::{ArchiveContract, PrtsData},
     windows_ops,
 };

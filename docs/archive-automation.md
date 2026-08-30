@@ -1,6 +1,6 @@
 # 档案库自动化逻辑
 
-以下内容记录自动化扫描所依赖的游戏界面特征与导航逻辑。修改 `src-tauri/src/scene/`、`src-tauri/src/tasks/archive_scan/` 相关代码时，请保持本文档同步更新。
+以下内容记录自动化扫描所依赖的游戏界面特征与导航逻辑。修改 `src-tauri/src/scene/`、`src-tauri/src/task/archive_scan/` 相关代码时，请保持本文档同步更新。
 
 ## 扫描启动提示的版本机制
 

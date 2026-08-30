@@ -21,7 +21,7 @@ use crate::{
     ocr::OcrEngine,
     scan_runtime::{ScanRunContext, ScanRuntime},
     scene::SceneManager,
-    tasks::archive_scan::{ScanReporter, ScanResult},
+    task::archive_scan::{ScanReporter, ScanResult},
     types::{ArchiveContract, PrtsData},
     windows_ops,
 };
