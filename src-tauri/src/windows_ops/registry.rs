@@ -221,10 +221,10 @@ mod tests {
 
     #[test]
     fn test_read_registry_dword_type_mismatch() {
-        // ProxyServer 是 REG_SZ，用 DWORD 读取应返回类型错误。
-        let hkey = HKEY_CURRENT_USER;
-        let subkey = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
-        let value_name = "ProxyServer";
+        // ProductName 是所有受支持 Windows 版本都有的 REG_SZ，用 DWORD 读取应返回类型错误。
+        let hkey = HKEY_LOCAL_MACHINE;
+        let subkey = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
+        let value_name = "ProductName";
 
         let result = read_registry_dword(hkey, subkey, value_name);
         dbg!(&result);
