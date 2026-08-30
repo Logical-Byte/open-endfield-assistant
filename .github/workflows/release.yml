@@ -1,6 +1,6 @@
 # 发版自动化 workflow
 #
-# 触发方式：推送 `v*` tag（如 `v0.1.0`）后，自动构建绿色便携 zip，并发布到 GitHub Releases（自动生成 changelog）。
+# 触发方式：推送 `v*` tag（如 `v0.1.0`）后，一次构建，同时分发到 GitHub Release、OEM Cloudflare R2 与 MirrorChyan。
 #
 # 要求：tag 必须与 `src-tauri/tauri.conf.json` 中的 `version` 一致（例如 version=0.1.0 时打 v0.1.0），
 #       下方「校验版本号与 tag 一致」步骤会在构建前校验，不一致直接失败。
@@ -16,34 +16,56 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: R2 操作；publish 会从 tag 重建并上传，promote 只切换已有版本
+        required: true
+        default: publish
+        type: choice
+        options:
+          - publish
+          - promote
+      tag:
+        description: 规范版本 tag，例如 v0.1.2
+        required: true
+        type: string
 
 permissions:
-  contents: write
-  actions: write
-
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  build-and-release:
-    name: Build and release
+  build:
+    name: Build portable package
+    if: github.event_name == 'push' || inputs.operation == 'publish'
     runs-on: windows-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      artifact_name: ${{ steps.release.outputs.artifact_name }}
     steps:
-      - name: Checkout
+      - name: Checkout release tag
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
           submodules: recursive
 
-      - name: 校验版本号与 tag 一致
+      - name: Validate release tag and version
+        id: release
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}" -replace '^v', ''
-          $config = Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json
-          if ($config.version -ne $tag) {
-            throw "tag ${{ github.ref_name }} 与 tauri.conf.json 版本 $($config.version) 不一致，请先同步版本号"
+          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.tag }}' } else { '${{ github.ref_name }}' }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+            throw "无效 release tag: $tag"
           }
-          Write-Host "构建版本: $($config.version)"
+          $version = $tag -replace '^v', ''
+          $config = Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json
+          if ($config.version -ne $version) {
+            throw "tag $tag 与 tauri.conf.json 版本 $($config.version) 不一致"
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "artifact_name=oea-release-$tag" >> $env:GITHUB_OUTPUT
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -62,25 +84,145 @@ jobs:
         with:
           workspaces: 'src-tauri -> target'
 
-      - name: Install frontend dependencies
-        run: pnpm install
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build and package
         run: pnpm package
 
+      - name: Generate SHA-256 sidecar
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem releases -File -Filter '*.zip')
+          if ($packages.Count -ne 1) {
+            throw "预期正好一个 zip，实际为 $($packages.Count)"
+          }
+          $package = $packages[0]
+          $hash = (Get-FileHash -Algorithm SHA256 $package.FullName).Hash.ToLowerInvariant()
+          $sidecar = "$($package.FullName).sha256"
+          [IO.File]::WriteAllText($sidecar, "$hash  $($package.Name)`n", [Text.UTF8Encoding]::new($false))
+
+      - name: Upload shared release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.release.outputs.artifact_name }}
+          path: |
+            releases/*.zip
+            releases/*.zip.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  github-release:
+    name: Publish GitHub Release
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download shared release artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: release-artifact
+
       - name: Create release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: releases/*.zip
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: ${{ needs.build.outputs.tag }}
+          files: |
+            release-artifact/*.zip
+            release-artifact/*.zip.sha256
           fail_on_unmatched_files: true
           generate_release_notes: true
 
-      - name: Trigger MirrorChyanUploading
+  r2-release:
+    name: Publish immutable package to R2
+    needs: build
+    runs-on: ubuntu-latest
+    environment: r2-production
+    concurrency:
+      group: oea-r2-stable-release
+      cancel-in-progress: false
+    steps:
+      - name: Checkout publishing scripts
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build.outputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download shared release artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: release-artifact
+
+      - name: Upload package and advance stable
+        run: pnpm run r2:publish -- --tag "${{ needs.build.outputs.tag }}" --artifact-dir release-artifact
+        env:
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+  r2-promote:
+    name: Promote existing R2 package
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'promote'
+    runs-on: ubuntu-latest
+    environment: r2-production
+    concurrency:
+      group: oea-r2-stable-release
+      cancel-in-progress: false
+    steps:
+      - name: Checkout publishing scripts
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Promote verified existing package
+        run: pnpm run r2:promote -- --tag "${{ inputs.tag }}"
+        env:
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+  mirrorchyan:
+    name: Trigger MirrorChyan workflows
+    if: github.event_name == 'push' && needs.github-release.result == 'success'
+    needs: github-release
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Trigger MirrorChyan uploading and release notes
         shell: bash
         run: |
-          gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_release.yml -f tag=${{ github.ref_name }}
-          gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_release_note.yml -f tag=${{ github.ref_name }}
+          gh workflow run --repo "$GITHUB_REPOSITORY" mirrorchyan_release.yml -f tag="${{ github.ref_name }}"
+          gh workflow run --repo "$GITHUB_REPOSITORY" mirrorchyan_release_note.yml -f tag="${{ github.ref_name }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
