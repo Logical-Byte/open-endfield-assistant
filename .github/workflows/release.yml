@@ -39,6 +39,9 @@ jobs:
     name: Build portable package
     if: github.event_name == 'push' || inputs.operation == 'publish'
     runs-on: windows-latest
+    permissions:
+      contents: read
+      actions: write
     outputs:
       tag: ${{ steps.release.outputs.tag }}
       version: ${{ steps.release.outputs.version }}
@@ -87,6 +90,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download OCR models
+        run: pnpm download:models
+
       - name: Build and package
         run: pnpm package
 
@@ -120,6 +126,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - name: Download shared release artifact
         uses: actions/download-artifact@v5
@@ -142,6 +149,9 @@ jobs:
     name: Publish immutable package to R2
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     environment: r2-production
     concurrency:
       group: oea-r2-stable-release
@@ -150,7 +160,9 @@ jobs:
       - name: Checkout publishing scripts
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.build.outputs.tag }}
+          # 手动导入旧 tag 时，发布脚本可能尚未存在于该 tag；使用触发
+          # workflow 的分支/提交，构建产物仍来自 needs.build 指定的 tag。
+          ref: ${{ github.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -181,6 +193,9 @@ jobs:
     name: Promote existing R2 package
     if: github.event_name == 'workflow_dispatch' && inputs.operation == 'promote'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     environment: r2-production
     concurrency:
       group: oea-r2-stable-release
@@ -189,7 +204,7 @@ jobs:
       - name: Checkout publishing scripts
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
