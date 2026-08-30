@@ -119,6 +119,20 @@ impl CorrectionIndex {
             });
         }
 
+        // 特判：digital 分类下 OCR 只识别到「文明」（掩码标题「■■■…文明■■■…保护协定」
+        // 可见部分仅剩“文明”，归一化截断后常规算法无法匹配），直接纠错到该档案
+        if category_id == "digital" && o == "文明" {
+            if let Some(c) = candidates
+                .iter()
+                .find(|c| c.id == "nar_digital_map02_13003_1")
+            {
+                return Some(Corrected {
+                    title: c.title.clone(),
+                    item_ids: vec![c.id.clone()],
+                });
+            }
+        }
+
         // 第 4 步：编辑距离评分，按归一化标题分组（同组距离相同，取组内全部 id）
         let o_len = o.chars().count();
         let mut groups: HashMap<&str, Group> = HashMap::new();
