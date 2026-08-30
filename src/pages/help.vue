@@ -109,7 +109,7 @@ onBeforeUnmount(() => {
             label="OEA 官网"
             rel="noopener noreferrer"
             target="_blank"
-            to="https://oea.biohazard.top/"
+            to="https://ef.yituliu.cn/resources/oea"
           />
           <UButton
             color="neutral"

@@ -1,41 +1,82 @@
-# Open Endfield Assistant（OEA）
+# OEA：终末地档案查漏补缺
 
-**明日方舟终末地**自动化助手 —— 自动扫描「情报档案库」中的全部档案标题，识别并整理为可检索的结果列表。
+[![Rust](https://img.shields.io/badge/Rust-1.85+-orange.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Tauri](https://img.shields.io/badge/Tauri-2.x-purple.svg?logo=tauri&logoColor=white)](https://tauri.app/)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3.x-green.svg?logo=vue.js)](https://vuejs.org/)
+[![Nuxt UI](https://img.shields.io/badge/Nuxt%20UI-4.x-lightblue.svg?logo=nuxtdotjs&logoColor=white)](https://ui.nuxt.com/)
+[![反馈交流群](https://img.shields.io/badge/反馈交流群-954628501-orange.svg?logo=qq)](https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms)
+[![官网](https://img.shields.io/badge/官网-终末地一图流-yellow.svg)](https://ef.yituliu.cn/resources/oea)
 
 > 开发者请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-## 功能
+OEA：一键识别终末地档案库，并同步到 OEM（终末地地图集），助力每一个全收集梦想！
 
-- 一键扫描档案库全部 6 个子分类（音像存档、见闻辑录、中枢档案）中的档案
-- OCR 识别档案标题，并基于游戏数据自动纠错
-- 扫描结果可视化展示：档案分类、识别标题、纠错结果与截图
+- [OEA 官网（下载最新版）](https://ef.yituliu.cn/resources/oea)
+- [反馈交流群：954628501](https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms)
 
-## 下载与安装
+![OEA-image-1](https://cos.yituliu.cn/endfield/oea/assets/oea-image-1.webp)
+![OEA-image-2](https://cos.yituliu.cn/endfield/oea/assets/oea-image-2.webp)
 
-从 [GitHub Releases](https://github.com/Logical-Byte/open-endfield-assistant/releases) 下载最新版 `OEA-windows-x86_64-vX.Y.Z.zip`。
+## 新手提示
 
-**绿色便携，解压即用**：
+1. 前往 [OEA 官网](https://ef.yituliu.cn/resources/oea) 下载，**解压**后运行 `OEA.exe`；
+2. 打开终末地，调成 **1280 × 720**、**简体中文**；
+3. **关闭 HDR**，关闭性能监控软件；
+4. 终末地打开**档案库界面**；
+5. 点击左上角**开始扫描**；
+6. 扫完点击右上角**导出到地图集**。
 
-1. 将 zip 解压到任意目录；
-2. 双击 `OEA.exe` 运行。
+## 操作说明
 
-无需安装程序。所有运行数据（日志、WebView2 数据等）都写在应用目录内，不会写入系统目录；删除整个目录即可完全卸载。
+### 使用前准备
 
-### 系统要求
+- 理论上支持任意 **16:9** 的分辨率。我们最建议使用 **1280 × 720**、**窗口模式**，这个分辨率可以兼顾准确性和性能。
+- 理论上目前支持从任意档案库界面、协议终端界面和大世界界面开始扫描，为了稳定性，建议始终从**档案库主界面**开始扫描。
+- 请将终末地的语言调成**简体中文**。
+- 请**关闭 HDR**，关闭任何会遮挡终末地窗口的软件。
 
-- Windows 10 / 11（x86_64）
+### 快捷键
 
-## 使用说明
+- 按 `'`（引号键）开始扫描档案库；扫描过程中再次按下可停止
+- 按 `Alt` + `Delete` 退出程序
 
-启动后程序**不会自动运行**，而是进入空闲等待状态，通过键盘快捷键控制：
+## 已知问题
 
-| 快捷键        | 功能                                                                                                |
-| ------------- | --------------------------------------------------------------------------------------------------- |
-| `'`（引号键） | 启动扫描档案库任务（导航到档案库主界面，扫描全部 6 个子分类中的档案标题）；扫描过程中再次按下可停止 |
-| `Alt+Delete`  | 退出程序。扫描任务运行中按下会先优雅停止扫描任务，随后退出程序                                      |
+- 存在 2 个不同的档案，名称都为「挂在竹子上的字条」。OEA 目前无法区分二者，目前只要识别到其一就认为 2 个档案都已收集。
 
-使用前请确保游戏已运行，且当前处于可自动导航至档案库的界面（大世界、协议终端或档案库任意界面均可）。
+## 常见问题
 
-## 反馈
+- **手机能用吗？**
+  不能。OEA 仅支持 Windows 10 / 11（x86_64）。
+- **识别结果不准确怎么办？**
+  可以使用输入框进行人工纠错。建议将识别错误告知我们，以便改进识别算法。
+- **OEA 收费吗？**
+  OEA 开源且免费，不会以任何形式收取费用。您可以前往 [GitHub Release](https://github.com/Logical-Byte/open-endfield-assistant/releases) 免费下载和使用 OEA。如果您是通过付费方式获取的 OEA，您可能已经被不法商家欺骗，请立即告知我们。
+- **OEA 和 Mirror酱的关系是什么？**
+  [Mirror酱](https://mirrorchyan.com/) 是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。OEA 本身不收取任何费用，也提供免费的下载渠道，您可以前往 [GitHub Release](https://github.com/Logical-Byte/open-endfield-assistant/releases) 免费下载和使用。
 
-遇到问题或建议，欢迎提交 [issue](https://github.com/Logical-Byte/open-endfield-assistant/issues)，并附上应用目录下 `logs/` 中的日志文件，便于定位问题。
+## 反馈交流
+
+- [反馈交流群：954628501](https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms)
+- [提交 GitHub Issue](https://github.com/Logical-Byte/open-endfield-assistant/issues)
+
+遇到问题或建议，欢迎反馈并附上应用目录下 `logs/` 中的日志文件，便于定位问题。
+
+## 致谢
+
+- [终末地一图流](https://ef.yituliu.cn/)
+- [终末地地图集](https://oem.re/)
+- [逻辑元LogicalByte](https://space.bilibili.com/688411531)
+- [Mirror酱](https://mirrorchyan.com/)
+- [MaaXYZ/MaaFramework](https://github.com/MaaXYZ/MaaFramework)
+- [MistEO/MXU](https://github.com/MistEO/MXU)
+- [MaaEnd/MaaEnd](https://github.com/MaaEnd/MaaEnd)
+
+## 说明
+
+1. 自动更新功能有删除硬盘上的文件的操作，请确保重要数据已备份再使用自动更新功能，避免误删重要文件。
+2. 机器识别，可能存在错误。若发现错误，欢迎反馈。
+3. 本工具按 “原样”、“包含全部错误” 和 “视可用性情况” 提供，作者不对可用性、准确性或使用效果做出任何承诺或保证。
+4. 使用者必须确保使用本工具符合相关法律法规与服务条款，禁止用于任何违法或侵权行为。
+5. 使用者需承担因使用本工具产生的任何风险、损失或责任。
+6. 使用本工具即意味着您同意以上全部内容。

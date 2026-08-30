@@ -131,7 +131,7 @@ const summary = computed(() => {
         <UButton
           :color="appStatus.running ? 'error' : 'success'"
           :icon="appStatus.running ? 'i-lucide-square' : 'i-lucide-play'"
-          :label="appStatus.running ? '停止扫描' : '开始扫描'"
+          :label="appStatus.running ? '停止扫描（引号键）' : '开始扫描（引号键）'"
           @click="toggleScan"
         />
         <UButton class="ms-auto" icon="i-lucide-map" label="导出到地图集" @click="exportToOem" />
