@@ -1,0 +1,71 @@
+name: Bug 反馈
+description: 反馈识别错误、操作异常、程序崩溃等问题
+labels: ['bug']
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前检查
+      description: 请确认以下事项。
+      options:
+        - label: 我正在使用最新版本的 OEA。
+          required: true
+        - label: 我已搜索现有及已关闭的 Issue，确认没有重复报告。
+          required: true
+        - label: 我已尽可能提供复现步骤、日志等定位问题所需的信息。
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 请清晰、详细地描述遇到的问题。
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: 请列出可以稳定或偶尔复现问题的操作步骤。
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 出现……
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+      description: 请描述正常情况下你期望看到的结果。
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: OEA 版本
+      description: 请填写完整版本号。
+      placeholder: 例如：v1.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志
+      description: 可将应用目录下 logs 文件夹中的相关日志拖到此处上传。日志可能包含路径等个人信息，请在上传前检查。
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏
+      description: 如有必要，请上传能够展示问题的截图或录屏。
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 其他补充
+      description: 请填写其他可能有助于定位问题的信息。
