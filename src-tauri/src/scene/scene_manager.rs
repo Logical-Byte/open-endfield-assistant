@@ -58,10 +58,21 @@ impl SceneManager {
     ///
     /// 场景按注册顺序排列识别优先级——应先注册更具体的场景（如"档案详情页面"），
     /// 再注册更笼统的场景（如"大世界"、"未知"）。
+    ///
+    /// # Panics
+    ///
+    /// 同一个 `SceneId` 变体只能注册一个场景识别器。带负载的变体应由同一个
+    /// 识别器返回具体 ID，例如 `档案库子界面`。
     pub fn register(&mut self, scene: Box<dyn Scene>) {
         let id = scene.id();
         let idx = self.scenes.len();
-        self.scene_index.insert(discriminant(&id), idx);
+        let key = discriminant(&id);
+        assert!(
+            !self.scene_index.contains_key(&key),
+            "同一 SceneId 变体重复注册: {:?}",
+            id
+        );
+        self.scene_index.insert(key, idx);
         self.scenes.push(scene);
     }
 
