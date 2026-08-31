@@ -43,29 +43,8 @@ impl Task for ArchiveScanTask {
         "扫描档案库"
     }
 
-    fn supported_entry_scenes(&self) -> &[SceneId] {
-        // 任务支持从任意档案库相关界面、协议终端或大世界开始：
-        // - 大世界 → 自动导航到 协议终端 → 档案库主界面
-        // - 协议终端 → 自动导航到 档案库主界面
-        // - 档案库主界面 → 无需导航，直接开始扫描
-        // - 档案库子界面（任意分类）→ 自动导航到 档案库主界面
-        // - 档案详情页面 → 自动导航到 档案库子界面 → 档案库主界面
-        static ENTRIES: std::sync::LazyLock<Vec<SceneId>> = std::sync::LazyLock::new(|| {
-            use 档案库SubSceneId::*;
-            vec![
-                SceneId::大世界,
-                SceneId::协议终端,
-                SceneId::档案库主界面,
-                SceneId::档案库子界面(音像存档_多媒体),
-                SceneId::档案库子界面(见闻辑录_纸质记录),
-                SceneId::档案库子界面(见闻辑录_电子档案),
-                SceneId::档案库子界面(见闻辑录_藏品),
-                SceneId::档案库子界面(中枢档案_中枢档案),
-                SceneId::档案库子界面(中枢档案_调查报告),
-                SceneId::档案详情页面,
-            ]
-        });
-        &ENTRIES
+    fn precondition_scene(&self) -> SceneId {
+        SceneId::档案库主界面
     }
 
     fn run(&self, session: &mut Session, scene_manager: &SceneManager) -> Result<()> {
