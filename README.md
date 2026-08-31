@@ -68,6 +68,7 @@ OEA：一键识别终末地档案库，并同步到 OEM（终末地地图集）�
 - [终末地地图集](https://oem.re/)
 - [逻辑元LogicalByte](https://space.bilibili.com/688411531)
 - [Mirror酱](https://mirrorchyan.com/)
+- [RapidAI/RapidOCR](https://github.com/RapidAI/RapidOCR)（[模型仓库](https://www.modelscope.cn/models/RapidAI/RapidOCR)、[第三方组件说明](docs/third-party-notices.md)）
 - [MaaXYZ/MaaFramework](https://github.com/MaaXYZ/MaaFramework)
 - [MistEO/MXU](https://github.com/MistEO/MXU)
 - [MaaEnd/MaaEnd](https://github.com/MaaEnd/MaaEnd)

@@ -354,6 +354,26 @@ onBeforeUnmount(() => {
             <UButton
               class="px-0"
               color="primary"
+              label="RapidAI/RapidOCR (GitHub)"
+              rel="noopener noreferrer"
+              target="_blank"
+              to="https://github.com/RapidAI/RapidOCR"
+              trailing-icon="i-simple-icons:github"
+              variant="link"
+            />
+            <UButton
+              class="px-0"
+              color="primary"
+              label="RapidAI/RapidOCR 模型 (ModelScope)"
+              rel="noopener noreferrer"
+              target="_blank"
+              to="https://www.modelscope.cn/models/RapidAI/RapidOCR"
+              trailing-icon="i-lucide-external-link"
+              variant="link"
+            />
+            <UButton
+              class="px-0"
+              color="primary"
               label="MaaXYZ/MaaFramework"
               rel="noopener noreferrer"
               target="_blank"
