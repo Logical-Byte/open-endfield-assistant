@@ -5,6 +5,8 @@
 //!
 //! 任务运行中的导航一律委托 [`crate::scene::SceneManager`]，Task 只写业务节奏。
 
+pub mod archive_scan;
+
 use anyhow::{Result, bail};
 
 use crate::{

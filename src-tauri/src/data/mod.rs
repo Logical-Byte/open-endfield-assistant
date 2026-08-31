@@ -16,7 +16,7 @@ use tracing::info;
 
 use crate::{
     app_paths::AppPaths,
-    tasks::archive_scan::CorrectionIndex,
+    task::archive_scan::CorrectionIndex,
     types::{ArchiveContract, PrtsData},
 };
 

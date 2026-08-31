@@ -36,7 +36,7 @@ cargo test
 ## 专题文档
 
 - 修改打包或发版流程前，阅读 `docs/releasing.md`。
-- 修改 `src-tauri/src/scene/` 或 `src-tauri/src/tasks/archive_scan/` 下的档案库自动化逻辑前，阅读 `docs/archive-automation.md`。
+- 修改 `src-tauri/src/scene/` 或 `src-tauri/src/task/archive_scan/` 下的档案库自动化逻辑前，阅读 `docs/archive-automation.md`。
 - 修改解包数据处理、档案标题映射或相关数据生成脚本前，阅读 `docs/game-data.md`。
 
 ## 本地/个人偏好
