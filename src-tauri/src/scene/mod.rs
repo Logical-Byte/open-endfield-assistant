@@ -6,7 +6,10 @@
 
 pub mod archive;
 pub mod overworld;
+mod route_executor;
+mod route_planner;
 pub mod scene_action;
+mod scene_detector;
 pub mod scene_id;
 pub mod scene_manager;
 pub mod scene_trait;
@@ -47,22 +50,4 @@ impl Scene for Scene未知 {
         static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(Vec::new);
         &T
     }
-}
-
-/// 构建并注册本游戏所有场景的 SceneManager。
-///
-/// 注册顺序即识别优先级（具体 → 笼统）：
-/// 档案详情页面 → 档案库子界面 → 档案库主界面 → 协议终端 → 大世界 → 未知（兜底）。
-pub fn create_scene_manager() -> SceneManager {
-    let mut sm = SceneManager::new();
-
-    sm.register(Box::new(archive::Scene档案详情页面)); // 1. 最具体
-    sm.register(Box::new(archive::Scene档案库子界面)); // 2. 子界面
-    sm.register(Box::new(archive::Scene档案库主界面)); // 3. 主界面
-    sm.register(Box::new(terminal::Scene协议终端)); // 4. 协议终端
-    sm.register(Box::new(overworld::Scene大世界)); // 5. 大世界
-    sm.register(Box::new(Scene未知)); // 6. 兜底
-
-    sm.build_navigation_graph();
-    sm
 }

@@ -34,7 +34,7 @@ use tracing::{info, warn};
 
 use crate::{
     app_paths::AppPaths, controller::Controller, data::AppData, ocr::OcrEngine,
-    scan_runtime::ScanRuntime, scene::create_scene_manager,
+    scan_runtime::ScanRuntime, scene::SceneManager,
 };
 
 #[cfg(target_os = "windows")]
@@ -211,7 +211,14 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let app_data = AppData::load(&app_paths)?;
 
     // 场景管理器（本游戏全部场景，注册顺序即识别优先级）
-    let scenes = Arc::new(create_scene_manager());
+    let scenes = Arc::new(SceneManager::new(vec![
+        Box::new(scene::archive::Scene档案详情页面),
+        Box::new(scene::archive::Scene档案库子界面),
+        Box::new(scene::archive::Scene档案库主界面),
+        Box::new(scene::terminal::Scene协议终端),
+        Box::new(scene::overworld::Scene大世界),
+        Box::new(scene::Scene未知),
+    ]));
 
     // 开始监听热键
     let oea_window = windows_ops::window::get_app_window(app.handle())?;
