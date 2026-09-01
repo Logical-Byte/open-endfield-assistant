@@ -1,3 +1,5 @@
+//! Scene recognition and registered-scene lookup.
+
 use std::{
     collections::HashMap,
     mem::{Discriminant, discriminant},
@@ -6,7 +8,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use tracing::{debug, warn};
 
-use super::{Scene, SceneId};
+use super::model::{Scene, SceneId};
 use crate::session::Session;
 
 /// 已注册场景的查找与检测入口。

@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use anyhow::Result;
 
-use super::{DEFAULT_THRESHOLD, Scene, SceneAction, SceneId, SceneTransition};
+use super::super::{DEFAULT_THRESHOLD, Scene, SceneAction, SceneId, SceneTransition};
 use crate::session::Session;
 use crate::utils::region::Region2D;
 

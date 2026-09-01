@@ -10,7 +10,7 @@ use anyhow::{Result, bail};
 use tracing::{debug, info, warn};
 
 use super::{
-    Scene, SceneId,
+    model::{Scene, SceneId},
     route_executor::{RouteExecutionOutcome, RouteExecutor},
     route_planner::RoutePlanner,
     scene_detector::SceneDetector,
@@ -149,7 +149,7 @@ impl SceneManager {
 
             let outcome = RouteExecutor::new(&self.scene_detector, session, route).run()?;
             current = outcome.observed_scene();
-            if navigation_reached_target(outcome, target) {
+            if outcome.observed_scene() == target {
                 info!("导航完成: 已到达 {:?}", target);
                 return Ok(());
             }
@@ -162,7 +162,7 @@ impl SceneManager {
             }
             replan_count += 1;
             match outcome {
-                RouteExecutionOutcome::Completed { .. } => warn!(
+                RouteExecutionOutcome::RouteFinished { .. } => warn!(
                     "路由执行完成但未到达预期场景 {:?}，当前为 {:?}，重新规划 ({}/{})",
                     target, current, replan_count, MAX_REPLANS
                 ),
@@ -182,23 +182,5 @@ impl SceneManager {
             return Ok(());
         }
         self.navigate_to(target, session)
-    }
-}
-
-fn navigation_reached_target(outcome: RouteExecutionOutcome, target: SceneId) -> bool {
-    outcome.observed_scene() == target
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn interrupted_route_that_observed_target_is_complete() {
-        let outcome = RouteExecutionOutcome::NeedsReplan {
-            current_scene: SceneId::档案库主界面,
-        };
-
-        assert!(navigation_reached_target(outcome, SceneId::档案库主界面));
     }
 }

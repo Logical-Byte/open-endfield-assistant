@@ -1,22 +1,24 @@
+//! Execution and verification of a single planned route.
+
 use std::{thread, time::Duration};
 
 use anyhow::Result;
 use tracing::{debug, warn};
 
-use super::{SceneId, route_planner::Route, scene_detector::SceneDetector};
+use super::{model::SceneId, route_planner::Route, scene_detector::SceneDetector};
 use crate::session::Session;
 
 /// 一次路由执行的可恢复结果；`Err` 仅表示动作或场景检测本身出错。
 #[derive(Clone, Copy)]
 pub(super) enum RouteExecutionOutcome {
-    Completed { final_scene: SceneId },
+    RouteFinished { final_scene: SceneId },
     NeedsReplan { current_scene: SceneId },
 }
 
 impl RouteExecutionOutcome {
     pub(super) fn observed_scene(self) -> SceneId {
         match self {
-            Self::Completed { final_scene } => final_scene,
+            Self::RouteFinished { final_scene } => final_scene,
             Self::NeedsReplan { current_scene } => current_scene,
         }
     }
@@ -91,7 +93,7 @@ impl<'a> RouteExecutor<'a> {
             }
         }
 
-        Ok(RouteExecutionOutcome::Completed {
+        Ok(RouteExecutionOutcome::RouteFinished {
             final_scene: current_scene,
         })
     }
