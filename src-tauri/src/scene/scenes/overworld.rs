@@ -4,7 +4,8 @@ use std::sync::LazyLock;
 
 use anyhow::Result;
 
-use super::super::{DEFAULT_THRESHOLD, Scene, SceneAction, SceneId, SceneTransition};
+use super::super::model::{Scene, SceneAction, SceneId, SceneTransition};
+use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::session::Session;
 use crate::utils::region::Region2D;
 
@@ -31,7 +32,7 @@ impl Scene for Scene大世界 {
                 &screenshot,
                 "协议终端.png",
                 ROI_协议终端按钮,
-                DEFAULT_THRESHOLD,
+                TEMPLATE_MATCH_THRESHOLD,
             )?
             .is_some();
 

@@ -4,7 +4,8 @@ use std::sync::LazyLock;
 
 use anyhow::Result;
 
-use super::super::{DEFAULT_THRESHOLD, Scene, SceneAction, SceneId, SceneTransition};
+use super::super::model::{Scene, SceneAction, SceneId, SceneTransition};
+use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::session::Session;
 use crate::utils::region::Region2D;
 
@@ -27,7 +28,12 @@ impl Scene for Scene协议终端 {
         let screenshot = session.screencap_for_recognition()?;
 
         let found = session
-            .find_template_in_roi(&screenshot, "档案库.png", ROI_档案库按钮, DEFAULT_THRESHOLD)?
+            .find_template_in_roi(
+                &screenshot,
+                "档案库.png",
+                ROI_档案库按钮,
+                TEMPLATE_MATCH_THRESHOLD,
+            )?
             .is_some();
 
         Ok(if found {
@@ -44,7 +50,7 @@ impl Scene for Scene协议终端 {
                 action: SceneAction::FindAndClickTemplate {
                     template_name: "档案库.png",
                     roi: ROI_档案库按钮,
-                    threshold: DEFAULT_THRESHOLD,
+                    threshold: TEMPLATE_MATCH_THRESHOLD,
                 },
             }]
         });

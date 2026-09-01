@@ -15,6 +15,3 @@ mod scenes;
 pub use model::{Scene, SceneAction, SceneId, SceneTransition, 档案库SubSceneId};
 pub use scene_manager::SceneManager;
 pub use scenes::{Scene未知, archive, overworld, terminal};
-
-/// 模板匹配默认阈值（720p 基准）。
-pub(crate) const DEFAULT_THRESHOLD: f32 = 0.75;
