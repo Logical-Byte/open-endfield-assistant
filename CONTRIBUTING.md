@@ -37,7 +37,7 @@
 ```bash
 git clone --recurse-submodules git@github.com:Logical-Byte/open-endfield-assistant.git
 # 如果已经克隆但没有子模块：
-git submodule update --init --recursive
+pnpm submodules:init
 ```
 
 ### 安装依赖
