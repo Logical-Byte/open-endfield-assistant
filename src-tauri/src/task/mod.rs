@@ -1,13 +1,13 @@
 //! 任务系统模块。
 //!
 //! `Task` trait 是脚本的扩展点：每个自动化脚本实现一个 Task。
-//! [`run_task`] 提供通用启动流程：检测当前场景 → 不在入口列表则导航到第一个入口 → 执行任务。
+//! [`run_task`] 提供通用启动流程：满足任务的前置场景 → 执行任务。
 //!
 //! 任务运行中的导航一律委托 [`crate::scene::SceneManager`]，Task 只写业务节奏。
 
 pub mod archive_scan;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 
 use crate::{
     scene::{SceneId, scene_manager::SceneManager},
@@ -36,11 +36,10 @@ pub trait Task {
     /// 任务名称（用于日志）。
     fn name(&self) -> &str;
 
-    /// 任务支持的入口场景列表。
+    /// 任务执行所需的前置场景。
     ///
-    /// 任务可以从这些场景中的任意一个开始执行；不在列表中时 [`run_task`]
-    /// 会导航到第一个入口场景。
-    fn supported_entry_scenes(&self) -> &[SceneId];
+    /// [`run_task`] 会在调用 [`Task::run`] 前导航到该场景。
+    fn precondition_scene(&self) -> SceneId;
 
     /// 执行任务主逻辑。
     ///
@@ -48,7 +47,7 @@ pub trait Task {
     fn run(&self, session: &mut Session, scenes: &SceneManager) -> Result<()>;
 }
 
-/// 运行任务：检测当前场景 → 不在入口列表则导航到第一个入口 → 执行任务。
+/// 运行任务：满足任务的前置场景 → 执行任务。
 pub fn run_task(task: &dyn Task, session: &mut Session, scenes: &SceneManager) -> Result<()> {
     tracing::info!("========== 开始执行任务: {} ==========", task.name());
 
@@ -56,28 +55,10 @@ pub fn run_task(task: &dyn Task, session: &mut Session, scenes: &SceneManager) -
     //    按钮 hover 样式变化干扰首次场景识别 / 导航。
     session.move_mouse_to_safe_position()?;
 
-    // 1. 检测当前场景
-    let current = scenes.detect_current_scene(session)?;
+    // 1. 满足任务的前置场景
+    scenes.ensure_scene(task.precondition_scene(), session)?;
 
-    // 2. 不在支持的入口场景中则导航到第一个入口
-    if !task.supported_entry_scenes().contains(&current) {
-        let target = task
-            .supported_entry_scenes()
-            .first()
-            .copied()
-            .unwrap_or(SceneId::未知);
-        if target == SceneId::未知 {
-            bail!("任务 {} 无有效入口场景", task.name());
-        }
-        tracing::info!(
-            "当前场景 {:?} 不在任务入口列表中，导航到 {:?}",
-            current,
-            target
-        );
-        scenes.navigate_to(target, session)?;
-    }
-
-    // 3. 执行任务
+    // 2. 执行任务
     task.run(session, scenes)?;
 
     tracing::info!("========== 任务 {} 执行完毕 ==========", task.name());
