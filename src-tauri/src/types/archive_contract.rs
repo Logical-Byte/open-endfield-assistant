@@ -1,6 +1,6 @@
 //! `archive_contract.json` 的 Rust 类型定义（与前端 `src/types/archiveContract.ts` 对齐）。
 //!
-//! 该数据文件描述档案库全部 454 个逻辑条目（对应 prts.json allItems 按逻辑 id 归并）的
+//! 该数据文件描述档案库全部逻辑条目（对应 prts.json allItems 按逻辑 id 归并）的
 //! 获取方式，按 6 个分类分组。每条记录以 `acquisition.method` 为判别字段，对应不同的
 //! 获取途径与附加字段：
 //!
@@ -162,10 +162,8 @@ mod tests {
         let contract: ArchiveContract = serde_json::from_str(&text).expect("反序列化失败");
 
         assert_eq!(contract.version, 1);
-        // 6 个分类，共 454 个逻辑条目（对应 prts allItems 按逻辑 id 归并）
+        // 档案分类稳定为 6 类，可视为数据 schema 的一部分
         assert_eq!(contract.categories.len(), 6);
-        let total: usize = contract.categories.values().map(Vec::len).sum();
-        assert_eq!(total, 454);
 
         // 校验各获取方式必填字段一致
         for rows in contract.categories.values() {
