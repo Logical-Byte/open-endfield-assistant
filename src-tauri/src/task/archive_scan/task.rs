@@ -48,11 +48,7 @@ impl Task for ArchiveScanTask {
     }
 
     fn run(&self, session: &mut Session, scene_manager: &SceneManager) -> Result<()> {
-        // Step 1: 确保在档案库主界面
-        info!("导航到档案库主界面...");
-        scene_manager.ensure_scene(SceneId::档案库主界面, session)?;
-
-        // Step 2: 遍历所有子分类
+        // Step 1: 遍历所有子分类
         for (step_idx, step) in SCAN_PLAN.iter().enumerate() {
             info!(
                 "===== 扫描子分类 {}/{}: {:?} =====",
@@ -61,10 +57,10 @@ impl Task for ArchiveScanTask {
                 step.first_sub_scene
             );
 
-            // 2a. 从档案库主界面点击入口按钮进入子分类
+            // 1a. 从档案库主界面点击入口按钮进入子分类
             self.enter_sub_scene_from_main(session, scene_manager, step)?;
 
-            // 2b. 遍历该分类下的所有子界面
+            // 1b. 遍历该分类下的所有子界面
             for (sub_idx, &sub_scene) in step.sub_scenes.iter().enumerate() {
                 if sub_idx > 0 {
                     // 不是第一个子界面，需要点击侧边栏 tab 切换（索引即 tab 序号）
@@ -88,7 +84,7 @@ impl Task for ArchiveScanTask {
                 info!("完成扫描 {:?}", sub_scene);
             }
 
-            // 2c. 返回档案库主界面（准备进入下一个子分类）
+            // 1c. 返回档案库主界面（准备进入下一个子分类）
             info!("返回档案库主界面...");
             scene_manager.navigate_to(SceneId::档案库主界面, session)?;
         }
@@ -100,14 +96,15 @@ impl Task for ArchiveScanTask {
 
 impl ArchiveScanTask {
     /// 从档案库主界面点击入口按钮进入子分类。
+    ///
+    /// 调用时应已处于档案库主界面。
     fn enter_sub_scene_from_main(
         &self,
         session: &mut Session,
         scene_manager: &SceneManager,
         step: &ScanStep,
     ) -> Result<()> {
-        // 确保在主界面
-        scene_manager.ensure_scene(SceneId::档案库主界面, session)?;
+        scene_manager.require_scene(SceneId::档案库主界面, session)?;
 
         // 截图并搜索入口按钮
         let screenshot = session.screencap_for_recognition()?;

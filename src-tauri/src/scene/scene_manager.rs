@@ -6,6 +6,7 @@
 
 use std::{
     collections::{HashMap, VecDeque},
+    mem::{Discriminant, discriminant},
     thread,
     time::Duration,
 };
@@ -37,8 +38,8 @@ fn normalize_scene_id(id: SceneId) -> SceneId {
 pub struct SceneManager {
     /// 所有已注册的场景（按优先级排序，越具体的场景越靠前）
     scenes: Vec<Box<dyn Scene>>,
-    /// 场景 ID → 索引的快速查找表
-    scene_index: HashMap<SceneId, usize>,
+    /// 场景 ID 变体 → 索引的快速查找表
+    scene_index: HashMap<Discriminant<SceneId>, usize>,
     /// 导航图：scene_id → 所有可达的 (target_id, transition_index)
     navigation_graph: HashMap<SceneId, Vec<(SceneId, usize)>>,
 }
@@ -57,10 +58,21 @@ impl SceneManager {
     ///
     /// 场景按注册顺序排列识别优先级——应先注册更具体的场景（如"档案详情页面"），
     /// 再注册更笼统的场景（如"大世界"、"未知"）。
+    ///
+    /// # Panics
+    ///
+    /// 同一个 `SceneId` 变体只能注册一个场景识别器。带负载的变体应由同一个
+    /// 识别器返回具体 ID，例如 `档案库子界面`。
     pub fn register(&mut self, scene: Box<dyn Scene>) {
         let id = scene.id();
         let idx = self.scenes.len();
-        self.scene_index.insert(id, idx);
+        let key = discriminant(&id);
+        assert!(
+            !self.scene_index.contains_key(&key),
+            "同一 SceneId 变体重复注册: {:?}",
+            id
+        );
+        self.scene_index.insert(key, idx);
         self.scenes.push(scene);
     }
 
@@ -136,6 +148,18 @@ impl SceneManager {
             thread::sleep(Duration::from_millis(200));
         }
         Ok(false)
+    }
+
+    /// 检查当前是否为指定场景，不执行导航。
+    ///
+    /// 仅调用期望场景对应的识别器，避免遍历所有已注册场景。
+    /// 对于档案库子界面，识别结果必须与期望的具体子界面完全一致。
+    pub fn require_scene(&self, expected: SceneId, session: &mut Session) -> Result<()> {
+        if self.recognizes_scene(expected, session)? {
+            Ok(())
+        } else {
+            bail!("当前场景不符合预期: {:?}", expected)
+        }
     }
 
     // ========== 场景导航 ==========
@@ -254,15 +278,37 @@ impl SceneManager {
     }
 
     /// 确保当前处于目标场景，如果不在则自动导航过去。
+    ///
+    /// 先仅调用目标场景的识别器；识别不匹配时再执行完整导航。
     pub fn ensure_scene(&self, target: SceneId, session: &mut Session) -> Result<()> {
-        let current = self.detect_current_scene(session)?;
-        if current == target {
+        if self.recognizes_scene(target, session)? {
             return Ok(());
         }
         self.navigate_to(target, session)
     }
 
     // ========== 内部方法 ==========
+
+    /// 根据场景 ID 变体查找已注册的场景识别器。
+    fn get_registered_scene(&self, hint: SceneId) -> Option<&dyn Scene> {
+        let idx = self.scene_index.get(&discriminant(&hint))?;
+        Some(self.scenes[*idx].as_ref())
+    }
+
+    /// 仅使用期望场景的识别器检查当前场景。
+    fn recognizes_scene(&self, expected: SceneId, session: &mut Session) -> Result<bool> {
+        if expected == SceneId::未知 {
+            bail!("未知场景不能作为预期场景");
+        }
+
+        let scene = self
+            .get_registered_scene(expected)
+            .ok_or_else(|| anyhow::anyhow!("未注册的场景: {:?}", expected))?;
+        let recognized = scene
+            .try_recognize(session)
+            .with_context(|| format!("场景识别出错 ({})", scene.name()))?;
+        Ok(recognized == Some(expected))
+    }
 
     /// BFS 寻找从 `from` 到 `to` 的最短路径。
     ///
@@ -318,13 +364,9 @@ impl SceneManager {
 
     /// 执行单步跳转：从 `from` 场景跳转到 `to` 场景。
     fn execute_single_step(&self, from: SceneId, to: SceneId, session: &mut Session) -> Result<()> {
-        // 归一化 档案库子界面 的 variants 以便在 scene_index 中查找
-        let lookup_id = normalize_scene_id(from);
-        let &idx = self
-            .scene_index
-            .get(&lookup_id)
+        let scene = self
+            .get_registered_scene(from)
             .ok_or_else(|| anyhow::anyhow!("未注册的场景: {:?}", from))?;
-        let scene = &self.scenes[idx];
         scene.execute_transition(to, session)
     }
 }
