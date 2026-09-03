@@ -36,14 +36,13 @@ impl SceneDetector {
     }
 
     pub(super) fn detect_current_scene(&self, session: &mut Session) -> Result<SceneId> {
-        // Preserve the detection contract: capture failures must abort even when
-        // the fallback unknown scene would otherwise match.
-        session.screencap_for_recognition()?;
+        let frame = session.screencap_for_recognition()?;
+        let mut context = session.recognition_context(&frame);
 
         for scene in &self.scenes {
             // 模板或图像错误必须终止任务，不能降级成「未知场景」。
             let id = scene
-                .try_recognize(session)
+                .try_recognize(&mut context)
                 .with_context(|| format!("场景识别出错 ({})", scene.name()))?;
             if let Some(id) = id {
                 debug!("场景检测: 当前处于 {:?}", id);
@@ -68,8 +67,10 @@ impl SceneDetector {
         let scene = self
             .get_registered_scene(expected)
             .ok_or_else(|| anyhow::anyhow!("未注册的场景: {:?}", expected))?;
+        let frame = session.screencap_for_recognition()?;
+        let mut context = session.recognition_context(&frame);
         let recognized = scene
-            .try_recognize(session)
+            .try_recognize(&mut context)
             .with_context(|| format!("场景识别出错 ({})", scene.name()))?;
         Ok(recognized == Some(expected))
     }

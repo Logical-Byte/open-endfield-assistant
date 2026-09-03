@@ -11,6 +11,10 @@
 //!
 //! 会话贯穿一次游戏操作（扫描档案库任务），由调用方以 `&mut` 串行使用。
 
+mod recognition_context;
+
+pub use recognition_context::RecognitionContext;
+
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -113,6 +117,11 @@ impl Session {
         Ok(self.resolution.scale_screenshot_to_base(&raw))
     }
 
+    /// 为一个固定识别帧借用会话的识别基础设施。
+    pub fn recognition_context<'a>(&'a mut self, frame: &'a RgbaImage) -> RecognitionContext<'a> {
+        RecognitionContext::new(frame, &mut self.templates)
+    }
+
     // ========== 输入（统一 720p → 实际分辨率缩放） ==========
 
     /// 点击 720p 基准坐标点（自动缩放），点击后鼠标回到窗口中心，
@@ -163,16 +172,8 @@ impl Session {
         roi: Region2D<u32>,
         threshold: f32,
     ) -> Result<Option<MatchResult>> {
-        // 直接传 RgbaImage 引用：泛型接口内部灰度化，无需克隆 / 颜色转换。
-        // 错误（如模板加载失败）用 ? 向上传播，交由上层记录日志。
-        let m = self
-            .templates
-            .match_template_in_region(screenshot, template_name, Some(roi))?;
-        if m.score >= threshold {
-            Ok(Some(m))
-        } else {
-            Ok(None)
-        }
+        self.recognition_context(screenshot)
+            .find_template_in_roi(template_name, roi, threshold)
     }
 
     /// 在 720p 截图指定 ROI 内搜索模板，找到后点击其中心（自动缩放）。
@@ -221,33 +222,6 @@ impl Session {
         } else {
             Ok("".into())
         }
-    }
-
-    // ========== 颜色判断 ==========
-
-    /// 判断 720p 截图 ROI（ltwh）区域平均灰度是否低于阈值（即深色 / 选中态）。
-    pub fn is_roi_dark_ltwh(
-        &self,
-        screenshot: &RgbaImage,
-        x: u32,
-        y: u32,
-        w: u32,
-        h: u32,
-        threshold: u8,
-    ) -> bool {
-        self.is_roi_dark(screenshot, Region2D::from_ltwh(x, y, w, h), threshold)
-    }
-
-    /// 判断 720p 截图 ROI 区域平均灰度是否低于阈值。
-    fn is_roi_dark(&self, screenshot: &RgbaImage, roi: Region2D<u32>, threshold: u8) -> bool {
-        let cropped = imageops::crop_imm(screenshot, roi.x0(), roi.y0(), roi.width(), roi.height());
-        let gray = imageops::grayscale(&cropped.to_image());
-        let total: u64 = gray.pixels().map(|p| p.0[0] as u64).sum();
-        let pixel_count = (roi.width() * roi.height()) as u64;
-        if pixel_count == 0 {
-            return false;
-        }
-        ((total / pixel_count) as u8) < threshold
     }
 
     // ========== 截图器 / 输入器切换（扩展点） ==========

@@ -12,6 +12,7 @@ mod scene_detector;
 pub mod scene_manager;
 mod scenes;
 
+pub use crate::session::RecognitionContext;
 pub use model::{Scene, SceneAction, SceneId, SceneTransition, 档案库SubSceneId};
 pub use scene_manager::SceneManager;
 pub use scenes::{Scene未知, archive, overworld, terminal};

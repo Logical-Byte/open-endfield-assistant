@@ -6,7 +6,7 @@ use anyhow::Result;
 
 use super::super::model::{Scene, SceneAction, SceneId, SceneTransition};
 use super::TEMPLATE_MATCH_THRESHOLD;
-use crate::session::Session;
+use crate::session::RecognitionContext;
 use crate::utils::region::Region2D;
 
 /// 协议终端按钮 ROI (1180, 0, 1280, 100)
@@ -24,16 +24,9 @@ impl Scene for Scene大世界 {
         "大世界"
     }
 
-    fn try_recognize(&self, session: &mut Session) -> Result<Option<SceneId>> {
-        let screenshot = session.screencap_for_recognition()?;
-
-        let found = session
-            .find_template_in_roi(
-                &screenshot,
-                "协议终端.png",
-                ROI_协议终端按钮,
-                TEMPLATE_MATCH_THRESHOLD,
-            )?
+    fn try_recognize(&self, context: &mut RecognitionContext<'_>) -> Result<Option<SceneId>> {
+        let found = context
+            .find_template_in_roi("协议终端.png", ROI_协议终端按钮, TEMPLATE_MATCH_THRESHOLD)?
             .is_some();
 
         Ok(if found {
