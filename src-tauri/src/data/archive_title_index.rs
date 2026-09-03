@@ -47,45 +47,51 @@ impl ArchiveTitleIndex {
 
 /// 生成档案标题候选与 OCR 文本共用的规范化形式。
 ///
-/// 处理流程为：移除富文本标签，转换半角标点，截取前 [`NORM_MAX_CHARS`]
-/// 个字符，移除空白与遮罩字符，并应用已知字符替换。`ArchiveTitleIndex`
+/// 处理流程为：移除富文本标签，截取前 [`NORM_MAX_CHARS`] 个字符，转换半角标点，
+/// 移除空白与遮罩字符，并应用已知字符替换。`ArchiveTitleIndex`
 /// 存储候选标题的规范化字符串，档案扫描使用同一函数规范化 OCR 文本。
 pub(crate) fn normalize(text: &str) -> String {
-    let no_tags = strip_rich_text_tags(text);
-    let half_to_full: String = no_tags.chars().map(halfwidth_to_fullwidth).collect();
-    let truncated: String = half_to_full.chars().take(NORM_MAX_CHARS).collect();
-    truncated
-        .chars()
-        .filter_map(|c| {
-            if c.is_whitespace() || matches!(c, '\u{200b}' | '\u{3000}' | '■') {
-                None
-            } else {
-                Some(match c {
-                    '決' => '决',
-                    _ => c,
-                })
-            }
-        })
+    strip_rich_text_tags(text.chars())
+        .take(NORM_MAX_CHARS)
+        .map(halfwidth_to_fullwidth)
+        .filter(|&c| !is_ignored(c))
+        .map(replace_known_character)
         .collect()
 }
 
-fn strip_rich_text_tags(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut in_tag = false;
-    for c in text.chars() {
-        if c == '<' || c == '＜' {
-            in_tag = true;
-            continue;
-        }
-        if c == '>' || c == '＞' {
-            in_tag = false;
-            continue;
-        }
-        if !in_tag {
-            out.push(c);
-        }
+fn is_ignored(c: char) -> bool {
+    c.is_whitespace() || matches!(c, '\u{200b}' | '\u{3000}' | '■')
+}
+
+fn replace_known_character(c: char) -> char {
+    match c {
+        '決' => '决',
+        _ => c,
     }
-    out
+}
+
+fn strip_rich_text_tags<I>(input: I) -> impl Iterator<Item = char>
+where
+    I: Iterator<Item = char>,
+{
+    let mut input = input;
+    let mut in_tag = false;
+    std::iter::from_fn(move || {
+        loop {
+            let c = input.next()?;
+            if c == '<' || c == '＜' {
+                in_tag = true;
+                continue;
+            }
+            if c == '>' || c == '＞' {
+                in_tag = false;
+                continue;
+            }
+            if !in_tag {
+                return Some(c);
+            }
+        }
+    })
 }
 
 fn halfwidth_to_fullwidth(c: char) -> char {
