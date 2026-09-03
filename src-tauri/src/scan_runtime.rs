@@ -15,10 +15,10 @@ use tracing::{error, info, warn};
 use crate::{
     app_paths::AppPaths,
     config::OeaConfig,
-    connect::connect_to_game,
     data::AppData,
     ocr::OcrEngine,
     scene::SceneManager,
+    session::Session,
     sound,
     task::{
         TaskStopped,
@@ -156,7 +156,7 @@ impl ScanRuntime {
 
     fn run(&self, context: &ScanRunContext) -> ScanOutcome {
         // 任务开始时才连接游戏
-        let mut session = match connect_to_game(
+        let mut session = match Session::connect(
             &context.ocr,
             &context.app_path.templates_dir(),
             Arc::clone(&self.stop),

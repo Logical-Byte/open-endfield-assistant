@@ -1,11 +1,13 @@
-//! 游戏会话（纯门面）。
+//! 游戏会话。
 //!
-//! 把基础设施层的原始能力统一翻译成 **720p 基准** 的任务 API：
+//! 连接时发现游戏窗口、验证运行环境并组装基础设施适配器；运行时把这些原始能力
+//! 统一翻译成 **720p 基准** 的任务 API：
 //! - 识别操作：先截图并缩放到 1280×720 基准；
 //! - 输入操作：先把 720p 坐标缩放到实际分辨率。
 //!
 //! 职责边界：
-//! - ✅ 只做薄委托与坐标缩放，**不含任何业务逻辑**（不识别场景、不导航、不扫描）；
+//! - ✅ 连接游戏窗口，检查分辨率与 HDR 环境并创建会话；
+//! - ✅ 运行时只做薄委托与坐标缩放，**不含任何业务逻辑**（不识别场景、不导航、不扫描）；
 //! - ✅ **不依赖前端**（结果上报由任务层通过 [`crate::task::archive_scan::ScanReporter`] 完成）；
 //! - ✅ 只依赖基础设施层。
 //!
@@ -15,15 +17,16 @@ mod recognition_context;
 
 pub use recognition_context::RecognitionContext;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use image::{DynamicImage, RgbaImage, imageops};
 use imageproc::contrast::ThresholdType;
+use tracing::{info, warn};
 
 use crate::{
     ocr::{OcrEngine, text_detection},
@@ -32,17 +35,15 @@ use crate::{
     template_matching::{MatchResult, TemplateManager},
     utils::{point::Point2D, region::Region2D},
     windows_ops::{
-        WindowHandle,
-        capture::ScreencapBase,
-        input::{Contact, InputBase},
+        self, WindowHandle,
+        capture::{PrintWindowScreencap, ScreencapBase},
+        input::{Contact, InputBase, SeizeInput},
     },
 };
 
 /// 停止令牌：热键 / 命令通过它请求中断，Session 每次操作前轮询。
 pub type StopToken = Arc<AtomicBool>;
 
-/// 游戏会话：一次游戏操作（扫描档案库任务）的统一上下文。
-///
 /// # Send 安全性
 /// `Session` 持有非拥有型窗口句柄，不自动 `Send`。
 /// 窗口句柄在 OS 层面对线程无亲和性，且本类型始终由调用方以 `&mut`
@@ -68,9 +69,65 @@ pub struct Session {
 }
 
 impl Session {
-    /// 创建会话（由 [`crate::connect::connect_to_game`] 组装）。
+    /// 连接游戏窗口并创建会话。
+    ///
+    /// # 流程
+    /// 1. 按标题/类名查找终末地窗口，若被最小化则恢复（仅确保在屏幕上，不抢占前台）；
+    /// 2. 检测客户端分辨率（仅支持 16:9）；
+    /// 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）；
+    /// 4. 创建截图器与输入器；
+    /// 5. 组装会话（复用共享 OCR 引擎与模板目录）。
+    pub(crate) fn connect(
+        ocr: &Arc<Mutex<OcrEngine>>,
+        templates_root: &Path,
+        stop: StopToken,
+    ) -> Result<Self> {
+        // 1. 获取游戏窗口（仅确保窗口在屏幕上，不抢占前台）
+        let hwnd = windows_ops::window::get_window_by_title(
+            Some(windows_ops::window::ENDFIELD_WINDOW_CLASS),
+            Some(windows_ops::window::ENDFIELD_WINDOW_TITLE),
+        )
+        .context("未找到终末地窗口，请先打开游戏")?;
+        // 若窗口被最小化则先恢复，否则 `ensure_window_on_screen` 会跳过调整
+        let _ = windows_ops::window::restore_window_if_minimized(hwnd)
+            .inspect_err(|e| warn!("恢复窗口失败: {e:#}"));
+        let _ = windows_ops::window::ensure_window_on_screen(hwnd)
+            .inspect_err(|e| warn!("确保窗口在屏幕上失败: {e:#}"));
+
+        // 2. 检测分辨率
+        let client_rect = windows_ops::window::get_client_rect(hwnd)?;
+        let resolution =
+            GameResolution::new(client_rect.width() as u32, client_rect.height() as u32)?;
+        info!("游戏分辨率: {}×{}", resolution.width, resolution.height);
+
+        // 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）
+        match windows_ops::window::hdr::is_hdr_enabled_on_window_monitor(hwnd) {
+            Ok(true) => {
+                bail!("终末地所在显示器已开启 HDR，截图颜色会失真导致识别异常，请关闭 HDR 后重试")
+            }
+            Ok(false) => {}
+            Err(e) => warn!("检查显示器 HDR 状态失败: {e:#}，继续执行任务"),
+        }
+
+        // 4. 创建截图器与输入器
+        let screencap = Box::new(PrintWindowScreencap::new(hwnd));
+        let input = Box::new(SeizeInput::new(hwnd, false));
+
+        // 5. 组装 `Session`（复用共享 OCR 引擎与模板目录）
+        Ok(Self::new(
+            hwnd,
+            screencap,
+            input,
+            Arc::clone(ocr),
+            templates_root,
+            resolution,
+            stop,
+        ))
+    }
+
+    /// 使用已组装的依赖创建会话。
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    fn new(
         hwnd: WindowHandle,
         screencap: Box<dyn ScreencapBase>,
         input: Box<dyn InputBase>,

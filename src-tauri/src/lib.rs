@@ -2,7 +2,6 @@
 
 pub mod app_paths;
 pub mod config;
-pub mod connect;
 pub mod controller;
 pub mod crash;
 pub mod data;
