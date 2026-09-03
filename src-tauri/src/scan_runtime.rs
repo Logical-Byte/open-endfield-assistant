@@ -16,12 +16,13 @@ use crate::{
     app_paths::AppPaths,
     config::OeaConfig,
     connect::connect_to_game,
+    data::AppData,
     ocr::OcrEngine,
     scene::SceneManager,
     sound,
     task::{
         TaskStopped,
-        archive_scan::{ArchiveScanTask, CorrectionIndex, ScanReporter},
+        archive_scan::{ArchiveScanTask, ScanReporter},
         run_task,
     },
     windows_ops,
@@ -46,7 +47,7 @@ pub(crate) struct ScanRunContext {
     oea_config: Arc<Mutex<OeaConfig>>,
     ocr: Arc<Mutex<OcrEngine>>,
     scenes: Arc<SceneManager>,
-    correction: Arc<CorrectionIndex>,
+    app_data: Arc<AppData>,
     reporter: ScanReporter,
     handle: AppHandle,
 }
@@ -58,7 +59,7 @@ impl ScanRunContext {
         oea_config: Arc<Mutex<OeaConfig>>,
         ocr: Arc<Mutex<OcrEngine>>,
         scenes: Arc<SceneManager>,
-        correction: Arc<CorrectionIndex>,
+        app_data: Arc<AppData>,
         reporter: ScanReporter,
         handle: AppHandle,
     ) -> Self {
@@ -67,7 +68,7 @@ impl ScanRunContext {
             oea_config,
             ocr,
             scenes,
-            correction,
+            app_data,
             reporter,
             handle,
         }
@@ -179,7 +180,8 @@ impl ScanRuntime {
         self.play_scan_sound(context, true);
 
         // 执行扫描档案库任务（阻塞，期间任务内部轮询停止标志）
-        let task = ArchiveScanTask::new(context.reporter.clone(), Arc::clone(&context.correction));
+        let task =
+            ArchiveScanTask::new(context.reporter.clone(), context.app_data.archive_titles());
         let result = run_task(&task, &mut session, &context.scenes);
 
         match result {

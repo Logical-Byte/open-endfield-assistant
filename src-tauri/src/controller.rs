@@ -16,13 +16,12 @@ use tracing::{debug, error, info, warn};
 use crate::{
     app_paths::AppPaths,
     config::OeaConfig,
-    data::AppData,
+    data::{AppData, ArchiveContract, PrtsData},
     logger::LogEntry,
     ocr::OcrEngine,
     scan_runtime::{ScanRunContext, ScanRuntime},
     scene::SceneManager,
     task::archive_scan::{ScanReporter, ScanResult},
-    types::{ArchiveContract, PrtsData},
     windows_ops,
 };
 
@@ -61,7 +60,7 @@ pub struct Controller {
     /// Tauri 应用句柄（创建扫描运行上下文）
     handle: AppHandle,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
-    app_data: AppData,
+    app_data: Arc<AppData>,
     /// 日志写入线程守卫（保活）
     _logger_guard: tracing_appender::non_blocking::WorkerGuard,
 }
@@ -90,7 +89,7 @@ impl Controller {
             scan_tx: Mutex::new(scan_tx),
             foreground,
             handle,
-            app_data,
+            app_data: Arc::new(app_data),
             _logger_guard,
         }
     }
@@ -114,12 +113,12 @@ impl Controller {
     }
 
     /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
-    pub fn prts_data(&self) -> Arc<PrtsData> {
+    pub fn prts_data(&self) -> &PrtsData {
         self.app_data.prts()
     }
 
     /// 返回档案获取契约完整数据（供前端按档案 id 查询获取方式）。
-    pub fn archive_contract_data(&self) -> Arc<ArchiveContract> {
+    pub fn archive_contract_data(&self) -> &ArchiveContract {
         self.app_data.archive_contract()
     }
 
@@ -212,7 +211,7 @@ impl Controller {
             Arc::clone(&self.oea_config),
             Arc::clone(&self.ocr),
             Arc::clone(&self.scenes),
-            self.app_data.correction(),
+            Arc::clone(&self.app_data),
             self.reporter(),
             self.handle.clone(),
         )

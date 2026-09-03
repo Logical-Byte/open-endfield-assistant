@@ -19,7 +19,6 @@ pub mod task;
 pub mod tauri_commands;
 pub mod template_matching;
 pub mod tray;
-pub mod types;
 pub mod update;
 pub mod utils;
 pub mod windows_ops;

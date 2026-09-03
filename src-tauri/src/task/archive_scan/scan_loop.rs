@@ -14,9 +14,10 @@ use crate::{
 };
 
 use super::constants::{ARROW_RIGHT_ROI, CLOSE_BUTTON_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
-use super::correction::CorrectionIndex;
+use super::correction::correct;
 use super::plan::{category_id_of, page_type_of};
 use super::result::{ScanReporter, encode_png_data_url};
+use crate::data::ArchiveTitleIndex;
 
 /// 扫描当前子界面中的所有档案。
 ///
@@ -32,7 +33,7 @@ pub fn scan_current_sub_scene(
     session: &mut Session,
     scene_manager: &SceneManager,
     sub_scene: 档案库SubSceneId,
-    correction: &CorrectionIndex,
+    archive_titles: &ArchiveTitleIndex,
     reporter: &ScanReporter,
 ) -> Result<()> {
     // 1. 点击第 1 份档案进入档案详情页面
@@ -74,7 +75,7 @@ pub fn scan_current_sub_scene(
 
         // 2b. 纠错：在本子分类的候选标题中找最可能的档案
         let category_id = category_id_of(sub_scene);
-        let corrected = correction.correct(category_id, &ocr_text);
+        let corrected = correct(archive_titles, category_id, &ocr_text);
         match &corrected {
             Some(c) => info!(
                 "第 {} 份档案纠错为：{}（id: {}）",

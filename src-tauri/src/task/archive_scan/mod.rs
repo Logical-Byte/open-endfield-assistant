@@ -10,6 +10,6 @@ pub mod result;
 mod scan_loop;
 pub mod task;
 
-pub use correction::{Corrected, CorrectionIndex};
+pub use correction::{Corrected, correct};
 pub use result::{ScanReporter, ScanResult};
 pub use task::ArchiveScanTask;
