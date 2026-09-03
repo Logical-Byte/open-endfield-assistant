@@ -1,5 +1,6 @@
 export enum UpdateSource {
   Mirrorchyan = 'mirrorchyan',
+  Oem = 'oem',
   Github = 'github',
 }
 

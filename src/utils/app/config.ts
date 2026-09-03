@@ -5,6 +5,7 @@ import { ref, watch } from 'vue';
 /** 更新源选项 */
 export const updateSourceItems = [
   { label: 'Mirror酱', value: UpdateSource.Mirrorchyan },
+  { label: 'OEM', value: UpdateSource.Oem },
   { label: 'GitHub', value: UpdateSource.Github },
 ];
 

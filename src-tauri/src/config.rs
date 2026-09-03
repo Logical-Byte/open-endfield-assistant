@@ -15,6 +15,7 @@ pub const CURRENT_MINOR_VERSION: u32 = 0;
 pub enum UpdateSource {
     #[default]
     Mirrorchyan,
+    Oem,
     Github,
 }
 
