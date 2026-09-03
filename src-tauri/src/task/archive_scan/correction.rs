@@ -24,7 +24,10 @@
 
 use std::collections::HashMap;
 
-use crate::data::{ArchiveTitleIndex, archive_title_index::Candidate};
+use crate::data::{
+    ArchiveTitleIndex,
+    archive_title_index::{Candidate, normalize},
+};
 
 /// 归一化置信度下限（低于此值不纠错）。
 const SCORE_THRESHOLD: f64 = 0.80;
@@ -122,8 +125,6 @@ fn best_to_corrected(best: &Group) -> Corrected {
         item_ids: best.item_ids.clone(),
     }
 }
-
-pub(crate) use crate::data::archive_title_index::normalize;
 
 /// 计算两个字符串的 Levenshtein 编辑距离（按 Unicode 字符计）。
 fn levenshtein(a: &str, b: &str) -> usize {
