@@ -22,8 +22,6 @@
 //! 4. 编辑距离评分：`score = 1 - dist / max(len(O), len(C.norm))`；
 //! 5. 决策：`best ≥ 0.80` 且与次高差距 `≥ 0.10` → 纠错；否则「无法识别」。
 
-use std::collections::HashMap;
-
 use crate::data::{
     ArchiveTitleIndex,
     archive_title_index::{Candidate, normalize},
@@ -43,86 +41,80 @@ pub struct Corrected {
     pub item_ids: Vec<String>,
 }
 
-/// 编辑距离评分后的一个候选组（同归一化标题的候选归为一组）。
-struct Group {
-    /// 原始标题（组内第一条的 title）
-    title: String,
-    /// 组内全部档案 id
-    item_ids: Vec<String>,
+/// 编辑距离评分后的候选组。
+struct ScoredGroup<'a> {
+    candidates: &'a [Candidate],
     /// 相似度 `1 - dist / max(len(O), len(norm))`
     score: f64,
 }
 
 /// 对当前子分类的 OCR 文本纠错。
 pub fn correct(index: &ArchiveTitleIndex, category_id: &str, ocr_text: &str) -> Option<Corrected> {
-    let candidates = index.candidates.get(category_id)?;
-    let o = normalize(ocr_text);
-    if o.is_empty() {
+    let normalized_ocr = normalize(ocr_text);
+    if normalized_ocr.is_empty() {
         return None;
     }
 
     // 第 3 步：精确匹配（快速路径）
-    let exact: Vec<&Candidate> = candidates.iter().filter(|c| c.norm == o).collect();
-    if !exact.is_empty() {
-        return Some(Corrected {
-            title: exact[0].title.clone(),
-            item_ids: exact.iter().map(|c| c.id.clone()).collect(),
-        });
+    if let Some(matching_candidates) = index.by_normalized_title(category_id, &normalized_ocr) {
+        return Some(to_corrected(matching_candidates));
     }
 
     // 特判：digital 分类下 OCR 只识别到「文明」（掩码标题「■■■…文明■■■…保护协定」
     // 可见部分仅剩“文明”，归一化截断后常规算法无法匹配），直接纠错到该档案
-    if category_id == "digital" && o == "文明" {
-        if let Some(c) = candidates
-            .iter()
-            .find(|c| c.id == "nar_digital_map02_13003_1")
-        {
+    if category_id == "digital" && normalized_ocr == "文明" {
+        if let Some(candidate) = index.candidate_by_id(category_id, "nar_digital_map02_13003_1") {
             return Some(Corrected {
-                title: c.title.clone(),
-                item_ids: vec![c.id.clone()],
+                title: candidate.title().to_string(),
+                item_ids: vec![candidate.id().to_string()],
             });
         }
     }
 
-    // 第 4 步：编辑距离评分，按归一化标题分组（同组距离相同，取组内全部 id）
-    let o_len = o.chars().count();
-    let mut groups: HashMap<&str, Group> = HashMap::new();
-    for c in candidates {
-        let dist = levenshtein(&o, &c.norm);
-        let score = similarity(dist, o_len, c.norm.chars().count());
-        let group = groups.entry(c.norm.as_str()).or_insert_with(|| Group {
-            title: c.title.clone(),
-            item_ids: Vec::new(),
-            score,
-        });
-        group.item_ids.push(c.id.clone());
-    }
+    // 第 4 步：编辑距离评分
+    let normalized_ocr_len = normalized_ocr.chars().count();
+    let mut scored_groups: Vec<ScoredGroup<'_>> = index
+        .normalized_groups(category_id)
+        .map(|(normalized_title, candidates)| {
+            let edit_distance = levenshtein(&normalized_ocr, normalized_title);
+            ScoredGroup {
+                candidates,
+                score: similarity(
+                    edit_distance,
+                    normalized_ocr_len,
+                    normalized_title.chars().count(),
+                ),
+            }
+        })
+        .collect();
 
     // 第 5 步：决策。按相似度降序，最高分与次高分差距不足则判「无法识别」。
-    let mut groups: Vec<Group> = groups.into_values().collect();
-    groups.sort_by(|a, b| b.score.total_cmp(&a.score));
+    scored_groups.sort_by(|left, right| right.score.total_cmp(&left.score));
 
-    let best = &groups[0];
-    if best.score < SCORE_THRESHOLD {
+    let best_group = scored_groups.first()?;
+    if best_group.score < SCORE_THRESHOLD {
         return None;
     }
     // 只有一个候选组（整个分类只有一种标题）时无次高，直接采纳
-    if groups.len() == 1 {
-        return Some(best_to_corrected(best));
+    if scored_groups.len() == 1 {
+        return Some(to_corrected(best_group.candidates));
     }
-    let second = &groups[1];
-    if best.score - second.score >= SCORE_GAP_THRESHOLD {
-        Some(best_to_corrected(best))
+    let second_best_group = &scored_groups[1];
+    if best_group.score - second_best_group.score >= SCORE_GAP_THRESHOLD {
+        Some(to_corrected(best_group.candidates))
     } else {
         None
     }
 }
 
-/// 把评分最高的候选组转为纠错结果。
-fn best_to_corrected(best: &Group) -> Corrected {
+/// 把候选组转为纠错结果。
+fn to_corrected(candidates: &[Candidate]) -> Corrected {
     Corrected {
-        title: best.title.clone(),
-        item_ids: best.item_ids.clone(),
+        title: candidates[0].title().to_string(),
+        item_ids: candidates
+            .iter()
+            .map(|candidate| candidate.id().to_string())
+            .collect(),
     }
 }
 
@@ -302,6 +294,13 @@ mod tests {
         assert_eq!(c.item_ids.len(), 2);
         assert!(c.item_ids.contains(&"nar_dup_1".to_string()));
         assert!(c.item_ids.contains(&"nar_dup_2".to_string()));
+    }
+
+    #[test]
+    fn correct_fuzzy_match_returns_all_ids_for_duplicate_titles() {
+        let idx = test_index();
+        let c = correct(&idx, "digital", "挂在竹子上的纸条").expect("模糊匹配同标题时应全部命中");
+        assert_eq!(c.item_ids, vec!["nar_dup_1", "nar_dup_2"]);
     }
 
     #[test]
