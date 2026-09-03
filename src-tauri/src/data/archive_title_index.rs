@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::data::PrtsData;
 
+/// 匹配时保留的标题前缀长度；对应 OCR 区域通常只能识别标题首行。
 pub(crate) const NORM_MAX_CHARS: usize = 15;
 
 #[derive(Debug)]
@@ -44,6 +45,11 @@ impl ArchiveTitleIndex {
     }
 }
 
+/// 生成档案标题候选与 OCR 文本共用的规范化形式。
+///
+/// 处理流程为：移除富文本标签，转换半角标点，截取前 [`NORM_MAX_CHARS`]
+/// 个字符，移除空白与遮罩字符，并应用已知字符替换。`ArchiveTitleIndex`
+/// 存储候选标题的规范化字符串，档案扫描使用同一函数规范化 OCR 文本。
 pub(crate) fn normalize(text: &str) -> String {
     let no_tags = strip_rich_text_tags(text);
     let half_to_full: String = no_tags.chars().map(halfwidth_to_fullwidth).collect();

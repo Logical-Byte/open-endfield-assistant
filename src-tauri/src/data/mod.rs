@@ -23,11 +23,11 @@ pub use schema::{ArchiveContract, PrtsData};
 
 /// 运行时加载的静态数据（不可变，跨线程只读共享）。
 pub struct AppData {
-    /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选，并派生纠错索引）
+    /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选，并构建档案标题索引）
     prts: PrtsData,
     /// 档案获取契约（archive_contract.json，供前端按档案 id 查询获取方式）
     archive_contract: ArchiveContract,
-    /// 档案标题纠错索引（启动时从 prts.json 派生构建一次）
+    /// 档案标题索引（启动时从 prts.json 派生构建一次）
     archive_titles: ArchiveTitleIndex,
 }
 
@@ -62,7 +62,7 @@ impl AppData {
         &self.archive_contract
     }
 
-    /// 档案标题纠错索引。
+    /// 档案标题索引。
     pub fn archive_titles(&self) -> &ArchiveTitleIndex {
         &self.archive_titles
     }
