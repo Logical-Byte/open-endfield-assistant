@@ -41,6 +41,8 @@ const CHECK_URL_BASES = [
 const GITHUB_OWNER = 'Logical-Byte';
 const GITHUB_REPO = 'open-endfield-assistant';
 const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
+/** OEM 稳定下载入口，会重定向到最新的 OEA 全量包。 */
+const OEM_DOWNLOAD_URL = 'https://oea.oem.re/latest';
 
 /**
  * 根据实际系统信息生成更新请求 UA（`OEA/<版本> (Windows NT <major.minor>; Win64; x64)`）。
@@ -212,7 +214,7 @@ interface DownloadResultPayload {
  * 执行一次检查更新（启动自动检查与设置页手动检查共用）。
  *
  * 检查固定请求 MirrorChyan（主备双站），无论「更新源」设置为何：更新源只决定
- * 后续下载从镜像还是 GitHub 拉取，不影响「是否可更新」的判定（见设计文档 v4）。
+ * 后续下载从 Mirror酱、OEM 还是 GitHub 拉取，不影响「是否可更新」的判定（见设计文档 v4）。
  */
 export async function checkUpdate(): Promise<void> {
   // 若当前正在检查更新，则忽略本次请求（避免重复请求）。
@@ -324,7 +326,7 @@ export async function startDownload(
 
   let unlisten: (() => void) | null = null;
   try {
-    // 准备下载信息：MirrorChyan 直连 / GitHub 匹配资产（含 digest）。
+    // 准备下载信息：MirrorChyan 直连 / OEM 稳定入口 / GitHub 匹配资产（含 digest）。
     const prepared = await prepareDownload(checkUpdateData);
     if (!prepared) {
       handleDownloadFailure(new Error('未获取到可用的下载链接'), '准备下载失败');
@@ -363,7 +365,7 @@ export async function startDownload(
 
     const { updateProxyMode, updateProxyUrl } = oeaConfig.value;
     const proxyMode =
-      prepared.source === UpdateSource.Github ? updateProxyMode : UpdateProxyMode.None;
+      prepared.source === UpdateSource.Mirrorchyan ? UpdateProxyMode.None : updateProxyMode;
     // 阻塞直到下载结束：Rust `download_update` 流式读完整响应体、写完盘并校验 sha256 后才返回，
     // 不会在开始下载后立即返回；期间进度由上面的 `download-progress` 事件上报。
     const result = await invoke<DownloadResultPayload>('download_update', {
@@ -630,8 +632,9 @@ function handleInstallFailure(error: unknown): void {
 
 /**
  * 下载源决策（设计文档 v4 §4）：
- * 1. 更新源为 MirrorChyan 且 CDK 已填写、MirrorChyan 给了 url → 用 MirrorChyan；
- * 2. 更新源为 GitHub，或 CDK 未填写（MirrorChyan 源回退）、或 MirrorChyan 未给 url
+ * 1. 更新源为 OEM → 使用 OEM 最新版本稳定入口；
+ * 2. 更新源为 MirrorChyan 且 CDK 已填写、MirrorChyan 给了 url → 用 MirrorChyan；
+ * 3. 更新源为 GitHub，或 CDK 未填写（MirrorChyan 源回退）、或 MirrorChyan 未给 url
  *    → 从 GitHub 匹配 tag 与资产（含 digest）。错误码场景已在 `checkUpdate` 抛错，不会走到这里。
  */
 async function prepareDownload(
@@ -639,6 +642,16 @@ async function prepareDownload(
 ): Promise<PreparedUpdate | null> {
   const cdk = mirrorchyanCdk.value.trim();
   const versionName = data.version_name;
+
+  if (oeaConfig.value.updateSource === UpdateSource.Oem) {
+    return {
+      url: OEM_DOWNLOAD_URL,
+      source: UpdateSource.Oem,
+      updateType: UpdatePackageType.Full,
+      versionName,
+      releaseNote: data.release_note,
+    };
+  }
 
   // 尊重「下载源」设置：只有选择 MirrorChyan 且 CDK 已填写时才走镜像；
   // 其余情况（源为 GitHub / CDK 未填写 / MirrorChyan 未给 url）一律回退 GitHub。

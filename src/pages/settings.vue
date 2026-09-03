@@ -209,7 +209,7 @@ onBeforeUnmount(() => {
 
         <SettingsCard id="update" class="scroll-mt-8" icon="i-lucide-download" title="更新设置">
           <SettingsItem
-            description="选择从哪个源检查并下载新版本"
+            description="选择从哪个源下载新版本"
             icon="i-lucide-cloud-download"
             title="更新源"
           >
