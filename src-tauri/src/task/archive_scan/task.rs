@@ -13,6 +13,7 @@ use crate::{
     utils::region::Region2D,
 };
 
+use super::correction::{CorrectionOverride, DEFAULT_CORRECTION_OVERRIDES};
 use super::plan::{SCAN_PLAN, ScanStep};
 use super::result::ScanReporter;
 use super::scan_loop::scan_current_sub_scene;
@@ -25,6 +26,7 @@ use crate::data::ArchiveTitleIndex;
 pub struct ArchiveScanTask<'a> {
     reporter: ScanReporter,
     archive_titles: &'a ArchiveTitleIndex,
+    correction_overrides: Option<&'a [CorrectionOverride<'a>]>,
 }
 
 impl<'a> ArchiveScanTask<'a> {
@@ -33,6 +35,7 @@ impl<'a> ArchiveScanTask<'a> {
         Self {
             reporter,
             archive_titles,
+            correction_overrides: Some(DEFAULT_CORRECTION_OVERRIDES),
         }
     }
 }
@@ -78,6 +81,7 @@ impl Task for ArchiveScanTask<'_> {
                     scene_manager,
                     sub_scene,
                     self.archive_titles,
+                    self.correction_overrides,
                     &self.reporter,
                 )?;
                 info!("完成扫描 {:?}", sub_scene);
