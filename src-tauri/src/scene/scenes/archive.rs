@@ -1,13 +1,14 @@
 //! 档案库相关场景：主界面 / 子界面 / 详情页面。
 //!
-//! 识别优先级（具体 → 笼统）由 `scene::create_scene_manager` 的注册顺序决定，
+//! 识别优先级（具体 → 笼统）由 `SceneManager::new` 的注册顺序决定，
 //! 本模块内部三个场景的相对顺序：档案详情页面 > 档案库子界面 > 档案库主界面。
 
 use std::sync::LazyLock;
 
 use anyhow::Result;
 
-use super::{DEFAULT_THRESHOLD, Scene, SceneAction, SceneId, SceneTransition, 档案库SubSceneId};
+use super::super::model::{Scene, SceneAction, SceneId, SceneTransition, 档案库SubSceneId};
+use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::session::Session;
 use crate::utils::region::Region2D;
 
@@ -68,7 +69,7 @@ impl Scene for Scene档案详情页面 {
                 &screenshot,
                 "情报档案库/档案详情装饰.png",
                 ROI_档案详情装饰,
-                DEFAULT_THRESHOLD,
+                TEMPLATE_MATCH_THRESHOLD,
             )?
             .is_some();
         if !has_decoration {
@@ -80,7 +81,7 @@ impl Scene for Scene档案详情页面 {
                 &screenshot,
                 "情报档案库/档案详情关闭.png",
                 ROI_右上角关闭,
-                DEFAULT_THRESHOLD,
+                TEMPLATE_MATCH_THRESHOLD,
             )?
             .is_some();
 
@@ -100,7 +101,7 @@ impl Scene for Scene档案详情页面 {
                 action: SceneAction::FindAndClickTemplate {
                     template_name: "情报档案库/档案详情关闭.png",
                     roi: ROI_右上角关闭,
-                    threshold: DEFAULT_THRESHOLD,
+                    threshold: TEMPLATE_MATCH_THRESHOLD,
                 },
             }]
         });
@@ -140,7 +141,7 @@ impl Scene for Scene档案库子界面 {
                 &screenshot,
                 "情报档案库/情报档案库标题.png",
                 ROI_档案库标题,
-                DEFAULT_THRESHOLD,
+                TEMPLATE_MATCH_THRESHOLD,
             )?
             .is_some();
         if !has_title {
@@ -153,7 +154,7 @@ impl Scene for Scene档案库子界面 {
                 &screenshot,
                 "情报档案库/档案库子界面关闭.png",
                 ROI_右上角关闭,
-                DEFAULT_THRESHOLD,
+                TEMPLATE_MATCH_THRESHOLD,
             )?
             .is_some();
         if !has_close {
@@ -182,7 +183,7 @@ impl Scene for Scene档案库子界面 {
                     action: SceneAction::FindAndClickTemplate {
                         template_name: "情报档案库/档案库子界面关闭.png",
                         roi: ROI_右上角关闭,
-                        threshold: DEFAULT_THRESHOLD,
+                        threshold: TEMPLATE_MATCH_THRESHOLD,
                     },
                 },
                 SceneTransition {
@@ -210,7 +211,7 @@ impl Scene档案库子界面 {
 
         for (name, template) in &categories {
             if session
-                .find_template_in_roi(screenshot, template, ROI_水印, DEFAULT_THRESHOLD)?
+                .find_template_in_roi(screenshot, template, ROI_水印, TEMPLATE_MATCH_THRESHOLD)?
                 .is_some()
             {
                 return Ok(Some(name));
@@ -298,7 +299,7 @@ impl Scene for Scene档案库主界面 {
                 &screenshot,
                 "情报档案库/情报档案库标题.png",
                 ROI_档案库标题,
-                DEFAULT_THRESHOLD,
+                TEMPLATE_MATCH_THRESHOLD,
             )?
             .is_some();
         if !has_title {
@@ -311,7 +312,7 @@ impl Scene for Scene档案库主界面 {
                 &screenshot,
                 "情报档案库/档案库主界面关闭.png",
                 ROI_右上角关闭,
-                DEFAULT_THRESHOLD,
+                TEMPLATE_MATCH_THRESHOLD,
             )?
             .is_some();
         if !has_main_close {
@@ -325,7 +326,7 @@ impl Scene for Scene档案库主界面 {
                 &screenshot,
                 "情报档案库/音像存档.png",
                 ROI_音像存档按钮,
-                DEFAULT_THRESHOLD,
+                TEMPLATE_MATCH_THRESHOLD,
             )?
             .is_some()
             || session
@@ -333,7 +334,7 @@ impl Scene for Scene档案库主界面 {
                     &screenshot,
                     "情报档案库/见闻辑录.png",
                     ROI_见闻辑录按钮,
-                    DEFAULT_THRESHOLD,
+                    TEMPLATE_MATCH_THRESHOLD,
                 )?
                 .is_some()
             || session
@@ -341,7 +342,7 @@ impl Scene for Scene档案库主界面 {
                     &screenshot,
                     "情报档案库/中枢档案.png",
                     ROI_中枢档案按钮,
-                    DEFAULT_THRESHOLD,
+                    TEMPLATE_MATCH_THRESHOLD,
                 )?
                 .is_some();
 
@@ -365,7 +366,7 @@ impl Scene for Scene档案库主界面 {
                     action: SceneAction::FindAndClickTemplate {
                         template_name: "情报档案库/档案库主界面关闭.png",
                         roi: ROI_右上角关闭,
-                        threshold: DEFAULT_THRESHOLD,
+                        threshold: TEMPLATE_MATCH_THRESHOLD,
                     },
                 },
                 SceneTransition {
@@ -373,7 +374,7 @@ impl Scene for Scene档案库主界面 {
                     action: SceneAction::FindAndClickTemplate {
                         template_name: "情报档案库/音像存档.png",
                         roi: ROI_音像存档按钮,
-                        threshold: DEFAULT_THRESHOLD,
+                        threshold: TEMPLATE_MATCH_THRESHOLD,
                     },
                 },
                 SceneTransition {
@@ -381,7 +382,7 @@ impl Scene for Scene档案库主界面 {
                     action: SceneAction::FindAndClickTemplate {
                         template_name: "情报档案库/见闻辑录.png",
                         roi: ROI_见闻辑录按钮,
-                        threshold: DEFAULT_THRESHOLD,
+                        threshold: TEMPLATE_MATCH_THRESHOLD,
                     },
                 },
                 SceneTransition {
@@ -389,7 +390,7 @@ impl Scene for Scene档案库主界面 {
                     action: SceneAction::FindAndClickTemplate {
                         template_name: "情报档案库/中枢档案.png",
                         roi: ROI_中枢档案按钮,
-                        threshold: DEFAULT_THRESHOLD,
+                        threshold: TEMPLATE_MATCH_THRESHOLD,
                     },
                 },
             ]
