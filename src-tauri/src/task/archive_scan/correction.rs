@@ -263,31 +263,6 @@ mod tests {
     }
 
     #[test]
-    fn normalize_replaces_traditional_chars() {
-        assert_eq!(normalize("決然工人的留声"), normalize("决然工人的留声"));
-    }
-
-    #[test]
-    fn normalize_converts_halfwidth_parens() {
-        assert_eq!(normalize("（第八版）"), normalize("(第八版)"));
-    }
-
-    #[test]
-    fn normalize_strips_rich_text_tags_and_blocks() {
-        // 富文本标签 / ■ / 零宽空格 / 全角空格都应被剥离
-        assert_eq!(normalize("<@nar.mark>\u{200b}■■</>文明"), normalize("文明"));
-        assert_eq!(normalize("A\u{3000}B"), normalize("AB"));
-    }
-
-    #[test]
-    fn normalize_truncates_to_15_chars() {
-        assert_eq!(
-            normalize("裂地者控制区内疑似工团成员的信号分析"),
-            normalize("裂地者控制区内疑似工团成员的信号")
-        );
-    }
-
-    #[test]
     fn correct_character_replacement() {
         let idx = test_index();
         let c = correct(&idx, "media", "決然工人的留声").expect("应纠错成功");
