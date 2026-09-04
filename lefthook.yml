@@ -12,7 +12,7 @@ pre-commit:
       run: git --no-pager diff --cached --check
 
     - name: frontend-eslint
-      glob: 'src/**/*.{vue,ts,js}'
+      glob: 'src/**/*.{vue,ts,tsx,js,jsx}'
       run: pnpm exec eslint {staged_files}
 
     - name: frontend-prettier
@@ -38,7 +38,8 @@ pre-push:
         - 'eslint.config.ts'
         - '.prettierrc.json'
         - '.prettierignore'
-      run: pnpm check
+      # The build generates declarations required by `vue-tsc` in a clean checkout.
+      run: pnpm build && pnpm check
 
     - name: backend-clippy
       glob:
