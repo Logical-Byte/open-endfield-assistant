@@ -1,0 +1,49 @@
+min_version: 2.0.0
+
+# Use the familiar glob behavior where `**` also matches files directly in a
+# directory. See https://lefthook.dev/configuration/glob_matcher/.
+glob_matcher: doublestar
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: staged-diff
+      # Hooks must not inherit an interactive pager from the user's Git setup.
+      run: git --no-pager diff --cached --check
+
+    - name: frontend-eslint
+      glob: 'src/**/*.{vue,ts,js}'
+      run: pnpm exec eslint {staged_files}
+
+    - name: frontend-prettier
+      glob:
+        - '**/*.{vue,ts,tsx,js,jsx,mjs,cjs,json,css,scss,html,md,yaml,yml}'
+      run: pnpm exec prettier --check --ignore-unknown {staged_files}
+
+    - name: backend-rustfmt
+      glob: 'src-tauri/**/*.rs'
+      run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: frontend-check
+      glob:
+        - 'src/**'
+        - 'scripts/**'
+        - 'package.json'
+        - 'pnpm-lock.yaml'
+        - 'tsconfig*.json'
+        - 'vite.config.ts'
+        - 'eslint.config.ts'
+        - '.prettierrc.json'
+        - '.prettierignore'
+      run: pnpm check
+
+    - name: backend-clippy
+      glob:
+        - 'src-tauri/**'
+        - '.cargo/**'
+        - 'rust-toolchain'
+        - 'rust-toolchain.toml'
+      run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
