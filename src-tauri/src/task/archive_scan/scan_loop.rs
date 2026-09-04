@@ -9,6 +9,7 @@ use anyhow::Result;
 use tracing::{debug, info};
 
 use crate::{
+    automation::{ActionOutcome, AutomateAction, AutomateExecutor, Point720p, TemplateTarget},
     scene::{SceneId, scene_manager::SceneManager, 档案库SubSceneId},
     session::Session,
 };
@@ -39,7 +40,9 @@ pub fn scan_current_sub_scene(
 ) -> Result<()> {
     // 1. 点击第 1 份档案进入档案详情页面
     debug!("点击第 1 份档案 (401, 182)");
-    session.click_at_720p(401, 182)?;
+    session
+        .automate_context()
+        .execute(&AutomateAction::ClickAt(Point720p { x: 401, y: 182 }))?;
 
     // 等待详情页面加载
     std::thread::sleep(std::time::Duration::from_millis(800));
@@ -107,16 +110,17 @@ pub fn scan_current_sub_scene(
             corrected,
         );
 
-        // 2c. 尝试翻到下一篇
-        let screenshot = session.screencap_for_recognition()?;
-
+        // 2d. 尝试翻到下一篇
         // 先尝试 "下一篇" 按钮
-        if session.find_and_click_template(
-            &screenshot,
-            "情报档案库/下一篇.png",
-            NEXT_BUTTON_ROI,
-            THRESHOLD,
-        )? {
+        let next = AutomateAction::FindAndClickTemplate(TemplateTarget {
+            template_name: "情报档案库/下一篇.png",
+            roi: NEXT_BUTTON_ROI,
+            threshold: THRESHOLD,
+        });
+        if matches!(
+            session.automate_context().execute(&next)?,
+            ActionOutcome::Applied
+        ) {
             debug!("点击「下一篇」，进入第 {} 份档案", archive_count + 1);
             // 等待详情页面切换
             std::thread::sleep(std::time::Duration::from_millis(200));
@@ -124,12 +128,15 @@ pub fn scan_current_sub_scene(
         }
 
         // 再尝试 "档案详情右箭头" 按钮
-        if session.find_and_click_template(
-            &screenshot,
-            "情报档案库/档案详情右箭头.png",
-            ARROW_RIGHT_ROI,
-            THRESHOLD,
-        )? {
+        let arrow = AutomateAction::FindAndClickTemplate(TemplateTarget {
+            template_name: "情报档案库/档案详情右箭头.png",
+            roi: ARROW_RIGHT_ROI,
+            threshold: THRESHOLD,
+        });
+        if matches!(
+            session.automate_context().execute(&arrow)?,
+            ActionOutcome::Applied
+        ) {
             debug!(
                 "点击「档案详情右箭头」，进入第 {} 份档案",
                 archive_count + 1
@@ -146,16 +153,20 @@ pub fn scan_current_sub_scene(
 
     // 3. 点击关闭按钮返回子界面
     debug!("点击档案详情关闭按钮返回子界面");
-    let screenshot = session.screencap_for_recognition()?;
-    if !session.find_and_click_template(
-        &screenshot,
-        "情报档案库/档案详情关闭.png",
-        CLOSE_BUTTON_ROI,
-        THRESHOLD,
-    )? {
+    let close = AutomateAction::FindAndClickTemplate(TemplateTarget {
+        template_name: "情报档案库/档案详情关闭.png",
+        roi: CLOSE_BUTTON_ROI,
+        threshold: THRESHOLD,
+    });
+    if matches!(
+        session.automate_context().execute(&close)?,
+        ActionOutcome::TargetNotFound
+    ) {
         // 如果模板匹配失败，直接点击右上角固定位置
         debug!("模板匹配关闭按钮失败，尝试固定坐标点击");
-        session.click_at_720p(1240, 50)?;
+        session
+            .automate_context()
+            .execute(&AutomateAction::ClickAt(Point720p { x: 1240, y: 50 }))?;
     }
 
     // 等待返回子界面

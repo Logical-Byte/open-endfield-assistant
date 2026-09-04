@@ -1,6 +1,6 @@
 //! 场景系统模块。
 //!
-//! - **模型**：[`Scene`] trait（自我识别 + 跳转声明）、[`SceneAction`]（跳转动作）、
+//! - **模型**：[`Scene`] trait（自我识别 + 跳转声明）、[`AutomateAction`]（符号动作）、
 //!   [`SceneId`]（界面唯一标识）；
 //! - **导航**：[`SceneManager`]（检测、规划与执行）；
 //! - **本游戏场景实现**：`scenes`（大世界、协议终端、档案库）。
@@ -13,6 +13,6 @@ pub mod scene_manager;
 mod scenes;
 
 pub use crate::session::RecognitionContext;
-pub use model::{Scene, SceneAction, SceneId, SceneTransition, 档案库SubSceneId};
+pub use model::{AutomateAction, Scene, SceneId, SceneTransition, 档案库SubSceneId};
 pub use scene_manager::SceneManager;
 pub use scenes::{Scene未知, archive, overworld, terminal};

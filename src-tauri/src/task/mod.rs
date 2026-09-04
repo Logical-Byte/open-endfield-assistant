@@ -53,7 +53,7 @@ pub fn run_task(task: &dyn Task, session: &mut Session, scenes: &SceneManager) -
 
     // 0. 任务开始前先把鼠标移到窗口中心，避免鼠标恰好 hover 在按钮上，
     //    按钮 hover 样式变化干扰首次场景识别 / 导航。
-    session.move_mouse_to_safe_position()?;
+    session.automate_context().move_mouse_to_safe_position()?;
 
     // 1. 满足任务的前置场景
     scenes.ensure_scene(task.precondition_scene(), session)?;

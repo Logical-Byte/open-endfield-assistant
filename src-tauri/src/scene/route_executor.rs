@@ -5,7 +5,11 @@ use std::{thread, time::Duration};
 use anyhow::Result;
 use tracing::{debug, warn};
 
-use super::{model::SceneId, route_planner::Route, scene_detector::SceneDetector};
+use super::{
+    model::{SceneId, execute_transition},
+    route_planner::Route,
+    scene_detector::SceneDetector,
+};
 use crate::session::Session;
 
 /// 一次路由执行的可恢复结果；`Err` 仅表示动作或场景检测本身出错。
@@ -103,6 +107,11 @@ impl<'a> RouteExecutor<'a> {
             .scene_detector
             .get_registered_scene(from)
             .ok_or_else(|| anyhow::anyhow!("未注册的场景: {:?}", from))?;
-        scene.execute_transition(to, self.session)
+        let mut context = self.session.automate_context();
+        let outcome = execute_transition(scene, to, &mut context)?;
+        if matches!(outcome, crate::automation::ActionOutcome::TargetNotFound) {
+            anyhow::bail!("跳转动作未找到目标: {:?} → {:?}", from, to);
+        }
+        Ok(())
     }
 }

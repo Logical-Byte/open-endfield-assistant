@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use anyhow::Result;
 
-use super::super::model::{Scene, SceneAction, SceneId, SceneTransition};
+use super::super::model::{AutomateAction, Key, Scene, SceneId, SceneTransition};
 use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::session::RecognitionContext;
 use crate::utils::region::{Region2D, ltrb};
@@ -41,7 +41,7 @@ impl Scene for Scene大世界 {
         static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![SceneTransition {
                 target: SceneId::协议终端,
-                action: SceneAction::PressKey { vk_code: 0x1B }, // VK_ESCAPE
+                action: AutomateAction::PressKey(Key::Escape),
             }]
         });
         &T

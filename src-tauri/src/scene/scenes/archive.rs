@@ -8,11 +8,17 @@ use std::sync::LazyLock;
 use anyhow::Result;
 
 use super::super::model::{
-    Scene, SceneAction, SceneId, SceneTransition, TAB_ROIS, 档案库SubSceneId,
+    AutomateAction, Point720p, Scene, SceneId, SceneTransition, TemplateTarget, 档案库SubSceneId,
 };
 use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::session::RecognitionContext;
 use crate::utils::region::{Region2D, ltrb};
+
+pub(crate) const TAB_ROIS: [Region2D<u32>; 3] = [
+    ltrb!(180, 120, 240, 156),
+    ltrb!(180, 184, 240, 220),
+    ltrb!(180, 248, 240, 284),
+];
 
 // ============================================================================
 // 常用 ROI 和阈值常量（720p 基准）
@@ -96,11 +102,11 @@ impl Scene for Scene档案详情页面 {
         static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![SceneTransition {
                 target: SceneId::档案库子界面(档案库SubSceneId::音像存档_多媒体), // 占位，实际返回任意子界面
-                action: SceneAction::FindAndClickTemplate {
+                action: AutomateAction::FindAndClickTemplate(TemplateTarget {
                     template_name: "情报档案库/档案详情关闭.png",
                     roi: ROI_右上角关闭,
                     threshold: TEMPLATE_MATCH_THRESHOLD,
-                },
+                }),
             }]
         });
         &T
@@ -174,15 +180,15 @@ impl Scene for Scene档案库子界面 {
             vec![
                 SceneTransition {
                     target: SceneId::档案库主界面,
-                    action: SceneAction::FindAndClickTemplate {
+                    action: AutomateAction::FindAndClickTemplate(TemplateTarget {
                         template_name: "情报档案库/档案库子界面关闭.png",
                         roi: ROI_右上角关闭,
                         threshold: TEMPLATE_MATCH_THRESHOLD,
-                    },
+                    }),
                 },
                 SceneTransition {
                     target: SceneId::档案详情页面,
-                    action: SceneAction::ClickAt { x: 401, y: 182 },
+                    action: AutomateAction::ClickAt(Point720p { x: 401, y: 182 }),
                 },
             ]
         });
@@ -346,35 +352,35 @@ impl Scene for Scene档案库主界面 {
             vec![
                 SceneTransition {
                     target: SceneId::协议终端,
-                    action: SceneAction::FindAndClickTemplate {
+                    action: AutomateAction::FindAndClickTemplate(TemplateTarget {
                         template_name: "情报档案库/档案库主界面关闭.png",
                         roi: ROI_右上角关闭,
                         threshold: TEMPLATE_MATCH_THRESHOLD,
-                    },
+                    }),
                 },
                 SceneTransition {
                     target: SceneId::档案库子界面(档案库SubSceneId::音像存档_多媒体),
-                    action: SceneAction::FindAndClickTemplate {
+                    action: AutomateAction::FindAndClickTemplate(TemplateTarget {
                         template_name: "情报档案库/音像存档.png",
                         roi: ROI_音像存档按钮,
                         threshold: TEMPLATE_MATCH_THRESHOLD,
-                    },
+                    }),
                 },
                 SceneTransition {
                     target: SceneId::档案库子界面(档案库SubSceneId::见闻辑录_纸质记录),
-                    action: SceneAction::FindAndClickTemplate {
+                    action: AutomateAction::FindAndClickTemplate(TemplateTarget {
                         template_name: "情报档案库/见闻辑录.png",
                         roi: ROI_见闻辑录按钮,
                         threshold: TEMPLATE_MATCH_THRESHOLD,
-                    },
+                    }),
                 },
                 SceneTransition {
                     target: SceneId::档案库子界面(档案库SubSceneId::中枢档案_中枢档案),
-                    action: SceneAction::FindAndClickTemplate {
+                    action: AutomateAction::FindAndClickTemplate(TemplateTarget {
                         template_name: "情报档案库/中枢档案.png",
                         roi: ROI_中枢档案按钮,
                         threshold: TEMPLATE_MATCH_THRESHOLD,
-                    },
+                    }),
                 },
             ]
         });

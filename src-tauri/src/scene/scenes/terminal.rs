@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use anyhow::Result;
 
-use super::super::model::{Scene, SceneAction, SceneId, SceneTransition};
+use super::super::model::{AutomateAction, Scene, SceneId, SceneTransition, TemplateTarget};
 use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::session::RecognitionContext;
 use crate::utils::region::{Region2D, ltrb};
@@ -40,11 +40,11 @@ impl Scene for Scene协议终端 {
         static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
             vec![SceneTransition {
                 target: SceneId::档案库主界面,
-                action: SceneAction::FindAndClickTemplate {
+                action: AutomateAction::FindAndClickTemplate(TemplateTarget {
                     template_name: "档案库.png",
                     roi: ROI_档案库按钮,
                     threshold: TEMPLATE_MATCH_THRESHOLD,
-                },
+                }),
             }]
         });
         &T

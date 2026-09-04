@@ -2,9 +2,9 @@
 
 use anyhow::Result;
 
-use crate::session::{RecognitionContext, Session};
+use crate::session::RecognitionContext;
 
-use super::{SceneAction, SceneId};
+use super::{AutomateAction, SceneId};
 
 /// 场景 trait：每个游戏界面实现此 trait。
 ///
@@ -35,20 +35,6 @@ pub trait Scene: Send + Sync {
     ///
     /// 注意：这是所有可能的跳转，实际执行时会按顺序尝试，第一个成功即停止。
     fn transitions(&self) -> &[SceneTransition];
-
-    /// 执行跳转动作以到达目标场景。
-    ///
-    /// 默认实现：从 `transitions()` 中找到去往 `target` 的动作并执行。
-    fn execute_transition(&self, target: SceneId, session: &mut Session) -> Result<()> {
-        let screenshot = session.screencap_for_recognition()?;
-        for transition in self.transitions() {
-            if transition.target == target {
-                transition.action.execute(session, &screenshot)?;
-                return Ok(());
-            }
-        }
-        anyhow::bail!("没有从 {:?} 到 {:?} 的跳转", self.id(), target);
-    }
 }
 
 /// 场景跳转描述：从当前场景到目标场景以及执行方式。
@@ -56,5 +42,18 @@ pub struct SceneTransition {
     /// 目标场景 ID
     pub target: SceneId,
     /// 跳转动作
-    pub action: SceneAction,
+    pub action: AutomateAction,
+}
+
+pub fn execute_transition(
+    scene: &dyn Scene,
+    target: SceneId,
+    executor: &mut impl crate::automation::AutomateExecutor,
+) -> Result<crate::automation::ActionOutcome> {
+    let transition = scene
+        .transitions()
+        .iter()
+        .find(|transition| transition.target == target)
+        .ok_or_else(|| anyhow::anyhow!("没有从 {:?} 到 {:?} 的跳转", scene.id(), target))?;
+    executor.execute(&transition.action)
 }

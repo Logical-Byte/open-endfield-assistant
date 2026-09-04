@@ -6,9 +6,10 @@ use std::time::Duration;
 use anyhow::Result;
 use tracing::info;
 
+use crate::automation::{AutomateExecutor, Point720p};
 use crate::{
     scene::{
-        SceneAction, SceneId,
+        AutomateAction, SceneId,
         archive::{ROI_中枢档案按钮, ROI_见闻辑录按钮, ROI_音像存档按钮},
         scene_manager::SceneManager,
         档案库SubSceneId,
@@ -113,8 +114,7 @@ impl ArchiveScanTask<'_> {
     ) -> Result<()> {
         scene_manager.require_scene(SceneId::档案库主界面, session)?;
 
-        // 截图并搜索入口按钮
-        let screenshot = session.screencap_for_recognition()?;
+        // 构造并执行入口按钮的模板动作
         let roi = match step.first_sub_scene {
             档案库SubSceneId::音像存档_多媒体 => ROI_音像存档按钮,
             档案库SubSceneId::见闻辑录_纸质记录 => ROI_见闻辑录按钮,
@@ -122,8 +122,15 @@ impl ArchiveScanTask<'_> {
             _ => ROI_音像存档按钮, // fallback
         };
 
-        let found = session.find_and_click_template(&screenshot, step.entry_template, roi, 0.75)?;
-        if !found {
+        let action = AutomateAction::FindAndClickTemplate(crate::automation::TemplateTarget {
+            template_name: step.entry_template,
+            roi,
+            threshold: 0.75,
+        });
+        if matches!(
+            session.automate_context().execute(&action)?,
+            crate::automation::ActionOutcome::TargetNotFound
+        ) {
             anyhow::bail!("在档案库主界面未找到入口按钮: {}", step.entry_template);
         }
 
@@ -142,14 +149,17 @@ impl ArchiveScanTask<'_> {
 
     /// 在同一分类内切换子界面（点击侧边栏 tab）。
     ///
-    /// 点击逻辑与 tab 坐标单点维护在 [`SceneAction::ClickSubTab`]（scene_action.rs），
-    /// 此处只构造动作并执行，避免坐标重复。
+    /// 点击逻辑与 tab 坐标单点维护在档案库场景定义中。
     fn switch_sub_tab(&self, session: &mut Session, tab_index: usize) -> Result<()> {
-        let screenshot = session.screencap_for_recognition()?;
-        SceneAction::ClickSubTab {
-            roi_index: tab_index,
-        }
-        .execute(session, &screenshot)?;
+        let roi = crate::scene::archive::TAB_ROIS
+            .get(tab_index)
+            .ok_or_else(|| anyhow::anyhow!("无效的 tab 索引: {tab_index}"))?;
+        let center = roi.center();
+        let action = AutomateAction::ClickAt(Point720p {
+            x: center.x,
+            y: center.y,
+        });
+        session.automate_context().execute(&action)?;
 
         // 等待界面切换
         thread::sleep(Duration::from_millis(800));

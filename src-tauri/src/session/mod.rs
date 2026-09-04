@@ -13,15 +13,15 @@
 //!
 //! 会话贯穿一次游戏操作（扫描档案库任务），由调用方以 `&mut` 串行使用。
 
+mod automation_context;
 mod recognition_context;
 
+pub use automation_context::AutomateContext;
 pub use recognition_context::RecognitionContext;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use image::{DynamicImage, RgbaImage, imageops};
@@ -33,11 +33,11 @@ use crate::{
     resolution::GameResolution,
     task::TaskStopped,
     template_matching::LazyTemplateLoader,
-    utils::{point::Point2D, region::Region2D},
+    utils::region::Region2D,
     windows_ops::{
         self, WindowHandle,
         capture::{PrintWindowScreencap, ScreencapBase},
-        input::{Contact, InputBase, SeizeInput},
+        input::{InputBase, SeizeInput},
     },
 };
 
@@ -179,65 +179,12 @@ impl Session {
         RecognitionContext::new(frame, &mut self.templates)
     }
 
+    /// Create a short-lived facade for interpreting symbolic automation actions.
+    pub fn automate_context(&mut self) -> AutomateContext<'_> {
+        AutomateContext::new(self)
+    }
+
     // ========== 输入（统一 720p → 实际分辨率缩放） ==========
-
-    /// 点击 720p 基准坐标点（自动缩放），点击后鼠标回到窗口中心，
-    /// 避免按钮 hover 变化干扰后续识别。
-    pub fn click_at_720p(&mut self, x: u32, y: u32) -> Result<()> {
-        self.check_stop()?;
-        let (sx, sy) = self.resolution.scale_point(x, y);
-        self.input.click(
-            Contact::Left,
-            Point2D {
-                x: sx as i32,
-                y: sy as i32,
-            },
-        )?;
-        thread::sleep(Duration::from_millis(50));
-        self.move_mouse_to_safe_position()?;
-        Ok(())
-    }
-
-    /// 将鼠标移动到安全位置（窗口中心），避免 hover 干扰识别。
-    ///
-    /// 除点击后回中外，任务开始前也应先回中一次：
-    /// 防止任务开始时鼠标恰好停在按钮上，按钮 hover 样式变化干扰首次识别。
-    pub fn move_mouse_to_safe_position(&mut self) -> Result<()> {
-        let cx = self.resolution.width as i32 / 2;
-        let cy = self.resolution.height as i32 / 2;
-        self.input
-            .touch_move(Contact::Left, Point2D { x: cx, y: cy })
-    }
-
-    /// 按下并松开键盘按键（虚拟键码），如 ESC=0x1B。
-    pub fn press_key(&mut self, vk_code: i32) -> Result<()> {
-        self.check_stop()?;
-        self.input.press_key(vk_code)
-    }
-
-    // ========== 模板匹配 ==========
-
-    /// 在 720p 截图指定 ROI 内搜索模板，找到后点击其中心（自动缩放）。
-    pub fn find_and_click_template(
-        &mut self,
-        screenshot: &RgbaImage,
-        template_name: &str,
-        roi: Region2D<u32>,
-        threshold: f32,
-    ) -> Result<bool> {
-        let matched = self.recognition_context(screenshot).find_template_in_roi(
-            template_name,
-            roi,
-            threshold,
-        )?;
-        if let Some(m) = matched {
-            let center = m.region.center();
-            self.click_at_720p(center.x, center.y)?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
 
     // ========== OCR ==========
 
