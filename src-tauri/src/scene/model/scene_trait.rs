@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 
-use crate::session::Session;
+use crate::session::{RecognitionContext, Session};
 
 use super::{SceneAction, SceneId};
 
@@ -21,15 +21,15 @@ pub trait Scene: Send + Sync {
     /// 返回场景名称（用于日志）。
     fn name(&self) -> &'static str;
 
-    /// 尝试识别当前截图是否为此场景。
+    /// 尝试识别当前识别帧是否为此场景。
     ///
     /// # 参数
-    /// - `session`: 会话上下文（从中获取截图等）
+    /// - `context`: 同一识别帧上的受限识别能力
     ///
     /// # 返回
     /// - `Ok(Some(scene_id))`: 识别成功，返回确切的场景 ID（子界面可能需要返回更具体的 ID）
     /// - `Ok(None)`: 不是此场景
-    fn try_recognize(&self, session: &mut Session) -> Result<Option<SceneId>>;
+    fn try_recognize(&self, context: &mut RecognitionContext<'_>) -> Result<Option<SceneId>>;
 
     /// 返回从此场景可以跳转到的目标场景及跳转方式。
     ///

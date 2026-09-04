@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 use anyhow::Result;
 
 use super::super::model::{Scene, SceneId, SceneTransition};
-use crate::session::Session;
+use crate::session::RecognitionContext;
 
 /// 未知界面（兜底）：所有场景都无法识别时使用；不允许从此场景导航。
 pub struct Scene未知;
@@ -19,7 +19,7 @@ impl Scene for Scene未知 {
         "未知界面"
     }
 
-    fn try_recognize(&self, _session: &mut Session) -> Result<Option<SceneId>> {
+    fn try_recognize(&self, _context: &mut RecognitionContext<'_>) -> Result<Option<SceneId>> {
         // 未知场景总是返回自身（作为兜底）
         Ok(Some(SceneId::未知))
     }

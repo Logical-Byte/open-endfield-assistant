@@ -9,7 +9,7 @@ use anyhow::Result;
 
 use super::super::model::{Scene, SceneAction, SceneId, SceneTransition, 档案库SubSceneId};
 use super::TEMPLATE_MATCH_THRESHOLD;
-use crate::session::Session;
+use crate::session::RecognitionContext;
 use crate::utils::region::Region2D;
 
 // ============================================================================
@@ -60,13 +60,10 @@ impl Scene for Scene档案详情页面 {
         "档案详情页面"
     }
 
-    fn try_recognize(&self, session: &mut Session) -> Result<Option<SceneId>> {
-        let screenshot = session.screencap_for_recognition()?;
-
+    fn try_recognize(&self, context: &mut RecognitionContext<'_>) -> Result<Option<SceneId>> {
         // 必须同时满足两个条件：有档案详情装饰 且 有关闭按钮
-        let has_decoration = session
+        let has_decoration = context
             .find_template_in_roi(
-                &screenshot,
                 "情报档案库/档案详情装饰.png",
                 ROI_档案详情装饰,
                 TEMPLATE_MATCH_THRESHOLD,
@@ -76,9 +73,8 @@ impl Scene for Scene档案详情页面 {
             return Ok(None);
         }
 
-        let has_close = session
+        let has_close = context
             .find_template_in_roi(
-                &screenshot,
                 "情报档案库/档案详情关闭.png",
                 ROI_右上角关闭,
                 TEMPLATE_MATCH_THRESHOLD,
@@ -132,13 +128,10 @@ impl Scene for Scene档案库子界面 {
         "档案库子界面"
     }
 
-    fn try_recognize(&self, session: &mut Session) -> Result<Option<SceneId>> {
-        let screenshot = session.screencap_for_recognition()?;
-
+    fn try_recognize(&self, context: &mut RecognitionContext<'_>) -> Result<Option<SceneId>> {
         // 1. 检查标题
-        let has_title = session
+        let has_title = context
             .find_template_in_roi(
-                &screenshot,
                 "情报档案库/情报档案库标题.png",
                 ROI_档案库标题,
                 TEMPLATE_MATCH_THRESHOLD,
@@ -149,9 +142,8 @@ impl Scene for Scene档案库子界面 {
         }
 
         // 2. 检查子界面关闭按钮（区别于主界面的关闭按钮）
-        let has_close = session
+        let has_close = context
             .find_template_in_roi(
-                &screenshot,
                 "情报档案库/档案库子界面关闭.png",
                 ROI_右上角关闭,
                 TEMPLATE_MATCH_THRESHOLD,
@@ -162,12 +154,12 @@ impl Scene for Scene档案库子界面 {
         }
 
         // 3. 判断属于哪个分类（通过水印）
-        let Some(category) = self.detect_category(session, &screenshot)? else {
+        let Some(category) = self.detect_category(context)? else {
             return Ok(None);
         };
 
         // 4. 判断具体是哪个子界面（通过 tab 颜色 ROI）
-        let sub_scene = self.detect_sub_scene(session, category)?;
+        let sub_scene = self.detect_sub_scene(context, category)?;
         Ok(Some(SceneId::档案库子界面(sub_scene)))
     }
 
@@ -200,8 +192,7 @@ impl Scene档案库子界面 {
     /// 通过水印判断属于哪个分类（音像存档 / 见闻辑录 / 中枢档案）。
     fn detect_category(
         &self,
-        session: &mut Session,
-        screenshot: &image::RgbaImage,
+        context: &mut RecognitionContext<'_>,
     ) -> Result<Option<&'static str>> {
         let categories = [
             ("音像存档", "情报档案库/音像存档水印.png"),
@@ -210,8 +201,8 @@ impl Scene档案库子界面 {
         ];
 
         for (name, template) in &categories {
-            if session
-                .find_template_in_roi(screenshot, template, ROI_水印, TEMPLATE_MATCH_THRESHOLD)?
+            if context
+                .find_template_in_roi(template, ROI_水印, TEMPLATE_MATCH_THRESHOLD)?
                 .is_some()
             {
                 return Ok(Some(name));
@@ -227,15 +218,12 @@ impl Scene档案库子界面 {
     /// 深色（灰度 < 阈值）表示当前选中该 tab。
     fn detect_sub_scene(
         &self,
-        session: &mut Session,
+        context: &RecognitionContext<'_>,
         category: &str,
     ) -> Result<档案库SubSceneId> {
-        // 需要重新截图（前面的模板匹配可能消耗了原图）
-        let screenshot = session.screencap_for_recognition()?;
-
-        let tab0_dark = session.is_roi_dark_ltwh(&screenshot, 180, 120, 60, 36, DARK_THRESHOLD);
-        let tab1_dark = session.is_roi_dark_ltwh(&screenshot, 180, 184, 60, 36, DARK_THRESHOLD);
-        let tab2_dark = session.is_roi_dark_ltwh(&screenshot, 180, 248, 60, 36, DARK_THRESHOLD);
+        let tab0_dark = context.is_roi_dark_ltwh(180, 120, 60, 36, DARK_THRESHOLD);
+        let tab1_dark = context.is_roi_dark_ltwh(180, 184, 60, 36, DARK_THRESHOLD);
+        let tab2_dark = context.is_roi_dark_ltwh(180, 248, 60, 36, DARK_THRESHOLD);
 
         match category {
             "音像存档" => {
@@ -290,13 +278,10 @@ impl Scene for Scene档案库主界面 {
         "档案库主界面"
     }
 
-    fn try_recognize(&self, session: &mut Session) -> Result<Option<SceneId>> {
-        let screenshot = session.screencap_for_recognition()?;
-
+    fn try_recognize(&self, context: &mut RecognitionContext<'_>) -> Result<Option<SceneId>> {
         // 1. 检查标题
-        let has_title = session
+        let has_title = context
             .find_template_in_roi(
-                &screenshot,
                 "情报档案库/情报档案库标题.png",
                 ROI_档案库标题,
                 TEMPLATE_MATCH_THRESHOLD,
@@ -307,9 +292,8 @@ impl Scene for Scene档案库主界面 {
         }
 
         // 2. 检查主界面关闭按钮（与子界面关闭按钮不同）
-        let has_main_close = session
+        let has_main_close = context
             .find_template_in_roi(
-                &screenshot,
                 "情报档案库/档案库主界面关闭.png",
                 ROI_右上角关闭,
                 TEMPLATE_MATCH_THRESHOLD,
@@ -321,25 +305,22 @@ impl Scene for Scene档案库主界面 {
         }
 
         // 3. 确认至少有一个入口按钮存在
-        let has_any_entry = session
+        let has_any_entry = context
             .find_template_in_roi(
-                &screenshot,
                 "情报档案库/音像存档.png",
                 ROI_音像存档按钮,
                 TEMPLATE_MATCH_THRESHOLD,
             )?
             .is_some()
-            || session
+            || context
                 .find_template_in_roi(
-                    &screenshot,
                     "情报档案库/见闻辑录.png",
                     ROI_见闻辑录按钮,
                     TEMPLATE_MATCH_THRESHOLD,
                 )?
                 .is_some()
-            || session
+            || context
                 .find_template_in_roi(
-                    &screenshot,
                     "情报档案库/中枢档案.png",
                     ROI_中枢档案按钮,
                     TEMPLATE_MATCH_THRESHOLD,
