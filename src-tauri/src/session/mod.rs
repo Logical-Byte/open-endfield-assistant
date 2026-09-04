@@ -32,7 +32,7 @@ use crate::{
     ocr::{OcrEngine, text_detection},
     resolution::GameResolution,
     task::TaskStopped,
-    template_matching::{MatchResult, TemplateManager},
+    template_matching::LazyTemplateLoader,
     utils::{point::Point2D, region::Region2D},
     windows_ops::{
         self, WindowHandle,
@@ -62,8 +62,8 @@ pub struct Session {
     input: Box<dyn InputBase>,
     /// 共享 OCR 引擎（跨会话复用模型加载）
     ocr: Arc<Mutex<OcrEngine>>,
-    /// 模板匹配管理器（懒加载 + 缓存）
-    templates: TemplateManager,
+    /// 模板加载器（懒加载 + 缓存）
+    templates: LazyTemplateLoader,
     /// 停止令牌
     stop: StopToken,
 }
@@ -141,7 +141,7 @@ impl Session {
             screencap,
             input,
             ocr,
-            templates: TemplateManager::new(templates_root),
+            templates: LazyTemplateLoader::new(templates_root),
             resolution,
             stop,
         }
@@ -217,22 +217,6 @@ impl Session {
 
     // ========== 模板匹配 ==========
 
-    /// 在 720p 截图的指定 ROI 内搜索模板。
-    ///
-    /// 模板名需带子目录前缀（如 `"情报档案库/下一篇.png"`）。
-    /// 返回 `Ok(Some(MatchResult))` 命中、`Ok(None)` 未命中 / 分数过低；
-    /// 模板加载失败等错误会向上传播（`Err`），由上层记录日志，避免"模板缺失但毫无提示"。
-    pub fn find_template_in_roi(
-        &mut self,
-        screenshot: &RgbaImage,
-        template_name: &str,
-        roi: Region2D<u32>,
-        threshold: f32,
-    ) -> Result<Option<MatchResult>> {
-        self.recognition_context(screenshot)
-            .find_template_in_roi(template_name, roi, threshold)
-    }
-
     /// 在 720p 截图指定 ROI 内搜索模板，找到后点击其中心（自动缩放）。
     pub fn find_and_click_template(
         &mut self,
@@ -241,7 +225,12 @@ impl Session {
         roi: Region2D<u32>,
         threshold: f32,
     ) -> Result<bool> {
-        if let Some(m) = self.find_template_in_roi(screenshot, template_name, roi, threshold)? {
+        let matched = self.recognition_context(screenshot).find_template_in_roi(
+            template_name,
+            roi,
+            threshold,
+        )?;
+        if let Some(m) = matched {
             let center = m.region.center();
             self.click_at_720p(center.x, center.y)?;
             Ok(true)

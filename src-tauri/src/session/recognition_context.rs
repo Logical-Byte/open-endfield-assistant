@@ -4,7 +4,9 @@ use anyhow::Result;
 use image::{RgbaImage, imageops};
 
 use crate::{
-    template_matching::{MatchResult, TemplateManager},
+    template_matching::{
+        LazyTemplateLoader, MatchResult, TemplateSource, match_template_in_region,
+    },
     utils::region::Region2D,
 };
 
@@ -13,11 +15,11 @@ use crate::{
 /// 识别帧在上下文存续期内保持不变。模板仍按需加载，并可能修改会话所有的模板缓存。
 pub struct RecognitionContext<'a> {
     frame: &'a RgbaImage,
-    templates: &'a mut TemplateManager,
+    templates: &'a mut LazyTemplateLoader,
 }
 
 impl<'a> RecognitionContext<'a> {
-    pub(super) fn new(frame: &'a RgbaImage, templates: &'a mut TemplateManager) -> Self {
+    pub(super) fn new(frame: &'a RgbaImage, templates: &'a mut LazyTemplateLoader) -> Self {
         Self { frame, templates }
     }
 
@@ -33,9 +35,8 @@ impl<'a> RecognitionContext<'a> {
         roi: Region2D<u32>,
         threshold: f32,
     ) -> Result<Option<MatchResult>> {
-        let result =
-            self.templates
-                .match_template_in_region(self.frame, template_name, Some(roi))?;
+        let template = self.templates.get(template_name)?;
+        let result = match_template_in_region(self.frame, template, Some(roi))?;
         if result.score >= threshold {
             Ok(Some(result))
         } else {
