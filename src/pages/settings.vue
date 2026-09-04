@@ -262,7 +262,7 @@ onBeforeUnmount(() => {
               <UInput
                 v-model="mirrorchyanCdk"
                 class="w-56"
-                placeholder="未填写时使用 GitHub 下载"
+                placeholder="未填写时使用 OEM 下载"
                 type="password"
               />
               <ULink

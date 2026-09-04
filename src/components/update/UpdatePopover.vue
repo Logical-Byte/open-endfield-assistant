@@ -305,7 +305,7 @@ function formatSpeed(bytesPerSecond: number): string {
                   <UInput
                     v-model="mirrorchyanCdk"
                     class="w-full"
-                    placeholder="未填写时使用 GitHub 下载"
+                    placeholder="未填写时使用 OEM 下载"
                     type="password"
                   />
                 </UFormField>
