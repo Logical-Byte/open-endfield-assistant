@@ -10,32 +10,32 @@ use anyhow::Result;
 use super::super::model::{Scene, SceneAction, SceneId, SceneTransition, 档案库SubSceneId};
 use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::session::RecognitionContext;
-use crate::utils::region::Region2D;
+use crate::utils::region::{Region2D, ltrb, ltwh};
 
 // ============================================================================
 // 常用 ROI 和阈值常量（720p 基准）
 // ============================================================================
 
 /// 档案库标题 ROI
-const ROI_档案库标题: Region2D<u32> = Region2D::from_ltrb(0, 0, 162, 76);
+const ROI_档案库标题: Region2D<u32> = ltrb!(0, 0, 162, 76);
 
 /// 右上角关闭按钮 ROI (1180, 0, 1280, 100)
-const ROI_右上角关闭: Region2D<u32> = Region2D::from_ltrb(1180, 0, 1280, 100);
+const ROI_右上角关闭: Region2D<u32> = ltrb!(1180, 0, 1280, 100);
 
 /// 水印 ROI (52, 482, 189, 618)
-const ROI_水印: Region2D<u32> = Region2D::from_ltrb(52, 482, 189, 618);
+const ROI_水印: Region2D<u32> = ltrb!(52, 482, 189, 618);
 
 /// 档案详情装饰 ROI (356, 34, 496, 77)
-const ROI_档案详情装饰: Region2D<u32> = Region2D::from_ltrb(356, 34, 496, 77);
+const ROI_档案详情装饰: Region2D<u32> = ltrb!(356, 34, 496, 77);
 
 /// 音像存档按钮 ROI (692, 371, 959, 601)
-const ROI_音像存档按钮: Region2D<u32> = Region2D::from_ltrb(692, 371, 959, 601);
+const ROI_音像存档按钮: Region2D<u32> = ltrb!(692, 371, 959, 601);
 
 /// 见闻辑录按钮 ROI (957, 135, 1221, 371)
-const ROI_见闻辑录按钮: Region2D<u32> = Region2D::from_ltrb(957, 135, 1221, 371);
+const ROI_见闻辑录按钮: Region2D<u32> = ltrb!(957, 135, 1221, 371);
 
 /// 中枢档案按钮 ROI (958, 369, 1220, 601)
-const ROI_中枢档案按钮: Region2D<u32> = Region2D::from_ltrb(958, 369, 1220, 601);
+const ROI_中枢档案按钮: Region2D<u32> = ltrb!(958, 369, 1220, 601);
 
 /// 颜色判断阈值：灰度 < 128 视为深色（选中状态）
 const DARK_THRESHOLD: u8 = 128;
@@ -221,9 +221,9 @@ impl Scene档案库子界面 {
         context: &RecognitionContext<'_>,
         category: &str,
     ) -> Result<档案库SubSceneId> {
-        let tab0_dark = context.is_roi_dark_ltwh(180, 120, 60, 36, DARK_THRESHOLD);
-        let tab1_dark = context.is_roi_dark_ltwh(180, 184, 60, 36, DARK_THRESHOLD);
-        let tab2_dark = context.is_roi_dark_ltwh(180, 248, 60, 36, DARK_THRESHOLD);
+        let tab0_dark = context.is_roi_dark(ltwh!(180, 120, 60, 36), DARK_THRESHOLD);
+        let tab1_dark = context.is_roi_dark(ltwh!(180, 184, 60, 36), DARK_THRESHOLD);
+        let tab2_dark = context.is_roi_dark(ltwh!(180, 248, 60, 36), DARK_THRESHOLD);
 
         match category {
             "音像存档" => {

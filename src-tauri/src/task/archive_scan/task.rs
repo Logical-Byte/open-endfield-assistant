@@ -10,7 +10,7 @@ use crate::{
     scene::{SceneAction, SceneId, scene_manager::SceneManager, 档案库SubSceneId},
     session::Session,
     task::Task,
-    utils::region::Region2D,
+    utils::region::ltrb,
 };
 
 use super::correction::{CorrectionOverride, DEFAULT_CORRECTION_OVERRIDES};
@@ -112,14 +112,14 @@ impl ArchiveScanTask<'_> {
         // 截图并搜索入口按钮
         let screenshot = session.screencap_for_recognition()?;
         let roi = match step.first_sub_scene {
-            档案库SubSceneId::音像存档_多媒体 => Region2D::from_ltrb(692, 371, 959, 601),
+            档案库SubSceneId::音像存档_多媒体 => ltrb!(692, 371, 959, 601),
             档案库SubSceneId::见闻辑录_纸质记录 => {
-                Region2D::from_ltrb(957, 135, 1221, 371)
+                ltrb!(957, 135, 1221, 371)
             }
             档案库SubSceneId::中枢档案_中枢档案 => {
-                Region2D::from_ltrb(958, 369, 1220, 601)
+                ltrb!(958, 369, 1220, 601)
             }
-            _ => Region2D::from_ltrb(692, 371, 959, 601), // fallback
+            _ => ltrb!(692, 371, 959, 601), // fallback
         };
 
         let found = session.find_and_click_template(&screenshot, step.entry_template, roi, 0.75)?;

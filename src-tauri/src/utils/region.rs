@@ -149,24 +149,6 @@ impl<T> Region2D<T> {
         self.p1.y - self.p0.y
     }
 
-    /// 返回区域中心点 x 坐标 `(left + right) / 2`。
-    pub fn x_center(&self) -> T
-    where
-        T: Copy + Add<Output = T> + Div<Output = T>,
-        u8: Cast<T>,
-    {
-        (self.p0.x + self.p1.x) / 2.cast()
-    }
-
-    /// 返回区域中心点 y 坐标 `(top + bottom) / 2`。
-    pub fn y_center(&self) -> T
-    where
-        T: Copy + Add<Output = T> + Div<Output = T>,
-        u8: Cast<T>,
-    {
-        (self.p0.y + self.p1.y) / 2.cast()
-    }
-
     /// 返回区域中心点坐标 `(x_center, y_center)`。
     pub fn center(&self) -> Point2D<T>
     where
@@ -174,8 +156,8 @@ impl<T> Region2D<T> {
         u8: Cast<T>,
     {
         Point2D {
-            x: self.x_center(),
-            y: self.y_center(),
+            x: (self.p0.x + self.p1.x) / 2.cast(),
+            y: (self.p0.y + self.p1.y) / 2.cast(),
         }
     }
 
@@ -185,38 +167,6 @@ impl<T> Region2D<T> {
         T: Copy + Sub<Output = T> + Mul<Output = T>,
     {
         self.width() * self.height()
-    }
-
-    /// 分别对四条边应用不同的 padding（向外扩展）。
-    ///
-    /// 正值向外扩展，负值向内收缩。
-    /// 参数顺序为 `(padding_left, padding_top, padding_right, padding_bottom)`。
-    pub fn apply_padding_ltrb(
-        &self,
-        padding_left: T,
-        padding_top: T,
-        padding_right: T,
-        padding_bottom: T,
-    ) -> Self
-    where
-        T: Copy + Add<Output = T> + Sub<Output = T>,
-    {
-        Self::from_ltrb(
-            self.left() - padding_left,
-            self.top() - padding_top,
-            self.right() + padding_right,
-            self.bottom() + padding_bottom,
-        )
-    }
-
-    /// 四条边应用相同的 padding（向外扩展）。
-    ///
-    /// 正值向外扩展，负值向内收缩。
-    pub fn apply_padding(&self, padding: T) -> Self
-    where
-        T: Copy + Add<Output = T> + Sub<Output = T>,
-    {
-        self.apply_padding_ltrb(padding, padding, padding, padding)
     }
 }
 
@@ -297,19 +247,26 @@ where
     }
 }
 
-/// 以 ltwh 格式创建 `Region2D<u32>` 的 const 友好宏。
-///
-/// `from_ltwh` 因泛型 trait bound 无法标记为 `const fn`，
-/// 此宏展开为 `from_ltrb(x, y, x + w, y + h)`，所有参数在编译期求值。
-///
-/// # 示例
-/// ```
-/// use oea_lib::{from_ltwh, utils::region::Region2D};
-/// const ROI: Region2D<u32> = from_ltwh!(180, 120, 60, 36);
-/// ```
-#[macro_export]
-macro_rules! from_ltwh {
-    ($x:expr, $y:expr, $w:expr, $h:expr) => {
-        $crate::utils::region::Region2D::from_ltrb($x, $y, $x + $w, $y + $h)
-    };
+/// 以 ltwh 格式创建 `Region2D`，可用于常量声明。
+macro_rules! ltwh {
+    ($left:expr, $top:expr, $width:expr, $height:expr $(,)?) => {{
+        let left = $left;
+        let top = $top;
+        let width = $width;
+        let height = $height;
+        $crate::utils::region::Region2D::from_ltrb(left, top, left + width, top + height)
+    }};
 }
+
+/// 以 ltrb 格式创建 `Region2D`，可用于常量声明。
+macro_rules! ltrb {
+    ($left:expr, $top:expr, $right:expr, $bottom:expr $(,)?) => {{
+        let left = $left;
+        let top = $top;
+        let right = $right;
+        let bottom = $bottom;
+        $crate::utils::region::Region2D::from_ltrb(left, top, right, bottom)
+    }};
+}
+
+pub(crate) use {ltrb, ltwh};

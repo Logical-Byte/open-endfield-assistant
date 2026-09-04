@@ -7,10 +7,10 @@ use anyhow::Result;
 use super::super::model::{Scene, SceneAction, SceneId, SceneTransition};
 use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::session::RecognitionContext;
-use crate::utils::region::Region2D;
+use crate::utils::region::{Region2D, ltrb};
 
 /// 档案库按钮 ROI (971, 108, 1280, 700)
-const ROI_档案库按钮: Region2D<u32> = Region2D::from_ltrb(971, 108, 1280, 700);
+const ROI_档案库按钮: Region2D<u32> = ltrb!(971, 108, 1280, 700);
 
 /// 协议终端界面。
 pub struct Scene协议终端;
