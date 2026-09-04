@@ -8,26 +8,27 @@
 
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use serde::de::DeserializeOwned;
 use tracing::info;
 
-use crate::{
-    app_paths::AppPaths,
-    task::archive_scan::CorrectionIndex,
-    types::{ArchiveContract, PrtsData},
-};
+use crate::app_paths::AppPaths;
+
+pub(crate) mod archive_title_index;
+pub(crate) mod schema;
+
+pub use archive_title_index::ArchiveTitleIndex;
+pub use schema::{ArchiveContract, PrtsData};
 
 /// 运行时加载的静态数据（不可变，跨线程只读共享）。
 pub struct AppData {
-    /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选，并派生纠错索引）
-    prts: Arc<PrtsData>,
+    /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选，并构建档案标题索引）
+    prts: PrtsData,
     /// 档案获取契约（archive_contract.json，供前端按档案 id 查询获取方式）
-    archive_contract: Arc<ArchiveContract>,
-    /// 档案标题纠错索引（启动时从 prts.json 派生构建一次）
-    correction: Arc<CorrectionIndex>,
+    archive_contract: ArchiveContract,
+    /// 档案标题索引（启动时从 prts.json 派生构建一次）
+    archive_titles: ArchiveTitleIndex,
 }
 
 impl AppData {
@@ -35,36 +36,35 @@ impl AppData {
     pub fn load(app_paths: &AppPaths) -> Result<Self> {
         let data_dir = app_paths.resources_dir().join("data");
 
-        let prts = Arc::new(Self::load_json::<PrtsData>(&data_dir.join("prts.json"))?);
-        let correction = Arc::new(CorrectionIndex::from_prts(&prts));
-        info!("已加载 prts.json（{} 个档案条目）", correction.len());
+        let prts = Self::load_json::<PrtsData>(&data_dir.join("prts.json"))?;
+        let archive_titles = ArchiveTitleIndex::from_prts(&prts);
+        info!("已加载 prts.json（{} 个档案条目）", archive_titles.len());
 
-        let archive_contract = Arc::new(Self::load_json::<ArchiveContract>(
-            &data_dir.join("archive_contract.json"),
-        )?);
+        let archive_contract =
+            Self::load_json::<ArchiveContract>(&data_dir.join("archive_contract.json"))?;
         let row_count: usize = archive_contract.categories.values().map(Vec::len).sum();
         info!("已加载 archive_contract.json（{} 条获取契约）", row_count);
 
         Ok(Self {
             prts,
             archive_contract,
-            correction,
+            archive_titles,
         })
     }
 
     /// prts.json 完整数据。
-    pub fn prts(&self) -> Arc<PrtsData> {
-        Arc::clone(&self.prts)
+    pub fn prts(&self) -> &PrtsData {
+        &self.prts
     }
 
     /// 档案获取契约完整数据。
-    pub fn archive_contract(&self) -> Arc<ArchiveContract> {
-        Arc::clone(&self.archive_contract)
+    pub fn archive_contract(&self) -> &ArchiveContract {
+        &self.archive_contract
     }
 
-    /// 档案标题纠错索引。
-    pub fn correction(&self) -> Arc<CorrectionIndex> {
-        Arc::clone(&self.correction)
+    /// 档案标题索引。
+    pub fn archive_titles(&self) -> &ArchiveTitleIndex {
+        &self.archive_titles
     }
 
     /// 读取并解析一个 JSON 数据文件；失败时错误信息带完整文件路径。

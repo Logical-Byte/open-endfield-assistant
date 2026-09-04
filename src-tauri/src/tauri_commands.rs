@@ -9,8 +9,8 @@ use crate::{
     app_paths::AppPaths,
     config::{self, OeaConfig},
     controller::{AppStatus, Controller},
+    data::{ArchiveContract, PrtsData},
     screenshot::{self, ScreenshotFormat},
-    types::{ArchiveContract, PrtsData},
     windows_ops,
 };
 
@@ -36,14 +36,14 @@ pub fn get_status(state: tauri::State<Arc<Controller>>) -> AppStatus {
 
 /// 返回 prts.json 完整数据（前端用于分类中文名映射与自动补全候选）。
 #[tauri::command]
-pub fn get_prts_data(state: tauri::State<Arc<Controller>>) -> Arc<PrtsData> {
-    state.prts_data()
+pub fn get_prts_data<'a>(state: tauri::State<'a, Arc<Controller>>) -> &'a PrtsData {
+    state.inner().prts_data()
 }
 
 /// 返回 archive_contract.json 完整数据（前端用于按档案 id 查询获取方式）。
 #[tauri::command]
-pub fn get_archive_contract(state: tauri::State<Arc<Controller>>) -> Arc<ArchiveContract> {
-    state.archive_contract_data()
+pub fn get_archive_contract<'a>(state: tauri::State<'a, Arc<Controller>>) -> &'a ArchiveContract {
+    state.inner().archive_contract_data()
 }
 
 /// 退出程序。

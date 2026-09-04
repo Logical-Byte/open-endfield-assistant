@@ -1,6 +1,5 @@
 //! 档案库扫描任务定义。
 
-use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -14,31 +13,31 @@ use crate::{
     utils::region::Region2D,
 };
 
-use super::correction::CorrectionIndex;
 use super::plan::{SCAN_PLAN, ScanStep};
 use super::result::ScanReporter;
 use super::scan_loop::scan_current_sub_scene;
+use crate::data::ArchiveTitleIndex;
 
 /// 扫描档案库任务：扫描全部 6 个子分类的档案。
 ///
-/// 扫描结果上报器与纠错索引在构造时由调用方（[`crate::controller::Controller`]）注入，
+/// 扫描结果上报器与档案标题索引在构造时由调用方（[`crate::controller::Controller`]）注入，
 /// 使 `Task` trait 保持通用、不耦合档案上报。
-pub struct ArchiveScanTask {
+pub struct ArchiveScanTask<'a> {
     reporter: ScanReporter,
-    correction: Arc<CorrectionIndex>,
+    archive_titles: &'a ArchiveTitleIndex,
 }
 
-impl ArchiveScanTask {
+impl<'a> ArchiveScanTask<'a> {
     /// 创建任务。
-    pub fn new(reporter: ScanReporter, correction: Arc<CorrectionIndex>) -> Self {
+    pub fn new(reporter: ScanReporter, archive_titles: &'a ArchiveTitleIndex) -> Self {
         Self {
             reporter,
-            correction,
+            archive_titles,
         }
     }
 }
 
-impl Task for ArchiveScanTask {
+impl Task for ArchiveScanTask<'_> {
     fn name(&self) -> &str {
         "扫描档案库"
     }
@@ -78,7 +77,7 @@ impl Task for ArchiveScanTask {
                     session,
                     scene_manager,
                     sub_scene,
-                    &self.correction,
+                    self.archive_titles,
                     &self.reporter,
                 )?;
                 info!("完成扫描 {:?}", sub_scene);
@@ -94,7 +93,7 @@ impl Task for ArchiveScanTask {
     }
 }
 
-impl ArchiveScanTask {
+impl ArchiveScanTask<'_> {
     /// 从档案库主界面点击入口按钮进入子分类。
     ///
     /// 调用时应已处于档案库主界面。
