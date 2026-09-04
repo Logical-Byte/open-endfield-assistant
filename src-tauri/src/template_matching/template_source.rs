@@ -31,12 +31,28 @@ impl TemplateSource for LazyTemplateLoader {
     fn get(&mut self, template_name: &str) -> Result<&RgbImage> {
         let path = resolve_template_path(&self.root, template_name)?;
 
-        if !self.cache.contains_key(template_name) {
-            let image = image::open(&path)
-                .with_context(|| format!("加载模板图片失败: {}", path.display()))?
-                .to_rgb8();
-            self.cache.insert(template_name.to_owned(), image);
+        if self.cache.contains_key(template_name) {
+            return Ok(self
+                .cache
+                .get(template_name)
+                .expect("已缓存的模板应存在于缓存中"));
         }
+
+        let canonical_root = self
+            .root
+            .canonicalize()
+            .with_context(|| format!("规范化模板根目录失败: {}", self.root.display()))?;
+        let canonical_path = path
+            .canonicalize()
+            .with_context(|| format!("规范化模板路径失败: {}", path.display()))?;
+        if !canonical_path.starts_with(&canonical_root) {
+            bail!("模板路径超出模板根目录: {template_name:?}");
+        }
+
+        let image = image::open(&canonical_path)
+            .with_context(|| format!("加载模板图片失败: {}", canonical_path.display()))?
+            .to_rgb8();
+        self.cache.insert(template_name.to_owned(), image);
 
         Ok(self
             .cache
@@ -108,5 +124,26 @@ mod tests {
                 "unexpectedly accepted {template_name:?}"
             );
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlink_that_resolves_outside_template_root() {
+        use std::os::unix::fs::symlink;
+
+        use image::{Rgb, RgbImage};
+
+        use super::{LazyTemplateLoader, TemplateSource};
+
+        let templates = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let outside_template = outside.path().join("outside.png");
+        RgbImage::from_pixel(1, 1, Rgb([0, 0, 0]))
+            .save(&outside_template)
+            .unwrap();
+        symlink(&outside_template, templates.path().join("escaped.png")).unwrap();
+
+        let mut loader = LazyTemplateLoader::new(templates.path());
+        assert!(loader.get("escaped.png").is_err());
     }
 }

@@ -3291,6 +3291,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-os",
  "tauri-plugin-process",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-appender",
