@@ -127,12 +127,7 @@ impl ArchiveScanTask<'_> {
             roi,
             threshold: 0.75,
         });
-        if matches!(
-            session.automate_context().execute(&action)?,
-            crate::automation::ActionOutcome::TargetNotFound
-        ) {
-            anyhow::bail!("在档案库主界面未找到入口按钮: {}", step.entry_template);
-        }
+        session.automate_context().execute(&action)??;
 
         // 等待跳转完成
         thread::sleep(Duration::from_millis(800));
@@ -159,7 +154,7 @@ impl ArchiveScanTask<'_> {
             x: center.x,
             y: center.y,
         });
-        session.automate_context().execute(&action)?;
+        session.automate_context().execute(&action)??;
 
         // 等待界面切换
         thread::sleep(Duration::from_millis(800));

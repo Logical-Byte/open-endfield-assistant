@@ -9,7 +9,7 @@ use anyhow::Result;
 use tracing::{debug, info};
 
 use crate::{
-    automation::{ActionOutcome, AutomateAction, AutomateExecutor, Point720p, TemplateTarget},
+    automation::{AutomateAction, AutomateExecutor, Point720p, TemplateTarget},
     scene::{SceneId, scene_manager::SceneManager, 档案库SubSceneId},
     session::Session,
 };
@@ -42,7 +42,7 @@ pub fn scan_current_sub_scene(
     debug!("点击第 1 份档案 (401, 182)");
     session
         .automate_context()
-        .execute(&AutomateAction::ClickAt(Point720p { x: 401, y: 182 }))?;
+        .execute(&AutomateAction::ClickAt(Point720p { x: 401, y: 182 }))??;
 
     // 等待详情页面加载
     std::thread::sleep(std::time::Duration::from_millis(800));
@@ -117,10 +117,7 @@ pub fn scan_current_sub_scene(
             roi: NEXT_BUTTON_ROI,
             threshold: THRESHOLD,
         });
-        if matches!(
-            session.automate_context().execute(&next)?,
-            ActionOutcome::Applied
-        ) {
+        if session.automate_context().execute(&next)?.is_ok() {
             debug!("点击「下一篇」，进入第 {} 份档案", archive_count + 1);
             // 等待详情页面切换
             std::thread::sleep(std::time::Duration::from_millis(200));
@@ -133,10 +130,7 @@ pub fn scan_current_sub_scene(
             roi: ARROW_RIGHT_ROI,
             threshold: THRESHOLD,
         });
-        if matches!(
-            session.automate_context().execute(&arrow)?,
-            ActionOutcome::Applied
-        ) {
+        if session.automate_context().execute(&arrow)?.is_ok() {
             debug!(
                 "点击「档案详情右箭头」，进入第 {} 份档案",
                 archive_count + 1
@@ -158,15 +152,12 @@ pub fn scan_current_sub_scene(
         roi: CLOSE_BUTTON_ROI,
         threshold: THRESHOLD,
     });
-    if matches!(
-        session.automate_context().execute(&close)?,
-        ActionOutcome::TargetNotFound
-    ) {
+    if session.automate_context().execute(&close)?.is_err() {
         // 如果模板匹配失败，直接点击右上角固定位置
         debug!("模板匹配关闭按钮失败，尝试固定坐标点击");
         session
             .automate_context()
-            .execute(&AutomateAction::ClickAt(Point720p { x: 1240, y: 50 }))?;
+            .execute(&AutomateAction::ClickAt(Point720p { x: 1240, y: 50 }))??;
     }
 
     // 等待返回子界面

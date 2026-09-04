@@ -2,7 +2,10 @@
 
 use anyhow::Result;
 
-use crate::session::RecognitionContext;
+use crate::{
+    automation::{AutomateExecutor, AutomateResult},
+    session::RecognitionContext,
+};
 
 use super::{AutomateAction, SceneId};
 
@@ -48,8 +51,8 @@ pub struct SceneTransition {
 pub fn execute_transition(
     scene: &dyn Scene,
     target: SceneId,
-    executor: &mut impl crate::automation::AutomateExecutor,
-) -> Result<crate::automation::ActionOutcome> {
+    executor: &mut impl AutomateExecutor,
+) -> AutomateResult<()> {
     let transition = scene
         .transitions()
         .iter()

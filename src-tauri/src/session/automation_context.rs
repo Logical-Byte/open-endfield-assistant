@@ -3,7 +3,7 @@ use std::sync::atomic::Ordering;
 use anyhow::Result;
 
 use crate::{
-    automation::{ActionOutcome, AutomateAction, AutomateExecutor, Key, Point720p},
+    automation::{AutomateAction, AutomateErr, AutomateExecutor, AutomateResult, Key, Point720p},
     session::Session,
     task::TaskStopped,
     utils::point::Point2D,
@@ -67,15 +67,15 @@ impl<'a> AutomateContext<'a> {
 }
 
 impl AutomateExecutor for AutomateContext<'_> {
-    fn execute(&mut self, action: &AutomateAction) -> Result<ActionOutcome> {
+    fn execute(&mut self, action: &AutomateAction) -> AutomateResult<()> {
         match action {
             AutomateAction::ClickAt(point) => {
                 self.click_at(*point)?;
-                Ok(ActionOutcome::Applied)
+                Ok(Ok(()))
             }
             AutomateAction::PressKey(key) => {
                 self.press_key(*key)?;
-                Ok(ActionOutcome::Applied)
+                Ok(Ok(()))
             }
             AutomateAction::FindAndClickTemplate(target) => {
                 self.check_stop()?;
@@ -86,14 +86,14 @@ impl AutomateExecutor for AutomateContext<'_> {
                     .recognition_context(&frame)
                     .find_template_in_roi(target.template_name, target.roi, target.threshold)?;
                 let Some(matched) = matched else {
-                    return Ok(ActionOutcome::TargetNotFound);
+                    return Ok(Err(AutomateErr::TargetNotFound));
                 };
                 let center = matched.region.center();
                 self.click_at(Point720p {
                     x: center.x,
                     y: center.y,
                 })?;
-                Ok(ActionOutcome::Applied)
+                Ok(Ok(()))
             }
         }
     }

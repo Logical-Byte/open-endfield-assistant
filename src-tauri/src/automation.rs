@@ -55,27 +55,42 @@ pub enum AutomateAction {
     ///
     /// 执行器会在解释此动作时获取一张新的识别帧，再按 [`TemplateTarget`] 的
     /// 名称、区域和阈值进行匹配。没有达到阈值时不发送点击，并返回
-    /// [`ActionOutcome::TargetNotFound`]；匹配成功后才执行中心点点击。
+    /// [`AutomateErr::TargetNotFound`]；匹配成功后才执行中心点点击。
     FindAndClickTemplate(TemplateTarget),
 }
 
-/// 解释自动化动作后的业务结果。
+/// 自动化动作执行过程中可由 workflow 处理的逻辑错误。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ActionOutcome {
-    /// 动作已经完成，包含固定点击、按键或模板匹配后的点击。
-    Applied,
+pub enum AutomateErr {
     /// 模板动作没有找到达到阈值的目标，因此没有发送点击。
-    ///
-    /// 这不是基础设施错误；调用方可以据此决定是否采用其他动作或结束当前
-    /// 流程。截图、模板加载或输入设备失败仍会通过 `Result` 返回错误。
     TargetNotFound,
 }
+
+impl std::fmt::Display for AutomateErr {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TargetNotFound => formatter.write_str("未找到自动化动作目标"),
+        }
+    }
+}
+
+impl std::error::Error for AutomateErr {}
+
+/// 自动化动作的执行结果。
+///
+/// 外层 [`anyhow::Result`] 表示解释器或基础设施故障，例如截图失败、输入设备
+/// 失败或游戏窗口消失。内层 [`std::result::Result`] 表示解释器正常工作时，
+/// workflow 可以处理的自动化逻辑错误，例如模板目标不存在。
+///
+/// 成功时的 `T` 通常是 `()`；使用 `Result<Result<(), AutomateErr>>` 时，调用方
+/// 可以用 `??` 同时传播两层错误，也可以只处理外层错误并匹配内层的可控分支。
+pub type AutomateResult<T> = anyhow::Result<std::result::Result<T, AutomateErr>>;
 
 /// 解释并执行符号化自动化动作的接口。
 ///
 /// 接口不依赖 [`crate::session::Session`] 的具体实现，因而可以由生产环境的
 /// `AutomateContext` 实现，也可以由记录器或测试替身实现。
 pub trait AutomateExecutor {
-    /// 执行一个动作，并返回动作是否实际应用或未找到模板目标。
-    fn execute(&mut self, action: &AutomateAction) -> anyhow::Result<ActionOutcome>;
+    /// 执行一个动作，并区分解释器故障与 workflow 可处理的动作逻辑错误。
+    fn execute(&mut self, action: &AutomateAction) -> AutomateResult<()>;
 }

@@ -108,10 +108,7 @@ impl<'a> RouteExecutor<'a> {
             .get_registered_scene(from)
             .ok_or_else(|| anyhow::anyhow!("未注册的场景: {:?}", from))?;
         let mut context = self.session.automate_context();
-        let outcome = execute_transition(scene, to, &mut context)?;
-        if matches!(outcome, crate::automation::ActionOutcome::TargetNotFound) {
-            anyhow::bail!("跳转动作未找到目标: {:?} → {:?}", from, to);
-        }
+        execute_transition(scene, to, &mut context)??;
         Ok(())
     }
 }
