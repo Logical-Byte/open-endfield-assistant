@@ -46,6 +46,14 @@ pnpm submodules:init
 pnpm install
 ```
 
+安装依赖时会同时安装 Lefthook Git hooks。可用以下命令检查配置与安装状态：
+
+```bash
+pnpm hooks:validate
+pnpm exec lefthook check-install
+pnpm hooks:pre-commit
+```
+
 ### 下载 OCR 模型
 
 `resources/ocr-models/` 目录已被 git 忽略（体积较大，不入库），克隆仓库后需要先下载 OCR 模型才能正常识别档案标题：
@@ -94,6 +102,8 @@ pnpm dev   # http://localhost:1420（strictPort）
 - 文件日志：`logs/YYYY-mm-dd.log`（TRACE+），按本地日期每日轮换，位于应用根目录（开发期为项目根）。
 
 ### 检查与测试
+
+提交代码时，Lefthook 会检查暂存的前端文件与 Rust 格式；推送代码时，会按改动范围运行完整前端检查或 Clippy。hooks 只检查、不自动暂存修复结果，避免改变分块暂存的内容。
 
 前端改动运行：
 
