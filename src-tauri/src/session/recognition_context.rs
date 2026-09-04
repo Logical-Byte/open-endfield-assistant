@@ -45,8 +45,7 @@ impl<'a> RecognitionContext<'a> {
     }
 
     /// 判断矩形区域的平均灰度是否低于 `threshold`。
-    pub fn is_roi_dark_ltwh(&self, x: u32, y: u32, width: u32, height: u32, threshold: u8) -> bool {
-        let roi = Region2D::from_ltwh(x, y, width, height);
+    pub fn is_roi_dark(&self, roi: Region2D<u32>, threshold: u8) -> bool {
         let cropped = imageops::crop_imm(self.frame, roi.x0(), roi.y0(), roi.width(), roi.height());
         let gray = imageops::grayscale(&cropped.to_image());
         let pixel_count = (roi.width() * roi.height()) as u64;

@@ -59,17 +59,6 @@ impl GameResolution {
         (self.scale_x(x), self.scale_y(y))
     }
 
-    /// 将 720p 基准坐标系中的矩形区域缩放到当前分辨率。
-    /// 返回 (scaled_left, scaled_top, scaled_right, scaled_bottom)。
-    pub fn scale_ltrb(&self, left: u32, top: u32, right: u32, bottom: u32) -> (u32, u32, u32, u32) {
-        (
-            self.scale_x(left),
-            self.scale_y(top),
-            self.scale_x(right),
-            self.scale_y(bottom),
-        )
-    }
-
     /// 将截图缩放到 720p 基准分辨率，用于识别。
     /// 如果已经是基准分辨率则直接返回原图。
     pub fn scale_screenshot_to_base(&self, image: &RgbaImage) -> RgbaImage {

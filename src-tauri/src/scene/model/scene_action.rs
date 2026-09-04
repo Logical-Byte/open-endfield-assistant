@@ -3,7 +3,16 @@
 use anyhow::Result;
 use image::RgbaImage;
 
-use crate::{session::Session, utils::region::Region2D};
+use crate::{
+    session::Session,
+    utils::region::{Region2D, ltwh},
+};
+
+pub(crate) const TAB_ROIS: [Region2D<u32>; 3] = [
+    ltwh!(180, 120, 60, 36),
+    ltwh!(180, 184, 60, 36),
+    ltwh!(180, 248, 60, 36),
+];
 
 /// 从一个场景跳转到另一个场景的具体动作。
 pub enum SceneAction {
@@ -48,17 +57,11 @@ impl SceneAction {
                 session.click_at_720p(*x, *y)?;
             }
             SceneAction::ClickSubTab { roi_index } => {
-                // 颜色 ROI 的 ltwh 坐标：从上到下分别是 (180, 120, 60, 36)、
-                // (180, 184, 60, 36)、(180, 248, 60, 36)
-                const TAB_ROIS: [(u32, u32, u32, u32); 3] =
-                    [(180, 120, 60, 36), (180, 184, 60, 36), (180, 248, 60, 36)];
-                let (x, y, w, h) = TAB_ROIS
+                let roi = TAB_ROIS
                     .get(*roi_index)
                     .ok_or_else(|| anyhow::anyhow!("无效的 ROI 索引: {roi_index}"))?;
-                // 点击 ROI 中心
-                let cx = x + w / 2;
-                let cy = y + h / 2;
-                session.click_at_720p(cx, cy)?;
+                let center = roi.center();
+                session.click_at_720p(center.x, center.y)?;
             }
             SceneAction::PressKey { vk_code } => {
                 session.press_key(*vk_code)?;
