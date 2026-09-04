@@ -8,6 +8,7 @@ use crate::{
     utils::region::{Region2D, ltwh},
 };
 
+/// 档案库侧边栏从上到下三个 tab 的颜色检测与点击区域（720p 基准 LTWH）。
 pub(crate) const TAB_ROIS: [Region2D<u32>; 3] = [
     ltwh!(180, 120, 60, 36),
     ltwh!(180, 184, 60, 36),
