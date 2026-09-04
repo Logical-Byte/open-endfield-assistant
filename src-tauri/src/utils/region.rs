@@ -4,9 +4,10 @@ use az::{Cast, CheckedCast, OverflowingCast, SaturatingCast, StrictCast, Wrappin
 
 use crate::utils::point::Point2D;
 
-/// 泛型二维矩形区域结构体。
+/// 以 left、top、right、bottom 四条边界定义的泛型二维矩形区域。
 ///
-/// 约定 `p0` 为区域左上角（left, top），`p1` 为区域右下角（right, bottom）。
+/// `(left, top)` 为左上角，可通过 [`p0`](Self::p0) 访问；`(right, bottom)` 为右下角，
+/// 可通过 [`p1`](Self::p1) 访问。
 /// 区域使用半开区间 `[left, right) × [top, bottom)`；构造时不检查边界顺序。
 /// 支持 ltrb（left/top/right/bottom）与 ltwh（left/top/width/height）两种构造方式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
