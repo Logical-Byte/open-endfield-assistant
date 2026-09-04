@@ -1,28 +1,6 @@
-//! 档案标题纠错：归一化 + 精确匹配 / 编辑距离评分。
+//! 档案标题纠错。
 //!
-//! OCR 总归会有识别错误，本模块把 OCR 输出与该子分类下的候选标题（来自
-//! `prts.json` 的 `allItems`）做比对，在置信度足够时纠出正确的标题。
-//!
-//! ## 错误形态
-//!
-//! 从已发现的 OCR 错误可归纳出三类：
-//! 1. **字符替换**：形近字 / 简繁异体混淆（決→决）、全角半角标点（（→(、）→)）；
-//! 2. **截断**（最主要）：OCR 区域只有一行，长标题只识别出第一行 → OCR 结果是正确标题的**前缀**；
-//! 3. **（潜在）增删字符**：OCR 偶发多认 / 漏认字符。
-//!
-//! 由于「只识别标题第 1 行且第 1 行可唯一确定档案」，OCR 结果可建模为
-//! **正确标题的前缀 + 少量字符错误**。候选按子分类预先存入
-//! [`crate::data::ArchiveTitleIndex`]；每个分类仅 15~250 条，匹配时线性扫描即可。
-//!
-//! ## 算法
-//!
-//! 1. 离线构建候选索引（数据加载时一次完成）：按 `categoryId` 分组 + 归一化；
-//! 2. 归一化 OCR 文本；
-//! 3. 精确匹配（快速路径）：`O` 与某候选 `norm` 完全相等则直接采纳；
-//! 4. 编辑距离评分：`score = 1 - dist / max(len(O), len(C.norm))`；
-//! 5. 决策：`best ≥ 0.80` 且与次高差距 `≥ 0.10` → 纠错；否则「无法识别」。
-
-use std::collections::HashMap;
+//! 使用候选标题索引和可选覆盖项，把原始 OCR 文本解析为档案条目。
 
 use crate::data::{
     ArchiveTitleIndex,
@@ -34,6 +12,32 @@ const SCORE_THRESHOLD: f64 = 0.80;
 /// 最高分与次高分的差距下限（不足则不纠错，避免歧义）。
 const SCORE_GAP_THRESHOLD: f64 = 0.10;
 
+/// 无法由常规标题匹配处理的已知 OCR 结果。
+#[derive(Debug, Clone, Copy)]
+pub struct CorrectionOverride<'a> {
+    category_id: &'a str,
+    observed_text: &'a str,
+    item_id: &'a str,
+}
+
+impl<'a> CorrectionOverride<'a> {
+    pub const fn new(category_id: &'a str, observed_text: &'a str, item_id: &'a str) -> Self {
+        Self {
+            category_id,
+            observed_text,
+            item_id,
+        }
+    }
+}
+
+/// 档案扫描任务默认启用的纠错覆盖项。
+pub(super) const DEFAULT_CORRECTION_OVERRIDES: &[CorrectionOverride<'static>] =
+    &[CorrectionOverride::new(
+        "digital",
+        "文明",
+        "nar_digital_map02_13003_1",
+    )];
+
 /// 纠错成功的结果。
 #[derive(Debug, Clone)]
 pub struct Corrected {
@@ -43,86 +47,119 @@ pub struct Corrected {
     pub item_ids: Vec<String>,
 }
 
-/// 编辑距离评分后的一个候选组（同归一化标题的候选归为一组）。
-struct Group {
-    /// 原始标题（组内第一条的 title）
-    title: String,
-    /// 组内全部档案 id
-    item_ids: Vec<String>,
+/// 编辑距离评分后的候选组。
+struct ScoredGroup<'a> {
+    candidates: &'a [Candidate],
     /// 相似度 `1 - dist / max(len(O), len(norm))`
     score: f64,
 }
 
-/// 对当前子分类的 OCR 文本纠错。
-pub fn correct(index: &ArchiveTitleIndex, category_id: &str, ocr_text: &str) -> Option<Corrected> {
-    let candidates = index.candidates.get(category_id)?;
-    let o = normalize(ocr_text);
-    if o.is_empty() {
+/// 在指定子分类中把原始 OCR 文本纠正为档案标题与条目 ID。
+///
+/// `ocr_text` 会先通过 `normalize` 转换为索引使用的形式。规范化结果为空时返回
+/// `None`。`overrides` 为 `None` 时等价于空列表；覆盖项中的 `observed_text` 使用同一
+/// 规范化规则后再参与匹配。
+///
+/// # 匹配顺序
+///
+/// 1. 通过 `ArchiveTitleIndex::by_normalized_title` 查找规范化标题完全相同的候选组；
+/// 2. 按列表顺序查找分类与观察文本都匹配的覆盖项，再通过条目 ID 读取目标候选；
+/// 3. 对该分类的每个规范化标题计算 Unicode 字符级 Levenshtein 编辑距离，相似度为
+///    `1 - distance / max(ocr_length, title_length)`；
+/// 4. 最高相似度不低于 `SCORE_THRESHOLD`，且只有一个候选组或与次高分的差距不低于
+///    `SCORE_GAP_THRESHOLD` 时采用最高分候选组。
+///
+/// 精确匹配先于覆盖项，因此覆盖项不会替换已经命中的规范化标题。覆盖项引用的条目
+/// 不存在时继续尝试编辑距离匹配。
+///
+/// # 返回值
+///
+/// 索引匹配命中后返回候选组第一项的原始标题，以及该规范化标题下的全部条目 ID；覆盖项
+/// 命中后只返回它指定的条目。未找到候选、分数不足或最高分存在歧义时返回 `None`。
+pub fn correct(
+    index: &ArchiveTitleIndex,
+    category_id: &str,
+    ocr_text: &str,
+    overrides: Option<&[CorrectionOverride<'_>]>,
+) -> Option<Corrected> {
+    let overrides = overrides.unwrap_or(&[]);
+    let normalized_ocr = normalize(ocr_text);
+    if normalized_ocr.is_empty() {
         return None;
     }
 
     // 第 3 步：精确匹配（快速路径）
-    let exact: Vec<&Candidate> = candidates.iter().filter(|c| c.norm == o).collect();
-    if !exact.is_empty() {
-        return Some(Corrected {
-            title: exact[0].title.clone(),
-            item_ids: exact.iter().map(|c| c.id.clone()).collect(),
-        });
+    if let Some(matching_candidates) = index.by_normalized_title(category_id, &normalized_ocr) {
+        return Some(to_corrected(matching_candidates));
     }
 
-    // 特判：digital 分类下 OCR 只识别到「文明」（掩码标题「■■■…文明■■■…保护协定」
-    // 可见部分仅剩“文明”，归一化截断后常规算法无法匹配），直接纠错到该档案
-    if category_id == "digital" && o == "文明" {
-        if let Some(c) = candidates
-            .iter()
-            .find(|c| c.id == "nar_digital_map02_13003_1")
-        {
-            return Some(Corrected {
-                title: c.title.clone(),
-                item_ids: vec![c.id.clone()],
-            });
-        }
+    // 第 4 步：覆盖项匹配
+    if let Some(corrected) = apply_override(index, overrides, category_id, &normalized_ocr) {
+        return Some(corrected);
     }
 
-    // 第 4 步：编辑距离评分，按归一化标题分组（同组距离相同，取组内全部 id）
-    let o_len = o.chars().count();
-    let mut groups: HashMap<&str, Group> = HashMap::new();
-    for c in candidates {
-        let dist = levenshtein(&o, &c.norm);
-        let score = similarity(dist, o_len, c.norm.chars().count());
-        let group = groups.entry(c.norm.as_str()).or_insert_with(|| Group {
-            title: c.title.clone(),
-            item_ids: Vec::new(),
-            score,
-        });
-        group.item_ids.push(c.id.clone());
-    }
+    // 第 5 步：编辑距离评分
+    let normalized_ocr_len = normalized_ocr.chars().count();
+    let mut scored_groups: Vec<ScoredGroup<'_>> = index
+        .normalized_groups(category_id)
+        .map(|(normalized_title, candidates)| {
+            let edit_distance = levenshtein(&normalized_ocr, normalized_title);
+            ScoredGroup {
+                candidates,
+                score: similarity(
+                    edit_distance,
+                    normalized_ocr_len,
+                    normalized_title.chars().count(),
+                ),
+            }
+        })
+        .collect();
 
-    // 第 5 步：决策。按相似度降序，最高分与次高分差距不足则判「无法识别」。
-    let mut groups: Vec<Group> = groups.into_values().collect();
-    groups.sort_by(|a, b| b.score.total_cmp(&a.score));
+    // 第 6 步：决策。按相似度降序，最高分与次高分差距不足则判「无法识别」。
+    scored_groups.sort_by(|left, right| right.score.total_cmp(&left.score));
 
-    let best = &groups[0];
-    if best.score < SCORE_THRESHOLD {
+    let best_group = scored_groups.first()?;
+    if best_group.score < SCORE_THRESHOLD {
         return None;
     }
     // 只有一个候选组（整个分类只有一种标题）时无次高，直接采纳
-    if groups.len() == 1 {
-        return Some(best_to_corrected(best));
+    if scored_groups.len() == 1 {
+        return Some(to_corrected(best_group.candidates));
     }
-    let second = &groups[1];
-    if best.score - second.score >= SCORE_GAP_THRESHOLD {
-        Some(best_to_corrected(best))
+    let second_best_group = &scored_groups[1];
+    if best_group.score - second_best_group.score >= SCORE_GAP_THRESHOLD {
+        Some(to_corrected(best_group.candidates))
     } else {
         None
     }
 }
 
-/// 把评分最高的候选组转为纠错结果。
-fn best_to_corrected(best: &Group) -> Corrected {
+fn apply_override(
+    index: &ArchiveTitleIndex,
+    overrides: &[CorrectionOverride<'_>],
+    category_id: &str,
+    normalized_ocr: &str,
+) -> Option<Corrected> {
+    overrides
+        .iter()
+        .find(|correction_override| {
+            correction_override.category_id == category_id
+                && normalize(correction_override.observed_text) == normalized_ocr
+        })
+        .and_then(|correction_override| {
+            index.candidate_by_id(category_id, correction_override.item_id)
+        })
+        .map(|candidate| to_corrected(std::slice::from_ref(candidate)))
+}
+
+/// 把候选组转为纠错结果。
+fn to_corrected(candidates: &[Candidate]) -> Corrected {
     Corrected {
-        title: best.title.clone(),
-        item_ids: best.item_ids.clone(),
+        title: candidates[0].title().to_string(),
+        item_ids: candidates
+            .iter()
+            .map(|candidate| candidate.id().to_string())
+            .collect(),
     }
 }
 
@@ -237,6 +274,15 @@ mod tests {
                     "order": 2,
                     "type": "text"
                 },
+                "nar_digital_map02_13003_1": {
+                    "id": "nar_digital_map02_13003_1",
+                    "title": "■■■■■■■■■■■■■■■文明■■■■保护协定",
+                    "name": "■■■■■■■■■■■■■■■文明■■■■保护协定",
+                    "categoryId": "digital",
+                    "firstLvId": "digital_1",
+                    "order": 1,
+                    "type": "text"
+                },
                 // 同标题多条（挂在竹子上的字条 ×2）
                 "nar_dup_1": {
                     "id": "nar_dup_1",
@@ -265,7 +311,7 @@ mod tests {
     #[test]
     fn correct_character_replacement() {
         let idx = test_index();
-        let c = correct(&idx, "media", "決然工人的留声").expect("应纠错成功");
+        let c = correct(&idx, "media", "決然工人的留声", None).expect("应纠错成功");
         assert_eq!(c.title, "决然工人的留声");
         assert_eq!(c.item_ids, vec!["nar_media_map01_108_1"]);
     }
@@ -273,7 +319,7 @@ mod tests {
     #[test]
     fn correct_truncated_title_via_exact_match() {
         let idx = test_index();
-        let c = correct(&idx, "paper", "工团大会预算申报宣讲草稿（第八")
+        let c = correct(&idx, "paper", "工团大会预算申报宣讲草稿（第八", None)
             .expect("截断标题应通过归一化精确匹配");
         assert_eq!(c.title, "工团大会预算申报宣讲草稿（第八版）");
         assert_eq!(c.item_ids, vec!["nar_paper_map01_122_1"]);
@@ -282,8 +328,8 @@ mod tests {
     #[test]
     fn correct_truncated_book_title() {
         let idx = test_index();
-        let c =
-            correct(&idx, "paper", "《味蕾上的四号谷地：工团杂烩汤").expect("截断的书名应纠错成功");
+        let c = correct(&idx, "paper", "《味蕾上的四号谷地：工团杂烩汤", None)
+            .expect("截断的书名应纠错成功");
         assert_eq!(c.title, "《味蕾上的四号谷地：工团杂烩汤篇》");
     }
 
@@ -291,17 +337,25 @@ mod tests {
     fn correct_editing_distance_within_gap() {
         let idx = test_index();
         // OCR 错一个字（声→生），且该分类只有这一个高置信候选
-        let c = correct(&idx, "media", "决然工人的留生").expect("编辑距离相近应纠错成功");
+        let c = correct(&idx, "media", "决然工人的留生", None).expect("编辑距离相近应纠错成功");
         assert_eq!(c.title, "决然工人的留声");
     }
 
     #[test]
     fn correct_returns_all_ids_for_duplicate_titles() {
         let idx = test_index();
-        let c = correct(&idx, "digital", "挂在竹子上的字条").expect("同标题多条应全部命中");
+        let c = correct(&idx, "digital", "挂在竹子上的字条", None).expect("同标题多条应全部命中");
         assert_eq!(c.item_ids.len(), 2);
         assert!(c.item_ids.contains(&"nar_dup_1".to_string()));
         assert!(c.item_ids.contains(&"nar_dup_2".to_string()));
+    }
+
+    #[test]
+    fn correct_fuzzy_match_returns_all_ids_for_duplicate_titles() {
+        let idx = test_index();
+        let c =
+            correct(&idx, "digital", "挂在竹子上的纸条", None).expect("模糊匹配同标题时应全部命中");
+        assert_eq!(c.item_ids, vec!["nar_dup_1", "nar_dup_2"]);
     }
 
     #[test]
@@ -309,19 +363,30 @@ mod tests {
         let idx = test_index();
         // OCR 少一个右括号：与「四号谷地」差 1 步（0.909）、与「五号谷地」差 2 步（0.818），
         // 分差不足 0.10，不应强行纠错
-        assert!(correct(&idx, "paper", "天空观测记录（四号谷地").is_none());
+        assert!(correct(&idx, "paper", "天空观测记录（四号谷地", None).is_none());
     }
 
     #[test]
     fn correct_unknown_category_returns_none() {
         let idx = test_index();
-        assert!(correct(&idx, "no_such_category", "决然工人的留声").is_none());
+        assert!(correct(&idx, "no_such_category", "决然工人的留声", None).is_none());
     }
 
     #[test]
     fn correct_empty_ocr_returns_none() {
         let idx = test_index();
-        assert!(correct(&idx, "media", "").is_none());
+        assert!(correct(&idx, "media", "", None).is_none());
+    }
+
+    #[test]
+    fn correct_uses_injected_override() {
+        let idx = test_index();
+
+        assert!(correct(&idx, "digital", "文明", None).is_none());
+
+        let corrected = correct(&idx, "digital", "文明", Some(DEFAULT_CORRECTION_OVERRIDES))
+            .expect("覆盖项应指定对应档案");
+        assert_eq!(corrected.item_ids, vec!["nar_digital_map02_13003_1"]);
     }
 
     /// 全量验证：加载真实 prts.json，把每个标题模拟成「截断 / 替换」后的 OCR 输出，
@@ -368,7 +433,7 @@ mod tests {
             let ocr: String = ocr.into_iter().collect();
 
             total += 1;
-            match correct(&idx, category_id, &ocr) {
+            match correct(&idx, category_id, &ocr, Some(DEFAULT_CORRECTION_OVERRIDES)) {
                 Some(c) if c.item_ids.iter().any(|i| i == id) => hit += 1,
                 Some(c) => miss.push((id.clone(), title.clone(), c.title)),
                 None => miss.push((id.clone(), title.clone(), String::new())),

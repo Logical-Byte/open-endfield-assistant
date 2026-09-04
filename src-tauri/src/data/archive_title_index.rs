@@ -1,3 +1,8 @@
+//! 档案标题候选的派生索引。
+//!
+//! 本模块的 interface 只提供业务无关的只读查询，隐藏内部的 `HashMap` 组织方式。
+//! 纠错、评分和候选决策等下游逻辑不属于该 interface。
+
 use std::collections::HashMap;
 
 use crate::data::PrtsData;
@@ -7,41 +12,90 @@ pub(crate) const NORM_MAX_CHARS: usize = 15;
 
 #[derive(Debug)]
 pub(crate) struct Candidate {
-    pub(crate) id: String,
-    pub(crate) title: String,
-    pub(crate) norm: String,
+    id: String,
+    title: String,
 }
 
-/// 归档标题候选索引：`categoryId` 到候选列表的映射。
+impl Candidate {
+    pub(crate) fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub(crate) fn title(&self) -> &str {
+        &self.title
+    }
+}
+
+/// 归档标题候选索引：按 `categoryId` 和规范化标题组织候选。
 #[derive(Debug, Default)]
 pub struct ArchiveTitleIndex {
-    pub(crate) candidates: HashMap<String, Vec<Candidate>>,
+    by_category: HashMap<String, HashMap<String, Vec<Candidate>>>,
 }
 
 impl ArchiveTitleIndex {
-    /// 从 `prts.json` 构建候选索引（按 `categoryId` 分组并归一化）。
+    /// 从 `prts.json` 构建候选索引。
     pub fn from_prts(prts: &PrtsData) -> Self {
-        let mut candidates: HashMap<String, Vec<Candidate>> = HashMap::new();
+        let mut by_category: HashMap<String, HashMap<String, Vec<Candidate>>> = HashMap::new();
         for item in prts.all_items.values() {
-            candidates
+            by_category
                 .entry(item.category_id.clone())
+                .or_default()
+                .entry(normalize(&item.title))
                 .or_default()
                 .push(Candidate {
                     id: item.id.clone(),
                     title: item.title.clone(),
-                    norm: normalize(&item.title),
                 });
         }
 
-        Self { candidates }
+        Self { by_category }
+    }
+
+    /// 查询分类中具有指定规范化标题的候选。
+    ///
+    /// `normalized_title` 必须是已经过 [`normalize`] 处理的字符串。
+    pub(crate) fn by_normalized_title(
+        &self,
+        category_id: &str,
+        normalized_title: &str,
+    ) -> Option<&[Candidate]> {
+        self.by_category
+            .get(category_id)?
+            .get(normalized_title)
+            .map(Vec::as_slice)
+    }
+
+    /// 遍历分类中的规范化标题及其候选。
+    pub(crate) fn normalized_groups(
+        &self,
+        category_id: &str,
+    ) -> impl Iterator<Item = (&str, &[Candidate])> {
+        self.by_category
+            .get(category_id)
+            .into_iter()
+            .flat_map(|category| category.iter())
+            .map(|(normalized_title, candidates)| {
+                (normalized_title.as_str(), candidates.as_slice())
+            })
+    }
+
+    /// 按档案条目 ID 查询分类中的候选。
+    pub(crate) fn candidate_by_id(&self, category_id: &str, item_id: &str) -> Option<&Candidate> {
+        self.normalized_groups(category_id)
+            .flat_map(|(_, candidates)| candidates)
+            .find(|candidate| candidate.id == item_id)
     }
 
     pub fn len(&self) -> usize {
-        self.candidates.values().map(Vec::len).sum()
+        self.by_category
+            .values()
+            .flat_map(|category| category.values())
+            .map(Vec::len)
+            .sum()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.candidates.is_empty()
+        self.by_category.is_empty()
     }
 }
 
@@ -109,7 +163,69 @@ fn halfwidth_to_fullwidth(c: char) -> char {
 
 #[cfg(test)]
 mod tests {
-    use super::normalize;
+    use indexmap::IndexMap;
+
+    use super::{ArchiveTitleIndex, normalize};
+    use crate::data::schema::{PrtsAllItem, PrtsData, PrtsPageType};
+
+    fn prts_with_items(items: [(&str, &str, &str); 3]) -> PrtsData {
+        let all_items = items
+            .into_iter()
+            .enumerate()
+            .map(|(order, (id, category_id, title))| {
+                (
+                    id.to_string(),
+                    PrtsAllItem {
+                        category_id: category_id.to_string(),
+                        first_lv_id: format!("{category_id}_1"),
+                        id: id.to_string(),
+                        name: title.to_string(),
+                        order: order as i64,
+                        title: title.to_string(),
+                        r#type: PrtsPageType::Text,
+                    },
+                )
+            })
+            .collect();
+
+        PrtsData {
+            prts_page: IndexMap::new(),
+            prts_category: IndexMap::new(),
+            first_lv: IndexMap::new(),
+            all_items,
+        }
+    }
+
+    #[test]
+    fn indexes_candidates_by_category_and_normalized_title() {
+        let prts = prts_with_items([
+            ("paper-1", "paper", "标题(A)"),
+            ("paper-2", "paper", "标题（A）"),
+            ("digital-1", "digital", "标题(A)"),
+        ]);
+
+        let index = ArchiveTitleIndex::from_prts(&prts);
+        let paper = index
+            .by_normalized_title("paper", &normalize("标题(A)"))
+            .expect("paper 分类应包含规范化标题组");
+
+        assert_eq!(
+            paper
+                .iter()
+                .map(|candidate| candidate.id())
+                .collect::<Vec<_>>(),
+            vec!["paper-1", "paper-2"]
+        );
+        assert_eq!(index.normalized_groups("paper").count(), 1);
+        assert_eq!(index.normalized_groups("digital").count(), 1);
+        assert_eq!(
+            index
+                .candidate_by_id("digital", "digital-1")
+                .map(|candidate| candidate.title()),
+            Some("标题(A)")
+        );
+        assert_eq!(index.len(), 3);
+    }
 
     #[test]
     fn normalize_replaces_traditional_chars() {
