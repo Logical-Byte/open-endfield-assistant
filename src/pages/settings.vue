@@ -209,7 +209,7 @@ onBeforeUnmount(() => {
 
         <SettingsCard id="update" class="scroll-mt-8" icon="i-lucide-download" title="更新设置">
           <SettingsItem
-            description="选择从哪个源检查并下载新版本"
+            description="选择从哪个源下载新版本"
             icon="i-lucide-cloud-download"
             title="更新源"
           >
@@ -262,7 +262,7 @@ onBeforeUnmount(() => {
               <UInput
                 v-model="mirrorchyanCdk"
                 class="w-56"
-                placeholder="未填写时使用 GitHub 下载"
+                placeholder="未填写时使用 OEM 下载"
                 type="password"
               />
               <ULink
