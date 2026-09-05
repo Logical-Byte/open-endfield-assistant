@@ -11,6 +11,7 @@ mod route_planner;
 mod scene_detector;
 pub mod scene_manager;
 mod scenes;
+pub mod transition;
 
 pub use crate::session::RecognitionContext;
 pub use model::{Scene, SceneAction, SceneId, SceneTransition, 档案库SubSceneId};

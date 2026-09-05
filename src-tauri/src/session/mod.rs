@@ -13,8 +13,10 @@
 //!
 //! 会话贯穿一次游戏操作（扫描档案库任务），由调用方以 `&mut` 串行使用。
 
+mod automation_context;
 mod recognition_context;
 
+pub use automation_context::AutomationContext;
 pub use recognition_context::RecognitionContext;
 
 use std::path::{Path, PathBuf};
@@ -177,6 +179,11 @@ impl Session {
     /// 为一个固定识别帧借用会话的识别基础设施。
     pub fn recognition_context<'a>(&'a mut self, frame: &'a RgbaImage) -> RecognitionContext<'a> {
         RecognitionContext::new(frame, &mut self.templates)
+    }
+
+    /// 借用会话组件，构造工作流使用的生产自动化上下文。
+    pub fn automation_context(&mut self) -> AutomationContext<'_> {
+        AutomationContext::new(self)
     }
 
     // ========== 输入（统一 720p → 实际分辨率缩放） ==========
