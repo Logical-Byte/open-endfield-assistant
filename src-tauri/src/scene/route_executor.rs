@@ -1,12 +1,12 @@
 //! Execution and verification of a single planned route.
 
-use std::{thread, time::Duration};
+use std::time::Duration;
 
 use anyhow::Result;
 use tracing::{debug, warn};
 
 use super::{model::SceneId, route_planner::Route, scene_detector::SceneDetector};
-use crate::session::Session;
+use crate::automation::{Clock, Input, ScreenCapture, TemplateMatching};
 
 /// 一次路由执行的可恢复结果；`Err` 仅表示动作或场景检测本身出错。
 #[derive(Clone, Copy)]
@@ -25,21 +25,20 @@ impl RouteExecutionOutcome {
 }
 
 /// 执行一条既定路由，并负责每一步的验证与重试。
-pub(super) struct RouteExecutor<'a> {
+pub(super) struct RouteExecutor<'a, C> {
     scene_detector: &'a SceneDetector,
-    session: &'a mut Session,
+    cx: &'a mut C,
     route: Route,
 }
 
-impl<'a> RouteExecutor<'a> {
-    pub(super) fn new(
-        scene_detector: &'a SceneDetector,
-        session: &'a mut Session,
-        route: Route,
-    ) -> Self {
+impl<'a, C> RouteExecutor<'a, C>
+where
+    C: ScreenCapture + Input + TemplateMatching + Clock,
+{
+    pub(super) fn new(scene_detector: &'a SceneDetector, cx: &'a mut C, route: Route) -> Self {
         Self {
             scene_detector,
-            session,
+            cx,
             route,
         }
     }
@@ -62,8 +61,8 @@ impl<'a> RouteExecutor<'a> {
 
             let mut step_ok = false;
             for retry in 0..MAX_RETRIES_PER_STEP {
-                thread::sleep(Duration::from_millis(500));
-                let after = self.scene_detector.detect_current_scene(self.session)?;
+                self.cx.sleep(Duration::from_millis(500));
+                let after = self.scene_detector.detect_current_scene(self.cx)?;
                 current_scene = after;
                 // 关闭档案详情会返回进入详情前的任意档案库子界面。
                 let arrived = if from == SceneId::档案详情页面 {
@@ -103,6 +102,11 @@ impl<'a> RouteExecutor<'a> {
             .scene_detector
             .get_registered_scene(from)
             .ok_or_else(|| anyhow::anyhow!("未注册的场景: {:?}", from))?;
-        scene.execute_transition(to, self.session)
+        let transition = scene
+            .transitions()
+            .iter()
+            .find(|transition| transition.target == to)
+            .ok_or_else(|| anyhow::anyhow!("没有从 {:?} 到 {:?} 的跳转", from, to))?;
+        transition.execute(self.cx)
     }
 }

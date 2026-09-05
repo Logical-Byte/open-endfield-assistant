@@ -9,8 +9,8 @@ use anyhow::Result;
 use tracing::{debug, info};
 
 use crate::{
+    automation::{Clock, Input, Ocr, Point720p, ScreenCapture, TemplateMatching, TemplateTarget},
     scene::{SceneId, scene_manager::SceneManager, 档案库SubSceneId},
-    session::Session,
 };
 
 use super::constants::{ARROW_RIGHT_ROI, CLOSE_BUTTON_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
@@ -22,30 +22,33 @@ use crate::data::ArchiveTitleIndex;
 /// 扫描当前子界面中的所有档案。
 ///
 /// # 前置条件
-/// - `session` 当前处于档案库子界面
+/// - `cx` 当前处于档案库子界面
 /// - `sub_scene` 为该子界面（用于确定所属大类 / 小类，进而纠错）
 ///
 /// # 工作流程
 /// 1. 点击第 1 份档案 (401, 182) 进入档案详情页面
 /// 2. 循环：OCR 标题 → 纠错 → 上报扫描结果 → 翻到下一篇 → 直到翻不动
 /// 3. 点击关闭返回子界面
-pub fn scan_current_sub_scene(
-    session: &mut Session,
+pub fn scan_current_sub_scene<C>(
+    cx: &mut C,
     scene_manager: &SceneManager,
     sub_scene: 档案库SubSceneId,
     archive_titles: &ArchiveTitleIndex,
     correction_overrides: Option<&[CorrectionOverride<'_>]>,
     reporter: &ScanReporter,
-) -> Result<()> {
+) -> Result<()>
+where
+    C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
+{
     // 1. 点击第 1 份档案进入档案详情页面
     debug!("点击第 1 份档案 (401, 182)");
-    session.click_at_720p(401, 182)?;
+    cx.click(Point720p { x: 401, y: 182 })?;
 
     // 等待详情页面加载
-    std::thread::sleep(std::time::Duration::from_millis(800));
+    cx.sleep(std::time::Duration::from_millis(800));
 
     // 验证是否进入了详情页面
-    let arrived = scene_manager.wait_for_scene(SceneId::档案详情页面, session, 15)?;
+    let arrived = scene_manager.wait_for_scene(SceneId::档案详情页面, cx, 15)?;
     if !arrived {
         anyhow::bail!("未能进入档案详情页面，可能该子分类没有档案");
     }
@@ -56,13 +59,13 @@ pub fn scan_current_sub_scene(
         archive_count += 1;
 
         // 2a. OCR 识别档案标题
-        let screenshot = session.screencap_for_recognition()?;
-        let ocr_text = match session.ocr_in_roi(&screenshot, OCR_ROI) {
-            Ok(text) if !text.trim().is_empty() => {
+        let screenshot = cx.screenshot()?;
+        let ocr_text = match cx.recognize_text(&screenshot, OCR_ROI) {
+            Ok(Some(text)) if !text.trim().is_empty() => {
                 info!("第 {} 份档案标题：{}", archive_count, text.trim());
                 text.trim().to_string()
             }
-            Ok(_) => {
+            Ok(None | Some(_)) => {
                 info!("第 {} 份档案标题：（空）", archive_count);
                 String::new()
             }
@@ -108,34 +111,36 @@ pub fn scan_current_sub_scene(
         );
 
         // 2c. 尝试翻到下一篇
-        let screenshot = session.screencap_for_recognition()?;
+        let screenshot = cx.screenshot()?;
 
         // 先尝试 "下一篇" 按钮
-        if session.find_and_click_template(
-            &screenshot,
-            "情报档案库/下一篇.png",
-            NEXT_BUTTON_ROI,
-            THRESHOLD,
-        )? {
+        let next_target = TemplateTarget {
+            template_name: "情报档案库/下一篇.png",
+            roi: NEXT_BUTTON_ROI,
+            threshold: THRESHOLD,
+        };
+        if let Some(matched) = cx.find_template(&screenshot, &next_target)? {
+            cx.click(matched.region.center().into())?;
             debug!("点击「下一篇」，进入第 {} 份档案", archive_count + 1);
             // 等待详情页面切换
-            std::thread::sleep(std::time::Duration::from_millis(200));
+            cx.sleep(std::time::Duration::from_millis(200));
             continue;
         }
 
         // 再尝试 "档案详情右箭头" 按钮
-        if session.find_and_click_template(
-            &screenshot,
-            "情报档案库/档案详情右箭头.png",
-            ARROW_RIGHT_ROI,
-            THRESHOLD,
-        )? {
+        let arrow_target = TemplateTarget {
+            template_name: "情报档案库/档案详情右箭头.png",
+            roi: ARROW_RIGHT_ROI,
+            threshold: THRESHOLD,
+        };
+        if let Some(matched) = cx.find_template(&screenshot, &arrow_target)? {
+            cx.click(matched.region.center().into())?;
             debug!(
                 "点击「档案详情右箭头」，进入第 {} 份档案",
                 archive_count + 1
             );
             // 等待详情页面切换
-            std::thread::sleep(std::time::Duration::from_millis(200));
+            cx.sleep(std::time::Duration::from_millis(200));
             continue;
         }
 
@@ -146,20 +151,22 @@ pub fn scan_current_sub_scene(
 
     // 3. 点击关闭按钮返回子界面
     debug!("点击档案详情关闭按钮返回子界面");
-    let screenshot = session.screencap_for_recognition()?;
-    if !session.find_and_click_template(
-        &screenshot,
-        "情报档案库/档案详情关闭.png",
-        CLOSE_BUTTON_ROI,
-        THRESHOLD,
-    )? {
+    let screenshot = cx.screenshot()?;
+    let close_target = TemplateTarget {
+        template_name: "情报档案库/档案详情关闭.png",
+        roi: CLOSE_BUTTON_ROI,
+        threshold: THRESHOLD,
+    };
+    if let Some(matched) = cx.find_template(&screenshot, &close_target)? {
+        cx.click(matched.region.center().into())?;
+    } else {
         // 如果模板匹配失败，直接点击右上角固定位置
         debug!("模板匹配关闭按钮失败，尝试固定坐标点击");
-        session.click_at_720p(1240, 50)?;
+        cx.click(Point720p { x: 1240, y: 50 })?;
     }
 
     // 等待返回子界面
-    std::thread::sleep(std::time::Duration::from_millis(800));
+    cx.sleep(std::time::Duration::from_millis(800));
 
     Ok(())
 }
