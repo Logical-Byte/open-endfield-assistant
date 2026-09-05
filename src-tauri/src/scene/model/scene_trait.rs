@@ -1,10 +1,12 @@
 //! 场景 trait 与跳转描述。
 
 use anyhow::Result;
+use image::RgbaImage;
 
-use crate::session::{RecognitionContext, Session};
+use crate::automation::Automation;
 
-use super::{SceneAction, SceneId};
+use super::SceneId;
+use crate::scene::transition::Transition;
 
 /// 场景 trait：每个游戏界面实现此 trait。
 ///
@@ -24,37 +26,18 @@ pub trait Scene: Send + Sync {
     /// 尝试识别当前识别帧是否为此场景。
     ///
     /// # 参数
-    /// - `context`: 同一识别帧上的受限识别能力
+    /// - `screenshot`: 本轮场景分类共享的 720p 识别帧
+    /// - `cx`: 工作流自动化能力，不暴露具体会话实现
     ///
     /// # 返回
     /// - `Ok(Some(scene_id))`: 识别成功，返回确切的场景 ID（子界面可能需要返回更具体的 ID）
     /// - `Ok(None)`: 不是此场景
-    fn try_recognize(&self, context: &mut RecognitionContext<'_>) -> Result<Option<SceneId>>;
+    fn try_recognize(
+        &self,
+        screenshot: &RgbaImage,
+        cx: &mut dyn Automation,
+    ) -> Result<Option<SceneId>>;
 
     /// 返回从此场景可以跳转到的目标场景及跳转方式。
-    ///
-    /// 注意：这是所有可能的跳转，实际执行时会按顺序尝试，第一个成功即停止。
-    fn transitions(&self) -> &[SceneTransition];
-
-    /// 执行跳转动作以到达目标场景。
-    ///
-    /// 默认实现：从 `transitions()` 中找到去往 `target` 的动作并执行。
-    fn execute_transition(&self, target: SceneId, session: &mut Session) -> Result<()> {
-        let screenshot = session.screencap_for_recognition()?;
-        for transition in self.transitions() {
-            if transition.target == target {
-                transition.action.execute(session, &screenshot)?;
-                return Ok(());
-            }
-        }
-        anyhow::bail!("没有从 {:?} 到 {:?} 的跳转", self.id(), target);
-    }
-}
-
-/// 场景跳转描述：从当前场景到目标场景以及执行方式。
-pub struct SceneTransition {
-    /// 目标场景 ID
-    pub target: SceneId,
-    /// 跳转动作
-    pub action: SceneAction,
+    fn transitions(&self) -> &[Transition<'static>];
 }

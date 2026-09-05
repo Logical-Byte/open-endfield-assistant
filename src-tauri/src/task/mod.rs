@@ -10,6 +10,7 @@ pub mod archive_scan;
 use anyhow::Result;
 
 use crate::{
+    automation::{Automation, Input},
     scene::{SceneId, scene_manager::SceneManager},
     session::Session,
 };
@@ -43,23 +44,25 @@ pub trait Task {
 
     /// 执行任务主逻辑。
     ///
-    /// 运行过程中的临时导航（如进入 / 返回某个界面）委托 `scenes` 完成。
-    fn run(&self, session: &mut Session, scenes: &SceneManager) -> Result<()>;
+    /// 运行过程中的临时导航（如进入 / 返回某个界面）委托 `scenes` 完成；具体窗口
+    /// 实现隐藏在 `cx` 的细粒度自动化能力之后。
+    fn run(&self, cx: &mut dyn Automation, scenes: &SceneManager) -> Result<()>;
 }
 
 /// 运行任务：满足任务的前置场景 → 执行任务。
 pub fn run_task(task: &dyn Task, session: &mut Session, scenes: &SceneManager) -> Result<()> {
     tracing::info!("========== 开始执行任务: {} ==========", task.name());
+    let mut cx = session.automation_context();
 
     // 0. 任务开始前先把鼠标移到窗口中心，避免鼠标恰好 hover 在按钮上，
     //    按钮 hover 样式变化干扰首次场景识别 / 导航。
-    session.move_mouse_to_safe_position()?;
+    cx.move_mouse_to_safe_position()?;
 
     // 1. 满足任务的前置场景
-    scenes.ensure_scene(task.precondition_scene(), session)?;
+    scenes.ensure_scene(task.precondition_scene(), &mut cx)?;
 
     // 2. 执行任务
-    task.run(session, scenes)?;
+    task.run(&mut cx, scenes)?;
 
     tracing::info!("========== 任务 {} 执行完毕 ==========", task.name());
     Ok(())

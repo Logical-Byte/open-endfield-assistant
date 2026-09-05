@@ -1,45 +1,36 @@
 //! 游戏会话。
 //!
-//! 连接时发现游戏窗口、验证运行环境并组装基础设施适配器；运行时把这些原始能力
-//! 统一翻译成 **720p 基准** 的任务 API：
-//! - 识别操作：先截图并缩放到 1280×720 基准；
-//! - 输入操作：先把 720p 坐标缩放到实际分辨率。
+//! 连接时发现游戏窗口、验证运行环境并组装基础设施组件；运行时由
+//! [`AutomationContext`] 借用这些组件，并翻译工作流的 720p 基准能力调用。
 //!
 //! 职责边界：
 //! - ✅ 连接游戏窗口，检查分辨率与 HDR 环境并创建会话；
-//! - ✅ 运行时只做薄委托与坐标缩放，**不含任何业务逻辑**（不识别场景、不导航、不扫描）；
+//! - ✅ 持有基础设施状态，**不含任何业务逻辑**（不识别场景、不导航、不扫描）；
 //! - ✅ **不依赖前端**（结果上报由任务层通过 [`crate::task::archive_scan::ScanReporter`] 完成）；
 //! - ✅ 只依赖基础设施层。
 //!
 //! 会话贯穿一次游戏操作（扫描档案库任务），由调用方以 `&mut` 串行使用。
 
 mod automation_context;
-mod recognition_context;
 
 pub use automation_context::AutomationContext;
-pub use recognition_context::RecognitionContext;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use image::{DynamicImage, RgbaImage, imageops};
-use imageproc::contrast::ThresholdType;
 use tracing::{info, warn};
 
 use crate::{
-    ocr::{OcrEngine, text_detection},
+    ocr::OcrEngine,
     resolution::GameResolution,
     task::TaskStopped,
     template_matching::LazyTemplateLoader,
-    utils::{point::Point2D, region::Region2D},
     windows_ops::{
         self, WindowHandle,
         capture::{PrintWindowScreencap, ScreencapBase},
-        input::{Contact, InputBase, SeizeInput},
+        input::{InputBase, SeizeInput},
     },
 };
 
@@ -167,114 +158,9 @@ impl Session {
         self.stop.store(false, Ordering::Relaxed);
     }
 
-    // ========== 截图（统一 720p 基准） ==========
-
-    /// 截图并缩放到 720p 基准分辨率，供识别使用（模板 / OCR / 颜色判断均用此图）。
-    pub fn screencap_for_recognition(&mut self) -> Result<RgbaImage> {
-        self.check_stop()?;
-        let raw = self.screencap.screencap()?;
-        Ok(self.resolution.scale_screenshot_to_base(&raw))
-    }
-
-    /// 为一个固定识别帧借用会话的识别基础设施。
-    pub fn recognition_context<'a>(&'a mut self, frame: &'a RgbaImage) -> RecognitionContext<'a> {
-        RecognitionContext::new(frame, &mut self.templates)
-    }
-
     /// 借用会话组件，构造工作流使用的生产自动化上下文。
     pub fn automation_context(&mut self) -> AutomationContext<'_> {
         AutomationContext::new(self)
-    }
-
-    // ========== 输入（统一 720p → 实际分辨率缩放） ==========
-
-    /// 点击 720p 基准坐标点（自动缩放），点击后鼠标回到窗口中心，
-    /// 避免按钮 hover 变化干扰后续识别。
-    pub fn click_at_720p(&mut self, x: u32, y: u32) -> Result<()> {
-        self.check_stop()?;
-        let (sx, sy) = self.resolution.scale_point(x, y);
-        self.input.click(
-            Contact::Left,
-            Point2D {
-                x: sx as i32,
-                y: sy as i32,
-            },
-        )?;
-        thread::sleep(Duration::from_millis(50));
-        self.move_mouse_to_safe_position()?;
-        Ok(())
-    }
-
-    /// 将鼠标移动到安全位置（窗口中心），避免 hover 干扰识别。
-    ///
-    /// 除点击后回中外，任务开始前也应先回中一次：
-    /// 防止任务开始时鼠标恰好停在按钮上，按钮 hover 样式变化干扰首次识别。
-    pub fn move_mouse_to_safe_position(&mut self) -> Result<()> {
-        let cx = self.resolution.width as i32 / 2;
-        let cy = self.resolution.height as i32 / 2;
-        self.input
-            .touch_move(Contact::Left, Point2D { x: cx, y: cy })
-    }
-
-    /// 按下并松开键盘按键（虚拟键码），如 ESC=0x1B。
-    pub fn press_key(&mut self, vk_code: i32) -> Result<()> {
-        self.check_stop()?;
-        self.input.press_key(vk_code)
-    }
-
-    // ========== 模板匹配 ==========
-
-    /// 在 720p 截图指定 ROI 内搜索模板，找到后点击其中心（自动缩放）。
-    pub fn find_and_click_template(
-        &mut self,
-        screenshot: &RgbaImage,
-        template_name: &str,
-        roi: Region2D<u32>,
-        threshold: f32,
-    ) -> Result<bool> {
-        let matched = self.recognition_context(screenshot).find_template_in_roi(
-            template_name,
-            roi,
-            threshold,
-        )?;
-        if let Some(m) = matched {
-            let center = m.region.center();
-            self.click_at_720p(center.x, center.y)?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    // ========== OCR ==========
-
-    /// 对 720p 截图 ROI 区域做 OCR，返回识别文本（自动裁剪 + 单行检测）。
-    pub fn ocr_in_roi(&mut self, screenshot: &RgbaImage, roi: Region2D<u32>) -> Result<String> {
-        let cropped = imageops::crop_imm(screenshot, roi.x0(), roi.y0(), roi.width(), roi.height())
-            .to_image();
-        let rgb = DynamicImage::ImageRgba8(cropped).to_rgb8();
-        if let Some(region) =
-            text_detection::detect_single_line(&rgb, 128, ThresholdType::Binary, 6)
-        {
-            let cropped = imageops::crop_imm(
-                &rgb,
-                region.x0(),
-                region.y0(),
-                region.width(),
-                region.height(),
-            )
-            .to_image();
-            let output = self.ocr.lock().unwrap().ocr(&cropped)?;
-            let text = output
-                .lines
-                .iter()
-                .map(|line| line.text.as_str())
-                .collect::<Vec<&str>>()
-                .join("\n");
-            Ok(text)
-        } else {
-            Ok("".into())
-        }
     }
 
     // ========== 截图器 / 输入器切换（扩展点） ==========

@@ -1,13 +1,17 @@
 //! 协议终端场景：识别"档案库"按钮，点击进入档案库主界面。
 
-use std::sync::LazyLock;
-
 use anyhow::Result;
+use image::RgbaImage;
 
-use super::super::model::{Scene, SceneAction, SceneId, SceneTransition};
+use super::super::{
+    model::{Scene, SceneId},
+    transition::{Op, Transition},
+};
 use super::TEMPLATE_MATCH_THRESHOLD;
-use crate::session::RecognitionContext;
-use crate::utils::region::{Region2D, ltrb};
+use crate::{
+    automation::{Automation, TemplateTarget},
+    utils::region::{Region2D, ltrb},
+};
 
 /// 档案库按钮 ROI (971, 108, 1280, 700)
 const ROI_档案库按钮: Region2D<u32> = ltrb!(971, 108, 1280, 700);
@@ -24,9 +28,20 @@ impl Scene for Scene协议终端 {
         "协议终端"
     }
 
-    fn try_recognize(&self, context: &mut RecognitionContext<'_>) -> Result<Option<SceneId>> {
-        let found = context
-            .find_template_in_roi("档案库.png", ROI_档案库按钮, TEMPLATE_MATCH_THRESHOLD)?
+    fn try_recognize(
+        &self,
+        screenshot: &RgbaImage,
+        cx: &mut dyn Automation,
+    ) -> Result<Option<SceneId>> {
+        let found = cx
+            .find_template(
+                screenshot,
+                &TemplateTarget {
+                    template_name: "档案库.png",
+                    roi: ROI_档案库按钮,
+                    threshold: TEMPLATE_MATCH_THRESHOLD,
+                },
+            )?
             .is_some();
 
         Ok(if found {
@@ -36,17 +51,15 @@ impl Scene for Scene协议终端 {
         })
     }
 
-    fn transitions(&self) -> &[SceneTransition] {
-        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
-            vec![SceneTransition {
-                target: SceneId::档案库主界面,
-                action: SceneAction::FindAndClickTemplate {
-                    template_name: "档案库.png",
-                    roi: ROI_档案库按钮,
-                    threshold: TEMPLATE_MATCH_THRESHOLD,
-                },
-            }]
-        });
-        &T
+    fn transitions(&self) -> &[Transition<'static>] {
+        static TRANSITIONS: &[Transition<'static>] = &[Transition {
+            target: SceneId::档案库主界面,
+            ops: &[Op::FindAndClickTemplate(TemplateTarget {
+                template_name: "档案库.png",
+                roi: ROI_档案库按钮,
+                threshold: TEMPLATE_MATCH_THRESHOLD,
+            })],
+        }];
+        TRANSITIONS
     }
 }
