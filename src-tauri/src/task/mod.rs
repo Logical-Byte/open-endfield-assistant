@@ -10,7 +10,7 @@ pub mod archive_scan;
 use anyhow::Result;
 
 use crate::{
-    automation::{Automation, Input},
+    automation::{Clock, Input, Ocr, ScreenCapture, TemplateMatching},
     scene::{SceneId, scene_manager::SceneManager},
     session::Session,
 };
@@ -46,11 +46,13 @@ pub trait Task {
     ///
     /// 运行过程中的临时导航（如进入 / 返回某个界面）委托 `scenes` 完成；具体窗口
     /// 实现隐藏在 `cx` 的细粒度自动化能力之后。
-    fn run(&self, cx: &mut dyn Automation, scenes: &SceneManager) -> Result<()>;
+    fn run<C>(&self, cx: &mut C, scenes: &SceneManager) -> Result<()>
+    where
+        C: ScreenCapture + Input + TemplateMatching + Ocr + Clock;
 }
 
 /// 运行任务：满足任务的前置场景 → 执行任务。
-pub fn run_task(task: &dyn Task, session: &mut Session, scenes: &SceneManager) -> Result<()> {
+pub fn run_task<T: Task>(task: &T, session: &mut Session, scenes: &SceneManager) -> Result<()> {
     tracing::info!("========== 开始执行任务: {} ==========", task.name());
     let mut cx = session.automation_context();
 

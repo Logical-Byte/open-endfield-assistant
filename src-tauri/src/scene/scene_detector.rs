@@ -9,7 +9,7 @@ use anyhow::{Context, Result, bail};
 use tracing::{debug, warn};
 
 use super::model::{Scene, SceneId};
-use crate::automation::Automation;
+use crate::automation::{ScreenCapture, TemplateMatching};
 
 /// 已注册场景的查找与检测入口。
 pub(super) struct SceneDetector {
@@ -35,7 +35,10 @@ impl SceneDetector {
         }
     }
 
-    pub(super) fn detect_current_scene(&self, cx: &mut dyn Automation) -> Result<SceneId> {
+    pub(super) fn detect_current_scene<C>(&self, cx: &mut C) -> Result<SceneId>
+    where
+        C: ScreenCapture + TemplateMatching,
+    {
         let screenshot = cx.screenshot()?;
 
         for scene in &self.scenes {
@@ -54,11 +57,10 @@ impl SceneDetector {
     }
 
     /// 仅使用期望场景的识别器检查当前场景。
-    pub(super) fn recognizes_scene(
-        &self,
-        expected: SceneId,
-        cx: &mut dyn Automation,
-    ) -> Result<bool> {
+    pub(super) fn recognizes_scene<C>(&self, expected: SceneId, cx: &mut C) -> Result<bool>
+    where
+        C: ScreenCapture + TemplateMatching,
+    {
         if expected == SceneId::未知 {
             bail!("未知场景不能作为预期场景");
         }

@@ -6,7 +6,7 @@ use anyhow::Result;
 use tracing::{debug, warn};
 
 use super::{model::SceneId, route_planner::Route, scene_detector::SceneDetector};
-use crate::automation::Automation;
+use crate::automation::{Clock, Input, ScreenCapture, TemplateMatching};
 
 /// 一次路由执行的可恢复结果；`Err` 仅表示动作或场景检测本身出错。
 #[derive(Clone, Copy)]
@@ -25,18 +25,17 @@ impl RouteExecutionOutcome {
 }
 
 /// 执行一条既定路由，并负责每一步的验证与重试。
-pub(super) struct RouteExecutor<'a> {
+pub(super) struct RouteExecutor<'a, C> {
     scene_detector: &'a SceneDetector,
-    cx: &'a mut dyn Automation,
+    cx: &'a mut C,
     route: Route,
 }
 
-impl<'a> RouteExecutor<'a> {
-    pub(super) fn new(
-        scene_detector: &'a SceneDetector,
-        cx: &'a mut dyn Automation,
-        route: Route,
-    ) -> Self {
+impl<'a, C> RouteExecutor<'a, C>
+where
+    C: ScreenCapture + Input + TemplateMatching + Clock,
+{
+    pub(super) fn new(scene_detector: &'a SceneDetector, cx: &'a mut C, route: Route) -> Self {
         Self {
             scene_detector,
             cx,

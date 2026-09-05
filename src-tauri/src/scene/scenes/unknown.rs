@@ -7,7 +7,7 @@ use super::super::{
     model::{Scene, SceneId},
     transition::Transition,
 };
-use crate::automation::Automation;
+use crate::automation::TemplateMatching;
 
 /// 未知界面（兜底）：所有场景都无法识别时使用；不允许从此场景导航。
 pub struct Scene未知;
@@ -24,7 +24,7 @@ impl Scene for Scene未知 {
     fn try_recognize(
         &self,
         _screenshot: &RgbaImage,
-        _cx: &mut dyn Automation,
+        _templates: &mut dyn TemplateMatching,
     ) -> Result<Option<SceneId>> {
         // 未知场景总是返回自身（作为兜底）
         Ok(Some(SceneId::未知))

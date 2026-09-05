@@ -12,7 +12,7 @@ use super::super::{
 };
 use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::{
-    automation::{Automation, Point720p, TemplateTarget},
+    automation::{Point720p, TemplateMatching, TemplateTarget},
     utils::region::{Region2D, ltrb, ltwh},
 };
 
@@ -139,10 +139,10 @@ impl Scene for Scene档案详情页面 {
     fn try_recognize(
         &self,
         screenshot: &RgbaImage,
-        cx: &mut dyn Automation,
+        templates: &mut dyn TemplateMatching,
     ) -> Result<Option<SceneId>> {
         // 必须同时满足两个条件：有档案详情装饰 且 有关闭按钮
-        let has_decoration = cx
+        let has_decoration = templates
             .find_template(
                 screenshot,
                 &target("情报档案库/档案详情装饰.png", ROI_档案详情装饰),
@@ -152,7 +152,7 @@ impl Scene for Scene档案详情页面 {
             return Ok(None);
         }
 
-        let has_close = cx
+        let has_close = templates
             .find_template(
                 screenshot,
                 &target("情报档案库/档案详情关闭.png", ROI_右上角关闭),
@@ -206,10 +206,10 @@ impl Scene for Scene档案库子界面 {
     fn try_recognize(
         &self,
         screenshot: &RgbaImage,
-        cx: &mut dyn Automation,
+        templates: &mut dyn TemplateMatching,
     ) -> Result<Option<SceneId>> {
         // 1. 检查标题
-        let has_title = cx
+        let has_title = templates
             .find_template(
                 screenshot,
                 &target("情报档案库/情报档案库标题.png", ROI_档案库标题),
@@ -220,7 +220,7 @@ impl Scene for Scene档案库子界面 {
         }
 
         // 2. 检查子界面关闭按钮（区别于主界面的关闭按钮）
-        let has_close = cx
+        let has_close = templates
             .find_template(
                 screenshot,
                 &target("情报档案库/档案库子界面关闭.png", ROI_右上角关闭),
@@ -231,7 +231,7 @@ impl Scene for Scene档案库子界面 {
         }
 
         // 3. 判断属于哪个分类（通过水印）
-        let Some(category) = self.detect_category(screenshot, cx)? else {
+        let Some(category) = self.detect_category(screenshot, templates)? else {
             return Ok(None);
         };
 
@@ -267,7 +267,7 @@ impl Scene档案库子界面 {
     fn detect_category(
         &self,
         screenshot: &RgbaImage,
-        cx: &mut dyn Automation,
+        templates: &mut dyn TemplateMatching,
     ) -> Result<Option<&'static str>> {
         let categories = [
             ("音像存档", "情报档案库/音像存档水印.png"),
@@ -276,7 +276,7 @@ impl Scene档案库子界面 {
         ];
 
         for (name, template) in &categories {
-            if cx
+            if templates
                 .find_template(screenshot, &target(template, ROI_水印))?
                 .is_some()
             {
@@ -356,10 +356,10 @@ impl Scene for Scene档案库主界面 {
     fn try_recognize(
         &self,
         screenshot: &RgbaImage,
-        cx: &mut dyn Automation,
+        templates: &mut dyn TemplateMatching,
     ) -> Result<Option<SceneId>> {
         // 1. 检查标题
-        let has_title = cx
+        let has_title = templates
             .find_template(
                 screenshot,
                 &target("情报档案库/情报档案库标题.png", ROI_档案库标题),
@@ -370,7 +370,7 @@ impl Scene for Scene档案库主界面 {
         }
 
         // 2. 检查主界面关闭按钮（与子界面关闭按钮不同）
-        let has_main_close = cx
+        let has_main_close = templates
             .find_template(
                 screenshot,
                 &target("情报档案库/档案库主界面关闭.png", ROI_右上角关闭),
@@ -382,19 +382,19 @@ impl Scene for Scene档案库主界面 {
         }
 
         // 3. 确认至少有一个入口按钮存在
-        let has_any_entry = cx
+        let has_any_entry = templates
             .find_template(
                 screenshot,
                 &target("情报档案库/音像存档.png", ROI_音像存档按钮),
             )?
             .is_some()
-            || cx
+            || templates
                 .find_template(
                     screenshot,
                     &target("情报档案库/见闻辑录.png", ROI_见闻辑录按钮),
                 )?
                 .is_some()
-            || cx
+            || templates
                 .find_template(
                     screenshot,
                     &target("情报档案库/中枢档案.png", ROI_中枢档案按钮),

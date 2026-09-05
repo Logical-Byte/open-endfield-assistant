@@ -6,7 +6,7 @@ use anyhow::Result;
 use tracing::info;
 
 use crate::{
-    automation::{Automation, TemplateTarget},
+    automation::{Clock, Input, Ocr, ScreenCapture, TemplateMatching, TemplateTarget},
     scene::{
         SceneId,
         archive::{ROI_中枢档案按钮, ROI_见闻辑录按钮, ROI_音像存档按钮},
@@ -52,7 +52,10 @@ impl Task for ArchiveScanTask<'_> {
         SceneId::档案库主界面
     }
 
-    fn run(&self, cx: &mut dyn Automation, scene_manager: &SceneManager) -> Result<()> {
+    fn run<C>(&self, cx: &mut C, scene_manager: &SceneManager) -> Result<()>
+    where
+        C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
+    {
         // Step 1: 遍历所有子分类
         for (step_idx, step) in SCAN_PLAN.iter().enumerate() {
             info!(
@@ -104,12 +107,15 @@ impl ArchiveScanTask<'_> {
     /// 从档案库主界面点击入口按钮进入子分类。
     ///
     /// 调用时应已处于档案库主界面。
-    fn enter_sub_scene_from_main(
+    fn enter_sub_scene_from_main<C>(
         &self,
-        cx: &mut dyn Automation,
+        cx: &mut C,
         scene_manager: &SceneManager,
         step: &ScanStep,
-    ) -> Result<()> {
+    ) -> Result<()>
+    where
+        C: ScreenCapture + Input + TemplateMatching + Clock,
+    {
         scene_manager.require_scene(SceneId::档案库主界面, cx)?;
 
         let roi = match step.first_sub_scene {
@@ -146,7 +152,10 @@ impl ArchiveScanTask<'_> {
     /// 在同一分类内切换子界面（点击侧边栏 tab）。
     ///
     /// 点击区域与颜色识别区域由档案库场景共同维护。
-    fn switch_sub_tab(&self, cx: &mut dyn Automation, target: 档案库SubSceneId) -> Result<()> {
+    fn switch_sub_tab<C>(&self, cx: &mut C, target: 档案库SubSceneId) -> Result<()>
+    where
+        C: ScreenCapture + Input + TemplateMatching + Clock,
+    {
         crate::scene::archive::sidebar_transition(target).execute(cx)?;
 
         // 等待界面切换

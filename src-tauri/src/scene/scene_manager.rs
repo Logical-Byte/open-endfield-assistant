@@ -15,7 +15,7 @@ use super::{
     route_planner::RoutePlanner,
     scene_detector::SceneDetector,
 };
-use crate::automation::Automation;
+use crate::automation::{Clock, Input, ScreenCapture, TemplateMatching};
 
 /// 场景管理器：负责场景检测和导航。
 ///
@@ -62,7 +62,10 @@ impl SceneManager {
     ///
     /// 按注册顺序遍历所有场景的 `try_recognize()`，返回第一个成功识别的场景 ID。
     /// 如果所有场景都无法识别，返回 `SceneId::未知`。
-    pub fn detect_current_scene(&self, cx: &mut dyn Automation) -> Result<SceneId> {
+    pub fn detect_current_scene<C>(&self, cx: &mut C) -> Result<SceneId>
+    where
+        C: ScreenCapture + TemplateMatching,
+    {
         self.scene_detector.detect_current_scene(cx)
     }
 
@@ -74,12 +77,10 @@ impl SceneManager {
     /// - `max_retries`: 最大重试次数
     ///
     /// 每次重试之间会短暂等待（约 200ms），给游戏界面切换留出时间。
-    pub fn wait_for_scene(
-        &self,
-        expected: SceneId,
-        cx: &mut dyn Automation,
-        max_retries: u32,
-    ) -> Result<bool> {
+    pub fn wait_for_scene<C>(&self, expected: SceneId, cx: &mut C, max_retries: u32) -> Result<bool>
+    where
+        C: ScreenCapture + TemplateMatching + Clock,
+    {
         for i in 0..max_retries {
             let current = self.detect_current_scene(cx)?;
             if current == expected {
@@ -99,7 +100,10 @@ impl SceneManager {
     ///
     /// 仅调用期望场景对应的识别器，避免遍历所有已注册场景。
     /// 对于档案库子界面，识别结果必须与期望的具体子界面完全一致。
-    pub fn require_scene(&self, expected: SceneId, cx: &mut dyn Automation) -> Result<()> {
+    pub fn require_scene<C>(&self, expected: SceneId, cx: &mut C) -> Result<()>
+    where
+        C: ScreenCapture + TemplateMatching,
+    {
         if self.scene_detector.recognizes_scene(expected, cx)? {
             Ok(())
         } else {
@@ -123,7 +127,10 @@ impl SceneManager {
     /// 3. BFS 搜索最短路径
     /// 4. 依次执行路径上的跳转动作，每步执行后重新检测场景。
     ///    如果某一步未到达预期场景，则重试该步骤；连续失败 3 次则从当前场景重新规划路径。
-    pub fn navigate_to(&self, target: SceneId, cx: &mut dyn Automation) -> Result<()> {
+    pub fn navigate_to<C>(&self, target: SceneId, cx: &mut C) -> Result<()>
+    where
+        C: ScreenCapture + Input + TemplateMatching + Clock,
+    {
         const MAX_REPLANS: u32 = 5;
 
         let mut current = self.detect_current_scene(cx)?;
@@ -177,7 +184,10 @@ impl SceneManager {
     /// 确保当前处于目标场景，如果不在则自动导航过去。
     ///
     /// 先仅调用目标场景的识别器；识别不匹配时再执行完整导航。
-    pub fn ensure_scene(&self, target: SceneId, cx: &mut dyn Automation) -> Result<()> {
+    pub fn ensure_scene<C>(&self, target: SceneId, cx: &mut C) -> Result<()>
+    where
+        C: ScreenCapture + Input + TemplateMatching + Clock,
+    {
         if self.scene_detector.recognizes_scene(target, cx)? {
             return Ok(());
         }

@@ -9,7 +9,7 @@ use anyhow::Result;
 use tracing::{debug, info};
 
 use crate::{
-    automation::{Automation, Point720p, TemplateTarget},
+    automation::{Clock, Input, Ocr, Point720p, ScreenCapture, TemplateMatching, TemplateTarget},
     scene::{SceneId, scene_manager::SceneManager, 档案库SubSceneId},
 };
 
@@ -22,21 +22,24 @@ use crate::data::ArchiveTitleIndex;
 /// 扫描当前子界面中的所有档案。
 ///
 /// # 前置条件
-/// - `session` 当前处于档案库子界面
+/// - `cx` 当前处于档案库子界面
 /// - `sub_scene` 为该子界面（用于确定所属大类 / 小类，进而纠错）
 ///
 /// # 工作流程
 /// 1. 点击第 1 份档案 (401, 182) 进入档案详情页面
 /// 2. 循环：OCR 标题 → 纠错 → 上报扫描结果 → 翻到下一篇 → 直到翻不动
 /// 3. 点击关闭返回子界面
-pub fn scan_current_sub_scene(
-    cx: &mut dyn Automation,
+pub fn scan_current_sub_scene<C>(
+    cx: &mut C,
     scene_manager: &SceneManager,
     sub_scene: 档案库SubSceneId,
     archive_titles: &ArchiveTitleIndex,
     correction_overrides: Option<&[CorrectionOverride<'_>]>,
     reporter: &ScanReporter,
-) -> Result<()> {
+) -> Result<()>
+where
+    C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
+{
     // 1. 点击第 1 份档案进入档案详情页面
     debug!("点击第 1 份档案 (401, 182)");
     cx.click(Point720p { x: 401, y: 182 })?;

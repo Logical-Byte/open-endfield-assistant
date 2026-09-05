@@ -3,7 +3,7 @@
 use anyhow::Result;
 use image::RgbaImage;
 
-use crate::automation::Automation;
+use crate::automation::TemplateMatching;
 
 use super::SceneId;
 use crate::scene::transition::Transition;
@@ -35,7 +35,7 @@ pub trait Scene: Send + Sync {
     fn try_recognize(
         &self,
         screenshot: &RgbaImage,
-        cx: &mut dyn Automation,
+        templates: &mut dyn TemplateMatching,
     ) -> Result<Option<SceneId>>;
 
     /// 返回从此场景可以跳转到的目标场景及跳转方式。

@@ -100,8 +100,3 @@ pub trait Clock {
     /// 阻塞当前工作流指定时长。
     fn sleep(&mut self, duration: Duration);
 }
-
-/// 完整自动化上下文的组合边界，供同时编排多种能力的工作流使用。
-pub trait Automation: ScreenCapture + Input + TemplateMatching + Ocr + Clock {}
-
-impl<T> Automation for T where T: ScreenCapture + Input + TemplateMatching + Ocr + Clock + ?Sized {}

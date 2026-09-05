@@ -9,7 +9,7 @@ use super::super::{
 };
 use super::TEMPLATE_MATCH_THRESHOLD;
 use crate::{
-    automation::{Automation, TemplateTarget},
+    automation::{TemplateMatching, TemplateTarget},
     utils::region::{Region2D, ltrb},
 };
 
@@ -31,9 +31,9 @@ impl Scene for Scene协议终端 {
     fn try_recognize(
         &self,
         screenshot: &RgbaImage,
-        cx: &mut dyn Automation,
+        templates: &mut dyn TemplateMatching,
     ) -> Result<Option<SceneId>> {
-        let found = cx
+        let found = templates
             .find_template(
                 screenshot,
                 &TemplateTarget {
