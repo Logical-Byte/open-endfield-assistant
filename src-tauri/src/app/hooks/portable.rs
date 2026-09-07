@@ -137,7 +137,7 @@ pub fn ensure_extracted(app_paths: &AppPaths) {
         return;
     };
 
-    let _ = crate::crash::write_crash_log(
+    let _ = super::crash::write_crash_log(
         "ZIP RUNTIME",
         &format!("{reason:?}, root = {}", app_paths.root_dir().display()),
     );

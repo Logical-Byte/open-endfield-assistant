@@ -1,8 +1,11 @@
 //! Tauri 命令层：薄胶水，把前端 `invoke` 转发给 [`crate::controller::Controller`]。
 
-use std::{fs, sync::Arc};
+use std::{fs, io::Cursor, sync::Arc};
 
+use anyhow::Context;
 use base64::{Engine, engine::general_purpose::STANDARD};
+use image::{ImageFormat, imageops};
+use serde::Deserialize;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::{
@@ -10,9 +13,28 @@ use crate::{
     config::{self, OeaConfig},
     controller::{AppStatus, Controller},
     data::{ArchiveContract, PrtsData},
-    screenshot::{self, ScreenshotFormat},
     windows_ops,
 };
+
+/// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ScreenshotFormat {
+    Png,
+    Jpeg,
+    Webp,
+}
+
+impl ScreenshotFormat {
+    /// 转换为 `image` crate 的编码格式。
+    fn to_image_format(self) -> ImageFormat {
+        match self {
+            Self::Png => ImageFormat::Png,
+            Self::Jpeg => ImageFormat::Jpeg,
+            Self::Webp => ImageFormat::WebP,
+        }
+    }
+}
 
 /// 启动扫描档案库任务（在后台线程执行，立即返回当前状态）。
 #[tauri::command]
@@ -34,13 +56,13 @@ pub fn get_status(state: tauri::State<Arc<Controller>>) -> AppStatus {
     state.get_status()
 }
 
-/// 返回 prts.json 完整数据（前端用于分类中文名映射与自动补全候选）。
+/// 返回 `prts.json` 完整数据（前端用于分类中文名映射与自动补全候选）。
 #[tauri::command]
 pub fn get_prts_data<'a>(state: tauri::State<'a, Arc<Controller>>) -> &'a PrtsData {
     state.inner().prts_data()
 }
 
-/// 返回 archive_contract.json 完整数据（前端用于按档案 id 查询获取方式）。
+/// 返回 `archive_contract.json` 完整数据（前端用于按档案 `id` 查询获取方式）。
 #[tauri::command]
 pub fn get_archive_contract<'a>(state: tauri::State<'a, Arc<Controller>>) -> &'a ArchiveContract {
     state.inner().archive_contract_data()
@@ -68,7 +90,7 @@ pub fn restart_as_admin(app_handle: tauri::AppHandle) -> Result<(), String> {
 
 /// 读取 WebView2 当前缩放因子（`ZoomFactor`），用于前端初始化缩放滑块。
 ///
-/// 缩放值的唯一持久化由 WebView2 自身负责（写入用户数据目录），
+/// 缩放值的唯一持久化由 `WebView2` 自身负责（写入用户数据目录），
 /// 前端只把它当作内存镜像，不再额外持久化。
 #[tauri::command]
 pub fn get_webview_zoom(window: tauri::WebviewWindow) -> Result<f64, String> {
@@ -77,9 +99,9 @@ pub fn get_webview_zoom(window: tauri::WebviewWindow) -> Result<f64, String> {
 
 /// 在系统文件管理器中打开日志目录（不存在时先创建）。
 ///
-/// 由于根目录为双模式动态路径（dev=项目根 / release=exe 目录），静态 scope 无法精确
-/// 表达，故不用前端 `openPath` + scope 方案，而用后端 Rust API `open_path`
-/// （直接调不经 scope 检查），capabilities 无需放通任何路径。
+/// 由于根目录为双模式动态路径（`dev`=项目根 / `release`=`exe` 目录），静态 `scope` 无法精确
+/// 表达，故不用前端 `openPath` + `scope` 方案，而用后端 Rust API `open_path`
+/// （直接调不经 `scope` 检查），`capabilities` 无需放通任何路径。
 #[tauri::command]
 pub fn open_log_dir() -> Result<(), String> {
     let logs_dir = AppPaths::new()
@@ -140,8 +162,8 @@ pub fn cdk_decrypt(encrypted: String) -> Result<String, String> {
     String::from_utf8(plain).map_err(|e| format!("CDK 明文不是合法 UTF-8: {e}"))
 }
 
-/// 截取游戏窗口画面：按指定尺寸缩放并编码为指定格式（png / jpeg / webp），
-/// 返回 base64 编码的图片数据（不含 data URL 前缀，由前端拼接）。
+/// 截取游戏窗口画面：按指定尺寸缩放并编码为指定格式（`png` / `jpeg` / `webp`），
+/// 返回 `base64` 编码的图片数据（不含 `data URL` 前缀，由前端拼接）。
 ///
 /// 本命令每次调用只执行一次截图；帧率控制、定时轮询等逻辑全部由前端负责。
 #[tauri::command]
@@ -150,7 +172,51 @@ pub async fn screenshot(
     height: u32,
     format: ScreenshotFormat,
 ) -> Result<String, String> {
-    screenshot::capture_screenshot(width, height, format).map_err(|e| e.to_string())
+    // 定位游戏窗口（`PrintWindow` 可捕获非最小化后台窗口）
+    let hwnd = windows_ops::window::get_window_by_title(
+        Some(windows_ops::window::ENDFIELD_WINDOW_CLASS),
+        Some(windows_ops::window::ENDFIELD_WINDOW_TITLE),
+    )
+    .context("未找到游戏窗口")
+    .map_err(|e| e.to_string())?;
+
+    // 截图
+    let mut screencap = windows_ops::capture::PrintWindowScreencap::new(hwnd);
+    let raw = screencap
+        .screencap()
+        .context("截图失败")
+        .map_err(|e| e.to_string())?;
+
+    // 缩放到指定尺寸
+    let resized = imageops::resize(
+        &raw,
+        width.max(1),
+        height.max(1),
+        imageops::FilterType::Triangle,
+    );
+
+    // 按格式编码（JPEG 不支持 alpha 通道，先转 RGB 再编码）
+    let image_format = format.to_image_format();
+    let mut buf = Cursor::new(Vec::new());
+
+    match format {
+        ScreenshotFormat::Jpeg => {
+            image::DynamicImage::ImageRgba8(resized)
+                .to_rgb8()
+                .write_to(&mut buf, image_format)
+                .context("图片编码失败")
+                .map_err(|e| e.to_string())?;
+        }
+        ScreenshotFormat::Png | ScreenshotFormat::Webp => {
+            resized
+                .write_to(&mut buf, image_format)
+                .context("图片编码失败")
+                .map_err(|e| e.to_string())?;
+        }
+    }
+
+    // `base64` 编码返回
+    Ok(STANDARD.encode(buf.into_inner()))
 }
 
 /// 写一条 TRACE 级日志到后端日志系统（进入文件 / 控制台，并广播给所有前端窗口）。
