@@ -57,10 +57,10 @@ export enum UpdatePackageType {
 /** 已就绪的下载信息（URL + 校验信息，由「下载源决策」产出）。 */
 export interface PreparedUpdate {
   url: string;
-  /** 期望 sha256（GitHub 来源时来自 asset.digest；缺失则为 undefined） */
+  /** 期望 sha256（OEM 来源时来自 stable manifest，GitHub 来源时来自 asset.digest） */
   sha256?: string;
   fileSize?: number;
-  /** 建议文件名（GitHub 来源时为资产名；MirrorChyan 无此信息），服务端可能通过 Content-Disposition 覆盖实际文件名 */
+  /** 建议文件名（OEM / GitHub 来源时提供；MirrorChyan 无此信息），服务端可能通过 Content-Disposition 覆盖实际文件名 */
   filename?: string;
   source: UpdateSource;
   /** 更新包类型（MirrorChyan 按响应判定；GitHub 固定全量） */

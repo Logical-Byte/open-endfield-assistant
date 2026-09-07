@@ -3,6 +3,7 @@ import {
   MirrorchyanResourcesLatestResponse,
   MirrorchyanResourcesLatestResponseData,
 } from '@/types/mirrorchyan';
+import { OemStableManifest } from '@/types/oem';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import {
   ChangesJson,
@@ -41,8 +42,8 @@ const CHECK_URL_BASES = [
 const GITHUB_OWNER = 'Logical-Byte';
 const GITHUB_REPO = 'open-endfield-assistant';
 const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
-/** OEM 稳定下载入口，会重定向到最新的 OEA 全量包。 */
-const OEM_DOWNLOAD_URL = 'https://oea.oem.re/latest';
+/** OEM 稳定版元数据接口。 */
+const OEM_STABLE_MANIFEST_URL = 'https://package.oem.re/channels/oea/stable.json';
 
 /**
  * 根据实际系统信息生成更新请求 UA（`OEA/<版本> (Windows NT <major.minor>; Win64; x64)`）。
@@ -66,7 +67,7 @@ function buildCheckUpdateUrl(base: string): URL {
   url.searchParams.set('os', 'windows');
   url.searchParams.set('arch', 'amd64');
   const cdk = mirrorchyanCdk.value.trim();
-  if (cdk) {
+  if (oeaConfig.value.updateSource === UpdateSource.Mirrorchyan && cdk) {
     url.searchParams.set('cdk', cdk);
   }
   return url;
@@ -326,7 +327,7 @@ export async function startDownload(
 
   let unlisten: (() => void) | null = null;
   try {
-    // 准备下载信息：MirrorChyan 直连 / OEM 稳定入口 / GitHub 匹配资产（含 digest）。
+    // 准备下载信息。
     const prepared = await prepareDownload(checkUpdateData);
     if (!prepared) {
       handleDownloadFailure(new Error('未获取到可用的下载链接'), '准备下载失败');
@@ -634,8 +635,8 @@ function handleInstallFailure(error: unknown): void {
  * 下载源决策：
  * 1. 明确选择 GitHub → 从 GitHub 匹配 tag 与资产（含 digest）；
  * 2. 更新源为 MirrorChyan 且 CDK 已填写、MirrorChyan 给了 url → 用 MirrorChyan；
- * 3. 其他情况（选择 OEM、MirrorChyan 未填写 CDK 或未给 url）→ 预检 OEM 版本并使用 OEM 下载。
- * OEM 预检失败或版本不一致时直接抛错，不回退到其他下载源。
+ * 3. 其他情况（选择 OEM、MirrorChyan 未填写 CDK 或未给 url）→ 获取 OEM 稳定元数据并使用 OEM 下载。
+ * OEM 元数据请求失败或版本不一致时直接抛错，不回退到其他下载源。
  */
 async function prepareDownload(
   data: MirrorchyanResourcesLatestResponseData,
@@ -657,12 +658,15 @@ async function prepareDownload(
   }
 
   if (oeaConfig.value.updateSource !== UpdateSource.Github) {
-    const url = await resolveOemDownload(versionName);
+    const manifest = await resolveOemDownload(versionName);
     return {
-      url,
+      url: manifest.url,
+      sha256: manifest.sha256,
+      fileSize: manifest.size,
+      filename: manifest.filename,
       source: UpdateSource.Oem,
       updateType: UpdatePackageType.Full,
-      versionName,
+      versionName: manifest.tag,
       releaseNote: data.release_note,
     };
   }
@@ -684,63 +688,49 @@ async function prepareDownload(
 }
 
 /**
- * 预检 OEM 稳定入口并返回实际下载地址。
+ * 获取 OEM 稳定版元数据。
  *
- * OEM 入口必须先以不跟随重定向的请求读取版本标头；只有标头版本与 Mirror酱
- * 本次检查返回的版本一致时，才允许继续下载。预检失败不会回退到其他源。
+ * OEM 版本必须与 Mirror酱本次检查返回的版本一致，否则中断下载。
  */
-async function resolveOemDownload(versionName: string): Promise<string> {
+async function resolveOemDownload(versionName: string): Promise<OemStableManifest> {
   const init: RequestInit & ClientOptions = {
-    method: 'HEAD',
+    method: 'GET',
     headers: {
       'User-Agent': buildUpdateUserAgent(),
+      Accept: 'application/json',
     },
-    maxRedirections: 0,
     ...(await buildProxyClientOptions()),
   };
 
   let response: Response;
   try {
-    response = await fetch(OEM_DOWNLOAD_URL, init);
+    response = await fetch(OEM_STABLE_MANIFEST_URL, init);
   } catch (error) {
     throw new Error(
-      `OEM 版本校验请求失败: ${error instanceof Error ? error.message : String(error)}`,
+      `OEM 更新元数据请求失败: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
-  if (response.status < 300 || response.status >= 400) {
-    throw new Error(`OEM 最新版本接口未返回重定向（HTTP ${response.status}），已中断下载`);
+  if (!response.ok) {
+    throw new Error(`OEM 更新元数据请求失败（HTTP ${response.status}），已中断下载`);
   }
 
-  const oemVersion = response.headers.get('x-oem-relink-package-version')?.trim();
-  if (!oemVersion) {
-    throw new Error('OEM 最新版本接口缺少 x-oem-relink-package-version 标头，已中断下载');
+  let manifest: OemStableManifest;
+  try {
+    manifest = await response.json();
+  } catch (error) {
+    throw new Error(`OEM 更新元数据不是有效 JSON，已中断下载: ${String(error)}`);
   }
 
   const mirrorchyanVersion = versionName.trim().replace(/^v/i, '');
-  if (oemVersion !== mirrorchyanVersion) {
+  if (manifest.version !== mirrorchyanVersion) {
     throw new Error(
-      `OEM 与 Mirror酱版本不一致（OEM: ${oemVersion}，Mirror酱: ${versionName}），已中断下载`,
+      `OEM 与 Mirror酱版本不一致（OEM: ${manifest.tag}，Mirror酱: ${versionName}），已中断下载`,
     );
   }
 
-  const location = response.headers.get('location')?.trim();
-  if (!location) {
-    throw new Error('OEM 最新版本接口缺少 Location 标头，已中断下载');
-  }
-
-  let downloadUrl: URL;
-  try {
-    downloadUrl = new URL(location, OEM_DOWNLOAD_URL);
-  } catch (error) {
-    throw new Error(`OEM 重定向地址无效，已中断下载: ${String(error)}`);
-  }
-  if (downloadUrl.protocol !== 'https:') {
-    throw new Error('OEM 重定向地址不是 HTTPS，已中断下载');
-  }
-
-  logInfo(`OEM 版本校验通过: ${oemVersion}，下载地址: ${downloadUrl}`);
-  return downloadUrl.toString();
+  logInfo(`OEM 与 Mirror酱版本一致: ${manifest.tag}，下载地址: ${manifest.url}`);
+  return manifest;
 }
 
 /**
