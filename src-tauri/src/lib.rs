@@ -14,7 +14,6 @@ pub(crate) mod scan_runtime;
 pub mod scene;
 pub mod screenshot;
 pub mod session;
-pub mod sound;
 pub mod task;
 pub mod tauri_commands;
 pub mod template_matching;

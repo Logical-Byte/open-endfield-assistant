@@ -19,7 +19,6 @@ use crate::{
     ocr::OcrEngine,
     scene::SceneManager,
     session::Session,
-    sound,
     task::{
         TaskStopped,
         archive_scan::{ArchiveScanTask, ScanReporter},
@@ -224,7 +223,7 @@ impl ScanRuntime {
             .sound_volume;
         let name = if enable { "enable.wav" } else { "disable.wav" };
         let path = context.app_path.resources_dir().join("sounds").join(name);
-        sound::play_wav(&path, volume);
+        windows_ops::sound::play_wav(&path, volume);
     }
 
     /// 向前端推送当前状态（running 标志 + 本次任务结束时的失败原因）。
