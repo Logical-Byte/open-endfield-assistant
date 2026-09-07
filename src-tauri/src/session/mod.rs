@@ -1,7 +1,7 @@
 //! 游戏会话。
 //!
-//! 连接时发现游戏窗口、验证运行环境并组装基础设施组件；运行时由
-//! [`AutomationContext`] 借用这些组件，并翻译工作流的 720p 基准能力调用。
+//! 连接时发现游戏窗口、验证运行环境并组装基础设施组件；运行时通过自动化能力
+//! trait 将这些组件翻译成工作流使用的 720p 基准操作。
 //!
 //! 职责边界：
 //! - ✅ 连接游戏窗口，检查分辨率与 HDR 环境并创建会话；
@@ -11,9 +11,7 @@
 //!
 //! 会话贯穿一次游戏操作（扫描档案库任务），由调用方以 `&mut` 串行使用。
 
-mod automation_context;
-
-pub use automation_context::AutomationContext;
+mod automation;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -156,11 +154,6 @@ impl Session {
     /// 清除停止信号（启动任务前调用，避免上次残留误伤后续操作）。
     pub fn reset_stop(&mut self) {
         self.stop.store(false, Ordering::Relaxed);
-    }
-
-    /// 借用会话组件，构造工作流使用的生产自动化上下文。
-    pub fn automation_context(&mut self) -> AutomationContext<'_> {
-        AutomationContext::new(self)
     }
 
     // ========== 截图器 / 输入器切换（扩展点） ==========

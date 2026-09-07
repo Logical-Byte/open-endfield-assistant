@@ -2,8 +2,8 @@
 //!
 //! 档案扫描、场景导航和路由执行只依赖本模块中的细粒度 trait，避免了解
 //! [`Session`](crate::session::Session) 如何持有窗口、截图器、输入器和识别资源。
-//! 生产环境由 [`AutomationContext`](crate::session::AutomationContext) 把这些请求
-//! 翻译到现有会话组件；测试可以直接实现相同的能力接口。
+//! 生产环境由 [`Session`](crate::session::Session) 实现这些能力；测试可以直接实现
+//! 相同的能力接口。
 
 use std::time::Duration;
 

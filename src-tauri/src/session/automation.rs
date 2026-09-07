@@ -1,4 +1,4 @@
-//! 将工作流自动化能力适配到生产 `Session` 组件。
+//! `Session` 提供的工作流自动化能力。
 
 use std::{thread, time::Duration};
 
@@ -19,33 +19,19 @@ use crate::{
 
 use super::Session;
 
-/// 工作流自动化能力的生产实现注入点。
-///
-/// 该上下文短暂借用一个 [`Session`]，并把能力调用委托给会话持有的截图、输入、
-/// 模板和 OCR 组件。它不拥有另一套自动化实现，也不向工作流暴露会话内部结构。
-pub struct AutomationContext<'a> {
-    session: &'a mut Session,
-}
-
-impl<'a> AutomationContext<'a> {
-    pub(super) fn new(session: &'a mut Session) -> Self {
-        Self { session }
-    }
-}
-
-impl ScreenCapture for AutomationContext<'_> {
+impl ScreenCapture for Session {
     fn screenshot(&mut self) -> Result<RgbaImage> {
-        self.session.check_stop()?;
-        let raw = self.session.screencap.screencap()?;
-        Ok(self.session.resolution.scale_screenshot_to_base(&raw))
+        self.check_stop()?;
+        let raw = self.screencap.screencap()?;
+        Ok(self.resolution.scale_screenshot_to_base(&raw))
     }
 }
 
-impl Input for AutomationContext<'_> {
+impl Input for Session {
     fn click(&mut self, point: Point720p) -> Result<()> {
-        self.session.check_stop()?;
-        let (x, y) = self.session.resolution.scale_point(point.x, point.y);
-        self.session.input.click(
+        self.check_stop()?;
+        let (x, y) = self.resolution.scale_point(point.x, point.y);
+        self.input.click(
             Contact::Left,
             Point2D {
                 x: x as i32,
@@ -57,29 +43,29 @@ impl Input for AutomationContext<'_> {
     }
 
     fn press_key(&mut self, key: Key) -> Result<()> {
-        self.session.check_stop()?;
+        self.check_stop()?;
         let vk_code = match key {
             Key::Escape => 0x1B,
         };
-        self.session.input.press_key(vk_code)
+        self.input.press_key(vk_code)
     }
 
     fn move_mouse_to_safe_position(&mut self) -> Result<()> {
         let point = Point2D {
-            x: self.session.resolution.width as i32 / 2,
-            y: self.session.resolution.height as i32 / 2,
+            x: self.resolution.width as i32 / 2,
+            y: self.resolution.height as i32 / 2,
         };
-        self.session.input.touch_move(Contact::Left, point)
+        self.input.touch_move(Contact::Left, point)
     }
 }
 
-impl TemplateMatching for AutomationContext<'_> {
+impl TemplateMatching for Session {
     fn find_template(
         &mut self,
         screenshot: &RgbaImage,
         target: &TemplateTarget,
     ) -> Result<Option<TemplateMatch>> {
-        let template = self.session.templates.get(target.template_name)?;
+        let template = self.templates.get(target.template_name)?;
         let matched = match_template_in_region(screenshot, template, Some(target.roi))?;
         Ok(
             (matched.score >= target.threshold).then_some(TemplateMatch {
@@ -90,7 +76,7 @@ impl TemplateMatching for AutomationContext<'_> {
     }
 }
 
-impl Ocr for AutomationContext<'_> {
+impl Ocr for Session {
     fn recognize_text(
         &mut self,
         screenshot: &RgbaImage,
@@ -118,7 +104,7 @@ impl Ocr for AutomationContext<'_> {
             text_region.height(),
         )
         .to_image();
-        let output = self.session.ocr.lock().unwrap().ocr(&cropped)?;
+        let output = self.ocr.lock().unwrap().ocr(&cropped)?;
         Ok(Some(
             output
                 .lines
@@ -130,7 +116,7 @@ impl Ocr for AutomationContext<'_> {
     }
 }
 
-impl Clock for AutomationContext<'_> {
+impl Clock for Session {
     fn sleep(&mut self, duration: Duration) {
         thread::sleep(duration);
     }

@@ -54,17 +54,16 @@ pub trait Task {
 /// 运行任务：满足任务的前置场景 → 执行任务。
 pub fn run_task<T: Task>(task: &T, session: &mut Session, scenes: &SceneManager) -> Result<()> {
     tracing::info!("========== 开始执行任务: {} ==========", task.name());
-    let mut cx = session.automation_context();
 
     // 0. 任务开始前先把鼠标移到窗口中心，避免鼠标恰好 hover 在按钮上，
     //    按钮 hover 样式变化干扰首次场景识别 / 导航。
-    cx.move_mouse_to_safe_position()?;
+    session.move_mouse_to_safe_position()?;
 
     // 1. 满足任务的前置场景
-    scenes.ensure_scene(task.precondition_scene(), &mut cx)?;
+    scenes.ensure_scene(task.precondition_scene(), session)?;
 
     // 2. 执行任务
-    task.run(&mut cx, scenes)?;
+    task.run(session, scenes)?;
 
     tracing::info!("========== 任务 {} 执行完毕 ==========", task.name());
     Ok(())
