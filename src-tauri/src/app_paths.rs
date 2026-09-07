@@ -18,6 +18,8 @@ use std::{
 
 use anyhow::{Context, Result};
 
+use crate::utils::path::resolve_existing_relative_file;
+
 /// 在运行时确定应用根目录，按构建类型分发。
 ///
 /// - debug 构建：`CARGO_MANIFEST_DIR`（编译期指向 `src-tauri/`）的上一级即项目根；
@@ -85,6 +87,12 @@ impl AppPaths {
         self.root_dir.join("resources")
     }
 
+    /// 解析并验证共享资源目录内当前存在的文件。
+    pub fn resolve_resource_file(&self, relative_path: &str) -> Result<PathBuf> {
+        resolve_existing_relative_file(&self.resources_dir(), relative_path)
+            .with_context(|| format!("解析资源文件失败: {relative_path:?}"))
+    }
+
     /// OCR 模型目录（`<root_dir>/resources/ocr-models`）。
     pub fn models_dir(&self) -> PathBuf {
         self.root_dir.join("resources").join("ocr-models")
@@ -118,5 +126,29 @@ impl AppPaths {
     /// OEA 应用配置文件（`<root_dir>/config/oea_config.json`）。
     pub fn oea_config_file(&self) -> PathBuf {
         self.config_dir().join("oea_config.json")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::AppPaths;
+
+    #[test]
+    fn resolves_an_existing_resource_file() {
+        let root = tempfile::tempdir().unwrap();
+        let sounds_dir = root.path().join("resources").join("sounds");
+        fs::create_dir_all(&sounds_dir).unwrap();
+        let sound_file = sounds_dir.join("enable.wav");
+        fs::write(&sound_file, b"wav").unwrap();
+        let app_paths = AppPaths::with_root_dir(root.path());
+
+        assert_eq!(
+            app_paths
+                .resolve_resource_file("sounds/enable.wav")
+                .unwrap(),
+            sound_file.canonicalize().unwrap()
+        );
     }
 }

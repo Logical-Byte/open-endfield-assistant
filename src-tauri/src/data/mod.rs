@@ -21,6 +21,19 @@ pub(crate) mod schema;
 pub use archive_title_index::ArchiveTitleIndex;
 pub use schema::{ArchiveContract, PrtsData};
 
+/// 读取并解析一个 JSON 文件；失败时错误信息带完整文件路径。
+fn load_json<T: DeserializeOwned>(path: &Path) -> Result<T> {
+    let text = fs::read_to_string(path)
+        .with_context(|| format!("读取数据文件 {} 失败", path.display()))?;
+    serde_json::from_str(&text).with_context(|| format!("解析数据文件 {} 失败", path.display()))
+}
+
+/// 解析并加载 `resources/` 内的一个 JSON 文件。
+fn load_resource_json<T: DeserializeOwned>(app_paths: &AppPaths, relative_path: &str) -> Result<T> {
+    let path = app_paths.resolve_resource_file(relative_path)?;
+    load_json(&path)
+}
+
 /// 运行时加载的静态数据（不可变，跨线程只读共享）。
 pub struct AppData {
     /// prts.json 完整数据（供前端查询分类中文名 / 自动补全候选，并构建档案标题索引）
@@ -34,14 +47,12 @@ pub struct AppData {
 impl AppData {
     /// 从 `resources/data/` 加载全部静态数据文件（新增数据文件在此登记）。
     pub fn load(app_paths: &AppPaths) -> Result<Self> {
-        let data_dir = app_paths.resources_dir().join("data");
-
-        let prts = Self::load_json::<PrtsData>(&data_dir.join("prts.json"))?;
+        let prts = load_resource_json::<PrtsData>(app_paths, "data/prts.json")?;
         let archive_titles = ArchiveTitleIndex::from_prts(&prts);
         info!("已加载 prts.json（{} 个档案条目）", archive_titles.len());
 
         let archive_contract =
-            Self::load_json::<ArchiveContract>(&data_dir.join("archive_contract.json"))?;
+            load_resource_json::<ArchiveContract>(app_paths, "data/archive_contract.json")?;
         let row_count: usize = archive_contract.categories.values().map(Vec::len).sum();
         info!("已加载 archive_contract.json（{} 条获取契约）", row_count);
 
@@ -65,12 +76,5 @@ impl AppData {
     /// 档案标题索引。
     pub fn archive_titles(&self) -> &ArchiveTitleIndex {
         &self.archive_titles
-    }
-
-    /// 读取并解析一个 JSON 数据文件；失败时错误信息带完整文件路径。
-    fn load_json<T: DeserializeOwned>(path: &Path) -> Result<T> {
-        let text = fs::read_to_string(path)
-            .with_context(|| format!("读取数据文件 {} 失败", path.display()))?;
-        serde_json::from_str(&text).with_context(|| format!("解析数据文件 {} 失败", path.display()))
     }
 }

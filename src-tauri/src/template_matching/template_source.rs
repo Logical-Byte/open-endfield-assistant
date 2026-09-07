@@ -1,8 +1,10 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use image::RgbImage;
+
+use crate::utils::path::resolve_existing_relative_file;
 
 /// 按逻辑名称提供模板图片，不向调用方暴露存储与缓存策略。
 pub(crate) trait TemplateSource {
@@ -29,8 +31,6 @@ impl LazyTemplateLoader {
 
 impl TemplateSource for LazyTemplateLoader {
     fn get(&mut self, template_name: &str) -> Result<&RgbImage> {
-        let path = resolve_template_path(&self.root, template_name)?;
-
         if self.cache.contains_key(template_name) {
             return Ok(self
                 .cache
@@ -38,19 +38,10 @@ impl TemplateSource for LazyTemplateLoader {
                 .expect("已缓存的模板应存在于缓存中"));
         }
 
-        let canonical_root = self
-            .root
-            .canonicalize()
-            .with_context(|| format!("规范化模板根目录失败: {}", self.root.display()))?;
-        let canonical_path = path
-            .canonicalize()
-            .with_context(|| format!("规范化模板路径失败: {}", path.display()))?;
-        if !canonical_path.starts_with(&canonical_root) {
-            bail!("模板路径超出模板根目录: {template_name:?}");
-        }
-
-        let image = image::open(&canonical_path)
-            .with_context(|| format!("加载模板图片失败: {}", canonical_path.display()))?
+        let path = resolve_existing_relative_file(&self.root, template_name)
+            .with_context(|| format!("解析模板文件失败: {template_name:?}"))?;
+        let image = image::open(&path)
+            .with_context(|| format!("加载模板图片失败: {}", path.display()))?
             .to_rgb8();
         self.cache.insert(template_name.to_owned(), image);
 
@@ -61,89 +52,26 @@ impl TemplateSource for LazyTemplateLoader {
     }
 }
 
-/// 将使用 `/` 分隔的模板名称解析到 `root` 内。
-///
-/// 逐段构造路径，使校验规则在开发环境与 Windows 运行环境中保持一致。
-fn resolve_template_path(root: &Path, template_name: &str) -> Result<PathBuf> {
-    if template_name.is_empty() {
-        bail!("模板名称不能为空");
-    }
-
-    let mut path = root.to_path_buf();
-    for segment in template_name.split('/') {
-        if segment.is_empty()
-            || segment == "."
-            || segment == ".."
-            || segment.contains('\\')
-            || segment.contains(':')
-        {
-            bail!("模板名称包含无效路径片段: {template_name:?}");
-        }
-        path.push(segment);
-    }
-
-    Ok(path)
-}
-
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
-    use super::resolve_template_path;
+    use std::fs;
 
     #[test]
-    fn resolves_valid_template_names_within_root() {
-        let root = Path::new("templates");
-
-        assert_eq!(
-            resolve_template_path(root, "档案库.png").unwrap(),
-            root.join("档案库.png")
-        );
-        assert_eq!(
-            resolve_template_path(root, "情报档案库/下一篇.png").unwrap(),
-            root.join("情报档案库").join("下一篇.png")
-        );
-    }
-
-    #[test]
-    fn rejects_template_names_that_can_escape_or_are_not_normalized() {
-        for template_name in [
-            "",
-            "/档案库.png",
-            "../档案库.png",
-            "情报档案库/../档案库.png",
-            "./档案库.png",
-            "情报档案库//档案库.png",
-            "情报档案库/",
-            r"C:\档案库.png",
-            r"\\server\share\档案库.png",
-            "档案库.png:stream",
-        ] {
-            assert!(
-                resolve_template_path(Path::new("templates"), template_name).is_err(),
-                "unexpectedly accepted {template_name:?}"
-            );
-        }
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn rejects_symlink_that_resolves_outside_template_root() {
-        use std::os::unix::fs::symlink;
-
+    fn returns_a_cached_template_after_its_file_is_removed() {
         use image::{Rgb, RgbImage};
 
         use super::{LazyTemplateLoader, TemplateSource};
 
         let templates = tempfile::tempdir().unwrap();
-        let outside = tempfile::tempdir().unwrap();
-        let outside_template = outside.path().join("outside.png");
+        let template = templates.path().join("cached.png");
         RgbImage::from_pixel(1, 1, Rgb([0, 0, 0]))
-            .save(&outside_template)
+            .save(&template)
             .unwrap();
-        symlink(&outside_template, templates.path().join("escaped.png")).unwrap();
 
         let mut loader = LazyTemplateLoader::new(templates.path());
-        assert!(loader.get("escaped.png").is_err());
+        loader.get("cached.png").unwrap();
+        fs::remove_file(template).unwrap();
+
+        assert_eq!(loader.get("cached.png").unwrap().width(), 1);
     }
 }

@@ -81,6 +81,22 @@ enum ScanOutcome {
     Failed(String),
 }
 
+/// 扫描生命周期使用的提示音。
+#[derive(Debug, Clone, Copy)]
+enum ScanSound {
+    Enable,
+    Disable,
+}
+
+impl ScanSound {
+    const fn relative_path(self) -> &'static str {
+        match self {
+            Self::Enable => "sounds/enable.wav",
+            Self::Disable => "sounds/disable.wav",
+        }
+    }
+}
+
 /// 扫描档案库任务的生命周期状态。
 pub(crate) struct ScanRuntime {
     /// 停止请求标志：`true` 表示当前扫描应尽快停止。
@@ -176,7 +192,7 @@ impl ScanRuntime {
 
         // 启动检查通过、任务真正开始执行前播放 enable 提示音
         // （避免"启动后立即失败"时 enable/disable 两个音效同时播放）
-        self.play_scan_sound(context, true);
+        self.play_scan_sound(context, ScanSound::Enable);
 
         // 执行扫描档案库任务（阻塞，期间任务内部轮询停止标志）
         let task =
@@ -195,17 +211,17 @@ impl ScanRuntime {
         let scan_error = match outcome {
             ScanOutcome::Completed => {
                 info!("========== 扫描档案库任务执行完毕 ==========");
-                self.play_scan_sound(context, true);
+                self.play_scan_sound(context, ScanSound::Enable);
                 None
             }
             ScanOutcome::Stopped => {
                 info!("扫描档案库任务已被用户停止");
-                self.play_scan_sound(context, false);
+                self.play_scan_sound(context, ScanSound::Disable);
                 None
             }
             ScanOutcome::Failed(message) => {
                 error!("{message}");
-                self.play_scan_sound(context, false);
+                self.play_scan_sound(context, ScanSound::Disable);
                 Some(message)
             }
         };
@@ -215,14 +231,22 @@ impl ScanRuntime {
     }
 
     /// 播放扫描提示音（音量取配置；开始/自然完成播 enable，失败/被停止播 disable）。
-    fn play_scan_sound(&self, context: &ScanRunContext, enable: bool) {
+    fn play_scan_sound(&self, context: &ScanRunContext, sound: ScanSound) {
         let volume = context
             .oea_config
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .sound_volume;
-        let name = if enable { "enable.wav" } else { "disable.wav" };
-        let path = context.app_path.resources_dir().join("sounds").join(name);
+        let path = match context
+            .app_path
+            .resolve_resource_file(sound.relative_path())
+        {
+            Ok(path) => path,
+            Err(error) => {
+                warn!("无法解析扫描提示音资源: {error:#}");
+                return;
+            }
+        };
         windows_ops::sound::play_wav(&path, volume);
     }
 
