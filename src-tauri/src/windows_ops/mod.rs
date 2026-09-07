@@ -17,6 +17,7 @@ pub mod hotkey;
 pub mod input;
 #[cfg(target_os = "windows")]
 pub mod registry;
+pub mod sound;
 pub mod webview2;
 pub mod window;
 
