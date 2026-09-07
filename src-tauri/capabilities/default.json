@@ -16,7 +16,7 @@
       "allow": [
         { "url": "https://mirrorchyan.com/*" },
         { "url": "https://mirrorchyan.net/*" },
-        { "url": "https://oea.oem.re/*" },
+        { "url": "https://package.oem.re/channels/oea/stable.json" },
         { "url": "https://api.github.com/*" }
       ]
     },
