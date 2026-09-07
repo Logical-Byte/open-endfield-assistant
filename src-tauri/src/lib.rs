@@ -1,6 +1,7 @@
 //! OEA Assistant - 明日方舟终末地 自动化助手（Tauri 后端）。
 
 pub mod app_paths;
+pub mod automation;
 pub mod config;
 pub mod controller;
 pub mod crash;

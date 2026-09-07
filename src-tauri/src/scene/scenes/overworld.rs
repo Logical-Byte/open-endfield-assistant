@@ -1,13 +1,17 @@
 //! 大世界场景：识别"协议终端"按钮，按 ESC 键进入协议终端。
 
-use std::sync::LazyLock;
-
 use anyhow::Result;
+use image::RgbaImage;
 
-use super::super::model::{Scene, SceneAction, SceneId, SceneTransition};
+use super::super::{
+    model::{Scene, SceneId},
+    transition::{Op, Transition},
+};
 use super::TEMPLATE_MATCH_THRESHOLD;
-use crate::session::RecognitionContext;
-use crate::utils::region::{Region2D, ltrb};
+use crate::{
+    automation::{Key, TemplateMatching, TemplateTarget},
+    utils::region::{Region2D, ltrb},
+};
 
 /// 协议终端按钮 ROI (1180, 0, 1280, 100)
 const ROI_协议终端按钮: Region2D<u32> = ltrb!(1180, 0, 1280, 100);
@@ -24,9 +28,20 @@ impl Scene for Scene大世界 {
         "大世界"
     }
 
-    fn try_recognize(&self, context: &mut RecognitionContext<'_>) -> Result<Option<SceneId>> {
-        let found = context
-            .find_template_in_roi("协议终端.png", ROI_协议终端按钮, TEMPLATE_MATCH_THRESHOLD)?
+    fn try_recognize(
+        &self,
+        screenshot: &RgbaImage,
+        templates: &mut dyn TemplateMatching,
+    ) -> Result<Option<SceneId>> {
+        let found = templates
+            .find_template(
+                screenshot,
+                &TemplateTarget {
+                    template_name: "协议终端.png",
+                    roi: ROI_协议终端按钮,
+                    threshold: TEMPLATE_MATCH_THRESHOLD,
+                },
+            )?
             .is_some();
 
         Ok(if found {
@@ -36,14 +51,12 @@ impl Scene for Scene大世界 {
         })
     }
 
-    fn transitions(&self) -> &[SceneTransition] {
+    fn transitions(&self) -> &[Transition<'static>] {
         // 从大世界按 ESC 键进入协议终端
-        static T: LazyLock<Vec<SceneTransition>> = LazyLock::new(|| {
-            vec![SceneTransition {
-                target: SceneId::协议终端,
-                action: SceneAction::PressKey { vk_code: 0x1B }, // VK_ESCAPE
-            }]
-        });
-        &T
+        static TRANSITIONS: &[Transition<'static>] = &[Transition {
+            target: SceneId::协议终端,
+            ops: &[Op::PressKey(Key::Escape)],
+        }];
+        TRANSITIONS
     }
 }
