@@ -9,7 +9,6 @@ pub mod controller;
 pub mod data;
 pub mod logger;
 pub mod ocr;
-pub mod resolution;
 pub(crate) mod scan_runtime;
 pub mod scene;
 pub mod session;
