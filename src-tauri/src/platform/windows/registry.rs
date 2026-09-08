@@ -1,4 +1,4 @@
-//! 注册表读取工具（仅 Windows）。
+//! Windows 注册表读取工具。
 //!
 //! 使用 `windows` crate 的 `RegGetValueW` 读取注册表值，供 WebView2 Runtime 检测、
 //! Windows 系统代理解析等模块复用（取代原 `winreg` crate 的用法）。
@@ -10,7 +10,7 @@ use ::windows::core::PCWSTR;
 /// 读取注册表中的字符串值（REG_SZ）。
 ///
 /// 如果键或值不存在，返回 `Ok(None)`。
-pub fn read_registry_string(
+pub(super) fn read_registry_string(
     hkey: HKEY,
     subkey: &str,
     value_name: &str,
@@ -74,7 +74,7 @@ pub fn read_registry_string(
 /// 读取注册表中的 DWORD 值（REG_DWORD）。
 ///
 /// 如果键或值不存在，返回 `Ok(None)`。
-pub fn read_registry_dword(
+pub(super) fn read_registry_dword(
     hkey: HKEY,
     subkey: &str,
     value_name: &str,

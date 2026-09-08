@@ -2,7 +2,7 @@
 
 use ::windows::Win32::System::Registry::{HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 
-use crate::platform::registry::read_registry_string;
+use crate::platform::windows::registry::read_registry_string;
 
 /// 注册表检测位置（与 Tauri 安装器 `main.wxs` 的 `RegistrySearch` 一致）：
 /// - HKLM：per-machine 安装（64 位系统走 WOW6432Node 视图）

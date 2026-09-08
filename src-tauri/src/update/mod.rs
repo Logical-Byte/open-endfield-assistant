@@ -19,8 +19,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tauri::Emitter;
 use tracing::info;
-#[cfg(target_os = "windows")]
-use tracing::warn;
 
 /// 下载进度事件（前端按 `session_id` 过滤旧任务的迟到事件）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,81 +105,6 @@ impl Drop for ProgressEmitterGuard {
     }
 }
 
-/// 解析 Windows 系统代理（读注册表 `Internet Settings`）。
-///
-/// 返回可直接交给 reqwest 的 `http://host:port`；未启用或格式无法解析时返回 `Ok(None)`。
-/// 复用 [`crate::platform::registry`] 的 `RegGetValueW` 实现（与 WebView2 检测共用）。
-#[cfg(target_os = "windows")]
-fn resolve_system_proxy_inner() -> Result<Option<String>, String> {
-    use windows::Win32::System::Registry::HKEY_CURRENT_USER;
-
-    use crate::platform::registry::{read_registry_dword, read_registry_string};
-
-    const INTERNET_SETTINGS: &str = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
-
-    // 读取失败或值缺失一律按未启用处理（无法解析系统代理时退化为直连）
-    let enabled = read_registry_dword(HKEY_CURRENT_USER, INTERNET_SETTINGS, "ProxyEnable")
-        .unwrap_or_default()
-        .unwrap_or_default();
-    if enabled == 0 {
-        return Ok(None);
-    }
-
-    let server = read_registry_string(HKEY_CURRENT_USER, INTERNET_SETTINGS, "ProxyServer")
-        .unwrap_or_default()
-        .unwrap_or_default();
-    let Some(proxy) = normalize_proxy_server(&server) else {
-        warn!("系统代理 ProxyServer 格式无法解析: {server:?}");
-        return Ok(None);
-    };
-    info!("解析到系统代理: {proxy}");
-    Ok(Some(proxy))
-}
-
-/// 非 Windows 平台不解析系统代理（reqwest 默认直连）。
-#[cfg(not(target_os = "windows"))]
-fn resolve_system_proxy_inner() -> Result<Option<String>, String> {
-    Ok(None)
-}
-
-/// 归一化注册表 `ProxyServer` 值：
-/// - `host:port` → `http://host:port`
-/// - `http=host:port;https=host2:port` → 优先 `https=`，否则 `http=`
-/// - 仅含 `socks=` 或无法解析时返回 `None`（reqwest 未启用 socks 特性）
-#[cfg(any(target_os = "windows", test))]
-fn normalize_proxy_server(raw: &str) -> Option<String> {
-    let raw = raw.trim();
-    if raw.is_empty() {
-        return None;
-    }
-
-    if raw.contains('=') {
-        let mut chosen: Option<&str> = None;
-        for part in raw.split(';') {
-            let part = part.trim();
-            if part.is_empty() {
-                continue;
-            }
-            let Some((scheme, addr)) = part.split_once('=') else {
-                continue;
-            };
-            let addr = addr.trim();
-            if addr.is_empty() {
-                continue;
-            }
-            if matches!(scheme.trim(), "http" | "https") {
-                chosen = Some(addr);
-                if scheme.trim() == "https" {
-                    break;
-                }
-            }
-        }
-        return chosen.map(|addr| format!("http://{addr}"));
-    }
-
-    Some(format!("http://{raw}"))
-}
-
 /// 按代理模式构建 HTTP 客户端。
 ///
 /// - `none`：直连（显式 `no_proxy`）；
@@ -201,7 +124,7 @@ fn build_client(
 
     match proxy_mode.as_deref().unwrap_or("none") {
         "system" => {
-            if let Some(url) = resolve_system_proxy_inner()? {
+            if let Some(url) = crate::platform::proxy::resolve_system_proxy()? {
                 builder = builder.proxy(
                     reqwest::Proxy::all(url.as_str())
                         .map_err(|e| format!("系统代理配置失败: {e}"))?,
@@ -593,7 +516,7 @@ pub fn get_update_download_dir() -> Result<String, String> {
 /// 解析 Windows 系统代理（前端检查请求与 Rust 下载共用）。
 #[tauri::command]
 pub fn resolve_system_proxy() -> Result<Option<String>, String> {
-    resolve_system_proxy_inner()
+    crate::platform::proxy::resolve_system_proxy()
 }
 
 #[cfg(test)]
@@ -633,20 +556,6 @@ mod tests {
     fn test_percent_decode() {
         assert_eq!(percent_decode("a%20b%2Fc"), "a b/c");
         assert_eq!(percent_decode("plain"), "plain");
-    }
-
-    #[test]
-    fn test_normalize_proxy_server() {
-        assert_eq!(
-            normalize_proxy_server("127.0.0.1:7890"),
-            Some("http://127.0.0.1:7890".to_string())
-        );
-        assert_eq!(
-            normalize_proxy_server("http=127.0.0.1:7890;https=127.0.0.1:7891"),
-            Some("http://127.0.0.1:7891".to_string())
-        );
-        assert_eq!(normalize_proxy_server("socks=127.0.0.1:1080"), None);
-        assert_eq!(normalize_proxy_server(""), None);
     }
 
     #[test]
