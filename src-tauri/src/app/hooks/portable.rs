@@ -14,7 +14,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::{app_paths::AppPaths, windows_ops};
+use crate::{app_paths::AppPaths, platform};
 
 /// 根目录运行状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -184,7 +184,6 @@ pub fn ensure_extracted(app_paths: &AppPaths) {
         ),
     };
 
-    let _ =
-        windows_ops::dialog::show_message(title, content, windows_ops::dialog::DialogIcon::Error);
+    let _ = platform::dialog::show_message(title, content, platform::dialog::DialogIcon::Error);
     std::process::exit(1);
 }

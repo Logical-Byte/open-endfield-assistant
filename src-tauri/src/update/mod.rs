@@ -110,12 +110,12 @@ impl Drop for ProgressEmitterGuard {
 /// 解析 Windows 系统代理（读注册表 `Internet Settings`）。
 ///
 /// 返回可直接交给 reqwest 的 `http://host:port`；未启用或格式无法解析时返回 `Ok(None)`。
-/// 复用 [`crate::windows_ops::registry`] 的 `RegGetValueW` 实现（与 WebView2 检测共用）。
+/// 复用 [`crate::platform::registry`] 的 `RegGetValueW` 实现（与 WebView2 检测共用）。
 #[cfg(target_os = "windows")]
 fn resolve_system_proxy_inner() -> Result<Option<String>, String> {
     use windows::Win32::System::Registry::HKEY_CURRENT_USER;
 
-    use crate::windows_ops::registry::{read_registry_dword, read_registry_string};
+    use crate::platform::registry::{read_registry_dword, read_registry_string};
 
     const INTERNET_SETTINGS: &str = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
 

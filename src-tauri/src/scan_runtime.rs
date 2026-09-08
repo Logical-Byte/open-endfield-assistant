@@ -17,6 +17,7 @@ use crate::{
     config::OeaConfig,
     data::AppData,
     ocr::OcrEngine,
+    platform,
     scene::SceneManager,
     session::Session,
     task::{
@@ -24,7 +25,6 @@ use crate::{
         archive_scan::{ArchiveScanTask, ScanReporter},
         run_task,
     },
-    windows_ops,
 };
 
 /// 推送给前端的应用状态。
@@ -183,7 +183,7 @@ impl ScanRuntime {
         };
 
         // 扫描档案库任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）
-        if let Err(error) = windows_ops::window::ensure_foreground_and_topmost(session.hwnd) {
+        if let Err(error) = platform::window::ensure_foreground_and_topmost(session.hwnd) {
             warn!("无法将游戏窗口置于前台: {error:#}，继续尝试执行任务");
         }
 
@@ -247,7 +247,7 @@ impl ScanRuntime {
                 return;
             }
         };
-        windows_ops::sound::play_wav(&path, volume);
+        platform::sound::play_wav(&path, volume);
     }
 
     /// 向前端推送当前状态（running 标志 + 本次任务结束时的失败原因）。
