@@ -22,7 +22,7 @@ pub(in crate::platform) fn set_thread_dpi_awareness_context() {
 // 窗口激活并置顶工具函数（强化版本，用于需要前台的物理输入方式）
 // 用于 LegacyEventInput 和 SeizeInput，因为它们使用 SendInput/mouse_event 等物理输入 API
 pub(in crate::platform) fn ensure_foreground_and_topmost(window: WindowHandle) -> Result<()> {
-    let hwnd = window.0;
+    let hwnd = window.raw;
     if hwnd.is_invalid() {
         bail!("hwnd is invalid");
     }
@@ -54,7 +54,7 @@ pub(in crate::platform) fn ensure_foreground_and_topmost(window: WindowHandle) -
 /// 连接游戏时调用：窗口最小化时 [`ensure_window_on_screen`] 会跳过调整，
 /// 需先恢复窗口才能正确获取并调整客户区。
 pub(in crate::platform) fn restore_window_if_minimized(window: WindowHandle) -> Result<()> {
-    let hwnd = window.0;
+    let hwnd = window.raw;
     if hwnd.is_invalid() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
         bail!("Invalid window handle");
     }
@@ -70,7 +70,7 @@ pub(in crate::platform) fn restore_window_if_minimized(window: WindowHandle) -> 
 /// If the window extends beyond the monitor bounds, move it back.
 /// If the client area is larger than the monitor, resize the window.
 pub(in crate::platform) fn ensure_window_on_screen(window: WindowHandle) -> Result<()> {
-    let hwnd = window.0;
+    let hwnd = window.raw;
     if hwnd.is_invalid() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
         bail!("Invalid window handle");
     }

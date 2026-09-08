@@ -59,86 +59,110 @@ pub trait InputBase: Send {
 }
 
 /// 使用 Windows 物理输入接口操作游戏窗口的输入器。
-#[cfg(target_os = "windows")]
 pub struct SeizeInput {
+    #[cfg(target_os = "windows")]
     state: windows::input::SeizeInputState,
 }
 
-/// macOS 开发外壳使用的空输入器。
-#[cfg(target_os = "macos")]
-pub struct SeizeInput;
-
-#[cfg(target_os = "windows")]
 impl SeizeInput {
     /// 绑定目标窗口，并配置操作期间是否屏蔽真实输入。
+    ///
+    /// macOS 开发外壳不持有原生资源，所有输入操作返回 unsupported error。
     pub fn new(window: WindowHandle, block_input: bool) -> Self {
-        Self {
-            state: windows::input::SeizeInputState::new(window, block_input),
+        #[cfg(target_os = "windows")]
+        {
+            Self {
+                state: windows::input::SeizeInputState::new(window, block_input),
+            }
         }
-    }
-}
 
-#[cfg(target_os = "macos")]
-impl SeizeInput {
-    /// 构造不持有原生资源的 macOS 输入器。
-    pub fn new(_window: WindowHandle, _block_input: bool) -> Self {
-        Self
+        #[cfg(target_os = "macos")]
+        {
+            let _ = (window, block_input);
+            Self {}
+        }
     }
 }
 
 // 原生窗口句柄跨线程传递安全；输入器由调用方串行访问。
 unsafe impl Send for SeizeInput {}
 
-#[cfg(target_os = "windows")]
 impl InputBase for SeizeInput {
     fn touch_down(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
-        self.state.touch_down(contact, point.x, point.y)
+        #[cfg(target_os = "windows")]
+        {
+            self.state.touch_down(contact, point.x, point.y)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = (contact, point);
+            Err(super::unsupported("window input"))
+        }
     }
 
     fn touch_move(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
-        self.state.touch_move(contact, point.x, point.y)
+        #[cfg(target_os = "windows")]
+        {
+            self.state.touch_move(contact, point.x, point.y)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = (contact, point);
+            Err(super::unsupported("window input"))
+        }
     }
 
     fn touch_up(&mut self, contact: Contact, point: Point2D<i32>) -> Result<()> {
-        self.state.touch_up(contact, point.x, point.y)
+        #[cfg(target_os = "windows")]
+        {
+            self.state.touch_up(contact, point.x, point.y)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = (contact, point);
+            Err(super::unsupported("window input"))
+        }
     }
 
     fn scroll(&mut self, delta: Point2D<i32>) -> Result<()> {
-        self.state.scroll(delta.x, delta.y)
+        #[cfg(target_os = "windows")]
+        {
+            self.state.scroll(delta.x, delta.y)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = delta;
+            Err(super::unsupported("window input"))
+        }
     }
 
     fn key_down(&mut self, vk_code: i32) -> Result<()> {
-        self.state.key_down(vk_code)
+        #[cfg(target_os = "windows")]
+        {
+            self.state.key_down(vk_code)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = vk_code;
+            Err(super::unsupported("window input"))
+        }
     }
 
     fn key_up(&mut self, vk_code: i32) -> Result<()> {
-        self.state.key_up(vk_code)
-    }
-}
+        #[cfg(target_os = "windows")]
+        {
+            self.state.key_up(vk_code)
+        }
 
-#[cfg(target_os = "macos")]
-impl InputBase for SeizeInput {
-    fn touch_down(&mut self, _contact: Contact, _point: Point2D<i32>) -> Result<()> {
-        Err(super::unsupported("window input"))
-    }
-
-    fn touch_move(&mut self, _contact: Contact, _point: Point2D<i32>) -> Result<()> {
-        Err(super::unsupported("window input"))
-    }
-
-    fn touch_up(&mut self, _contact: Contact, _point: Point2D<i32>) -> Result<()> {
-        Err(super::unsupported("window input"))
-    }
-
-    fn scroll(&mut self, _delta: Point2D<i32>) -> Result<()> {
-        Err(super::unsupported("window input"))
-    }
-
-    fn key_down(&mut self, _vk_code: i32) -> Result<()> {
-        Err(super::unsupported("window input"))
-    }
-
-    fn key_up(&mut self, _vk_code: i32) -> Result<()> {
-        Err(super::unsupported("window input"))
+        #[cfg(target_os = "macos")]
+        {
+            let _ = vk_code;
+            Err(super::unsupported("window input"))
+        }
     }
 }

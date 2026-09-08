@@ -38,7 +38,7 @@ pub(super) struct DesktopDupScreencap {
 impl DesktopDupScreencap {
     pub(super) fn new(window: WindowHandle) -> Self {
         Self {
-            hwnd: window.0,
+            hwnd: window.raw,
             d3d_device: None,
             d3d_context: None,
             dxgi_factory: None,

@@ -9,11 +9,15 @@ pub(in crate::platform) fn get_app_window(app_handle: &tauri::AppHandle) -> Resu
     let window = app_handle
         .get_webview_window("main")
         .ok_or_else(|| anyhow!("未找到 OEA 主窗口"))?;
-    Ok(WindowHandle(window.hwnd()?))
+    Ok(WindowHandle {
+        raw: window.hwnd()?,
+    })
 }
 
 pub(in crate::platform) fn get_foreground_window() -> WindowHandle {
-    WindowHandle(unsafe { GetForegroundWindow() })
+    WindowHandle {
+        raw: unsafe { GetForegroundWindow() },
+    }
 }
 
 pub(in crate::platform) fn get_window_by_title(
@@ -35,7 +39,7 @@ pub(in crate::platform) fn get_window_by_title(
     let lpwindowname = title_wide.map(|v| PCWSTR::from_raw(v.as_ptr()));
 
     let hwnd = unsafe { FindWindowW(lpclassname.as_ref(), lpwindowname.as_ref()) }?;
-    Ok(WindowHandle(hwnd))
+    Ok(WindowHandle { raw: hwnd })
 }
 
 #[cfg(test)]

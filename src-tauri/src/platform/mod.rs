@@ -24,28 +24,24 @@ pub mod window;
 /// OEA 持有的非拥有型窗口句柄。
 ///
 /// 原生表示保持在 `platform` 内；本类型不承诺跨线程安全。
-#[cfg(target_os = "windows")]
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct WindowHandle(HWND);
-
-#[cfg(target_os = "windows")]
-impl WindowHandle {
-    /// 句柄是否无效。
-    pub fn is_invalid(self) -> bool {
-        self.0.is_invalid()
-    }
+pub struct WindowHandle {
+    #[cfg(target_os = "windows")]
+    raw: HWND,
 }
 
-/// macOS 开发外壳使用的空窗口句柄。
-#[cfg(target_os = "macos")]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct WindowHandle;
-
-#[cfg(target_os = "macos")]
 impl WindowHandle {
-    /// macOS 开发外壳不持有原生游戏窗口。
+    /// 句柄是否无效；macOS 开发外壳始终返回 `true`。
     pub fn is_invalid(self) -> bool {
-        true
+        #[cfg(target_os = "windows")]
+        {
+            self.raw.is_invalid()
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            true
+        }
     }
 }
 

@@ -19,15 +19,18 @@ pub enum DialogIcon {
 /// 弹出一个仅“确定”按钮的信息对话框。
 ///
 /// `content` 中可用 `<a href="https://...">链接文字</a>` 语法嵌入可点击超链接。
-#[cfg(target_os = "windows")]
+/// macOS 开发外壳返回 unsupported error。
 pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> Result<()> {
-    windows::dialog::show_message(title, content, icon)
-}
+    #[cfg(target_os = "windows")]
+    {
+        windows::dialog::show_message(title, content, icon)
+    }
 
-/// macOS 开发外壳不提供 Windows 原生对话框。
-#[cfg(target_os = "macos")]
-pub fn show_message(_title: &str, _content: &str, _icon: DialogIcon) -> Result<()> {
-    Err(super::unsupported("native message dialog"))
+    #[cfg(target_os = "macos")]
+    {
+        let _ = (title, content, icon);
+        Err(super::unsupported("native message dialog"))
+    }
 }
 
 /// 弹出一个“是/否”确认对话框，返回用户是否确认。

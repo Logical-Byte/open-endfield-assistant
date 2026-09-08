@@ -28,14 +28,16 @@ pub struct KeyEvent {
 /// 启动只感知、不拦截按键的全局键盘监听。
 ///
 /// 自动重复在监听层过滤，返回端只收到首次按下与弹起事件。
-#[cfg(target_os = "windows")]
+/// macOS 开发外壳返回一个不会产生事件的接收端。
 pub fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
-    windows::hotkey::listen()
-}
+    #[cfg(target_os = "windows")]
+    {
+        windows::hotkey::listen()
+    }
 
-/// 返回不会产生事件的 macOS 热键接收端。
-#[cfg(target_os = "macos")]
-pub fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
-    let (_tx, rx) = mpsc::channel();
-    Ok(rx)
+    #[cfg(target_os = "macos")]
+    {
+        let (_tx, rx) = mpsc::channel();
+        Ok(rx)
+    }
 }

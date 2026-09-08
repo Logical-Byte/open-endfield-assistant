@@ -25,7 +25,7 @@ use crate::platform::WindowHandle;
 ///
 /// 检测失败（API 不可用 / 查询出错）时返回 `Err`，由调用方决定是否阻断任务。
 pub(in crate::platform) fn is_hdr_enabled_on_window_monitor(window: WindowHandle) -> Result<bool> {
-    let hwnd = window.0;
+    let hwnd = window.raw;
     // 1. 定位窗口所在显示器，读取其桌面矩形
     let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
     if monitor.is_invalid() {

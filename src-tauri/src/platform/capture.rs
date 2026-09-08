@@ -31,64 +31,60 @@ pub trait ScreencapBase: Send {
 }
 
 /// 使用 `PrintWindow` 捕获窗口客户区的截图器。
-#[cfg(target_os = "windows")]
 pub struct PrintWindowScreencap {
+    #[cfg(target_os = "windows")]
     state: windows::capture::PrintWindowState,
 }
 
-/// macOS 开发外壳使用的空截图器。
-#[cfg(target_os = "macos")]
-pub struct PrintWindowScreencap;
-
-#[cfg(target_os = "windows")]
 impl PrintWindowScreencap {
-    /// 绑定要捕获的窗口。
+    /// 绑定要捕获的窗口；macOS 开发外壳不持有原生资源。
     pub fn new(window: WindowHandle) -> Self {
-        Self {
-            state: windows::capture::PrintWindowState::new(window),
+        #[cfg(target_os = "windows")]
+        {
+            Self {
+                state: windows::capture::PrintWindowState::new(window),
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = window;
+            Self {}
         }
     }
 
-    /// 捕获完整窗口客户区。
+    /// 捕获完整窗口客户区；macOS 开发外壳返回 unsupported error。
     pub fn screencap(&mut self) -> Result<RgbaImage> {
-        self.state.screencap()
-    }
-}
+        #[cfg(target_os = "windows")]
+        {
+            self.state.screencap()
+        }
 
-#[cfg(target_os = "macos")]
-impl PrintWindowScreencap {
-    /// 构造不持有原生资源的 macOS 截图器。
-    pub fn new(_window: WindowHandle) -> Self {
-        Self
-    }
-
-    /// macOS 开发外壳不支持窗口截图。
-    pub fn screencap(&mut self) -> Result<RgbaImage> {
-        Err(super::unsupported("window capture"))
+        #[cfg(target_os = "macos")]
+        {
+            Err(super::unsupported("window capture"))
+        }
     }
 }
 
 // 原生窗口句柄跨线程传递安全；截图器由调用方串行访问。
 unsafe impl Send for PrintWindowScreencap {}
 
-#[cfg(target_os = "windows")]
 impl ScreencapBase for PrintWindowScreencap {
     fn screencap(&mut self) -> Result<RgbaImage> {
         self.screencap()
     }
 
     fn screencap_region(&mut self, relative_region: Region2D<i32>) -> Result<RgbaImage> {
-        self.state.screencap_region(relative_region)
-    }
-}
+        #[cfg(target_os = "windows")]
+        {
+            self.state.screencap_region(relative_region)
+        }
 
-#[cfg(target_os = "macos")]
-impl ScreencapBase for PrintWindowScreencap {
-    fn screencap(&mut self) -> Result<RgbaImage> {
-        self.screencap()
-    }
-
-    fn screencap_region(&mut self, _relative_region: Region2D<i32>) -> Result<RgbaImage> {
-        Err(super::unsupported("window capture"))
+        #[cfg(target_os = "macos")]
+        {
+            let _ = relative_region;
+            Err(super::unsupported("window capture"))
+        }
     }
 }

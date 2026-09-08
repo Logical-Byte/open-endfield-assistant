@@ -18,7 +18,7 @@ struct DesktopDupWindowScreencap {
 impl DesktopDupWindowScreencap {
     fn new(window: WindowHandle) -> Self {
         Self {
-            hwnd: window.0,
+            hwnd: window.raw,
             inner: DesktopDupScreencap::new(window),
         }
     }

@@ -21,7 +21,7 @@ pub(in crate::platform) struct PrintWindowState {
 
 impl PrintWindowState {
     pub(in crate::platform) fn new(window: WindowHandle) -> Self {
-        Self { hwnd: window.0 }
+        Self { hwnd: window.raw }
     }
 
     pub(in crate::platform) fn screencap(&mut self) -> Result<RgbaImage> {

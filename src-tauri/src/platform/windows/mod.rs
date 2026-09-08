@@ -7,5 +7,6 @@ pub(super) mod dpapi;
 mod geometry;
 pub(super) mod hotkey;
 pub(super) mod input;
+pub(super) mod sound;
 pub(super) mod webview2;
 pub(super) mod window;

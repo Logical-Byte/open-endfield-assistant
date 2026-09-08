@@ -32,7 +32,7 @@ impl SeizeInputState {
     /// 创建输入器（物理输入，`block_input` 为是否在操作期间屏蔽真实键盘鼠标）。
     pub(in crate::platform) fn new(window: WindowHandle, block_input: bool) -> Self {
         Self {
-            hwnd: window.0,
+            hwnd: window.raw,
             block_input,
             last_pos: None,
         }
@@ -154,7 +154,7 @@ impl SeizeInputState {
     }
 
     fn ensure_foreground(&self) -> Result<()> {
-        ensure_foreground_and_topmost(WindowHandle(self.hwnd))
+        ensure_foreground_and_topmost(WindowHandle { raw: self.hwnd })
     }
 
     fn get_target_pos(&self) -> (i32, i32) {

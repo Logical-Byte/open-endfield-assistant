@@ -62,7 +62,7 @@ impl ScreencapBase for FramePoolScreencap {
 impl FramePoolScreencap {
     pub fn new(window: WindowHandle) -> Self {
         Self {
-            hwnd: window.0,
+            hwnd: window.raw,
             d3d_device: None,
             d3d_context: None,
             dxgi_swap_chain: None,

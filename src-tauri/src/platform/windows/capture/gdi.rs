@@ -18,7 +18,7 @@ struct GdiScreencap {
 
 impl GdiScreencap {
     pub fn new(window: WindowHandle) -> Self {
-        Self { hwnd: window.0 }
+        Self { hwnd: window.raw }
     }
 
     pub fn screencap(&mut self) -> Result<RgbaImage> {
