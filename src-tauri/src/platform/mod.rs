@@ -15,8 +15,7 @@ pub mod data_protection;
 pub mod dialog;
 pub mod hotkey;
 pub mod input;
-#[cfg(target_os = "windows")]
-pub mod registry;
+pub mod proxy;
 pub mod sound;
 pub mod webview;
 pub mod window;
