@@ -12,6 +12,7 @@
 //! 会话贯穿一次游戏操作（扫描档案库任务），由调用方以 `&mut` 串行使用。
 
 mod automation;
+mod resolution;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -22,7 +23,6 @@ use tracing::{info, warn};
 
 use crate::{
     ocr::OcrEngine,
-    resolution::GameResolution,
     task::TaskStopped,
     template_matching::LazyTemplateLoader,
     windows_ops::{
@@ -31,6 +31,8 @@ use crate::{
         input::{InputBase, SeizeInput},
     },
 };
+
+use self::resolution::{Resolution, ResolutionTransform};
 
 /// 停止令牌：热键 / 命令通过它请求中断，Session 每次操作前轮询。
 pub type StopToken = Arc<AtomicBool>;
@@ -45,8 +47,8 @@ unsafe impl Send for Session {}
 pub struct Session {
     /// 游戏窗口句柄（前台判定 / 日志用）
     pub hwnd: WindowHandle,
-    /// 游戏实际分辨率（仅支持 16:9）
-    pub resolution: GameResolution,
+    /// 720p 识别坐标与游戏窗口物理坐标之间的转换
+    resolution_transform: ResolutionTransform,
     /// 截图器（可运行时替换，扩展点）
     screencap: Box<dyn ScreencapBase>,
     /// 输入器（可运行时替换，扩展点）
@@ -87,9 +89,12 @@ impl Session {
 
         // 2. 检测分辨率
         let client_rect = windows_ops::window::get_client_rect(hwnd)?;
-        let resolution =
-            GameResolution::new(client_rect.width() as u32, client_rect.height() as u32)?;
-        info!("游戏分辨率: {}×{}", resolution.width, resolution.height);
+        let resolution = Resolution::new(
+            u32::try_from(client_rect.width()).context("游戏窗口宽度无效")?,
+            u32::try_from(client_rect.height()).context("游戏窗口高度无效")?,
+        )?;
+        info!("游戏分辨率: {}×{}", resolution.width(), resolution.height());
+        let resolution_transform = ResolutionTransform::new(resolution)?;
 
         // 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）
         match windows_ops::window::hdr::is_hdr_enabled_on_window_monitor(hwnd) {
@@ -111,7 +116,7 @@ impl Session {
             input,
             Arc::clone(ocr),
             templates_root,
-            resolution,
+            resolution_transform,
             stop,
         ))
     }
@@ -124,7 +129,7 @@ impl Session {
         input: Box<dyn InputBase>,
         ocr: Arc<Mutex<OcrEngine>>,
         templates_root: impl Into<PathBuf>,
-        resolution: GameResolution,
+        resolution_transform: ResolutionTransform,
         stop: StopToken,
     ) -> Self {
         Self {
@@ -133,7 +138,7 @@ impl Session {
             input,
             ocr,
             templates: LazyTemplateLoader::new(templates_root),
-            resolution,
+            resolution_transform,
             stop,
         }
     }

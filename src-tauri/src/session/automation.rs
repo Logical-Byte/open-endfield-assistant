@@ -13,31 +13,28 @@ use crate::{
     },
     ocr::text_detection,
     template_matching::{TemplateSource, match_template_in_region},
-    utils::{point::Point2D, region::Region2D},
+    utils::region::Region2D,
     windows_ops::input::Contact,
 };
 
 use super::Session;
 
+/// 720p 基准坐标中的画面中心，避免鼠标悬停干扰后续识别。
+const SAFE_MOUSE_POSITION: Point720p = Point720p { x: 640, y: 360 };
+
 impl ScreenCapture for Session {
     fn screenshot(&mut self) -> Result<RgbaImage> {
         self.check_stop()?;
         let raw = self.screencap.screencap()?;
-        Ok(self.resolution.scale_screenshot_to_base(&raw))
+        self.resolution_transform.to_canonical_image(raw)
     }
 }
 
 impl Input for Session {
     fn click(&mut self, point: Point720p) -> Result<()> {
         self.check_stop()?;
-        let (x, y) = self.resolution.scale_point(point.x, point.y);
-        self.input.click(
-            Contact::Left,
-            Point2D {
-                x: x as i32,
-                y: y as i32,
-            },
-        )?;
+        let point = self.resolution_transform.to_physical(point);
+        self.input.click(Contact::Left, point)?;
         thread::sleep(Duration::from_millis(50));
         self.move_mouse_to_safe_position()
     }
@@ -51,10 +48,7 @@ impl Input for Session {
     }
 
     fn move_mouse_to_safe_position(&mut self) -> Result<()> {
-        let point = Point2D {
-            x: self.resolution.width as i32 / 2,
-            y: self.resolution.height as i32 / 2,
-        };
+        let point = self.resolution_transform.to_physical(SAFE_MOUSE_POSITION);
         self.input.touch_move(Contact::Left, point)
     }
 }
