@@ -8,6 +8,15 @@ Windows x86_64 是唯一受支持的运行平台，也是后端功能的验收�
 
 macOS 开发外壳仅用于按需调试前端和可移植后端能力，不连接或操作真实游戏，也不属于 CI、打包或发布目标。macOS 编译通过和平台条件编译路径只在任务范围明确包含 macOS 外壳维护时成为验收要求。
 
+## 平台接口
+
+平台能力通过 `src-tauri/src/platform/<topic>.rs` 下的 topic 模块提供稳定接口，例如 `platform::window` 和 `platform::proxy`。业务模块只依赖这些接口，不直接依赖私有的 `platform::windows` 实现。
+
+- 直接调用 Windows API 的代码及其实现细节放在 `src-tauri/src/platform/windows/` 下；
+- topic 接口使用项目自有或平台无关的类型，不得暴露 `windows` crate 的句柄、错误、常量或其他原生类型；
+- 需要跨越接口传递原生资源时，定义项目自有的不透明包装类型，只在 `platform` 内部构造和访问其原生表示；
+- `platform` 以外的代码不得导入 `windows` crate 或访问 `platform::windows`。
+
 ## 依赖管理
 
 - 使用 `cargo add` 或 `cargo remove` 添加或移除依赖，拒绝手动更改 `Cargo.toml` 依赖项。

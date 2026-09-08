@@ -1,7 +1,7 @@
 //! 平台原语的所有权根。
 //!
-//! 公开 topic 模块定义 OEA 使用的稳定接口；原生 Windows 类型与重型实现
-//! 集中在私有的 `windows` 区域。
+//! 公开 topic 模块定义 OEA 使用的稳定接口；Windows API 调用与重型实现集中在私有的
+//! `windows` 区域，原生类型不会通过公开接口泄漏给业务代码。
 
 #[cfg(target_os = "windows")]
 use ::windows::Win32::Foundation::HWND;
