@@ -1,4 +1,4 @@
-//! WebView2 Runtime 检测与安装接口。
+//! 应用 WebView 的平台接口。
 
 use std::path::Path;
 
@@ -7,7 +7,7 @@ use anyhow::Result;
 #[cfg(target_os = "windows")]
 use super::windows;
 
-/// 确保 WebView2 Runtime 已安装。
+/// 确保应用所需的 WebView Runtime 已安装。
 ///
 /// 已安装或安装成功时返回 `true`；用户拒绝或安装失败时返回 `false`。
 #[cfg(target_os = "windows")]
@@ -21,7 +21,7 @@ pub fn ensure_installed(_cache_dir: &Path) -> Result<bool> {
     Ok(true)
 }
 
-/// 读取 WebView2 当前缩放因子。
+/// 读取 WebView 当前缩放因子。
 #[cfg(target_os = "windows")]
 pub fn get_zoom(window: tauri::WebviewWindow) -> Result<f64> {
     windows::webview2::get_zoom(window)
@@ -33,7 +33,7 @@ pub fn get_zoom(_window: tauri::WebviewWindow) -> Result<f64> {
     Ok(1.0)
 }
 
-/// 注册 WebView2 原生缩放变化监听。
+/// 注册 WebView 原生缩放变化监听。
 #[cfg(target_os = "windows")]
 pub fn register_zoom_changed_listener(window: &tauri::WebviewWindow) {
     windows::webview2::register_zoom_changed_listener(window);

@@ -11,14 +11,14 @@ mod windows;
 
 pub mod admin;
 pub mod capture;
+pub mod data_protection;
 pub mod dialog;
-pub mod dpapi;
 pub mod hotkey;
 pub mod input;
 #[cfg(target_os = "windows")]
 pub mod registry;
 pub mod sound;
-pub mod webview2;
+pub mod webview;
 pub mod window;
 
 /// OEA 持有的非拥有型窗口句柄。

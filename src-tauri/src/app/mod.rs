@@ -157,7 +157,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     platform::window::set_thread_dpi_awareness_context();
 
     // WebView2 缺失时自动下载引导程序并安装。
-    platform::webview2::ensure_installed(&app_paths.cache_dir()).inspect_err(|e| warn!("{e:#}"))?;
+    platform::webview::ensure_installed(&app_paths.cache_dir()).inspect_err(|e| warn!("{e:#}"))?;
 
     // 解析应用配置文件
     let oea_config = Arc::new(Mutex::new(config::load_oea_config(
@@ -186,7 +186,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let main_window_builder = configure_main_window(main_window_builder, &app_paths);
 
     let main_window = main_window_builder.build()?;
-    platform::webview2::register_zoom_changed_listener(&main_window);
+    platform::webview::register_zoom_changed_listener(&main_window);
 
     // 扫描结果通道：任务线程产生 → 转发线程 `emit` 给前端
     let (scan_tx, scan_rx) = mpsc::channel();

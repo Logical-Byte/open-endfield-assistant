@@ -94,7 +94,7 @@ pub fn restart_as_admin(app_handle: tauri::AppHandle) -> Result<(), String> {
 /// 前端只把它当作内存镜像，不再额外持久化。
 #[tauri::command]
 pub fn get_webview_zoom(window: tauri::WebviewWindow) -> Result<f64, String> {
-    platform::webview2::get_zoom(window).map_err(|e| e.to_string())
+    platform::webview::get_zoom(window).map_err(|e| e.to_string())
 }
 
 /// 在系统文件管理器中打开日志目录（不存在时先创建）。
@@ -141,7 +141,7 @@ pub fn save_oea_config(
 /// 用 DPAPI（当前用户作用域）加密 CDK，返回 Base64 密文。
 #[tauri::command]
 pub fn cdk_encrypt(cdk: String) -> Result<String, String> {
-    let encrypted = platform::dpapi::encrypt(cdk.trim().as_bytes()).map_err(|e| {
+    let encrypted = platform::data_protection::encrypt(cdk.trim().as_bytes()).map_err(|e| {
         error!("加密 CDK 失败: {e}");
         e.to_string()
     })?;
@@ -155,7 +155,7 @@ pub fn cdk_decrypt(encrypted: String) -> Result<String, String> {
         error!("CDK 密文 Base64 解码失败: {e}");
         e.to_string()
     })?;
-    let plain = platform::dpapi::decrypt(&blob).map_err(|e| {
+    let plain = platform::data_protection::decrypt(&blob).map_err(|e| {
         error!("解密 CDK 失败: {e}");
         e.to_string()
     })?;
