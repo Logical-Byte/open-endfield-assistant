@@ -13,7 +13,7 @@ use crate::{
     config::{self, OeaConfig},
     controller::{AppStatus, Controller},
     data::{ArchiveContract, PrtsData},
-    windows_ops,
+    platform,
 };
 
 /// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
@@ -77,13 +77,13 @@ pub fn quit(state: tauri::State<Arc<Controller>>) {
 /// 当前进程是否以管理员权限运行。
 #[tauri::command]
 pub fn is_elevated() -> bool {
-    windows_ops::admin::is_elevated()
+    platform::admin::is_elevated()
 }
 
 /// 以管理员权限重启应用（成功后退出当前进程）。
 #[tauri::command]
 pub fn restart_as_admin(app_handle: tauri::AppHandle) -> Result<(), String> {
-    windows_ops::admin::restart_as_admin().map_err(|e| e.to_string())?;
+    platform::admin::restart_as_admin().map_err(|e| e.to_string())?;
     app_handle.exit(0);
     Ok(())
 }
@@ -94,7 +94,7 @@ pub fn restart_as_admin(app_handle: tauri::AppHandle) -> Result<(), String> {
 /// 前端只把它当作内存镜像，不再额外持久化。
 #[tauri::command]
 pub fn get_webview_zoom(window: tauri::WebviewWindow) -> Result<f64, String> {
-    windows_ops::webview2::get_zoom(window).map_err(|e| e.to_string())
+    platform::webview2::get_zoom(window).map_err(|e| e.to_string())
 }
 
 /// 在系统文件管理器中打开日志目录（不存在时先创建）。
@@ -141,7 +141,7 @@ pub fn save_oea_config(
 /// 用 DPAPI（当前用户作用域）加密 CDK，返回 Base64 密文。
 #[tauri::command]
 pub fn cdk_encrypt(cdk: String) -> Result<String, String> {
-    let encrypted = windows_ops::dpapi::encrypt(cdk.trim().as_bytes()).map_err(|e| {
+    let encrypted = platform::dpapi::encrypt(cdk.trim().as_bytes()).map_err(|e| {
         error!("加密 CDK 失败: {e}");
         e.to_string()
     })?;
@@ -155,7 +155,7 @@ pub fn cdk_decrypt(encrypted: String) -> Result<String, String> {
         error!("CDK 密文 Base64 解码失败: {e}");
         e.to_string()
     })?;
-    let plain = windows_ops::dpapi::decrypt(&blob).map_err(|e| {
+    let plain = platform::dpapi::decrypt(&blob).map_err(|e| {
         error!("解密 CDK 失败: {e}");
         e.to_string()
     })?;
@@ -173,15 +173,15 @@ pub async fn screenshot(
     format: ScreenshotFormat,
 ) -> Result<String, String> {
     // 定位游戏窗口（`PrintWindow` 可捕获非最小化后台窗口）
-    let hwnd = windows_ops::window::get_window_by_title(
-        Some(windows_ops::window::ENDFIELD_WINDOW_CLASS),
-        Some(windows_ops::window::ENDFIELD_WINDOW_TITLE),
+    let hwnd = platform::window::get_window_by_title(
+        Some(platform::window::ENDFIELD_WINDOW_CLASS),
+        Some(platform::window::ENDFIELD_WINDOW_TITLE),
     )
     .context("未找到游戏窗口")
     .map_err(|e| e.to_string())?;
 
     // 截图
-    let mut screencap = windows_ops::capture::PrintWindowScreencap::new(hwnd);
+    let mut screencap = platform::capture::PrintWindowScreencap::new(hwnd);
     let raw = screencap
         .screencap()
         .context("截图失败")

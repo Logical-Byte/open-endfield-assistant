@@ -14,7 +14,7 @@ use tracing::{info, warn};
 
 use crate::{
     app_paths::AppPaths, config, controller::Controller, data::AppData, logger, ocr::OcrEngine,
-    scan_runtime::ScanRuntime, scene, scene::SceneManager, update, windows_ops,
+    platform, scan_runtime::ScanRuntime, scene, scene::SceneManager, update,
 };
 
 use self::hooks::{crash, portable};
@@ -47,7 +47,7 @@ where
 pub fn run() {
     // 启动时自动请求管理员权限（仅 `release`；用户取消则继续以普通权限运行）
     #[cfg(target_os = "windows")]
-    windows_ops::admin::elevate_at_startup();
+    platform::admin::elevate_at_startup();
 
     // 尽早安装全局 `panic hook`：任何 `panic`（含 Tauri `setup` 失败导致的 `panic`）都会
     // 独立写入 `logs/crash-*.log`，保证 `release`（无控制台）下也有可回溯记录。
@@ -154,11 +154,10 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
 
     // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
-    windows_ops::window::set_thread_dpi_awareness_context();
+    platform::window::set_thread_dpi_awareness_context();
 
     // WebView2 缺失时自动下载引导程序并安装。
-    windows_ops::webview2::ensure_installed(&app_paths.cache_dir())
-        .inspect_err(|e| warn!("{e:#}"))?;
+    platform::webview2::ensure_installed(&app_paths.cache_dir()).inspect_err(|e| warn!("{e:#}"))?;
 
     // 解析应用配置文件
     let oea_config = Arc::new(Mutex::new(config::load_oea_config(
@@ -187,7 +186,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let main_window_builder = configure_main_window(main_window_builder, &app_paths);
 
     let main_window = main_window_builder.build()?;
-    windows_ops::webview2::register_zoom_changed_listener(&main_window);
+    platform::webview2::register_zoom_changed_listener(&main_window);
 
     // 扫描结果通道：任务线程产生 → 转发线程 `emit` 给前端
     let (scan_tx, scan_rx) = mpsc::channel();
@@ -211,9 +210,9 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     ]));
 
     // 开始监听热键
-    let oea_window = windows_ops::window::get_app_window(app.handle())?;
-    let foreground = windows_ops::window::ForegroundGuard::new(oea_window);
-    let hotkey_rx = windows_ops::hotkey::listen()?;
+    let oea_window = platform::window::get_app_window(app.handle())?;
+    let foreground = platform::window::ForegroundGuard::new(oea_window);
+    let hotkey_rx = platform::hotkey::listen()?;
 
     let scan_runtime = Arc::new(ScanRuntime::new());
 

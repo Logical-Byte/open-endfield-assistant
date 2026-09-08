@@ -23,13 +23,13 @@ use tracing::{info, warn};
 
 use crate::{
     ocr::OcrEngine,
-    task::TaskStopped,
-    template_matching::LazyTemplateLoader,
-    windows_ops::{
+    platform::{
         self, WindowHandle,
         capture::{PrintWindowScreencap, ScreencapBase},
         input::{InputBase, SeizeInput},
     },
+    task::TaskStopped,
+    template_matching::LazyTemplateLoader,
 };
 
 use self::resolution::{Resolution, ResolutionTransform};
@@ -76,19 +76,19 @@ impl Session {
         stop: StopToken,
     ) -> Result<Self> {
         // 1. 获取游戏窗口（仅确保窗口在屏幕上，不抢占前台）
-        let hwnd = windows_ops::window::get_window_by_title(
-            Some(windows_ops::window::ENDFIELD_WINDOW_CLASS),
-            Some(windows_ops::window::ENDFIELD_WINDOW_TITLE),
+        let hwnd = platform::window::get_window_by_title(
+            Some(platform::window::ENDFIELD_WINDOW_CLASS),
+            Some(platform::window::ENDFIELD_WINDOW_TITLE),
         )
         .context("未找到终末地窗口，请先打开游戏")?;
         // 若窗口被最小化则先恢复，否则 `ensure_window_on_screen` 会跳过调整
-        let _ = windows_ops::window::restore_window_if_minimized(hwnd)
+        let _ = platform::window::restore_window_if_minimized(hwnd)
             .inspect_err(|e| warn!("恢复窗口失败: {e:#}"));
-        let _ = windows_ops::window::ensure_window_on_screen(hwnd)
+        let _ = platform::window::ensure_window_on_screen(hwnd)
             .inspect_err(|e| warn!("确保窗口在屏幕上失败: {e:#}"));
 
         // 2. 检测分辨率
-        let client_rect = windows_ops::window::get_client_rect(hwnd)?;
+        let client_rect = platform::window::get_client_rect(hwnd)?;
         let resolution = Resolution::new(
             u32::try_from(client_rect.width()).context("游戏窗口宽度无效")?,
             u32::try_from(client_rect.height()).context("游戏窗口高度无效")?,
@@ -97,7 +97,7 @@ impl Session {
         let resolution_transform = ResolutionTransform::new(resolution)?;
 
         // 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）
-        match windows_ops::window::hdr::is_hdr_enabled_on_window_monitor(hwnd) {
+        match platform::window::hdr::is_hdr_enabled_on_window_monitor(hwnd) {
             Ok(true) => {
                 bail!("终末地所在显示器已开启 HDR，截图颜色会失真导致识别异常，请关闭 HDR 后重试")
             }

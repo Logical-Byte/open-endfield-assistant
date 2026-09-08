@@ -12,9 +12,9 @@ use crate::{
         TemplateTarget,
     },
     ocr::text_detection,
+    platform::input::Contact,
     template_matching::{TemplateSource, match_template_in_region},
     utils::region::Region2D,
-    windows_ops::input::Contact,
 };
 
 use super::Session;

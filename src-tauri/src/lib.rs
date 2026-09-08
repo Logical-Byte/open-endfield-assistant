@@ -9,6 +9,7 @@ pub mod controller;
 pub mod data;
 pub mod logger;
 pub mod ocr;
+pub mod platform;
 pub(crate) mod scan_runtime;
 pub mod scene;
 pub mod session;
@@ -16,6 +17,5 @@ pub mod task;
 pub mod template_matching;
 pub mod update;
 pub mod utils;
-pub mod windows_ops;
 
 pub use app::run;

@@ -19,26 +19,26 @@ use crate::{
     data::{AppData, ArchiveContract, PrtsData},
     logger::LogEntry,
     ocr::OcrEngine,
+    platform,
     scan_runtime::{ScanRunContext, ScanRuntime},
     scene::SceneManager,
     task::archive_scan::{ScanReporter, ScanResult},
-    windows_ops,
 };
 
 /// 推送给前端的应用状态。
 pub use crate::scan_runtime::AppStatus;
 
 /// 引号 `'` → 切换扫描档案库任务
-pub const TOGGLE_MAIN_TASK_HOTKEY: windows_ops::hotkey::KeyEvent = windows_ops::hotkey::KeyEvent {
-    vk: windows_ops::hotkey::OEM_7_KEY,
+pub const TOGGLE_MAIN_TASK_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
+    vk: platform::hotkey::OEM_7_KEY,
     down: true,
     modifiers: 0,
 };
 /// Alt+Delete → 退出
-pub const EXIT_HOTKEY: windows_ops::hotkey::KeyEvent = windows_ops::hotkey::KeyEvent {
-    vk: windows_ops::hotkey::DELETE_KEY,
+pub const EXIT_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
+    vk: platform::hotkey::DELETE_KEY,
     down: true,
-    modifiers: windows_ops::hotkey::ALT_MODIFIER,
+    modifiers: platform::hotkey::ALT_MODIFIER,
 };
 
 /// 应用控制器（Tauri 托管状态，以 `Arc` 共享）。
@@ -56,7 +56,7 @@ pub struct Controller {
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
     /// 前台窗口守卫（应用层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
-    foreground: windows_ops::window::ForegroundGuard,
+    foreground: platform::window::ForegroundGuard,
     /// Tauri 应用句柄（创建扫描运行上下文）
     handle: AppHandle,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
@@ -75,7 +75,7 @@ impl Controller {
         scenes: Arc<SceneManager>,
         scan_runtime: Arc<ScanRuntime>,
         scan_tx: mpsc::Sender<ScanResult>,
-        foreground: windows_ops::window::ForegroundGuard,
+        foreground: platform::window::ForegroundGuard,
         handle: AppHandle,
         app_data: AppData,
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
@@ -156,7 +156,7 @@ impl Controller {
     // ========== 后台线程 ==========
 
     /// 启动热键消费线程（应用层：前台窗口过滤 + 动作分发）。
-    pub fn spawn_hotkey_loop(self: &Arc<Self>, rx: mpsc::Receiver<windows_ops::hotkey::KeyEvent>) {
+    pub fn spawn_hotkey_loop(self: &Arc<Self>, rx: mpsc::Receiver<platform::hotkey::KeyEvent>) {
         let self_cloned = Arc::clone(self);
 
         thread::Builder::new()
