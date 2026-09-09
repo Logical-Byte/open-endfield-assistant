@@ -40,10 +40,22 @@ pub struct DownloadRequest {
     pub(super) save_path: String,
     pub(super) total_size: Option<u64>,
     pub(super) expected_sha256: Option<String>,
-    pub(super) proxy_mode: Option<String>,
+    pub(super) proxy_mode: Option<ProxyMode>,
     pub(super) proxy_url: Option<String>,
     pub(super) accept: Option<String>,
     pub(super) user_agent: Option<String>,
+}
+
+/// 文件下载使用的代理模式。
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ProxyMode {
+    /// 不使用代理。
+    None,
+    /// 使用操作系统代理。
+    System,
+    /// 使用请求中提供的代理 URL。
+    Custom,
 }
 
 /// 下载文件。

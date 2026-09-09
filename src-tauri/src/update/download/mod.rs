@@ -14,7 +14,7 @@ use transfer::download_to_target;
 
 use super::{
     UpdateManager,
-    commands::{DownloadRequest, DownloadResult},
+    commands::{DownloadRequest, DownloadResult, ProxyMode},
     response::extract_filename_from_response,
 };
 
@@ -25,7 +25,7 @@ use super::{
 /// - `custom`：使用 `proxy_url`。
 fn build_client(
     user_agent: &str,
-    proxy_mode: Option<&str>,
+    proxy_mode: Option<ProxyMode>,
     proxy_url: Option<&str>,
 ) -> Result<reqwest::Client, String> {
     let mut builder = reqwest::Client::builder()
@@ -35,8 +35,8 @@ fn build_client(
         // GitHub asset 端点会 302 到签名 CDN 地址，需要跟随重定向。
         .redirect(reqwest::redirect::Policy::limited(10));
 
-    match proxy_mode.unwrap_or("none") {
-        "system" => {
+    match proxy_mode.unwrap_or(ProxyMode::None) {
+        ProxyMode::System => {
             if let Some(url) = crate::platform::proxy::resolve_system_proxy()? {
                 builder = builder.proxy(
                     reqwest::Proxy::all(url.as_str())
@@ -44,13 +44,13 @@ fn build_client(
                 );
             }
         }
-        "custom" => {
+        ProxyMode::Custom => {
             if let Some(url) = proxy_url.filter(|url| !url.trim().is_empty()) {
                 builder = builder
                     .proxy(reqwest::Proxy::all(url).map_err(|e| format!("代理配置失败: {e}"))?);
             }
         }
-        _ => {
+        ProxyMode::None => {
             builder = builder.no_proxy();
         }
     }
@@ -66,11 +66,7 @@ async fn open_response(
 ) -> Result<reqwest::Response, String> {
     let default_user_agent = format!("OEA/{}", app.package_info().version);
     let user_agent = request.user_agent.as_deref().unwrap_or(&default_user_agent);
-    let client = build_client(
-        user_agent,
-        request.proxy_mode.as_deref(),
-        request.proxy_url.as_deref(),
-    )?;
+    let client = build_client(user_agent, request.proxy_mode, request.proxy_url.as_deref())?;
 
     let mut http_request = client.get(&request.url);
     if let Some(accept) = request
