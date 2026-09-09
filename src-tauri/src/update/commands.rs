@@ -53,25 +53,7 @@ pub async fn download_file(
     app: tauri::AppHandle,
     request: DownloadRequest,
 ) -> Result<DownloadResult, String> {
-    let result = download::download_update(
-        &manager,
-        app,
-        request.url,
-        request.save_path,
-        request.total_size,
-        request.expected_sha256,
-        request.proxy_mode,
-        request.proxy_url,
-        request.accept,
-        request.user_agent,
-    )
-    .await?;
-
-    Ok(DownloadResult {
-        session_id: result.session_id,
-        actual_save_path: result.actual_save_path,
-        detected_filename: result.detected_filename,
-    })
+    download::run(&manager, app, request).await
 }
 
 /// 取消当前文件下载。
@@ -83,7 +65,7 @@ pub fn cancel_download(manager: tauri::State<'_, UpdateManager>) -> Result<(), S
 /// 返回文件下载目录。
 #[tauri::command]
 pub fn get_download_dir() -> Result<String, String> {
-    download::get_update_download_dir()
+    download::get_download_dir()
 }
 
 /// 返回更新检查和下载共用的 Windows 系统代理。
