@@ -204,7 +204,7 @@ interface DownloadProgressEventPayload extends UpdateDownloadProgress {
   sessionId: number;
 }
 
-/** Rust `download_update` 命令返回值。 */
+/** Rust `download_file` 命令返回值。 */
 interface DownloadResultPayload {
   sessionId: number;
   actualSavePath: string;
@@ -304,10 +304,10 @@ export async function checkUpdate(): Promise<void> {
  * 开始下载更新（自动下载与手动「立即更新」共用）。
  *
  * 流程：准备下载信息（决定源与校验信息）→ 监听 `download-progress` 进度事件（按 session 过滤）→
- * 调 Rust `download_update` 流式下载 → 成功后保存实际路径。
+ * 调 Rust `download_file` 流式下载 → 成功后保存实际路径。
  *
  * 注意：本函数会一直等到下载结束（成功 / 失败 / 取消）才返回，不会在开始下载后立即返回。
- * Rust 端 `download_update` 会流式读完整响应体（含磁盘写入与 sha256 校验）后才 resolve，
+ * Rust 端 `download_file` 会流式读完整响应体（含磁盘写入与 sha256 校验）后才 resolve，
  * 下载期间的状态由独立的 `download-progress` 事件上报。
  */
 export async function startDownload(
@@ -346,7 +346,7 @@ export async function startDownload(
       progress: 0,
     };
 
-    const saveDir = await invoke<string>('get_update_download_dir');
+    const saveDir = await invoke<string>('get_download_dir');
     const defaultName = `OEA-windows-x86_64-${prepared.versionName}.zip`;
     const savePath = await join(saveDir, prepared.filename ?? defaultName);
 
@@ -367,17 +367,19 @@ export async function startDownload(
     const { updateProxyMode, updateProxyUrl } = oeaConfig.value;
     const proxyMode =
       prepared.source === UpdateSource.Mirrorchyan ? UpdateProxyMode.None : updateProxyMode;
-    // 阻塞直到下载结束：Rust `download_update` 流式读完整响应体、写完盘并校验 sha256 后才返回，
+    // 阻塞直到下载结束：Rust `download_file` 流式读完整响应体、写完盘并校验 sha256 后才返回，
     // 不会在开始下载后立即返回；期间进度由上面的 `download-progress` 事件上报。
-    const result = await invoke<DownloadResultPayload>('download_update', {
-      url: prepared.url,
-      savePath,
-      totalSize: prepared.fileSize ?? null,
-      expectedSha256: prepared.sha256 ?? null,
-      proxyMode,
-      proxyUrl: proxyMode === UpdateProxyMode.Custom ? updateProxyUrl : null,
-      accept: prepared.source === UpdateSource.Github ? 'application/octet-stream' : null,
-      userAgent: buildUpdateUserAgent(),
+    const result = await invoke<DownloadResultPayload>('download_file', {
+      request: {
+        url: prepared.url,
+        savePath,
+        totalSize: prepared.fileSize ?? null,
+        expectedSha256: prepared.sha256 ?? null,
+        proxyMode,
+        proxyUrl: proxyMode === UpdateProxyMode.Custom ? updateProxyUrl : null,
+        accept: prepared.source === UpdateSource.Github ? 'application/octet-stream' : null,
+        userAgent: buildUpdateUserAgent(),
+      },
     });
 
     // 取消可能在 Rust 收尾阶段才到达（下载实际已完成）：尊重用户意图，不进入已完成态。
