@@ -103,13 +103,13 @@ pub fn run() {
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let app_handle = window.app_handle();
                 // 安装更新期间拒绝关闭窗口（配合不可关闭的安装弹窗）
-                if update::is_installing() {
+                if app_handle.state::<update::UpdateManager>().is_installing() {
                     warn!("正在安装更新，拒绝关闭窗口");
                     api.prevent_close();
                     return;
                 }
-                let app_handle = window.app_handle();
                 let controller = app_handle.state::<Arc<Controller>>();
                 if controller
                     .oea_config()
@@ -143,6 +143,8 @@ pub fn run() {
 
 /// `setup` 主体：任何一步失败都会返回 `Err`，由 [`crash::report_fatal`] 统一兜底。
 fn setup_app(app: &mut tauri::App) -> Result<()> {
+    app.manage(update::UpdateManager::default());
+
     // 解析资源目录（`resources/models/logs`），不依赖运行时工作目录
     let app_paths = AppPaths::new()?;
 

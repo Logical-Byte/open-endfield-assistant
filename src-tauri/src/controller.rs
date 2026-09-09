@@ -10,7 +10,7 @@
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tracing::{debug, error, info, warn};
 
 use crate::{
@@ -144,7 +144,11 @@ impl Controller {
 
     /// 退出程序：请求停止后退出 Tauri 应用。
     pub fn quit(&self) {
-        if crate::update::is_installing() {
+        if self
+            .handle
+            .state::<crate::update::UpdateManager>()
+            .is_installing()
+        {
             warn!("正在安装更新，拒绝退出");
             return;
         }

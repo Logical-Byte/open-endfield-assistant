@@ -3,7 +3,7 @@
 use std::{
     io::Write,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+    sync::Arc,
     time::Duration,
 };
 
@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use tauri::Emitter;
 use tracing::info;
 
-use super::response::extract_filename_from_response;
+use super::{UpdateManager, response::extract_filename_from_response};
 
 /// 下载进度事件（前端按 `session_id` 过滤旧任务的迟到事件）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,13 +42,6 @@ pub struct DownloadResult {
     /// 检测到的文件名（未检测到时为 `None`）
     pub detected_filename: Option<String>,
 }
-
-/// 全局下载取消标志（每次下载开始前重置；前端模块级互斥保证同一时间只有一个下载）。
-static DOWNLOAD_CANCELLED: AtomicBool = AtomicBool::new(false);
-/// 当前下载会话编号（每次下载自增，旧任务的进度事件与取消请求据此失效）。
-static CURRENT_DOWNLOAD_SESSION: AtomicU64 = AtomicU64::new(0);
-/// 已下载字节数（仅作进度采样的共享计数，允许最终一致，用 `Relaxed` 序即可）。
-static DOWNLOADED_BYTES: AtomicU64 = AtomicU64::new(0);
 
 /// 临时文件守卫：下载异常退出时同步删除 `.downloading` 半成品，成功重命名后调用 `disarm`。
 struct TempFileGuard {
@@ -149,6 +142,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 ///   客户端自动跟随 302 重定向。
 #[allow(clippy::too_many_arguments)] // 参数多但均为简单值，封装成结构体反而降低可读性
 pub async fn download_update(
+    manager: &UpdateManager,
     app: tauri::AppHandle,
     url: String,
     save_path: String,
@@ -159,9 +153,11 @@ pub async fn download_update(
     accept: Option<String>,
     user_agent: Option<String>,
 ) -> Result<DownloadResult, String> {
-    let session_id = CURRENT_DOWNLOAD_SESSION.fetch_add(1, Ordering::SeqCst) + 1;
-    DOWNLOAD_CANCELLED.store(false, Ordering::SeqCst);
-    DOWNLOADED_BYTES.store(0, Ordering::SeqCst);
+    let download = manager
+        .start_download()
+        .map_err(|error| error.to_string())?;
+    let session_id = download.id();
+    let session = download.session();
     info!("download_update: session={session_id} url={url} -> {save_path}");
 
     let save_path_obj = Path::new(&save_path);
@@ -232,6 +228,7 @@ pub async fn download_update(
     let app_for_emitter = app.clone();
     let (stop_tx, mut stop_rx) = tokio::sync::oneshot::channel::<()>();
     let progress_guard = ProgressEmitterGuard(Some(stop_tx));
+    let progress_session = Arc::clone(&session);
     tokio::spawn(async move {
         let mut last_downloaded = 0u64;
         let mut last_instant = tokio::time::Instant::now();
@@ -241,7 +238,7 @@ pub async fn download_update(
             tokio::select! {
                 _ = &mut stop_rx => break,
                 _ = tokio::time::sleep(Duration::from_millis(100)) => {
-                    let downloaded = DOWNLOADED_BYTES.load(Ordering::Relaxed);
+                    let downloaded = progress_session.downloaded_bytes();
                     let now = tokio::time::Instant::now();
                     let elapsed = now.duration_since(last_instant);
                     if elapsed.as_millis() == 0 {
@@ -283,9 +280,7 @@ pub async fn download_update(
     let mut download_error: Option<String> = None;
 
     while let Some(chunk) = stream.next().await {
-        if DOWNLOAD_CANCELLED.load(Ordering::SeqCst)
-            || CURRENT_DOWNLOAD_SESSION.load(Ordering::SeqCst) != session_id
-        {
+        if session.is_cancelled() {
             download_error = Some("下载已取消".to_string());
             break;
         }
@@ -303,14 +298,11 @@ pub async fn download_update(
             break;
         }
         downloaded += len;
-        DOWNLOADED_BYTES.store(downloaded, Ordering::Relaxed);
+        session.set_downloaded_bytes(downloaded);
     }
 
     // 收尾前再检查一次取消标志
-    if download_error.is_none()
-        && (DOWNLOAD_CANCELLED.load(Ordering::SeqCst)
-            || CURRENT_DOWNLOAD_SESSION.load(Ordering::SeqCst) != session_id)
-    {
+    if download_error.is_none() && session.is_cancelled() {
         download_error = Some("下载已取消".to_string());
     }
 
@@ -371,12 +363,6 @@ pub async fn download_update(
         actual_save_path: actual_save_path.to_string_lossy().into_owned(),
         detected_filename,
     })
-}
-
-/// 取消当前下载（置标志即可，临时文件由守卫清理）。
-pub fn cancel_download() {
-    DOWNLOAD_CANCELLED.store(true, Ordering::SeqCst);
-    info!("收到取消下载请求");
 }
 
 /// 返回更新包下载目录（`<root>/cache/downloads`），不存在时创建。

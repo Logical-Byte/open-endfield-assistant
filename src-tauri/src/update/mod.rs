@@ -3,11 +3,11 @@
 pub mod install;
 
 mod download;
+mod manager;
 mod response;
 
 pub use download::{DownloadProgressEvent, DownloadResult};
-
-use std::sync::atomic::{AtomicBool, Ordering};
+pub use manager::UpdateManager;
 
 use tracing::info;
 
@@ -15,6 +15,7 @@ use tracing::info;
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn download_update(
+    manager: tauri::State<'_, UpdateManager>,
     app: tauri::AppHandle,
     url: String,
     save_path: String,
@@ -26,6 +27,7 @@ pub async fn download_update(
     user_agent: Option<String>,
 ) -> Result<DownloadResult, String> {
     download::download_update(
+        &manager,
         app,
         url,
         save_path,
@@ -41,8 +43,8 @@ pub async fn download_update(
 
 /// Cancel the current update download.
 #[tauri::command]
-pub fn cancel_download() {
-    download::cancel_download();
+pub fn cancel_download(manager: tauri::State<'_, UpdateManager>) -> Result<(), String> {
+    manager.cancel_download().map_err(|error| error.to_string())
 }
 
 /// Return the update package download directory.
@@ -57,17 +59,18 @@ pub fn resolve_system_proxy() -> Result<Option<String>, String> {
     download::resolve_system_proxy()
 }
 
-/// 安装进行中标志：安装期间拒绝退出（`quit` / 窗口关闭 / 托盘退出统一检查）。
-static UPDATE_INSTALLING: AtomicBool = AtomicBool::new(false);
-
-/// 当前是否正在安装更新。
-pub fn is_installing() -> bool {
-    UPDATE_INSTALLING.load(Ordering::SeqCst)
-}
-
 /// 设置安装进行中标志（前端在安装开始/结束时调用）。
 #[tauri::command]
-pub fn set_update_installing(installing: bool) {
-    UPDATE_INSTALLING.store(installing, Ordering::SeqCst);
+pub fn set_update_installing(
+    manager: tauri::State<'_, UpdateManager>,
+    installing: bool,
+) -> Result<(), String> {
+    let result = if installing {
+        manager.begin_install()
+    } else {
+        manager.finish_install()
+    };
+    result.map_err(|error| error.to_string())?;
     info!("设置更新安装状态: {installing}");
+    Ok(())
 }
