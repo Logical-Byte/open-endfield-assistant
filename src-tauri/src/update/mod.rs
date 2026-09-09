@@ -59,7 +59,10 @@ pub fn resolve_system_proxy() -> Result<Option<String>, String> {
     download::resolve_system_proxy()
 }
 
-/// 设置安装进行中标志（前端在安装开始/结束时调用）。
+/// 驱动更新安装状态迁移。
+///
+/// `installing = true` 仅允许从 `Idle` 进入 `Installing`；`false` 仅允许从
+/// `Installing` 返回 `Idle`。其他状态迁移会返回错误。
 #[tauri::command]
 pub fn set_update_installing(
     manager: tauri::State<'_, UpdateManager>,
