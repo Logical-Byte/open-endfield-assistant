@@ -65,7 +65,7 @@ pub async fn download_file(
     app: tauri::AppHandle,
     request: DownloadRequest,
 ) -> Result<DownloadResult, String> {
-    download::run(&manager, app, request).await
+    download::download(&manager, app, request).await
 }
 
 /// 取消当前文件下载。

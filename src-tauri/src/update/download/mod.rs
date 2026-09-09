@@ -112,7 +112,7 @@ fn resolve_save_path(
 /// - 进度事件 `download-progress` 每 100ms 上报一次，带 `session_id` 供前端过滤；
 /// - `accept` 由前端按下载源传入（GitHub 资产端点需要 `application/octet-stream`），
 ///   客户端自动跟随 302 重定向。
-pub(super) async fn run(
+pub(super) async fn download(
     manager: &UpdateManager,
     app: tauri::AppHandle,
     request: DownloadRequest,
