@@ -24,7 +24,7 @@ use candidate::{PackageKind, extract_package_zip, prepare_candidate};
 #[cfg(test)]
 use helper::HelperResult;
 use helper::spawn_helper;
-pub use helper::{helper_request_from_args, run_helper};
+pub use helper::{helper_request_from_args, run_helper_request};
 pub use startup::{StartupUpdateResult, complete_startup_transaction};
 pub use workspace::UpdateWorkspace;
 
@@ -123,8 +123,12 @@ fn install_update_inner(app: tauri::AppHandle, package_path: String) -> Result<(
     let package_zip = validate_download_package(&paths, &package_path)?;
     let workspace = UpdateWorkspace::for_current_executable(paths.root_dir())
         .map_err(|error| format!("无法确定应用 executable name: {error}"))?;
-    // v1 能进入正常 GUI 说明 helper 没有持锁；新的安装始终抛弃旧 candidate，绝不
-    // 复用已经消费过的 ZIP 或半途事务。
+    if workspace.transaction_exists() {
+        let _ = fs::remove_file(&package_zip);
+        return Err("已有更新事务正在处理；本次安装包已丢弃，请稍后重新下载".to_string());
+    }
+    // 没有正式 transaction 时，这些只能是未发布的准备残留，可以安全抛弃。新的
+    // 安装绝不复用已经消费过的 ZIP 或半途 candidate。
     workspace.remove_transaction_workspace()?;
     let package_dir = workspace.package_path();
 
@@ -419,6 +423,17 @@ mod tests {
         .unwrap();
         assert_eq!(parsed.0, PathBuf::from("/tmp/update-root"));
         assert_eq!(parsed.1, OsString::from("oea"));
+        assert!(
+            helper_request_from_args([
+                OsString::from("OEA"),
+                OsString::from(HELPER_ARGUMENT),
+                OsString::from(ROOT_ARGUMENT),
+                OsString::from("/tmp/update-root"),
+                OsString::from(EXECUTABLE_NAME_ARGUMENT),
+                OsString::from("../other"),
+            ])
+            .is_none()
+        );
     }
 
     /// 这个测试函数也作为 test harness 中的真实 helper 子进程入口。
@@ -427,9 +442,8 @@ mod tests {
         let Some(root) = env::var_os("OEA_TEST_HELPER_ROOT") else {
             return;
         };
-        let workspace = UpdateWorkspace::with_executable_name(root, "OEA");
         assert_eq!(
-            run_helper(&workspace).unwrap(),
+            run_helper_request(PathBuf::from(root), OsString::from("OEA")).unwrap(),
             HelperResult::ExecutableCommitted
         );
     }

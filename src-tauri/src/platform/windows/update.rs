@@ -158,7 +158,11 @@ unsafe extern "system" fn status_callback(
     callback_data: isize,
 ) -> ::windows::core::HRESULT {
     if message == TDN_TIMER {
-        let close = unsafe { &*(callback_data as *const Arc<AtomicBool>) };
+        let Some(close_pointer) = std::ptr::NonNull::new(callback_data as *mut Arc<AtomicBool>)
+        else {
+            return S_FALSE;
+        };
+        let close = unsafe { close_pointer.as_ref() };
         if close.load(Ordering::Acquire) {
             let _ = unsafe {
                 PostMessageW(
@@ -171,7 +175,11 @@ unsafe extern "system" fn status_callback(
         }
     }
     if message == TDN_BUTTON_CLICKED {
-        let close = unsafe { &*(callback_data as *const Arc<AtomicBool>) };
+        let Some(close_pointer) = std::ptr::NonNull::new(callback_data as *mut Arc<AtomicBool>)
+        else {
+            return S_FALSE;
+        };
+        let close = unsafe { close_pointer.as_ref() };
         if !close.load(Ordering::Acquire) {
             return S_FALSE;
         }

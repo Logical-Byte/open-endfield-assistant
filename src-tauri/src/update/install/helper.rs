@@ -7,7 +7,7 @@
 
 use std::{
     ffi::OsString,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     process::{Child, Command},
     thread,
     time::{Duration, Instant},
@@ -55,10 +55,47 @@ where
                     executable_name = args.next();
                 }
             }
-            return root.zip(executable_name);
+            let (root, executable_name) = root.zip(executable_name)?;
+            let mut components = Path::new(&executable_name).components();
+            if !root.is_absolute()
+                || !matches!(components.next(), Some(Component::Normal(_)))
+                || components.next().is_some()
+            {
+                return None;
+            }
+            return Some((root, executable_name));
         }
     }
     None
+}
+
+/// 校验 helper 的实际位置后执行事务。
+///
+/// 根目录来自命令行，是外部输入。helper 必须真实位于该根目录的
+/// `cache/update/helper[.exe]`，随后所有事务路径才允许从这个根目录派生。根目录先
+/// canonicalize，避免 `..` 或符号链接让 executable 目标逃出 helper 所属应用。
+pub fn run_helper_request(
+    root: PathBuf,
+    executable_name: OsString,
+) -> Result<HelperResult, String> {
+    let root = root
+        .canonicalize()
+        .map_err(|error| format!("解析 helper 应用根目录失败: {error}"))?;
+    let workspace = UpdateWorkspace::with_executable_name(root, executable_name);
+    let actual_helper = std::env::current_exe()
+        .and_then(|path| path.canonicalize())
+        .map_err(|error| format!("解析 helper 实际路径失败: {error}"))?;
+    let expected_helper = workspace
+        .helper_path()
+        .canonicalize()
+        .map_err(|error| format!("解析 helper 期望路径失败: {error}"))?;
+    if actual_helper != expected_helper {
+        return Err(format!(
+            "拒绝从更新工作区外执行 helper: {}",
+            actual_helper.display()
+        ));
+    }
+    run_helper(&workspace)
 }
 
 /// 启动真实的 helper 子进程。当前应用退出后，helper 会从相同的根目录继续事务。
