@@ -10,5 +10,6 @@ pub(super) mod input;
 pub(super) mod proxy;
 pub(super) mod registry;
 pub(super) mod sound;
+pub(super) mod update;
 pub(super) mod webview2;
 pub(super) mod window;
