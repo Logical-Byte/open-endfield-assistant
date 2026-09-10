@@ -14,7 +14,7 @@ use std::{
 };
 
 use crate::platform::update::replace_file;
-use crate::platform::update::{UpdatePrompt, UpdatePromptMode};
+use crate::platform::update::{UpdatePrompt, show_update_error};
 
 use super::workspace::UpdateWorkspace;
 
@@ -78,6 +78,17 @@ pub fn run_helper_request(
     root: PathBuf,
     executable_name: OsString,
 ) -> Result<HelperResult, String> {
+    let result = run_helper_request_inner(root, executable_name);
+    if let Err(error) = &result {
+        show_update_error("OEA 更新失败", error);
+    }
+    result
+}
+
+fn run_helper_request_inner(
+    root: PathBuf,
+    executable_name: OsString,
+) -> Result<HelperResult, String> {
     let root = root
         .canonicalize()
         .map_err(|error| format!("解析 helper 应用根目录失败: {error}"))?;
@@ -117,13 +128,10 @@ pub(super) fn spawn_helper_with_executable(
     let helper_executable = match workspace.prepare_helper_copy(source_executable) {
         Ok(path) => path,
         Err(error) => {
-            let cleanup_error = workspace.remove_transaction_workspace().err();
-            return match cleanup_error {
-                Some(cleanup_error) => Err(format!(
-                    "准备更新 helper 失败: {error}；清理事务也失败: {cleanup_error}"
-                )),
-                None => Err(format!("准备更新 helper 失败: {error}")),
-            };
+            return Err(with_cleanup_error(
+                workspace,
+                format!("准备更新 helper 失败: {error}"),
+            ));
         }
     };
     let result = Command::new(&helper_executable)
@@ -135,15 +143,10 @@ pub(super) fn spawn_helper_with_executable(
         .spawn();
     match result {
         Ok(child) => Ok(child),
-        Err(error) => {
-            let cleanup_error = workspace.remove_transaction_workspace().err();
-            match cleanup_error {
-                Some(cleanup_error) => Err(format!(
-                    "启动更新 helper 失败: {error}；清理事务也失败: {cleanup_error}"
-                )),
-                None => Err(format!("启动更新 helper 失败: {error}")),
-            }
-        }
+        Err(error) => Err(with_cleanup_error(
+            workspace,
+            format!("启动更新 helper 失败: {error}"),
+        )),
     }
 }
 
@@ -167,11 +170,7 @@ pub fn run_helper(workspace: &UpdateWorkspace) -> Result<HelperResult, String> {
         return Ok(HelperResult::AlreadyCommitted);
     }
 
-    let mut prompt = UpdatePrompt::new(
-        "OEA 更新",
-        "正在提交程序更新，请稍候…",
-        UpdatePromptMode::from_environment(),
-    );
+    let mut prompt = UpdatePrompt::new("OEA 更新", "正在提交程序更新，请稍候…");
 
     let target_executable = workspace.executable_path();
     let deadline = Instant::now() + REPLACE_RETRY_WINDOW;
@@ -191,17 +190,15 @@ pub fn run_helper(workspace: &UpdateWorkspace) -> Result<HelperResult, String> {
     };
 
     let reason = last_error.to_string();
-    let cleanup_error = workspace.remove_transaction_workspace().err();
-    match cleanup_error {
-        Some(cleanup_error) => {
-            let message = format!("替换应用 exe 失败: {reason}；清理事务也失败: {cleanup_error}");
-            prompt.show_error("OEA 更新失败", &message);
-            Err(message)
-        }
-        None => {
-            let message = format!("替换应用 exe 失败: {reason}");
-            prompt.show_error("OEA 更新失败", &message);
-            Err(message)
-        }
+    Err(with_cleanup_error(
+        workspace,
+        format!("替换应用 exe 失败: {reason}"),
+    ))
+}
+
+fn with_cleanup_error(workspace: &UpdateWorkspace, message: String) -> String {
+    match workspace.remove_transaction_workspace() {
+        Ok(()) => message,
+        Err(cleanup_error) => format!("{message}；清理事务也失败: {cleanup_error}"),
     }
 }

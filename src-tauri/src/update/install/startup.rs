@@ -11,7 +11,7 @@ use std::{fs, io::ErrorKind};
 use serde::Serialize;
 use tracing::{info, warn};
 
-use crate::platform::update::{UpdatePrompt, UpdatePromptMode};
+use crate::platform::update::UpdatePrompt;
 
 use super::workspace::UpdateWorkspace;
 
@@ -65,15 +65,8 @@ pub fn complete_startup_transaction(
         return Ok(StartupUpdateResult::WaitingForHelper);
     }
 
-    let mut prompt = UpdatePrompt::new(
-        "OEA 更新",
-        "正在完成资源更新，请稍候…",
-        UpdatePromptMode::from_environment(),
-    );
-    if let Err(error) = commit_candidate_resources(workspace) {
-        prompt.show_error("OEA 更新失败", &error);
-        return Err(error);
-    }
+    let mut prompt = UpdatePrompt::new("OEA 更新", "正在完成资源更新，请稍候…");
+    commit_candidate_resources(workspace)?;
     workspace
         .remove_transaction()
         .map_err(|error| format!("资源已提交，但删除 transaction 失败: {error}"))?;

@@ -128,30 +128,41 @@ fn install_update_inner(app: tauri::AppHandle, package_path: String) -> Result<(
     let workspace = UpdateWorkspace::for_current_executable(paths.root_dir())
         .map_err(|error| format!("无法确定应用 executable name: {error}"))?;
     if workspace.transaction_exists() {
-        let _ = fs::remove_file(&package_zip);
-        return Err("已有更新事务正在处理；本次安装包已丢弃，请稍后重新下载".to_string());
+        return match fs::remove_file(&package_zip) {
+            Ok(()) => Err("已有更新事务正在处理；本次安装包已删除，请稍后重新下载".to_string()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Err("已有更新事务正在处理；本次安装包不会被复用，请稍后重新下载".to_string())
+            }
+            Err(error) => Err(format!(
+                "已有更新事务正在处理；本次安装包不会被复用，但删除下载文件 [{}] 失败: {error}",
+                package_zip.display()
+            )),
+        };
     }
     // 没有正式 transaction 时，这些只能是未发布的准备残留，可以安全抛弃。新的
     // 安装绝不复用已经消费过的 ZIP 或半途 candidate。
-    workspace.remove_transaction_workspace()?;
+    if let Err(error) = workspace.remove_transaction_workspace() {
+        let message = format!("开始安装前清理旧更新文件失败: {error}");
+        return match fs::remove_file(&package_zip) {
+            Ok(()) => Err(message),
+            Err(remove_error) if remove_error.kind() == std::io::ErrorKind::NotFound => {
+                Err(message)
+            }
+            Err(remove_error) => Err(format!(
+                "{message}；删除下载文件 [{}] 也失败: {remove_error}",
+                package_zip.display()
+            )),
+        };
+    }
     let package_dir = workspace.package_path();
 
     emit_install_stage(&app, InstallStage::Preparing);
     emit_install_stage(&app, InstallStage::Extracting);
     if let Err(error) = extract_package_zip(&package_zip, &package_dir) {
-        let _ = fs::remove_file(&package_zip);
-        let _ = workspace.remove_transaction_workspace();
-        return Err(error);
+        return Err(cleanup_failed_preparation(&workspace, &package_zip, error));
     }
 
-    let kind = match PackageKind::detect(&package_dir) {
-        Ok(kind) => kind,
-        Err(error) => {
-            let _ = fs::remove_file(&package_zip);
-            let _ = workspace.remove_transaction_workspace();
-            return Err(error);
-        }
-    };
+    let kind = PackageKind::detect(&package_dir);
     emit_install_stage(
         &app,
         match kind {
@@ -160,27 +171,53 @@ fn install_update_inner(app: tauri::AppHandle, package_path: String) -> Result<(
         },
     );
     if let Err(error) = prepare_candidate(&workspace, &package_dir) {
-        let _ = fs::remove_file(&package_zip);
-        let _ = workspace.remove_transaction_workspace();
-        return Err(error);
+        return Err(cleanup_failed_preparation(&workspace, &package_zip, error));
     }
 
     // transaction 已证明 candidate 完整；zip 从此不能被复用，删除失败则不启动 helper。
     if let Err(error) = fs::remove_file(&package_zip) {
-        let _ = workspace.remove_transaction_workspace();
-        return Err(format!("删除已消费的更新包失败: {error}"));
+        let message = format!("删除已消费的更新包失败: {error}");
+        return match workspace.remove_transaction_workspace() {
+            Ok(()) => Err(message),
+            Err(cleanup_error) => Err(format!("{message}；清理事务也失败: {cleanup_error}")),
+        };
     }
     emit_install_stage(&app, InstallStage::CleaningUp);
     let _ = fs::remove_dir_all(&package_dir);
 
-    if let Err(error) = spawn_helper(&workspace) {
-        let _ = fs::remove_file(&package_zip);
-        return Err(error);
-    }
+    spawn_helper(&workspace)?;
 
     // helper 已经独立接管事务；当前进程必须退出，释放 Windows 对根 exe 的占用。
     app.exit(0);
     Ok(())
+}
+
+fn cleanup_failed_preparation(
+    workspace: &UpdateWorkspace,
+    package_zip: &Path,
+    primary_error: String,
+) -> String {
+    let mut cleanup_errors = Vec::new();
+    if let Err(error) = fs::remove_file(package_zip) {
+        if error.kind() != std::io::ErrorKind::NotFound {
+            cleanup_errors.push(format!(
+                "删除下载文件 [{}] 失败: {error}",
+                package_zip.display()
+            ));
+        }
+    }
+    if let Err(error) = workspace.remove_transaction_workspace() {
+        cleanup_errors.push(error);
+    }
+
+    if cleanup_errors.is_empty() {
+        primary_error
+    } else {
+        format!(
+            "{primary_error}；清理临时文件也失败: {}",
+            cleanup_errors.join("；")
+        )
+    }
 }
 
 #[cfg(test)]

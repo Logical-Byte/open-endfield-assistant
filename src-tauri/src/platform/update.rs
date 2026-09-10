@@ -16,9 +16,8 @@ use std::process::{Child, Command};
 #[cfg(target_os = "windows")]
 use super::windows;
 
-/// 更新提示模式。测试和无 UI 的 helper 可选择 `Silent`，不会创建或等待系统窗口。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UpdatePromptMode {
+enum UpdatePromptMode {
     Interactive,
     Silent,
 }
@@ -26,10 +25,7 @@ pub enum UpdatePromptMode {
 impl UpdatePromptMode {
     /// 测试构建或设置 `OEA_UPDATE_SILENT` 时关闭原生窗口。
     pub fn from_environment() -> Self {
-        if cfg!(test)
-            || std::env::var_os("OEA_UPDATE_SILENT").is_some()
-            || std::env::var_os("OEA_UPDATE_TEST_MODE").is_some()
-        {
+        if cfg!(test) || std::env::var_os("OEA_UPDATE_SILENT").is_some() {
             Self::Silent
         } else {
             Self::Interactive
@@ -40,7 +36,7 @@ impl UpdatePromptMode {
 /// 更新过程状态提示。
 ///
 /// `new` 会尽力创建原生状态窗；若当前桌面环境不能创建窗口，会退化为日志，不能
-/// 阻断文件事务。`show_success`/`show_error` 会先关闭进度窗，再显示最终结果。
+/// 阻断文件事务。`show_success` 会先关闭进度窗，再显示最终结果。
 pub struct UpdatePrompt {
     mode: UpdatePromptMode,
     #[cfg(target_os = "windows")]
@@ -50,7 +46,8 @@ pub struct UpdatePrompt {
 }
 
 impl UpdatePrompt {
-    pub fn new(title: &str, content: &str, mode: UpdatePromptMode) -> Self {
+    pub fn new(title: &str, content: &str) -> Self {
+        let mode = UpdatePromptMode::from_environment();
         if mode == UpdatePromptMode::Silent {
             return Self::silent(mode);
         }
@@ -115,16 +112,6 @@ impl UpdatePrompt {
         }
     }
 
-    pub fn show_error(&mut self, title: &str, content: &str) {
-        self.close_progress();
-        if self.mode != UpdatePromptMode::Interactive {
-            return;
-        }
-        if let Err(error) = show_final_message(title, content, FinalMessageKind::Error) {
-            tracing::warn!("显示更新失败提示失败: {error}");
-        }
-    }
-
     fn close_progress(&mut self) {
         #[cfg(target_os = "windows")]
         self.status_window.take();
@@ -136,6 +123,19 @@ impl UpdatePrompt {
                 let _ = process.wait();
             }
         }
+    }
+}
+
+/// 显示一次更新错误，不创建进度窗。
+///
+/// helper 用它作为所有失败的唯一展示边界；macOS 启动阶段也用它补足通用 fatal
+/// dialog 尚未支持的原生提示。测试和静默环境不会创建窗口。
+pub fn show_update_error(title: &str, content: &str) {
+    if UpdatePromptMode::from_environment() != UpdatePromptMode::Interactive {
+        return;
+    }
+    if let Err(error) = show_final_message(title, content, FinalMessageKind::Error) {
+        tracing::warn!("显示更新失败提示失败: {error}");
     }
 }
 

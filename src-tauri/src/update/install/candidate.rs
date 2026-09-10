@@ -102,11 +102,11 @@ fn restore_unix_mode(_file: &fs::File, _mode: Option<u32>) -> std::io::Result<()
 }
 
 impl PackageKind {
-    pub fn detect(package_dir: &Path) -> Result<Self, String> {
+    pub fn detect(package_dir: &Path) -> Self {
         if package_dir.join("changes.json").is_file() {
-            Ok(Self::Incremental)
+            Self::Incremental
         } else {
-            Ok(Self::Full)
+            Self::Full
         }
     }
 }
@@ -133,7 +133,7 @@ pub fn prepare_candidate(
     remove_directory_if_present(&workspace.discard_path())?;
     remove_directory_if_present(&workspace.candidate_build_path())?;
 
-    let kind = PackageKind::detect(package_dir)?;
+    let kind = PackageKind::detect(package_dir);
     let result = prepare_candidate_inner(workspace, package_dir, kind);
     if result.is_err() {
         let _ = remove_directory_if_present(&workspace.baseline_path());
