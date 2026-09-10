@@ -221,7 +221,7 @@ fn construct_incremental_candidate(
 ) -> Result<(), String> {
     let changes = read_changes_json(package_dir)?;
     let baseline = workspace.baseline_path();
-    copy_payload_directory(&baseline, building)?;
+    copy_directory(&baseline, building)?;
 
     // 文件先于目录删除，否则 `deleted_dir` 删除父目录后，同一目录中的 `deleted`
     // 文件会被误判为缺失。目录按路径深度降序处理，允许清单同时列出父子目录。
@@ -371,24 +371,6 @@ fn validate_candidate(workspace: &UpdateWorkspace, candidate: &Path) -> Result<(
                 "candidate 含有未允许的顶层条目: {}",
                 name.to_string_lossy()
             ));
-        }
-    }
-    Ok(())
-}
-
-fn copy_payload_directory(source: &Path, target: &Path) -> Result<(), String> {
-    fs::create_dir_all(target)
-        .map_err(|error| format!("创建 candidate 目录 [{}] 失败: {error}", target.display()))?;
-    for entry in fs::read_dir(source)
-        .map_err(|error| format!("读取 baseline 目录 [{}] 失败: {error}", source.display()))?
-    {
-        let entry = entry.map_err(|error| format!("读取 baseline 条目失败: {error}"))?;
-        let source_item = entry.path();
-        let target_item = target.join(entry.file_name());
-        if source_item.is_dir() {
-            copy_directory(&source_item, &target_item)?;
-        } else {
-            copy_regular_file(&source_item, &target_item)?;
         }
     }
     Ok(())

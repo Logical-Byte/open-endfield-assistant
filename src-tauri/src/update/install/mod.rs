@@ -99,7 +99,7 @@ pub fn pending_package_exists(package_path: String) -> bool {
 ///
 /// 这是前端唯一需要调用的安装接口。debug 构建禁止触碰项目根目录；集成测试应直接
 /// 使用 [`prepare_candidate`]、[`run_helper`] 和 [`complete_startup_transaction`] 的临时
-/// workspace seam。
+/// workspace 模块接口。
 #[tauri::command]
 pub fn install_update(
     manager: tauri::State<'_, super::UpdateManager>,

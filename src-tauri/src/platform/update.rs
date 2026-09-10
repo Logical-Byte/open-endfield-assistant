@@ -218,15 +218,7 @@ impl FileLock {
     /// 返回 `Ok(None)` 只表示另一个进程当前持有锁；其他打开或系统错误会返回
     /// `Err`。锁文件的父目录会在打开前创建。
     pub fn try_acquire(path: &Path) -> io::Result<Option<Self>> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let file = OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .open(path)?;
+        let file = open_lock_file(path)?;
 
         if lock_file(&file, true)? {
             Ok(Some(Self { file }))
@@ -237,18 +229,22 @@ impl FileLock {
 
     /// 阻塞直到获得 `path` 对应的排他锁。
     pub fn acquire(path: &Path) -> io::Result<Self> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let file = OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .open(path)?;
+        let file = open_lock_file(path)?;
         lock_file(&file, false)?;
         Ok(Self { file })
     }
+}
+
+fn open_lock_file(path: &Path) -> io::Result<File> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(path)
 }
 
 impl Drop for FileLock {
