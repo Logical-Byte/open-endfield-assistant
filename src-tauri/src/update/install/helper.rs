@@ -178,12 +178,6 @@ pub fn run_helper(workspace: &UpdateWorkspace) -> Result<HelperResult, String> {
     let last_error = loop {
         match replace_file(&candidate_executable, &target_executable) {
             Ok(()) => {
-                if candidate_executable.exists() {
-                    let error = "exe 替换返回成功但 candidate exe 仍存在";
-                    let _ = workspace.remove_transaction_workspace();
-                    prompt.show_error("OEA 更新失败", error);
-                    return Err(error.to_string());
-                }
                 prompt.show_success("OEA 更新", "程序更新已准备好，请重新启动 OEA 以完成更新");
                 return Ok(HelperResult::ExecutableCommitted);
             }

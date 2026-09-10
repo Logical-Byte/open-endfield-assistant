@@ -114,6 +114,10 @@ pub fn install_update(
     result
 }
 
+/// 准备更新并把已发布的事务交给 helper。
+///
+/// 成功路径会在 helper 启动后调用 `app.exit(0)`，请求当前 v1 退出。末尾的 `Ok(())`
+/// 只用于满足 Tauri command 的返回类型；前端不应在它之后继续安装流程。
 fn install_update_inner(app: tauri::AppHandle, package_path: String) -> Result<(), String> {
     if cfg!(debug_assertions) {
         return Err("开发构建禁止执行真实自更新，请使用临时目录集成测试".to_string());
