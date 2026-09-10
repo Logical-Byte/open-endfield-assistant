@@ -39,7 +39,7 @@ impl UpdatePromptMode {
 /// 阻断文件事务。`show_success` 会先关闭进度窗，再显示最终结果。
 pub struct UpdatePrompt {
     mode: UpdatePromptMode,
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", not(test)))]
     status_window: Option<windows::update::StatusWindow>,
     #[cfg(target_os = "macos")]
     status_process: Option<Child>,
@@ -52,7 +52,7 @@ impl UpdatePrompt {
             return Self::silent(mode);
         }
 
-        #[cfg(target_os = "windows")]
+        #[cfg(all(target_os = "windows", not(test)))]
         {
             match windows::update::StatusWindow::show(title, content) {
                 Ok(status_window) => Self {
@@ -64,6 +64,12 @@ impl UpdatePrompt {
                     Self::silent(mode)
                 }
             }
+        }
+
+        #[cfg(all(target_os = "windows", test))]
+        {
+            let _ = (title, content);
+            Self::silent(mode)
         }
 
         #[cfg(target_os = "macos")]
@@ -91,7 +97,7 @@ impl UpdatePrompt {
     fn silent(mode: UpdatePromptMode) -> Self {
         Self {
             mode,
-            #[cfg(target_os = "windows")]
+            #[cfg(all(target_os = "windows", not(test)))]
             status_window: None,
             #[cfg(target_os = "macos")]
             status_process: None,
@@ -113,7 +119,7 @@ impl UpdatePrompt {
     }
 
     fn close_progress(&mut self) {
-        #[cfg(target_os = "windows")]
+        #[cfg(all(target_os = "windows", not(test)))]
         self.status_window.take();
 
         #[cfg(target_os = "macos")]
@@ -152,13 +158,19 @@ enum FinalMessageKind {
 }
 
 fn show_final_message(title: &str, content: &str, kind: FinalMessageKind) -> io::Result<()> {
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", not(test)))]
     {
         let icon = match kind {
             FinalMessageKind::Success => crate::platform::dialog::DialogIcon::Info,
             FinalMessageKind::Error => crate::platform::dialog::DialogIcon::Error,
         };
         windows::update::show_message(title, content, icon)
+    }
+
+    #[cfg(all(target_os = "windows", test))]
+    {
+        let _ = (title, content, kind);
+        Ok(())
     }
 
     #[cfg(target_os = "macos")]

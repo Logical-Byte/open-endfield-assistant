@@ -453,23 +453,24 @@ mod tests {
 
     #[test]
     fn helper_arguments_carry_root_and_target_executable_name() {
+        let root = temp_root("helper-arguments");
         let parsed = helper_request_from_args([
             OsString::from("OEA"),
             OsString::from(HELPER_ARGUMENT),
             OsString::from(ROOT_ARGUMENT),
-            OsString::from("/tmp/update-root"),
+            root.path().as_os_str().to_owned(),
             OsString::from(EXECUTABLE_NAME_ARGUMENT),
             OsString::from("oea"),
         ])
         .unwrap();
-        assert_eq!(parsed.0, PathBuf::from("/tmp/update-root"));
+        assert_eq!(parsed.0, root.path());
         assert_eq!(parsed.1, OsString::from("oea"));
         assert!(
             helper_request_from_args([
                 OsString::from("OEA"),
                 OsString::from(HELPER_ARGUMENT),
                 OsString::from(ROOT_ARGUMENT),
-                OsString::from("/tmp/update-root"),
+                root.path().as_os_str().to_owned(),
                 OsString::from(EXECUTABLE_NAME_ARGUMENT),
                 OsString::from("../other"),
             ])

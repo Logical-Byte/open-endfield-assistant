@@ -1,11 +1,12 @@
 //! Windows 更新文件原语。
 
+use std::{fs::File, io, os::windows::ffi::OsStrExt, os::windows::io::AsRawHandle, path::Path};
+
+// Cargo 的 Windows 测试 harness 没有 Tauri exe 携带的 Common Controls v6 manifest。
+// 测试本来就使用静默提示，因此不要把 `TaskDialogIndirect` 静态链接进测试 exe，
+// 否则 Windows loader 会在测试启动前以 `STATUS_ENTRYPOINT_NOT_FOUND` 退出。
+#[cfg(not(test))]
 use std::{
-    fs::File,
-    io,
-    os::windows::ffi::OsStrExt,
-    os::windows::io::AsRawHandle,
-    path::Path,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -15,24 +16,30 @@ use std::{
 
 use ::windows::{
     Win32::{
-        Foundation::{ERROR_LOCK_VIOLATION, HANDLE, LPARAM, S_FALSE, S_OK, WPARAM},
+        Foundation::{ERROR_LOCK_VIOLATION, HANDLE},
         Storage::FileSystem::{
             LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY, LockFileEx, ReplaceFileW,
             UnlockFileEx,
         },
         System::IO::OVERLAPPED,
-        UI::{
-            Controls::{
-                TASKDIALOG_NOTIFICATIONS, TASKDIALOGCONFIG, TDF_CALLBACK_TIMER,
-                TDF_SHOW_MARQUEE_PROGRESS_BAR, TDM_CLICK_BUTTON, TDN_BUTTON_CLICKED, TDN_TIMER,
-                TaskDialogIndirect,
-            },
-            WindowsAndMessaging::{IDOK, PostMessageW},
-        },
     },
     core::{PCWSTR, Result as WindowsResult},
 };
 
+#[cfg(not(test))]
+use ::windows::Win32::{
+    Foundation::{LPARAM, S_FALSE, S_OK, WPARAM},
+    UI::{
+        Controls::{
+            TASKDIALOG_NOTIFICATIONS, TASKDIALOGCONFIG, TDF_CALLBACK_TIMER,
+            TDF_SHOW_MARQUEE_PROGRESS_BAR, TDM_CLICK_BUTTON, TDN_BUTTON_CLICKED, TDN_TIMER,
+            TaskDialogIndirect,
+        },
+        WindowsAndMessaging::{IDOK, PostMessageW},
+    },
+};
+
+#[cfg(not(test))]
 use crate::platform::dialog::{self, DialogIcon};
 
 /// 获取文件上的 Windows 排他锁。
@@ -101,11 +108,13 @@ fn replace_file_w(target: PCWSTR, replacement: PCWSTR, backup: PCWSTR) -> Window
 /// `TaskDialogIndirect` 自身是阻塞 API，因此状态窗在独立线程中运行；主流程通过
 /// callback timer 关闭它。用户在提交期间触发按钮或关闭请求时，callback 返回
 /// `S_FALSE` 保持窗口打开。helper 可以继续替换 exe，测试模式则完全不创建窗口。
+#[cfg(not(test))]
 pub(in crate::platform) struct StatusWindow {
     close: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
 }
 
+#[cfg(not(test))]
 impl StatusWindow {
     pub(in crate::platform) fn show(title: &str, content: &str) -> io::Result<Self> {
         let title = title.to_owned();
@@ -141,6 +150,7 @@ impl StatusWindow {
     }
 }
 
+#[cfg(not(test))]
 impl Drop for StatusWindow {
     fn drop(&mut self) {
         self.close.store(true, Ordering::Release);
@@ -150,6 +160,7 @@ impl Drop for StatusWindow {
     }
 }
 
+#[cfg(not(test))]
 unsafe extern "system" fn status_callback(
     hwnd: ::windows::Win32::Foundation::HWND,
     message: TASKDIALOG_NOTIFICATIONS,
@@ -188,6 +199,7 @@ unsafe extern "system" fn status_callback(
 }
 
 /// 用已有 Windows 原生 Task Dialog 显示最终结果。
+#[cfg(not(test))]
 pub(in crate::platform) fn show_message(
     title: &str,
     content: &str,
