@@ -17,15 +17,10 @@ import { computed } from 'vue';
 const isInstalling = computed(() => installStatus.value === UpdateInstallStatus.Installing);
 /** 是否安装失败。 */
 const isFailed = computed(() => installStatus.value === UpdateInstallStatus.Failed);
-/** 是否安装完成（即将重启 / 重启失败）。 */
-const isComplete = computed(() => installStatus.value === UpdateInstallStatus.Completed);
 /** 是否「更新完成」展示模式（重启后）。 */
 const isJustUpdatedMode = computed(() => justUpdatedInfo.value !== null);
-/** 是否允许通过 X / 遮罩关闭：安装中不允许；失败、重启失败可关闭。 */
-const canClose = computed(
-  () =>
-    !isInstalling.value && (isFailed.value || (isComplete.value && installError.value !== null)),
-);
+/** 安装失败时允许通过 X / 遮罩关闭；安装中和更新完成展示使用明确按钮。 */
+const canClose = computed(() => isFailed.value);
 </script>
 
 <template>
@@ -69,17 +64,6 @@ const canClose = computed(
         <UProgress class="w-full" size="sm" :value="null" />
       </template>
 
-      <!-- 安装完成：正常情况即将自动重启；重启失败则提示手动重启 -->
-      <template v-else-if="isComplete">
-        <UIcon class="size-12 text-success" name="i-lucide-circle-check" />
-        <div class="space-y-1">
-          <p class="font-semibold">安装完成</p>
-          <p v-if="installError" class="text-sm text-error">{{ installError }}</p>
-          <p v-else class="text-sm text-toned">正在重启应用…</p>
-        </div>
-        <UButton v-if="installError" label="关闭" @click="closeInstallModal" />
-      </template>
-
       <!-- 安装失败 -->
       <template v-else-if="isFailed">
         <UIcon class="size-12 text-error" name="i-lucide-circle-alert" />
@@ -89,7 +73,12 @@ const canClose = computed(
         </div>
         <div class="flex gap-2">
           <UButton color="neutral" label="关闭" variant="soft" @click="closeInstallModal" />
-          <UButton color="primary" icon="i-lucide-refresh-cw" label="重试" @click="retryInstall" />
+          <UButton
+            color="primary"
+            icon="i-lucide-download"
+            label="重新下载"
+            @click="retryInstall"
+          />
         </div>
       </template>
     </template>

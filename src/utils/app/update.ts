@@ -6,7 +6,6 @@ import {
 import { OemStableManifest } from '@/types/oem';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import {
-  ChangesJson,
   GitHubRelease,
   PendingUpdateInfo,
   PreparedUpdate,
@@ -15,6 +14,7 @@ import {
   UpdateCompleteInfo,
   UpdateDownloadProgress,
   UpdateDownloadStatus,
+  UpdateInstallStageEvent,
   UpdateInstallStage,
   UpdateInstallStatus,
   UpdatePackageType,
@@ -84,7 +84,7 @@ export const downloadProgress = ref<UpdateDownloadProgress>({
   speed: 0,
   progress: 0,
 });
-/** 下载包实际保存路径（下载成功后的唯一事实来源，安装/续装都依赖它）。 */
+/** 下载包实际保存路径（下载成功后的唯一事实来源，安装调用依赖它）。 */
 export const downloadSavePath = ref<string | null>(null);
 /** 当前已就绪的下载信息（URL/sha256 等）。 */
 export const preparedUpdate = ref<PreparedUpdate | null>(null);
@@ -110,17 +110,14 @@ let isInstalling = false;
 
 /** 待安装 / 更新完成信息的 localStorage key。 */
 const PENDING_UPDATE_KEY = 'oea-pending-update';
-const UPDATE_COMPLETE_KEY = 'oea-update-complete';
 
 /** 安装阶段 → 用户可读文案。 */
 const INSTALL_STAGE_LABELS: Record<UpdateInstallStage, string> = {
-  [UpdateInstallStage.BackingUp]: '备份配置',
+  [UpdateInstallStage.Preparing]: '准备更新文件',
   [UpdateInstallStage.Extracting]: '解压更新包',
-  [UpdateInstallStage.Checking]: '检查更新包类型',
   [UpdateInstallStage.ApplyingIncremental]: '应用增量更新',
   [UpdateInstallStage.ApplyingFull]: '应用全量更新',
   [UpdateInstallStage.CleaningUp]: '清理临时文件',
-  [UpdateInstallStage.Done]: '安装完成',
 };
 
 /** 安装阶段文案（供弹窗展示）。 */
@@ -128,7 +125,7 @@ export function installStageLabel(stage: UpdateInstallStage): string {
   return INSTALL_STAGE_LABELS[stage];
 }
 
-/** 保存待安装更新信息（下载成功后调用，崩溃/重启后可续装）。 */
+/** 保存待安装更新信息（下载成功后调用，用于启动恢复与完成提示）。 */
 function savePendingUpdateInfo(info: PendingUpdateInfo): void {
   try {
     localStorage.setItem(PENDING_UPDATE_KEY, JSON.stringify(info));
@@ -137,8 +134,8 @@ function savePendingUpdateInfo(info: PendingUpdateInfo): void {
   }
 }
 
-/** 读取待安装更新信息；zip 已被删除时自动清除并返回 `null`。 */
-async function getPendingUpdateInfo(): Promise<PendingUpdateInfo | null> {
+/** 读取待安装更新信息，不访问磁盘。 */
+function readPendingUpdateInfo(): PendingUpdateInfo | null {
   try {
     const raw = localStorage.getItem(PENDING_UPDATE_KEY);
     if (!raw) {
@@ -146,14 +143,6 @@ async function getPendingUpdateInfo(): Promise<PendingUpdateInfo | null> {
     }
     const info = JSON.parse(raw) as PendingUpdateInfo;
     if (!info.downloadSavePath) {
-      localStorage.removeItem(PENDING_UPDATE_KEY);
-      return null;
-    }
-    const exists = await invoke<boolean>('pending_package_exists', {
-      savePath: info.downloadSavePath,
-    });
-    if (!exists) {
-      logWarn('待安装的更新包已被删除，清除待安装信息');
       localStorage.removeItem(PENDING_UPDATE_KEY);
       return null;
     }
@@ -165,37 +154,35 @@ async function getPendingUpdateInfo(): Promise<PendingUpdateInfo | null> {
   }
 }
 
+/** 读取待安装更新信息，并确认下载包仍然存在。 */
+async function getPendingUpdateInfo(): Promise<PendingUpdateInfo | null> {
+  const info = readPendingUpdateInfo();
+  if (!info) {
+    return null;
+  }
+  try {
+    const exists = await invoke<boolean>('pending_package_exists', {
+      packagePath: info.downloadSavePath,
+    });
+    if (!exists) {
+      logWarn('待安装的更新包已被删除，清除待安装信息');
+      clearPendingUpdateInfo();
+      return null;
+    }
+    return info;
+  } catch (error) {
+    logWarn(`检查待安装更新包失败: ${String(error)}`);
+    clearPendingUpdateInfo();
+    return null;
+  }
+}
+
 /** 清除待安装更新信息（安装完成 / 更新完成展示后）。 */
 function clearPendingUpdateInfo(): void {
   try {
     localStorage.removeItem(PENDING_UPDATE_KEY);
   } catch {
     // localStorage 不可用时忽略
-  }
-}
-
-/** 保存更新完成信息（重启前写入，新进程启动时展示）。 */
-function saveUpdateCompleteInfo(info: UpdateCompleteInfo): void {
-  try {
-    localStorage.setItem(UPDATE_COMPLETE_KEY, JSON.stringify(info));
-  } catch (error) {
-    logWarn(`保存更新完成信息失败: ${String(error)}`);
-  }
-}
-
-/** 读取并清除更新完成信息（重启后展示用）。 */
-function consumeUpdateCompleteInfo(): UpdateCompleteInfo | null {
-  try {
-    const raw = localStorage.getItem(UPDATE_COMPLETE_KEY);
-    if (!raw) {
-      return null;
-    }
-    localStorage.removeItem(UPDATE_COMPLETE_KEY);
-    return JSON.parse(raw) as UpdateCompleteInfo;
-  } catch (error) {
-    logWarn(`读取更新完成信息失败: ${String(error)}`);
-    localStorage.removeItem(UPDATE_COMPLETE_KEY);
-    return null;
   }
 }
 
@@ -393,8 +380,9 @@ export async function startDownload(
     downloadSavePath.value = result.actualSavePath;
     downloadStatus.value = UpdateDownloadStatus.Completed;
     logInfo(`更新下载完成: ${result.actualSavePath}`);
-    // 保存待安装信息，崩溃/重启后可续装；再按「自动安装更新」触发安装。
+    // 保存待安装信息，供正常 helper/v2 启动流程展示完成提示；再按「自动安装更新」触发安装。
     savePendingUpdateInfo({
+      previousVersion: oeaVersion,
       versionName: prepared.versionName,
       releaseNote: prepared.releaseNote,
       downloadSavePath: result.actualSavePath,
@@ -434,55 +422,82 @@ export async function cancelDownload(): Promise<void> {
 }
 
 /**
- * 启动时序（v4 §2）：更新完成弹窗 → 待安装续装 → 启动清扫 → 检查更新。
- * 由 `App.vue` 在配置加载完成后调用。
+ * 启动时序：先让 Rust 完成一次尚未结束的 resources 事务，再读取待安装包。
+ *
+ * `consume_startup_update_result` 是只读的启动结果查询。它返回 `completed` 时，
+ * helper 已经替换 exe，当前 v2 进程也已经提交 resources，zip 通常已经被删除，
+ * 因此完成提示只能从 pending metadata 构造，不能再次检查 zip 是否存在。
  */
 export async function initUpdateState(): Promise<void> {
-  // 1. 重启后展示「更新完成」（绿色便携 zip 无 requireVersionCheck 场景）。
-  const complete = consumeUpdateCompleteInfo();
-  if (complete) {
-    justUpdatedInfo.value = complete;
-    showInstallModal.value = true;
-    clearPendingUpdateInfo();
-  }
-
-  // 2. 启动清扫（崩溃残留 / 上一轮 old / 半成品下载）。
-  //    必须在待安装续装之前执行，避免与安装流程并发操作 `cache/old`。
-  try {
-    await invoke('cleanup_stale_update_files');
-  } catch (error) {
-    logWarn(`启动清扫更新残留失败: ${String(error)}`);
-  }
-
-  // 3. 恢复上次下载完成但未安装的更新。
-  const pending = await getPendingUpdateInfo();
-  if (pending) {
-    preparedUpdate.value = {
-      url: '',
-      source: pending.downloadSource ?? UpdateSource.Mirrorchyan,
-      updateType: pending.updateType,
-      versionName: pending.versionName,
-      releaseNote: pending.releaseNote,
-      fileSize: pending.fileSize,
-    };
-    downloadSavePath.value = pending.downloadSavePath;
-    downloadStatus.value = UpdateDownloadStatus.Completed;
-    if (oeaConfig.value.autoInstallUpdates) {
-      void tryAutoInstall();
+  const startupUpdateResult = await consumeStartupUpdateResult();
+  if (startupUpdateResult === 'completed') {
+    const pending = readPendingUpdateInfo();
+    if (pending) {
+      installStatus.value = UpdateInstallStatus.Completed;
+      installError.value = null;
+      installStage.value = null;
+      justUpdatedInfo.value = {
+        previousVersion: pending.previousVersion ?? '未知',
+        newVersion: pending.versionName,
+        releaseNote: pending.releaseNote,
+        timestamp: Date.now(),
+      };
+      showInstallModal.value = true;
     } else {
-      updatePopoverOpen.value = true;
+      logWarn('启动更新事务已完成，但缺少待安装更新信息，跳过完成提示');
+    }
+    clearPendingUpdateInfo();
+  } else {
+    // helper 未能接管时 zip 会被 Rust 删除；此检查会清除 stale pending，之后正常的
+    // 自动更新流程可以重新下载并从头构造 candidate，绝不复用旧 zip。
+    const pending = await getPendingUpdateInfo();
+    if (pending) {
+      restorePendingUpdate(pending);
+      if (oeaConfig.value.autoInstallUpdates) {
+        void tryAutoInstall();
+      } else {
+        updatePopoverOpen.value = true;
+      }
     }
   }
 
-  // 4. 扫描结束后若有待安装更新且开启自动安装，自动触发（下载完成时扫描运行中也生效）。
+  // 扫描结束后若有待安装更新且开启自动安装，自动触发（下载完成时扫描运行中也生效）。
   await onAppStatus((status) => {
     if (!status.running) {
       void tryAutoInstall();
     }
   });
 
-  // 5. 检查更新（自动下载按配置触发）。
+  // 检查更新（自动下载按配置触发）。
   await checkUpdate();
+}
+
+/** Rust 启动恢复的最小返回值：完成一次资源事务，或没有已完成的事务。 */
+type StartupUpdateResult = 'completed' | null;
+
+/** 查询并消费本次启动是否完成了一个更新事务。 */
+async function consumeStartupUpdateResult(): Promise<StartupUpdateResult> {
+  try {
+    return await invoke<StartupUpdateResult>('consume_startup_update_result');
+  } catch (error) {
+    // 兼容尚未带启动恢复 command 的开发后端；正式后端会始终提供该只读 command。
+    logWarn(`读取启动更新结果失败: ${String(error)}`);
+    return null;
+  }
+}
+
+/** 将 pending metadata 恢复为下载完成态。 */
+function restorePendingUpdate(pending: PendingUpdateInfo): void {
+  preparedUpdate.value = {
+    url: '',
+    source: pending.downloadSource ?? UpdateSource.Mirrorchyan,
+    updateType: pending.updateType,
+    versionName: pending.versionName,
+    releaseNote: pending.releaseNote,
+    fileSize: pending.fileSize,
+  };
+  downloadSavePath.value = pending.downloadSavePath;
+  downloadStatus.value = UpdateDownloadStatus.Completed;
 }
 
 /** 满足条件时自动开始安装：下载完成 + 未在安装 + 开启自动安装 + 扫描空闲。 */
@@ -517,6 +532,7 @@ export async function startInstall(): Promise<void> {
   const zipPath = downloadSavePath.value;
   const prepared = preparedUpdate.value;
   if (!zipPath || !prepared) {
+    clearDownloadedUpdateState();
     handleInstallFailure(new Error('缺少下载包信息，请重新下载'));
     return;
   }
@@ -528,88 +544,44 @@ export async function startInstall(): Promise<void> {
   showInstallModal.value = true;
   updatePopoverOpen.value = false;
 
+  let unlisten: (() => void) | null = null;
   try {
-    await invoke('set_update_installing', { installing: true });
-    try {
-      await runInstallSteps(zipPath, prepared);
-    } finally {
-      // 安装成功会 relaunch，此调用可能来不及返回；失败时确保标志复位
-      await invoke('set_update_installing', { installing: false }).catch(() => {});
-    }
-
-    // 应用已成功：重启失败不回滚，仅提示手动重启。
-    installStage.value = UpdateInstallStage.Done;
-    try {
-      const { relaunch } = await import('@tauri-apps/plugin-process');
-      await relaunch();
-    } catch (error) {
-      logError(`自动重启失败，请手动重启应用: ${String(error)}`);
-      installError.value = '安装已完成，但自动重启失败，请手动重启应用';
-    }
+    // 先订阅阶段事件，避免 Rust 在构造 candidate 的早期阶段完成得太快而丢失文案。
+    unlisten = await listen<UpdateInstallStageEvent>('update-install-stage', (event) => {
+      installStage.value = event.payload.stage;
+    });
+    // Rust 会构造 candidate、发布 transaction 并启动 helper。helper 接管后当前进程
+    // 退出，所以这里没有成功后的 relaunch，也没有可供前端继续编排的细粒度 command。
+    await invoke('install_update', { packagePath: zipPath });
   } catch (error) {
-    // 安装失败：尽力回滚（old 中保留本次移走的全部旧文件，整体搬回）。
-    try {
-      await invoke('restore_from_old');
-      logWarn('安装失败，已尽力回滚旧文件');
-    } catch (rollbackError) {
-      logWarn(`回滚失败（old 目录已保留旧文件）: ${String(rollbackError)}`);
-    }
+    // Rust 在安装准备或 helper 启动失败时删除 zip；保留错误提示，但把下载态清空，
+    // 使下一次重试从下载阶段开始，不会误用已经消费过的 zip。
+    clearDownloadedUpdateState();
     handleInstallFailure(error);
   } finally {
+    unlisten?.();
     isInstalling = false;
   }
 }
 
-/** 执行安装步骤（备份 → 解压 → 判定 → 应用 → 清理 → 写完成状态）。 */
-async function runInstallSteps(zipPath: string, prepared: PreparedUpdate): Promise<void> {
-  // 1. 清空 old（保证回滚基线干净），再备份配置（失败仅 warn，Rust 已保证不报错）。
-  await invoke('cleanup_old_dir');
-  installStage.value = UpdateInstallStage.BackingUp;
-  await invoke('backup_config');
-
-  // 2. 解压（内部会先清理残留解压目录）。
-  installStage.value = UpdateInstallStage.Extracting;
-  await invoke('extract_zip', { zipPath });
-
-  // 3. 判定增量 / 全量（以 changes.json 是否存在于解压目录为准）。
-  installStage.value = UpdateInstallStage.Checking;
-  const changes = await invoke<ChangesJson | null>('check_changes_json');
-  if (changes) {
-    installStage.value = UpdateInstallStage.ApplyingIncremental;
-    await invoke('apply_incremental_update', { deleted: changes.deleted });
-  } else {
-    installStage.value = UpdateInstallStage.ApplyingFull;
-    await invoke('apply_full_update');
-  }
-
-  // 4. 应用成功：清理（失败仅 warn，不再回滚）。
-  installStage.value = UpdateInstallStage.CleaningUp;
-  await invoke('cleanup_extract_dir').catch((error) => {
-    logWarn(`清理解压目录失败: ${String(error)}`);
-  });
-  await invoke('remove_downloaded_package', { savePath: zipPath }).catch((error) => {
-    logWarn(`删除更新包失败: ${String(error)}`);
-  });
-
-  // 5. 保存「更新完成」信息并清除 pending，随后由 startInstall 触发重启。
-  clearPendingUpdateInfo();
-  saveUpdateCompleteInfo({
-    previousVersion: oeaVersion,
-    newVersion: prepared.versionName,
-    releaseNote: prepared.releaseNote,
-    timestamp: Date.now(),
-  });
-  installStage.value = UpdateInstallStage.Done;
-  installStatus.value = UpdateInstallStatus.Completed;
-}
-
-/** 安装失败后重试（重新走完整安装流程，幂等）。 */
+/** 安装失败后重新下载，绝不复用已消费的 ZIP 或 candidate。 */
 export async function retryInstall(): Promise<void> {
-  if (installStatus.value === UpdateInstallStatus.Failed) {
-    installStatus.value = UpdateInstallStatus.Idle;
-    installError.value = null;
+  if (installStatus.value !== UpdateInstallStatus.Failed) {
+    return;
   }
-  await startInstall();
+  installStatus.value = UpdateInstallStatus.Idle;
+  installError.value = null;
+  installStage.value = null;
+  showInstallModal.value = false;
+  clearDownloadedUpdateState();
+
+  const result = updateCheckResult.value;
+  if (result.status === UpdateCheckStatus.HasUpdate && result.result.data) {
+    await startDownload(result.result.data);
+  } else {
+    // 没有可直接重用的检查结果时让正常检查流程重新取得下载信息。
+    await checkUpdate();
+  }
 }
 
 /** 关闭安装弹窗（仅失败 / 完成（重启失败）可关闭；安装中不可关闭由弹窗控制）。 */
@@ -622,6 +594,7 @@ export function closeInstallModal(): void {
   }
   if (justUpdatedInfo.value) {
     justUpdatedInfo.value = null;
+    installStatus.value = UpdateInstallStatus.Idle;
   }
 }
 
@@ -631,6 +604,20 @@ function handleInstallFailure(error: unknown): void {
   installStatus.value = UpdateInstallStatus.Failed;
   installError.value = message;
   logError(`更新安装失败: ${message}`);
+}
+
+/** 清除已消费的 zip 及其前端状态，让下次安装从下载阶段开始。 */
+function clearDownloadedUpdateState(): void {
+  clearPendingUpdateInfo();
+  downloadSavePath.value = null;
+  preparedUpdate.value = null;
+  downloadStatus.value = UpdateDownloadStatus.Idle;
+  downloadProgress.value = {
+    downloadedSize: 0,
+    totalSize: 0,
+    speed: 0,
+    progress: 0,
+  };
 }
 
 /**

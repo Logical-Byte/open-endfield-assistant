@@ -79,26 +79,23 @@ export enum UpdateInstallStatus {
 
 /** 安装流程阶段（驱动不可关闭弹窗的进度文案）。 */
 export enum UpdateInstallStage {
-  BackingUp,
-  Extracting,
-  Checking,
-  ApplyingIncremental,
-  ApplyingFull,
-  CleaningUp,
-  Done,
+  /** 构造 candidate 的准备阶段。 */
+  Preparing = 'preparing',
+  Extracting = 'extracting',
+  ApplyingIncremental = 'applying_incremental',
+  ApplyingFull = 'applying_full',
+  CleaningUp = 'cleaning_up',
 }
 
-/** Mirror 酱增量包 `changes.json`（字段名 snake_case，与文档一致）。 */
-export interface ChangesJson {
-  added: string[];
-  modified: string[];
-  deleted: string[];
-  added_dir: string[];
-  deleted_dir: string[];
+/** Rust `update-install-stage` 事件 payload。 */
+export interface UpdateInstallStageEvent {
+  stage: UpdateInstallStage;
 }
 
 /** 待安装更新信息（localStorage `oea-pending-update`，下载完成 → 安装完成之间持久化）。 */
 export interface PendingUpdateInfo {
+  /** 开始这次安装时运行中的版本，用于重启后的完成提示。 */
+  previousVersion?: string;
   versionName: string;
   releaseNote: string;
   downloadSavePath: string;
@@ -108,7 +105,7 @@ export interface PendingUpdateInfo {
   timestamp: number;
 }
 
-/** 更新完成信息（localStorage `oea-update-complete`，重启后展示）。 */
+/** 更新完成弹窗使用的信息，由 Rust 启动结果与 pending metadata 组合得到。 */
 export interface UpdateCompleteInfo {
   previousVersion: string;
   newVersion: string;
