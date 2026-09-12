@@ -50,7 +50,7 @@ pnpm download:models
 - 完整应用（Windows）：`pnpm tauri dev`，同时启动 Vite 开发服务器与 Tauri 窗口。
 - 仅前端：`pnpm dev`，无法调用后端命令（`invoke` 会失败），适合纯 UI 调试。
 
-macOS 开发外壳是可选的本地调试入口。使用前，复制或软链接兼容的 PNG 图标到不纳入版本控制的 `src-tauri/icons/icon.png`，然后运行 `pnpm tauri dev`。能力边界见[后端规范](rule-backend.md#编译)。
+macOS 开发外壳是可选的本地调试入口。初始化 `resources/` 子模块后，可直接运行 `pnpm tauri dev`。能力边界见[后端规范](rule-backend.md#编译)。
 
 ## 后端日志
 
