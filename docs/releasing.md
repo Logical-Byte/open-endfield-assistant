@@ -4,6 +4,9 @@
 
 项目只产出**绿色便携 zip**（解压即用，不产出任何安装程序）：
 
+应用内更新如何从该 ZIP 构造 candidate 并提交可执行文件与资源，见
+[更新安装事务](update-installation.md)。
+
 ```bash
 pnpm package
 ```

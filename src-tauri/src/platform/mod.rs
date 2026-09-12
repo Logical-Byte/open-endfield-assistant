@@ -17,6 +17,7 @@ pub mod hotkey;
 pub mod input;
 pub mod proxy;
 pub mod sound;
+pub mod update;
 pub mod webview;
 pub mod window;
 

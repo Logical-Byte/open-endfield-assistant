@@ -22,7 +22,6 @@
     },
     "http:default",
     "opener:default",
-    "os:default",
-    "process:allow-restart"
+    "os:default"
   ]
 }

@@ -61,7 +61,6 @@ pub fn run() {
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             commands::start_scan,
             commands::stop_scan,
@@ -87,18 +86,9 @@ pub fn run() {
             update::commands::cancel_download,
             update::commands::get_download_dir,
             update::commands::resolve_system_proxy,
-            update::set_update_installing,
-            update::install::backup_config,
-            update::install::extract_zip,
-            update::install::check_changes_json,
-            update::install::apply_incremental_update,
-            update::install::apply_full_update,
-            update::install::restore_from_old,
-            update::install::cleanup_old_dir,
-            update::install::cleanup_extract_dir,
-            update::install::remove_downloaded_package,
+            update::install::install_update,
+            update::install::consume_startup_update_result,
             update::install::pending_package_exists,
-            update::install::cleanup_stale_update_files,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
@@ -147,6 +137,18 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     // 解析资源目录（`resources/models/logs`），不依赖运行时工作目录
     let app_paths = AppPaths::new()?;
+
+    // 在初始化 Tauri 窗口、日志和资源消费者前完成 v2 的 resources 提交。helper 副本、
+    // candidate 和 transaction 的生命周期都由 install core 管理，前端只消费结果。
+    let workspace = update::install::UpdateWorkspace::for_current_executable(app_paths.root_dir())
+        .map_err(|error| anyhow::anyhow!("无法确定更新 executable name: {error}"))?;
+    let startup_update_result =
+        update::install::complete_startup_transaction(&workspace).map_err(|error| {
+            #[cfg(target_os = "macos")]
+            platform::update::show_update_error("OEA 更新失败", &error);
+            anyhow::anyhow!("启动时完成更新事务失败: {error}")
+        })?;
+    update::install::record_startup_update_result(startup_update_result);
 
     // 压缩包内直接运行检测：命中则弹原生框提示解压并退出。
     // 必须在建窗口 / 写 `cache` / 初始化日志之前调用（只读临时目录里这些步骤没有意义）。
