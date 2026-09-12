@@ -2,24 +2,80 @@ use std::{sync::Arc, time::Duration};
 
 use tauri::Emitter;
 
-use crate::update::{commands::DownloadProgressEvent, manager::DownloadSession};
+use crate::update::{
+    commands::{DownloadProgress, DownloadProgressEvent},
+    manager::DownloadSession,
+};
+
+enum ProgressSink {
+    Event {
+        app: tauri::AppHandle,
+        session_id: u64,
+    },
+    Channel(tauri::ipc::Channel<DownloadProgress>),
+}
+
+impl Clone for ProgressSink {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Event { app, session_id } => Self::Event {
+                app: app.clone(),
+                session_id: *session_id,
+            },
+            Self::Channel(channel) => Self::Channel(channel.clone()),
+        }
+    }
+}
+
+impl ProgressSink {
+    fn send(&self, progress: DownloadProgress) {
+        match self {
+            Self::Event { app, session_id } => {
+                let _ = app.emit(
+                    "download-progress",
+                    DownloadProgressEvent {
+                        session_id: *session_id,
+                        downloaded_size: progress.downloaded_size,
+                        total_size: progress.total_size,
+                        speed: progress.speed,
+                        progress: progress.progress,
+                    },
+                );
+            }
+            Self::Channel(channel) => {
+                let _ = channel.send(progress);
+            }
+        }
+    }
+}
 
 /// 管理进度采样任务，并保证成功事件一定是该会话的最后一个进度事件。
 pub(super) struct ProgressReporter {
-    app: tauri::AppHandle,
-    session_id: u64,
+    sink: ProgressSink,
     stop_tx: Option<tokio::sync::oneshot::Sender<()>>,
     task: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl ProgressReporter {
-    pub(super) fn start(
+    pub(super) fn start_event(
         app: tauri::AppHandle,
         session_id: u64,
         session: Arc<DownloadSession>,
         total: u64,
     ) -> Self {
-        let app_for_task = app.clone();
+        Self::start(ProgressSink::Event { app, session_id }, session, total)
+    }
+
+    pub(super) fn start_channel(
+        channel: tauri::ipc::Channel<DownloadProgress>,
+        session: Arc<DownloadSession>,
+        total: u64,
+    ) -> Self {
+        Self::start(ProgressSink::Channel(channel), session, total)
+    }
+
+    fn start(sink: ProgressSink, session: Arc<DownloadSession>, total: u64) -> Self {
+        let sink_for_task = sink.clone();
         let (stop_tx, mut stop_rx) = tokio::sync::oneshot::channel::<()>();
         let task = tokio::spawn(async move {
             let mut last_downloaded = 0u64;
@@ -49,16 +105,12 @@ impl ProgressReporter {
                         } else {
                             0.0
                         };
-                        let _ = app_for_task.emit(
-                            "download-progress",
-                            DownloadProgressEvent {
-                                session_id,
-                                downloaded_size: downloaded,
-                                total_size: total,
-                                speed: smoothed_speed as u64,
-                                progress,
-                            },
-                        );
+                        sink_for_task.send(DownloadProgress {
+                            downloaded_size: downloaded,
+                            total_size: total,
+                            speed: smoothed_speed as u64,
+                            progress,
+                        });
                         last_downloaded = downloaded;
                         last_instant = now;
                     }
@@ -67,8 +119,7 @@ impl ProgressReporter {
         });
 
         Self {
-            app,
-            session_id,
+            sink,
             stop_tx: Some(stop_tx),
             task: Some(task),
         }
@@ -82,16 +133,12 @@ impl ProgressReporter {
     }
 
     pub(super) fn emit_complete(&self, downloaded: u64, total: u64) {
-        let _ = self.app.emit(
-            "download-progress",
-            DownloadProgressEvent {
-                session_id: self.session_id,
-                downloaded_size: downloaded,
-                total_size: if total > 0 { total } else { downloaded },
-                speed: 0,
-                progress: 100.0,
-            },
-        );
+        self.sink.send(DownloadProgress {
+            downloaded_size: downloaded,
+            total_size: if total > 0 { total } else { downloaded },
+            speed: 0,
+            progress: 100.0,
+        });
     }
 
     fn signal_stop(&mut self) {

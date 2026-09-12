@@ -127,7 +127,7 @@ pub(super) async fn check_for_update(
     ))
 }
 
-fn configured_cdk(config: &OeaConfig) -> Option<String> {
+pub(super) fn configured_cdk(config: &OeaConfig) -> Option<String> {
     if config.update_source != UpdateSource::Mirrorchyan {
         return None;
     }
@@ -139,21 +139,21 @@ fn configured_cdk(config: &OeaConfig) -> Option<String> {
     let blob = match STANDARD.decode(encrypted) {
         Ok(blob) => blob,
         Err(decode_error) => {
-            error!("CDK 密文 Base64 解码失败，检查更新将不携带 CDK: {decode_error}");
+            error!("CDK 密文 Base64 解码失败，更新请求将不携带 CDK: {decode_error}");
             return None;
         }
     };
     let plain = match crate::platform::data_protection::decrypt(&blob) {
         Ok(plain) => plain,
         Err(decrypt_error) => {
-            error!("解密 CDK 失败，检查更新将不携带 CDK: {decrypt_error}");
+            error!("解密 CDK 失败，更新请求将不携带 CDK: {decrypt_error}");
             return None;
         }
     };
     let plain = match String::from_utf8(plain) {
         Ok(plain) => plain,
         Err(utf8_error) => {
-            error!("CDK 明文不是合法 UTF-8，检查更新将不携带 CDK: {utf8_error}");
+            error!("CDK 明文不是合法 UTF-8，更新请求将不携带 CDK: {utf8_error}");
             return None;
         }
     };

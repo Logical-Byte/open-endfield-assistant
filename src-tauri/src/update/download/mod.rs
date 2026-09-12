@@ -8,14 +8,18 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use tracing::info;
 
+use crate::config::{OeaConfig, UpdateSource};
+
 use progress::ProgressReporter;
 use target::DownloadTarget;
 use transfer::download_to_target;
 
 use super::{
     UpdateManager,
-    commands::{DownloadRequest, DownloadResult, ProxyMode},
-    response::extract_filename_from_response,
+    commands::{DownloadProgress, DownloadRequest, DownloadResult, ProxyMode},
+    manager::DownloadSession,
+    response::{extract_filename_from_response, sanitize_filename},
+    source::DownloadPlan,
 };
 
 /// 按代理模式构建 HTTP 客户端。
@@ -63,6 +67,7 @@ fn build_client(
 async fn open_response(
     app: &tauri::AppHandle,
     request: &DownloadRequest,
+    cancellation: &tokio_util::sync::CancellationToken,
 ) -> Result<reqwest::Response, String> {
     let default_user_agent = format!("OEA/{}", app.package_info().version);
     let user_agent = request.user_agent.as_deref().unwrap_or(&default_user_agent);
@@ -77,10 +82,11 @@ async fn open_response(
         http_request = http_request.header(reqwest::header::ACCEPT, accept.trim());
     }
 
-    let response = http_request
-        .send()
-        .await
-        .map_err(|error| format!("下载请求失败: {error}"))?;
+    let response = tokio::select! {
+        biased;
+        response = http_request.send() => response.map_err(|error| format!("下载请求失败: {error}"))?,
+        _ = cancellation.cancelled() => return Err("下载已取消".to_string()),
+    };
     if !response.status().is_success() {
         return Err(format!("HTTP 错误: {}", response.status()));
     }
@@ -127,7 +133,7 @@ pub(super) async fn download(
         request.url, request.save_path
     );
 
-    let response = open_response(&app, &request).await?;
+    let response = open_response(&app, &request, &session.cancellation()).await?;
     let (actual_save_path, detected_filename) = resolve_save_path(&request.save_path, &response);
     let total = request
         .total_size
@@ -135,7 +141,7 @@ pub(super) async fn download(
         .or_else(|| response.content_length())
         .unwrap_or(0);
     let target = DownloadTarget::new(actual_save_path, session_id)?;
-    let mut progress = ProgressReporter::start(app, session_id, Arc::clone(&session), total);
+    let mut progress = ProgressReporter::start_event(app, session_id, Arc::clone(&session), total);
     let download = download_to_target(
         response,
         target,
@@ -160,6 +166,66 @@ pub(super) async fn download(
         actual_save_path: download.path.to_string_lossy().into_owned(),
         detected_filename,
     })
+}
+
+/// 执行后端解析完成的下载计划，并通过本次调用独享的 Channel 上报进度。
+pub(super) async fn download_update_plan(
+    plan: DownloadPlan,
+    session_id: u64,
+    session: Arc<DownloadSession>,
+    config: &OeaConfig,
+    user_agent: &str,
+    on_progress: tauri::ipc::Channel<DownloadProgress>,
+) -> Result<String, String> {
+    info!(
+        "download_update: session={session_id} source={:?} url={}",
+        plan.source, plan.url
+    );
+    let client = match plan.source {
+        UpdateSource::Mirrorchyan => super::http::build_direct_client(user_agent)?,
+        UpdateSource::Oem | UpdateSource::Github => super::http::build_client(config, user_agent)?,
+    };
+    let mut request = client.get(&plan.url);
+    if let Some(accept) = plan.accept {
+        request = request.header(reqwest::header::ACCEPT, accept);
+    }
+    let cancellation = session.cancellation();
+    let response = tokio::select! {
+        biased;
+        response = request.send() => response.map_err(|error| format!("下载请求失败: {error}"))?,
+        _ = cancellation.cancelled() => return Err("下载已取消".to_string()),
+    };
+    if !response.status().is_success() {
+        return Err(format!("HTTP 错误: {}", response.status()));
+    }
+
+    let download_dir = PathBuf::from(get_download_dir()?);
+    let fallback_name = sanitize_filename(&plan.filename)
+        .unwrap_or_else(|| "OEA-windows-x86_64-update.zip".to_string());
+    let requested_path = download_dir.join(fallback_name);
+    let detected_filename = extract_filename_from_response(&response);
+    let actual_path =
+        detected_filename.map_or_else(|| requested_path.clone(), |name| download_dir.join(name));
+    let total = plan
+        .total_size
+        .filter(|size| *size > 0)
+        .or_else(|| response.content_length())
+        .unwrap_or(0);
+    let target = DownloadTarget::new(actual_path, session_id)?;
+    let mut progress = ProgressReporter::start_channel(on_progress, Arc::clone(&session), total);
+    let download =
+        download_to_target(response, target, session, plan.expected_sha256.as_deref()).await;
+    progress.stop().await;
+    let download = download?;
+
+    info!("sha256 校验通过: {}", download.sha256);
+    progress.emit_complete(download.downloaded_size, total);
+    info!(
+        "download_update 完成: {} 字节 -> {} (session {session_id})",
+        download.downloaded_size,
+        download.path.display()
+    );
+    Ok(download.path.to_string_lossy().into_owned())
 }
 
 /// 返回文件下载目录（`<root>/cache/downloads`），不存在时创建。

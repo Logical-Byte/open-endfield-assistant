@@ -83,6 +83,7 @@ pub fn run() {
             commands::log_warn,
             commands::log_error,
             update::commands::check_update,
+            update::commands::download_update,
             update::commands::download_file,
             update::commands::cancel_download,
             update::commands::get_download_dir,

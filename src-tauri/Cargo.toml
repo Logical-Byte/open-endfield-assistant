@@ -44,6 +44,7 @@ tauri-plugin-http = { version = "2", default-features = false }
 tauri-plugin-opener = "2"
 tauri-plugin-os = "2.3.2"
 tokio = { version = "1.53.1", features = ["sync", "macros", "time", "rt"] }
+tokio-util = { version = "0.7.19", features = ["rt"] }
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
 tracing-log = "0.2.0"

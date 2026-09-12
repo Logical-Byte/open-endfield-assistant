@@ -1,9 +1,10 @@
 use std::sync::{
     Arc, Mutex,
-    atomic::{AtomicBool, AtomicU64, Ordering},
+    atomic::{AtomicU64, Ordering},
 };
 
 use anyhow::{Result, bail};
+use tokio_util::sync::CancellationToken;
 
 use super::check::AvailableUpdateMetadata;
 
@@ -32,13 +33,14 @@ pub(super) struct CheckLease<'a> {
 
 pub(super) struct DownloadSession {
     id: u64,
-    cancelled: AtomicBool,
+    cancellation: CancellationToken,
     downloaded_bytes: AtomicU64,
 }
 
 pub(super) struct DownloadLease<'a> {
     manager: &'a UpdateManager,
     session: Arc<DownloadSession>,
+    available_update: Option<AvailableUpdateMetadata>,
 }
 
 impl Default for UpdateManager {
@@ -84,7 +86,7 @@ impl UpdateManager {
         state.next_session_id += 1;
         let session = Arc::new(DownloadSession {
             id: state.next_session_id,
-            cancelled: AtomicBool::new(false),
+            cancellation: CancellationToken::new(),
             downloaded_bytes: AtomicU64::new(0),
         });
         state.operation = UpdateOperation::Downloading(Arc::clone(&session));
@@ -92,6 +94,36 @@ impl UpdateManager {
         Ok(DownloadLease {
             manager: self,
             session,
+            available_update: None,
+        })
+    }
+
+    /// 使用已缓存的可用更新开始一次完整下载操作。
+    pub(super) fn start_update_download(&self) -> Result<DownloadLease<'_>> {
+        let mut state = self.lock_state();
+        match state.operation {
+            UpdateOperation::Idle => {}
+            UpdateOperation::Checking => bail!("检查更新期间无法开始下载"),
+            UpdateOperation::Downloading(_) => bail!("更新下载已在进行"),
+            UpdateOperation::Installing => bail!("安装更新期间无法开始下载"),
+        }
+        let available_update = state
+            .available_update
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("没有可用的更新，请先检查更新"))?;
+
+        state.next_session_id += 1;
+        let session = Arc::new(DownloadSession {
+            id: state.next_session_id,
+            cancellation: CancellationToken::new(),
+            downloaded_bytes: AtomicU64::new(0),
+        });
+        state.operation = UpdateOperation::Downloading(Arc::clone(&session));
+
+        Ok(DownloadLease {
+            manager: self,
+            session,
+            available_update: Some(available_update),
         })
     }
 
@@ -102,8 +134,7 @@ impl UpdateManager {
                 session.cancel();
                 Ok(())
             }
-            UpdateOperation::Idle => bail!("当前没有正在进行的下载"),
-            UpdateOperation::Checking => bail!("检查更新期间无法取消下载"),
+            UpdateOperation::Idle | UpdateOperation::Checking => Ok(()),
             UpdateOperation::Installing => bail!("安装更新期间无法取消下载"),
         }
     }
@@ -181,15 +212,24 @@ impl DownloadLease<'_> {
     pub(super) fn session(&self) -> Arc<DownloadSession> {
         Arc::clone(&self.session)
     }
+
+    pub(super) fn available_update(&self) -> Option<&AvailableUpdateMetadata> {
+        self.available_update.as_ref()
+    }
 }
 
 impl DownloadSession {
     fn cancel(&self) {
-        self.cancelled.store(true, Ordering::Release);
+        self.cancellation.cancel();
     }
 
+    #[cfg(test)]
     pub(super) fn is_cancelled(&self) -> bool {
-        self.cancelled.load(Ordering::Acquire)
+        self.cancellation.is_cancelled()
+    }
+
+    pub(super) fn cancellation(&self) -> CancellationToken {
+        self.cancellation.clone()
     }
 
     pub(super) fn downloaded_bytes(&self) -> u64 {
@@ -249,12 +289,13 @@ mod tests {
     fn check_download_and_install_are_mutually_exclusive() {
         let manager = UpdateManager::default();
 
-        assert!(manager.cancel_download().is_err());
+        manager.cancel_download().unwrap();
 
         let check = manager.start_check().unwrap();
         assert!(manager.start_check().is_err());
         assert!(manager.start_download().is_err());
         assert!(manager.begin_install().is_err());
+        manager.cancel_download().unwrap();
         drop(check);
 
         let download = manager.start_download().unwrap();
@@ -276,5 +317,58 @@ mod tests {
         assert!(manager.cancel_download().is_err());
         manager.finish_install().unwrap();
         assert!(manager.finish_install().is_err());
+    }
+
+    #[test]
+    fn cached_download_requires_and_preserves_available_update() {
+        let manager = UpdateManager::default();
+        let error = match manager.start_update_download() {
+            Ok(_) => panic!("没有缓存时不应开始下载"),
+            Err(error) => error,
+        };
+        assert_eq!(error.to_string(), "没有可用的更新，请先检查更新");
+
+        manager
+            .start_check()
+            .unwrap()
+            .complete(Some(metadata("1.3.0")));
+        let download = manager.start_update_download().unwrap();
+        assert_eq!(download.available_update(), Some(&metadata("1.3.0")));
+        assert_eq!(manager.available_update(), Some(metadata("1.3.0")));
+        drop(download);
+
+        assert_eq!(manager.available_update(), Some(metadata("1.3.0")));
+        manager.start_update_download().unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancellation_actively_wakes_download_waiters() {
+        let manager = UpdateManager::default();
+        let download = manager.start_download().unwrap();
+        let session = download.session();
+        let cancellation = session.cancellation();
+
+        manager.cancel_download().unwrap();
+
+        tokio::time::timeout(
+            std::time::Duration::from_millis(50),
+            cancellation.cancelled(),
+        )
+        .await
+        .expect("取消等待者应被立即唤醒");
+        assert!(session.is_cancelled());
+    }
+
+    #[test]
+    fn stale_download_completion_does_not_clear_active_operation() {
+        let manager = UpdateManager::default();
+        let download = manager.start_download().unwrap();
+        let active_id = download.id();
+
+        manager.finish_download(active_id.wrapping_add(1));
+
+        assert!(manager.start_check().is_err());
+        drop(download);
+        manager.start_check().unwrap();
     }
 }

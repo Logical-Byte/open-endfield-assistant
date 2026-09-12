@@ -49,6 +49,18 @@ pub(super) fn build_client(
         .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))
 }
 
+/// 构造显式直连的更新下载客户端。
+pub(super) fn build_direct_client(user_agent: &str) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .user_agent(user_agent)
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30 * 60))
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .no_proxy()
+        .build()
+        .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::update_user_agent;

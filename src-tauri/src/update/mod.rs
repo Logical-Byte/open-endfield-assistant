@@ -8,5 +8,6 @@ mod download;
 mod http;
 mod manager;
 mod response;
+mod source;
 
 pub use manager::UpdateManager;
