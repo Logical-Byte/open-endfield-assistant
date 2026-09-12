@@ -40,19 +40,7 @@ tauri build --no-bundle && jiti scripts/package.ts
    用 `pnpm bump:version <version>` 一键完成：更新 `tauri.conf.json` 的 `version`、按 Conventional Commits 提交（`chore: release vX.Y.Z`）并打 tag（`vX.Y.Z`）。`v` 前缀可省略（`0.2.0` 与 `v0.2.0` 均可）；无参数时交互式输入新版本。
 
 2. **确认资源完整**：检查 `resources/` 子模块内容（尤其未跟踪的 `data/`、`icons/`），必要时先提交到 `oea-resource` 仓库并更新子模块引用。
-3. **本地全量检查**：
-
-   ```bash
-   pnpm build
-   pnpm check
-
-   cd src-tauri
-   cargo check --all-targets
-   cargo clippy --all-targets -- -D warnings
-   cargo fmt --all -- --check
-   cargo test
-   ```
-
+3. **本地全量检查**：按[前端规范](rule-frontend.md#检查与测试)和[后端规范](rule-backend.md#检查与测试)完成检查。
 4. **打包**：`pnpm package`，得到 `releases/OEA-windows-x86_64-v0.1.0.zip`。
 5. **冒烟测试**：见上文「冒烟测试」。
 6. **打 tag 并推送**：
