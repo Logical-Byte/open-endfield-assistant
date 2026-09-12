@@ -5,6 +5,8 @@ use std::sync::{
 
 use anyhow::{Result, bail};
 
+use super::check::AvailableUpdateMetadata;
+
 /// 集中管理更新下载和安装的后端状态。
 pub struct UpdateManager {
     inner: Mutex<UpdateState>,
@@ -12,13 +14,20 @@ pub struct UpdateManager {
 
 struct UpdateState {
     next_session_id: u64,
-    phase: UpdatePhase,
+    available_update: Option<AvailableUpdateMetadata>,
+    operation: UpdateOperation,
 }
 
-enum UpdatePhase {
+enum UpdateOperation {
     Idle,
+    Checking,
     Downloading(Arc<DownloadSession>),
     Installing,
+}
+
+pub(super) struct CheckLease<'a> {
+    manager: &'a UpdateManager,
+    completed: bool,
 }
 
 pub(super) struct DownloadSession {
@@ -37,21 +46,39 @@ impl Default for UpdateManager {
         Self {
             inner: Mutex::new(UpdateState {
                 next_session_id: 0,
-                phase: UpdatePhase::Idle,
+                available_update: None,
+                operation: UpdateOperation::Idle,
             }),
         }
     }
 }
 
 impl UpdateManager {
+    pub(super) fn start_check(&self) -> Result<CheckLease<'_>> {
+        let mut state = self.lock_state();
+        if !matches!(state.operation, UpdateOperation::Idle) {
+            bail!("已有更新操作正在进行，请稍后重试");
+        }
+        state.available_update = None;
+        state.operation = UpdateOperation::Checking;
+        Ok(CheckLease {
+            manager: self,
+            completed: false,
+        })
+    }
+
+    #[cfg(test)]
+    fn available_update(&self) -> Option<AvailableUpdateMetadata> {
+        self.lock_state().available_update.clone()
+    }
+
     pub(super) fn start_download(&self) -> Result<DownloadLease<'_>> {
         let mut state = self.lock_state();
-        if matches!(state.phase, UpdatePhase::Installing) {
-            bail!("安装更新期间无法开始下载");
-        }
-
-        if let UpdatePhase::Downloading(previous) = &state.phase {
-            previous.cancel();
+        match state.operation {
+            UpdateOperation::Idle => {}
+            UpdateOperation::Checking => bail!("检查更新期间无法开始下载"),
+            UpdateOperation::Downloading(_) => bail!("更新下载已在进行"),
+            UpdateOperation::Installing => bail!("安装更新期间无法开始下载"),
         }
 
         state.next_session_id += 1;
@@ -60,7 +87,7 @@ impl UpdateManager {
             cancelled: AtomicBool::new(false),
             downloaded_bytes: AtomicU64::new(0),
         });
-        state.phase = UpdatePhase::Downloading(Arc::clone(&session));
+        state.operation = UpdateOperation::Downloading(Arc::clone(&session));
 
         Ok(DownloadLease {
             manager: self,
@@ -70,46 +97,57 @@ impl UpdateManager {
 
     pub(super) fn cancel_download(&self) -> Result<()> {
         let state = self.lock_state();
-        match &state.phase {
-            UpdatePhase::Downloading(session) => {
+        match &state.operation {
+            UpdateOperation::Downloading(session) => {
                 session.cancel();
                 Ok(())
             }
-            UpdatePhase::Idle => bail!("当前没有正在进行的下载"),
-            UpdatePhase::Installing => bail!("安装更新期间无法取消下载"),
+            UpdateOperation::Idle => bail!("当前没有正在进行的下载"),
+            UpdateOperation::Checking => bail!("检查更新期间无法取消下载"),
+            UpdateOperation::Installing => bail!("安装更新期间无法取消下载"),
         }
     }
 
     pub(super) fn begin_install(&self) -> Result<()> {
         let mut state = self.lock_state();
-        match state.phase {
-            UpdatePhase::Idle => {
-                state.phase = UpdatePhase::Installing;
+        match state.operation {
+            UpdateOperation::Idle => {
+                state.operation = UpdateOperation::Installing;
                 Ok(())
             }
-            UpdatePhase::Downloading(_) => bail!("下载期间无法开始安装更新"),
-            UpdatePhase::Installing => bail!("更新安装已在进行"),
+            UpdateOperation::Checking => bail!("检查更新期间无法开始安装更新"),
+            UpdateOperation::Downloading(_) => bail!("下载期间无法开始安装更新"),
+            UpdateOperation::Installing => bail!("更新安装已在进行"),
         }
     }
 
     pub(super) fn finish_install(&self) -> Result<()> {
         let mut state = self.lock_state();
-        if !matches!(state.phase, UpdatePhase::Installing) {
+        if !matches!(state.operation, UpdateOperation::Installing) {
             bail!("当前没有正在进行的更新安装");
         }
-        state.phase = UpdatePhase::Idle;
+        state.operation = UpdateOperation::Idle;
         Ok(())
     }
 
     pub(crate) fn is_installing(&self) -> bool {
         let state = self.lock_state();
-        matches!(state.phase, UpdatePhase::Installing)
+        matches!(state.operation, UpdateOperation::Installing)
+    }
+
+    fn finish_check(&self, available_update: Option<AvailableUpdateMetadata>) {
+        let mut state = self.lock_state();
+        if matches!(state.operation, UpdateOperation::Checking) {
+            state.available_update = available_update;
+            state.operation = UpdateOperation::Idle;
+        }
     }
 
     fn finish_download(&self, session_id: u64) {
         let mut state = self.lock_state();
-        if matches!(&state.phase, UpdatePhase::Downloading(session) if session.id == session_id) {
-            state.phase = UpdatePhase::Idle;
+        if matches!(&state.operation, UpdateOperation::Downloading(session) if session.id == session_id)
+        {
+            state.operation = UpdateOperation::Idle;
         }
     }
 
@@ -117,6 +155,21 @@ impl UpdateManager {
         self.inner
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+impl CheckLease<'_> {
+    pub(super) fn complete(mut self, available_update: Option<AvailableUpdateMetadata>) {
+        self.manager.finish_check(available_update);
+        self.completed = true;
+    }
+}
+
+impl Drop for CheckLease<'_> {
+    fn drop(&mut self) {
+        if !self.completed {
+            self.manager.finish_check(None);
+        }
     }
 }
 
@@ -157,45 +210,70 @@ impl Drop for DownloadLease<'_> {
 #[cfg(test)]
 mod tests {
     use super::UpdateManager;
+    use crate::update::check::AvailableUpdateMetadata;
 
-    #[test]
-    fn replacing_download_isolates_sessions_and_ignores_stale_completion() {
-        let manager = UpdateManager::default();
-        let old = manager.start_download().unwrap();
-        let old_session = old.session();
-        old_session.set_downloaded_bytes(10);
-
-        let new = manager.start_download().unwrap();
-        let new_session = new.session();
-        new_session.set_downloaded_bytes(20);
-
-        assert!(old_session.is_cancelled());
-        assert!(!new_session.is_cancelled());
-        assert_eq!(old_session.downloaded_bytes(), 10);
-        assert_eq!(new_session.downloaded_bytes(), 20);
-
-        drop(old);
-        assert!(manager.begin_install().is_err());
-
-        drop(new);
-        manager.begin_install().unwrap();
+    fn metadata(version: &str) -> AvailableUpdateMetadata {
+        AvailableUpdateMetadata {
+            version_name: version.to_string(),
+            release_note: "notes".to_string(),
+            mirrorchyan_package: None,
+        }
     }
 
     #[test]
-    fn install_transitions_reject_wrong_phase_operations() {
+    fn check_replaces_cache_and_all_exit_paths_restore_idle() {
+        let manager = UpdateManager::default();
+        manager
+            .start_check()
+            .unwrap()
+            .complete(Some(metadata("1.3.0")));
+        assert_eq!(manager.available_update(), Some(metadata("1.3.0")));
+
+        let failed_check = manager.start_check().unwrap();
+        assert_eq!(manager.available_update(), None);
+        assert!(manager.start_download().is_err());
+        assert!(manager.begin_install().is_err());
+        drop(failed_check);
+
+        let download = manager.start_download().unwrap();
+        drop(download);
+        manager.begin_install().unwrap();
+        manager.finish_install().unwrap();
+
+        manager.start_check().unwrap().complete(None);
+        assert_eq!(manager.available_update(), None);
+        manager.start_download().unwrap();
+    }
+
+    #[test]
+    fn check_download_and_install_are_mutually_exclusive() {
         let manager = UpdateManager::default();
 
         assert!(manager.cancel_download().is_err());
-        manager.begin_install().unwrap();
-        assert!(manager.begin_install().is_err());
+
+        let check = manager.start_check().unwrap();
+        assert!(manager.start_check().is_err());
         assert!(manager.start_download().is_err());
-        assert!(manager.cancel_download().is_err());
-        manager.finish_install().unwrap();
+        assert!(manager.begin_install().is_err());
+        drop(check);
 
         let download = manager.start_download().unwrap();
+        let session = download.session();
+        session.set_downloaded_bytes(10);
+        assert_eq!(session.downloaded_bytes(), 10);
+        assert!(!session.is_cancelled());
+        assert!(manager.start_check().is_err());
+        assert!(manager.start_download().is_err());
         assert!(manager.begin_install().is_err());
+        manager.cancel_download().unwrap();
+        assert!(session.is_cancelled());
         drop(download);
+
         manager.begin_install().unwrap();
+        assert!(manager.begin_install().is_err());
+        assert!(manager.start_check().is_err());
+        assert!(manager.start_download().is_err());
+        assert!(manager.cancel_download().is_err());
         manager.finish_install().unwrap();
         assert!(manager.finish_install().is_err());
     }

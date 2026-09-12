@@ -3,7 +3,9 @@
 pub mod commands;
 pub mod install;
 
+mod check;
 mod download;
+mod http;
 mod manager;
 mod response;
 

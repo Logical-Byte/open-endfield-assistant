@@ -1,8 +1,63 @@
 //! 更新下载相关的 Tauri 命令及其序列化接口。
 
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 
-use super::{UpdateManager, download};
+use crate::controller::Controller;
+
+use super::{UpdateManager, check, download, http};
+
+/// 前端可见的可用更新信息。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AvailableUpdate {
+    version_name: String,
+    release_note: String,
+}
+
+/// 更新可用性。第三方下载元数据只保留在后端缓存中。
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum UpdateAvailability {
+    UpToDate,
+    Available { update: AvailableUpdate },
+}
+
+/// 检查更新并缓存规范化后的可用更新。
+#[tauri::command]
+pub async fn check_update(
+    manager: tauri::State<'_, UpdateManager>,
+    controller: tauri::State<'_, Arc<Controller>>,
+    app: tauri::AppHandle,
+) -> Result<UpdateAvailability, String> {
+    let check_lease = manager.start_check().map_err(|error| error.to_string())?;
+    let config = controller
+        .oea_config()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone();
+    let current_version = app.package_info().version.to_string();
+    let user_agent = http::update_user_agent(&current_version);
+    let available = check::check_for_update(&config, &current_version, &user_agent).await?;
+
+    match available {
+        Some(metadata) => {
+            let result = UpdateAvailability::Available {
+                update: AvailableUpdate {
+                    version_name: metadata.version_name.clone(),
+                    release_note: metadata.release_note.clone(),
+                },
+            };
+            check_lease.complete(Some(metadata));
+            Ok(result)
+        }
+        None => {
+            check_lease.complete(None);
+            Ok(UpdateAvailability::UpToDate)
+        }
+    }
+}
 
 /// 下载进度事件（前端按 `session_id` 过滤旧任务的迟到事件）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,4 +139,30 @@ pub fn get_download_dir() -> Result<String, String> {
 #[tauri::command]
 pub fn resolve_system_proxy() -> Result<Option<String>, String> {
     download::resolve_system_proxy()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AvailableUpdate, UpdateAvailability};
+
+    #[test]
+    fn update_availability_has_a_tagged_camel_case_contract() {
+        assert_eq!(
+            serde_json::to_value(UpdateAvailability::UpToDate).unwrap(),
+            serde_json::json!({ "status": "upToDate" })
+        );
+        assert_eq!(
+            serde_json::to_value(UpdateAvailability::Available {
+                update: AvailableUpdate {
+                    version_name: "v1.3.0".to_string(),
+                    release_note: "notes".to_string(),
+                },
+            })
+            .unwrap(),
+            serde_json::json!({
+                "status": "available",
+                "update": { "versionName": "v1.3.0", "releaseNote": "notes" }
+            })
+        );
+    }
 }
