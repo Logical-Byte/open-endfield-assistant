@@ -54,13 +54,11 @@ pub fn run() {
     crash::install_panic_hook();
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_http::init())
         // `WebView2` 默认通过 `raw input` 接收键盘输入，当 OEA 窗口聚焦时会导致
         // `WH_KEYBOARD_LL` 低级键盘钩子收不到按键（[`tauri-apps/tauri#13919`](https://github.com/tauri-apps/tauri/issues/13919)）。
         // `Always` = 移除 `raw input` 注册，让 `LL` 钩子全局都能收到按键。
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_os::init())
         .invoke_handler(tauri::generate_handler![
             commands::start_scan,
             commands::stop_scan,
@@ -82,10 +80,9 @@ pub fn run() {
             commands::log_info,
             commands::log_warn,
             commands::log_error,
-            update::commands::download_file,
+            update::commands::check_update,
+            update::commands::download_update,
             update::commands::cancel_download,
-            update::commands::get_download_dir,
-            update::commands::resolve_system_proxy,
             update::install::install_update,
             update::install::consume_startup_update_result,
             update::install::pending_package_exists,

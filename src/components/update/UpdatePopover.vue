@@ -1,18 +1,16 @@
 <script setup lang="ts">
 import { oeaVersion } from '@/main';
-import { MirrorchyanResourcesLatestResponseData } from '@/types/mirrorchyan';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
-import { UpdateCheckStatus, UpdateDownloadStatus } from '@/types/update';
+import { DownloadProgress } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
 import { mirrorchyanCdk, oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
 import {
   cancelDownload,
   checkUpdate,
-  downloadProgress,
-  downloadStatus,
+  downloadState,
   startDownload,
   startInstall,
-  updateCheckResult,
+  updateCheckState,
 } from '@/utils/app/update';
 import { renderMarkdown } from '@/utils/markdown';
 import { updatePopoverOpen } from '@/utils/uiState';
@@ -20,22 +18,11 @@ import { computed, ref } from 'vue';
 
 const settingsOpen = ref(false);
 
-/** 检查到新版本时的数据快照（未检测到更新时为 `null`）。 */
-const checkUpdateData = computed<MirrorchyanResourcesLatestResponseData | null>(() => {
-  if (
-    updateCheckResult.value.status !== UpdateCheckStatus.HasUpdate ||
-    !updateCheckResult.value.result.data
-  ) {
-    return null;
-  }
-  return updateCheckResult.value.result.data;
-});
-
 const maybeStatusChipColor = computed<string | null>(() => {
-  switch (updateCheckResult.value.status) {
-    case UpdateCheckStatus.HasUpdate:
+  switch (updateCheckState.value.status) {
+    case 'available':
       return 'bg-success';
-    case UpdateCheckStatus.Error:
+    case 'error':
       return 'bg-error';
     default:
       return null;
@@ -44,25 +31,32 @@ const maybeStatusChipColor = computed<string | null>(() => {
 
 /** 按钮 tooltip 与 aria-label 的状态文案。 */
 const statusText = computed<string>(() => {
-  switch (updateCheckResult.value.status) {
-    case UpdateCheckStatus.Idle:
+  switch (updateCheckState.value.status) {
+    case 'unknown':
       return '检查更新';
-    case UpdateCheckStatus.Checking:
+    case 'checking':
       return '正在检查更新';
-    case UpdateCheckStatus.HasUpdate:
+    case 'available':
       return '发现新版本';
-    case UpdateCheckStatus.NoUpdate:
+    case 'upToDate':
       return '当前已是最新版本';
-    case UpdateCheckStatus.Error:
+    case 'error':
       return '检查更新失败';
     default:
       return '检查更新';
   }
 });
 
+const visibleProgress = computed<DownloadProgress>(() => {
+  if (downloadState.value.status === 'downloading' || downloadState.value.status === 'cancelling') {
+    return downloadState.value.progress;
+  }
+  return { downloadedSize: 0, totalSize: 0, speed: 0, progress: 0 };
+});
+
 /** 下载进度文案：已下载 / 总大小（总大小未知时只显示已下载）。 */
 const progressText = computed<string>(() => {
-  const { downloadedSize, totalSize } = downloadProgress.value;
+  const { downloadedSize, totalSize } = visibleProgress.value;
   if (totalSize > 0) {
     return `${formatBytes(downloadedSize)} / ${formatBytes(totalSize)}`;
   }
@@ -71,7 +65,7 @@ const progressText = computed<string>(() => {
 
 /** 剩余时间估算（速度 > 0 且总大小已知时）。 */
 const etaText = computed<string | null>(() => {
-  const { downloadedSize, totalSize, speed } = downloadProgress.value;
+  const { downloadedSize, totalSize, speed } = visibleProgress.value;
   if (totalSize <= 0 || speed <= 0 || downloadedSize >= totalSize) {
     return null;
   }
@@ -104,11 +98,7 @@ function formatSpeed(bytesPerSecond: number): string {
 
 <template>
   <UPopover
-    v-if="
-      [UpdateCheckStatus.HasUpdate, UpdateCheckStatus.Error, UpdateCheckStatus.Checking].includes(
-        updateCheckResult.status,
-      )
-    "
+    v-if="['available', 'error', 'checking'].includes(updateCheckState.status)"
     v-model:open="updatePopoverOpen"
     :ui="{
       content:
@@ -121,7 +111,7 @@ function formatSpeed(bytesPerSecond: number): string {
           :aria-label="statusText"
           color="neutral"
           icon="i-lucide-cloud-download"
-          :loading="updateCheckResult.status === UpdateCheckStatus.Checking"
+          :loading="updateCheckState.status === 'checking'"
           :variant="updatePopoverOpen ? 'soft' : 'ghost'"
         />
         <span
@@ -133,25 +123,25 @@ function formatSpeed(bytesPerSecond: number): string {
     </UTooltip>
 
     <template #content>
-      <template v-if="updateCheckResult.status === UpdateCheckStatus.Checking">
+      <template v-if="updateCheckState.status === 'checking'">
         <div class="flex items-center justify-center gap-2 py-2">
           <UIcon class="size-5 animate-spin text-primary" name="i-lucide-loader-circle" />
           <p class="text-sm font-medium text-toned">正在检查更新…</p>
         </div>
       </template>
 
-      <template v-else-if="updateCheckResult.status === UpdateCheckStatus.Error">
+      <template v-else-if="updateCheckState.status === 'error'">
         <div class="flex items-center gap-2">
           <UIcon class="size-5 text-error" name="i-lucide-circle-alert" />
           <p class="font-semibold">检查更新失败</p>
         </div>
         <p class="text-sm whitespace-pre-wrap text-toned">
-          {{ updateCheckResult.error.message }}
+          {{ updateCheckState.error.message }}
         </p>
         <UButton block icon="i-lucide-rotate-cw" label="重试" @click="checkUpdate" />
       </template>
 
-      <template v-else-if="updateCheckResult.status === UpdateCheckStatus.HasUpdate">
+      <template v-else-if="updateCheckState.status === 'available'">
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <UIcon class="text-xl text-primary" name="i-lucide-circle-arrow-up" />
@@ -161,7 +151,7 @@ function formatSpeed(bytesPerSecond: number): string {
             <UBadge color="neutral" variant="subtle">v{{ oeaVersion }}</UBadge>
             <UIcon class="text-toned" name="i-lucide-arrow-right" />
             <UBadge color="primary" variant="subtle">{{
-              checkUpdateData?.version_name ?? '未知'
+              updateCheckState.update.versionName
             }}</UBadge>
           </div>
         </div>
@@ -171,14 +161,14 @@ function formatSpeed(bytesPerSecond: number): string {
           <!-- eslint-disable vue/no-v-html 渲染结果经 DOMPurify 消毒 -->
           <div
             class="markdown-body max-h-128 min-h-0 scrollbar-gutter-stable overflow-y-auto pr-1"
-            v-html="renderMarkdown(checkUpdateData?.release_note ?? '暂无更新日志')"
+            v-html="renderMarkdown(updateCheckState.update.releaseNote || '暂无更新日志')"
           />
           <!-- eslint-enable vue/no-v-html -->
         </div>
 
         <!-- 下载状态区 -->
         <div
-          v-if="downloadStatus === UpdateDownloadStatus.Downloading"
+          v-if="downloadState.status === 'downloading'"
           class="space-y-2 rounded-md bg-muted p-3"
         >
           <div class="flex items-center justify-between text-xs text-toned">
@@ -188,10 +178,10 @@ function formatSpeed(bytesPerSecond: number): string {
             </span>
             <span class="tabular-nums">{{ progressText }}</span>
           </div>
-          <UProgress size="sm" :value="downloadProgress.progress" />
+          <UProgress size="sm" :value="visibleProgress.progress" />
           <div class="flex items-center justify-between text-xs text-dimmed">
             <span class="tabular-nums"
-              >{{ downloadProgress.progress.toFixed(1) }}% · {{ formatSpeed(downloadProgress.speed)
+              >{{ visibleProgress.progress.toFixed(1) }}% · {{ formatSpeed(visibleProgress.speed)
               }}{{ etaText }}</span
             >
             <UButton
@@ -205,14 +195,14 @@ function formatSpeed(bytesPerSecond: number): string {
         </div>
 
         <div
-          v-else-if="downloadStatus === UpdateDownloadStatus.Cancelling"
+          v-else-if="downloadState.status === 'cancelling'"
           class="flex items-center gap-2 rounded-md bg-muted p-3 text-sm text-toned"
         >
           <UIcon class="size-4 animate-spin text-primary" name="i-lucide-loader-circle" />
           正在取消…
         </div>
 
-        <div v-else-if="downloadStatus === UpdateDownloadStatus.Completed" class="space-y-2">
+        <div v-else-if="downloadState.status === 'completed'" class="space-y-2">
           <div class="rounded-md bg-success/10 p-3 text-sm text-success">下载完成</div>
           <UButton
             block
@@ -228,29 +218,16 @@ function formatSpeed(bytesPerSecond: number): string {
         </div>
 
         <div
-          v-else-if="downloadStatus === UpdateDownloadStatus.Failed"
+          v-else-if="downloadState.status === 'failed'"
           class="flex items-center justify-between gap-2 rounded-md bg-error/10 p-3"
         >
           <p class="text-sm text-error">下载失败</p>
-          <UButton
-            v-if="checkUpdateData"
-            color="error"
-            label="重试"
-            size="xs"
-            variant="soft"
-            @click="startDownload(checkUpdateData)"
-          />
+          <UButton color="error" label="重试" size="xs" variant="soft" @click="startDownload" />
         </div>
 
         <!-- 仅下载前（Idle）显示「立即更新」与下载设置；下载中/已下载/失败均不显示 -->
-        <div v-if="downloadStatus === UpdateDownloadStatus.Idle" class="flex w-full gap-2">
-          <UButton
-            v-if="checkUpdateData"
-            block
-            icon="i-lucide-download"
-            label="立即更新"
-            @click="startDownload(checkUpdateData)"
-          />
+        <div v-if="downloadState.status === 'idle'" class="flex w-full gap-2">
+          <UButton block icon="i-lucide-download" label="立即更新" @click="startDownload" />
           <UPopover v-model:open="settingsOpen">
             <UButton aria-label="下载设置" icon="i-lucide-settings-2" variant="subtle" />
             <template #content>
