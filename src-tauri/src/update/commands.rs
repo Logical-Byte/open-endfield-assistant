@@ -51,11 +51,7 @@ pub async fn check_update(
     app: tauri::AppHandle,
 ) -> Result<UpdateAvailability, String> {
     let check_lease = manager.start_check().map_err(|error| error.to_string())?;
-    let config = controller
-        .oea_config()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .clone();
+    let config = controller.oea_config_snapshot();
     let current_version = app.package_info().version.to_string();
     let user_agent = http::update_user_agent(&current_version);
     let available = check::check_for_update(&config, &current_version, &user_agent).await?;
@@ -89,11 +85,7 @@ pub async fn download_update(
     let download_lease = manager
         .start_update_download()
         .map_err(|error| error.to_string())?;
-    let config = controller
-        .oea_config()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .clone();
+    let config = controller.oea_config_snapshot();
     let metadata = download_lease.available_update().clone();
     let session = download_lease.session();
     let cancellation = session.cancellation();

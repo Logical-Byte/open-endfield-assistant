@@ -10,7 +10,7 @@ import {
   saving,
   updateSourceItems,
 } from '@/utils/app/config';
-import { checkUpdate, updateCheckState } from '@/utils/app/update';
+import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
@@ -302,6 +302,7 @@ onBeforeUnmount(() => {
           <div>
             <UButton
               block
+              :disabled="updateOperationBusy"
               icon="i-lucide-refresh-cw"
               label="检查更新"
               :loading="updateCheckState.status === 'checking'"

@@ -2,6 +2,15 @@ use std::time::Duration;
 
 use crate::config::{OeaConfig, UpdateProxyMode};
 
+/// 构造更新请求共用的客户端配置。
+fn base_client_builder(user_agent: &str) -> reqwest::ClientBuilder {
+    reqwest::Client::builder()
+        .user_agent(user_agent)
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30 * 60))
+        .redirect(reqwest::redirect::Policy::limited(10))
+}
+
 /// 构造更新服务可见的 User-Agent。
 pub(super) fn update_user_agent(app_version: &str) -> String {
     // Windows 10 和 11 都使用 NT 10.0；项目不支持更早版本的 Windows。
@@ -13,11 +22,7 @@ pub(super) fn build_client(
     config: &OeaConfig,
     user_agent: &str,
 ) -> Result<reqwest::Client, String> {
-    let mut builder = reqwest::Client::builder()
-        .user_agent(user_agent)
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(30 * 60))
-        .redirect(reqwest::redirect::Policy::limited(10));
+    let mut builder = base_client_builder(user_agent);
 
     match config.update_proxy_mode {
         UpdateProxyMode::System => {
@@ -50,11 +55,7 @@ pub(super) fn build_client(
 
 /// 构造显式直连的更新下载客户端。
 pub(super) fn build_direct_client(user_agent: &str) -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .user_agent(user_agent)
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(30 * 60))
-        .redirect(reqwest::redirect::Policy::limited(10))
+    base_client_builder(user_agent)
         .no_proxy()
         .build()
         .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))

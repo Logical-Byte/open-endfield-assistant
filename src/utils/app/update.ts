@@ -17,7 +17,7 @@ import { logError, logInfo, logWarn, onAppStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const EMPTY_DOWNLOAD_PROGRESS: DownloadProgress = {
   downloadedSize: 0,
@@ -40,6 +40,14 @@ export const installError = ref<string | null>(null);
 export const justUpdatedInfo = ref<UpdateCompleteInfo | null>(null);
 /** 安装弹窗是否打开。 */
 export const showInstallModal = ref<boolean>(false);
+
+/** 检查、下载包生命周期或安装流程占用更新入口时，不允许发起其他更新操作。 */
+export const updateOperationBusy = computed<boolean>(
+  () =>
+    updateCheckState.value.status === 'checking' ||
+    ['downloading', 'cancelling', 'completed'].includes(downloadState.value.status) ||
+    installStatus.value === UpdateInstallStatus.Installing,
+);
 
 /** 安装互斥：同一时间只允许一个安装任务。 */
 let isInstalling = false;
@@ -124,7 +132,7 @@ function clearPendingUpdateInfo(): void {
 
 /** 执行一次检查更新（启动自动检查与设置页手动检查共用）。 */
 export async function checkUpdate(): Promise<void> {
-  if (updateCheckState.value.status === 'checking') {
+  if (updateOperationBusy.value) {
     return;
   }
 
@@ -309,6 +317,23 @@ export async function tryAutoInstall(): Promise<void> {
 
 /** 安装启动结果：命令已接受、流程被条件阻止，或安装失败。 */
 export type InstallStartResult = 'started' | 'skipped' | 'failed';
+
+/** 将开发者选择的本地完整包交给生产安装路径，并由本模块维护下载状态。 */
+export async function installLocalUpdatePackage(packagePath: string): Promise<InstallStartResult> {
+  if (updateOperationBusy.value) {
+    return 'skipped';
+  }
+
+  downloadState.value = {
+    status: 'completed',
+    update: {
+      downloadedPackagePath: packagePath,
+      versionName: oeaVersion,
+      releaseNote: '',
+    },
+  };
+  return startInstall();
+}
 
 /** 开始安装（自动触发与手动「立即安装」共用；扫描任务运行中拒绝）。 */
 export async function startInstall(): Promise<InstallStartResult> {
