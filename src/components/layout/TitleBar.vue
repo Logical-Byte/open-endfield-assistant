@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { oeaVersion } from '@/main';
-import { MirrorchyanResourcesLatestResponseData } from '@/types/mirrorchyan';
-import { UpdateCheckStatus } from '@/types/update';
-import { startDownload, updateCheckResult } from '@/utils/app/update';
+import { startDownload, updateCheckState } from '@/utils/app/update';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -11,14 +9,11 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 // 用动态绑定避免 Vite 把它当作模块导入解析。
 const faviconUrl = '/favicon.ico';
 
-const checkUpdateData = computed<MirrorchyanResourcesLatestResponseData | null>(() => {
-  if (
-    updateCheckResult.value.status !== UpdateCheckStatus.HasUpdate ||
-    !updateCheckResult.value.result.data
-  ) {
+const availableVersion = computed<string | null>(() => {
+  if (updateCheckState.value.status !== 'available') {
     return null;
   }
-  return updateCheckResult.value.result.data;
+  return updateCheckState.value.update.versionName;
 });
 
 const appWindow = isTauri() ? getCurrentWindow() : null;
@@ -66,13 +61,13 @@ onUnmounted(() => {
         :src="faviconUrl"
       />
       <button
-        v-if="checkUpdateData"
-        :aria-label="`检测到新版本：${checkUpdateData.version_name}`"
+        v-if="availableVersion"
+        :aria-label="`检测到新版本：${availableVersion}`"
         class="titlebar-update-notice text-xs font-bold"
         data-tauri-drag-region="false"
-        @click="startDownload(checkUpdateData)"
+        @click="startDownload"
       >
-        检测到新版本：{{ checkUpdateData.version_name }}
+        检测到新版本：{{ availableVersion }}
       </button>
       <span class="pointer-events-none font-ui text-xs text-toned">
         OEA<span v-if="oeaVersion"> v{{ oeaVersion }}</span>

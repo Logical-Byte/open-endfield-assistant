@@ -1,43 +1,23 @@
-import { MirrorchyanResourcesLatestResponse } from '@/types/mirrorchyan';
-import { UpdateSource } from '@/types/oeaConfig';
-import { Endpoints } from '@octokit/types';
-
-/**
- * GitHub 单个 Release 响应类型（按 tag 获取）。
- *
- * @see https://docs.github.com/en/rest/releases/releases#get-a-release-by-tag-name
- */
-export type GitHubRelease =
-  Endpoints['GET /repos/{owner}/{repo}/releases/tags/{tag}']['response']['data'];
-
-/** 检查更新阶段。 */
-export enum UpdateCheckStatus {
-  Idle,
-  Checking,
-  HasUpdate,
-  NoUpdate,
-  Error,
+/** 后端检查到的可用更新。 */
+export interface AvailableUpdate {
+  versionName: string;
+  releaseNote: string;
 }
 
-export type UpdateCheckResult =
-  | { status: UpdateCheckStatus.Idle }
-  | { status: UpdateCheckStatus.Checking }
-  | { status: UpdateCheckStatus.HasUpdate; result: MirrorchyanResourcesLatestResponse }
-  | { status: UpdateCheckStatus.NoUpdate; result: MirrorchyanResourcesLatestResponse }
-  | { status: UpdateCheckStatus.Error; error: Error; result?: MirrorchyanResourcesLatestResponse };
+/** `check_update` 命令返回值。 */
+export type UpdateAvailability =
+  { status: 'upToDate' } | { status: 'available'; update: AvailableUpdate };
 
-/** 下载阶段。 */
-export enum UpdateDownloadStatus {
-  Idle,
-  Downloading,
-  /** 已请求取消、Rust 仍在收尾（此时 `isDownloading` 仍为 true，不可开始新下载）。 */
-  Cancelling,
-  Completed,
-  Failed,
-}
+/** 当前 WebView 生命周期内的检查状态。 */
+export type UpdateCheckState =
+  | { status: 'unknown'; lastCheckedAt: null }
+  | { status: 'checking'; lastCheckedAt: number | null }
+  | { status: 'upToDate'; lastCheckedAt: number }
+  | { status: 'available'; lastCheckedAt: number; update: AvailableUpdate }
+  | { status: 'error'; lastCheckedAt: number | null; error: Error };
 
-/** 下载进度（来自 Rust `download-progress` 事件，字段已 camelCase）。 */
-export interface UpdateDownloadProgress {
+/** 下载进度（来自本次 `download_update` 调用独享的 IPC Channel）。 */
+export interface DownloadProgress {
   /** 已下载字节数 */
   downloadedSize: number;
   /** 总字节数（未知为 0） */
@@ -48,26 +28,20 @@ export interface UpdateDownloadProgress {
   progress: number;
 }
 
-/** 更新包类型。 */
-export enum UpdatePackageType {
-  Incremental = 'incremental',
-  Full = 'full',
-}
-
-/** 已就绪的下载信息（URL + 校验信息，由「下载源决策」产出）。 */
-export interface PreparedUpdate {
-  url: string;
-  /** 期望 sha256（OEM 来源时来自 stable manifest，GitHub 来源时来自 asset.digest） */
-  sha256?: string;
-  fileSize?: number;
-  /** 建议文件名（OEM / GitHub 来源时提供；MirrorChyan 无此信息），服务端可能通过 Content-Disposition 覆盖实际文件名 */
-  filename?: string;
-  source: UpdateSource;
-  /** 更新包类型（MirrorChyan 按响应判定；GitHub 固定全量） */
-  updateType: UpdatePackageType;
+/** 后端完成原子发布后的可安装更新。 */
+export interface DownloadedUpdate {
+  downloadedPackagePath: string;
   versionName: string;
   releaseNote: string;
 }
+
+/** 下载及其可安装结果的唯一状态。 */
+export type DownloadState =
+  | { status: 'idle' }
+  | { status: 'downloading'; progress: DownloadProgress }
+  | { status: 'cancelling'; progress: DownloadProgress }
+  | { status: 'completed'; update: DownloadedUpdate }
+  | { status: 'failed' };
 
 /** 安装阶段。 */
 export enum UpdateInstallStatus {
@@ -99,9 +73,6 @@ export interface PendingUpdateInfo {
   versionName: string;
   releaseNote: string;
   downloadSavePath: string;
-  fileSize?: number;
-  updateType: UpdatePackageType;
-  downloadSource?: UpdateSource;
   timestamp: number;
 }
 

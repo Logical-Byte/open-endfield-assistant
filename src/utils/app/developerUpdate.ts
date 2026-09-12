@@ -1,20 +1,6 @@
 import { oeaVersion } from '@/main';
-import { UpdateSource } from '@/types/oeaConfig';
-import {
-  PreparedUpdate,
-  UpdateDownloadStatus,
-  UpdateInstallStageEvent,
-  UpdateInstallStatus,
-  UpdatePackageType,
-} from '@/types/update';
-import {
-  downloadSavePath,
-  downloadStatus,
-  installError,
-  installStatus,
-  preparedUpdate,
-  startInstall,
-} from '@/utils/app/update';
+import { UpdateInstallStageEvent, UpdateInstallStatus } from '@/types/update';
+import { downloadState, installError, installStatus, startInstall } from '@/utils/app/update';
 import { logInfo } from '@/utils/tauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -28,9 +14,7 @@ export const developerInstallBusy = ref<boolean>(false);
 /** 普通更新状态占用安装入口时，不允许开始开发者流程。 */
 function hasUpdateActivity(): boolean {
   return (
-    downloadStatus.value === UpdateDownloadStatus.Downloading ||
-    downloadStatus.value === UpdateDownloadStatus.Cancelling ||
-    downloadStatus.value === UpdateDownloadStatus.Completed ||
+    ['downloading', 'cancelling', 'completed'].includes(downloadState.value.status) ||
     installStatus.value === UpdateInstallStatus.Installing
   );
 }
@@ -84,14 +68,6 @@ export async function developerInstallUpdatePackage(): Promise<void> {
     if (packagePath === null) {
       return;
     }
-    const localUpdate: PreparedUpdate = {
-      url: '',
-      source: UpdateSource.Github,
-      // Rust 会根据 ZIP 内容识别全量包或增量包；这里仅满足共享前端状态的类型。
-      updateType: UpdatePackageType.Full,
-      versionName: oeaVersion,
-      releaseNote: '',
-    };
     unlisten = await listen<UpdateInstallStageEvent>('update-install-stage', (event) => {
       appendTrace(`Rust stage event: ${event.payload.stage}`);
     });
@@ -101,9 +77,14 @@ export async function developerInstallUpdatePackage(): Promise<void> {
     if (refuseActiveUpdate()) {
       return;
     }
-    preparedUpdate.value = localUpdate;
-    downloadSavePath.value = packagePath;
-    downloadStatus.value = UpdateDownloadStatus.Completed;
+    downloadState.value = {
+      status: 'completed',
+      update: {
+        downloadedPackagePath: packagePath,
+        versionName: oeaVersion,
+        releaseNote: '',
+      },
+    };
     appendTrace('frontend package state prepared; entering production installer');
     appendTrace(`invoking Rust install_update: ${packagePath}`);
     const result = await startInstall();
