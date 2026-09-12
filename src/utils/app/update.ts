@@ -300,7 +300,7 @@ export async function checkUpdate(): Promise<void> {
 export async function startDownload(
   checkUpdateData: MirrorchyanResourcesLatestResponseData,
 ): Promise<void> {
-  if (isDownloading) {
+  if (isDownloading || isInstalling) {
     return;
   }
   // 互斥锁必须在准备阶段之前占用：`prepareDownload` 含 GitHub API 请求（较慢），
@@ -517,10 +517,15 @@ export async function tryAutoInstall(): Promise<void> {
   await startInstall();
 }
 
+/** 安装启动结果：命令已接受、流程被条件阻止，或安装失败。 */
+export type InstallStartResult = 'started' | 'skipped' | 'failed';
+
 /** 开始安装（自动触发与手动「立即安装」共用；扫描任务运行中拒绝）。 */
-export async function startInstall(): Promise<void> {
-  if (isInstalling) {
-    return;
+export async function startInstall(): Promise<InstallStartResult> {
+  // 下载命令返回、状态已经进入 Completed 后，startDownload 的 finally 可能还没有
+  // 释放前端标记；此时 Rust 已结束下载，可以直接进入安装。其他下载阶段必须拒绝。
+  if (isInstalling || (isDownloading && downloadStatus.value !== UpdateDownloadStatus.Completed)) {
+    return 'skipped';
   }
   if (appStatus.value.running) {
     useToast().add({
@@ -529,7 +534,7 @@ export async function startInstall(): Promise<void> {
       icon: 'i-lucide-info',
       color: 'info',
     });
-    return;
+    return 'skipped';
   }
 
   const zipPath = downloadSavePath.value;
@@ -537,7 +542,7 @@ export async function startInstall(): Promise<void> {
   if (!zipPath || !prepared) {
     clearDownloadedUpdateState();
     handleInstallFailure(new Error('缺少下载包信息，请重新下载'));
-    return;
+    return 'failed';
   }
 
   isInstalling = true;
@@ -556,11 +561,13 @@ export async function startInstall(): Promise<void> {
     // Rust 会构造 candidate、发布 transaction 并启动 helper。helper 接管后当前进程
     // 退出，所以这里没有成功后的 relaunch，也没有可供前端继续编排的细粒度 command。
     await invoke('install_update', { packagePath: zipPath });
+    return 'started';
   } catch (error) {
     // Rust 在安装准备或 helper 启动失败时删除 zip；保留错误提示，但把下载态清空，
     // 使下一次重试从下载阶段开始，不会误用已经消费过的 zip。
     clearDownloadedUpdateState();
     handleInstallFailure(error);
+    return 'failed';
   } finally {
     unlisten?.();
     isInstalling = false;

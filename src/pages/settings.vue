@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import { oeaVersion } from '@/main';
 import { UpdateProxyMode } from '@/types/oeaConfig';
 import { UpdateCheckStatus } from '@/types/update';
@@ -79,6 +80,7 @@ const sections = [
   { id: 'interface', icon: 'i-lucide-layout-panel-left', title: '界面设置' },
   { id: 'sound', icon: 'i-lucide-headphones', title: '声音设置' },
   { id: 'update', icon: 'i-lucide-download', title: '更新设置' },
+  { id: 'developer', icon: 'i-lucide-code-2', title: '开发者选项' },
 ];
 
 /** 当前高亮的设置分类 id。 */
@@ -308,6 +310,8 @@ onBeforeUnmount(() => {
             />
           </div>
         </SettingsCard>
+
+        <DeveloperSettings />
       </UPageBody>
     </UPage>
   </UContainer>
