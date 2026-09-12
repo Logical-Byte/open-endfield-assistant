@@ -11,10 +11,14 @@ use std::{
 };
 
 #[cfg(target_os = "macos")]
-use std::process::{Child, Command};
+use std::process::Child;
+#[cfg(target_os = "macos")]
+use std::process::Command;
 
 #[cfg(target_os = "windows")]
 use super::windows;
+
+pub(crate) mod extra;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UpdatePromptMode {

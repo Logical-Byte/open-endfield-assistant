@@ -1,6 +1,12 @@
 //! Windows 更新文件原语。
 
-use std::{fs::File, io, os::windows::ffi::OsStrExt, os::windows::io::AsRawHandle, path::Path};
+use std::{
+    fs::File,
+    io,
+    os::windows::{ffi::OsStrExt, io::AsRawHandle, process::CommandExt},
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 // Cargo 的 Windows 测试 harness 没有 Tauri exe 携带的 Common Controls v6 manifest。
 // 测试本来就使用静默提示，因此不要把 `TaskDialogIndirect` 静态链接进测试 exe，
@@ -41,6 +47,44 @@ use ::windows::Win32::{
 
 #[cfg(not(test))]
 use crate::platform::dialog::{self, DialogIcon};
+
+/// 让开发者选择一个 ZIP 更新包，并确认将退出应用执行安装。
+pub(in crate::platform) fn choose_update_package(
+    default_directory: &Path,
+) -> io::Result<Option<PathBuf>> {
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let default_directory = default_directory.to_string_lossy().replace('\'', "''");
+    let script = format!(
+        r#"Add-Type -AssemblyName System.Windows.Forms
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+$picker = New-Object System.Windows.Forms.OpenFileDialog
+$picker.Title = '选择用于更新测试的 ZIP'
+$picker.InitialDirectory = '{default_directory}'
+$picker.Filter = 'ZIP 更新包 (*.zip)|*.zip'
+if ($picker.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {{ exit 2 }}
+$answer = [System.Windows.Forms.MessageBox]::Show("将安装以下本地更新包并退出 OEA：`n`n$($picker.FileName)", 'OEA 开发者选项', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) {{ exit 2 }}
+[Console]::Out.Write($picker.FileName)"#
+    );
+    let output = Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Sta", "-Command", &script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()?;
+    if output.status.code() == Some(2) {
+        return Ok(None);
+    }
+    if !output.status.success() {
+        return Err(io::Error::other(
+            String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+        ));
+    }
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    if path.is_empty() {
+        Err(io::Error::other("更新包选择器没有返回文件路径"))
+    } else {
+        Ok(Some(PathBuf::from(path)))
+    }
+}
 
 /// 获取文件上的 Windows 排他锁。
 pub(in crate::platform) fn lock_file(file: &File, nonblocking: bool) -> io::Result<bool> {

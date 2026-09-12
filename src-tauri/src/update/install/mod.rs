@@ -16,6 +16,7 @@ use tauri::Emitter;
 use crate::app_paths::AppPaths;
 
 mod candidate;
+pub(crate) mod extra;
 mod helper;
 mod startup;
 mod workspace;
