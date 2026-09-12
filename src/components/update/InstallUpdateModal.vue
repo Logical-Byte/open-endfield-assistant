@@ -19,6 +19,10 @@ const isInstalling = computed(() => installStatus.value === UpdateInstallStatus.
 const isFailed = computed(() => installStatus.value === UpdateInstallStatus.Failed);
 /** 是否「更新完成」展示模式（重启后）。 */
 const isJustUpdatedMode = computed(() => justUpdatedInfo.value !== null);
+/** 跨进程 metadata 可用时展示版本与更新日志。 */
+const hasUpdateDetails = computed<boolean>(() =>
+  Boolean(justUpdatedInfo.value?.previousVersion && justUpdatedInfo.value?.newVersion),
+);
 /** 安装失败时允许通过 X / 遮罩关闭；安装中和更新完成展示使用明确按钮。 */
 const canClose = computed(() => isFailed.value);
 </script>
@@ -39,12 +43,14 @@ const canClose = computed(() => isFailed.value);
         <UIcon class="size-8 shrink-0 text-success" name="i-lucide-circle-check" />
         <div class="shrink-0 space-y-1">
           <p class="font-semibold">更新完成</p>
-          <p class="text-sm text-toned">
+          <p v-if="hasUpdateDetails" class="text-sm text-toned">
             v{{ justUpdatedInfo?.previousVersion }} → {{ justUpdatedInfo?.newVersion }}
           </p>
+          <p v-else class="text-sm text-toned">更新已成功安装，可以继续使用 OEA。</p>
         </div>
         <!-- eslint-disable vue/no-v-html 渲染结果经 DOMPurify 消毒 -->
         <div
+          v-if="hasUpdateDetails"
           class="markdown-body min-h-0 w-full flex-1 overflow-y-auto rounded-md bg-muted p-3 text-left text-sm"
           v-html="renderMarkdown(justUpdatedInfo?.releaseNote ?? '暂无更新日志')"
         />

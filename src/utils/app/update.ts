@@ -143,13 +143,13 @@ function readPendingUpdateInfo(): PendingUpdateInfo | null {
     }
     const info = JSON.parse(raw) as PendingUpdateInfo;
     if (!info.downloadSavePath) {
-      localStorage.removeItem(PENDING_UPDATE_KEY);
+      clearPendingUpdateInfo();
       return null;
     }
     return info;
   } catch (error) {
     logWarn(`读取待安装更新信息失败: ${String(error)}`);
-    localStorage.removeItem(PENDING_UPDATE_KEY);
+    clearPendingUpdateInfo();
     return null;
   }
 }
@@ -425,27 +425,30 @@ export async function cancelDownload(): Promise<void> {
  * 启动时序：先让 Rust 完成一次尚未结束的 resources 事务，再读取待安装包。
  *
  * `consume_startup_update_result` 是只读的启动结果查询。它返回 `completed` 时，
- * helper 已经替换 exe，当前 v2 进程也已经提交 resources，zip 通常已经被删除，
- * 因此完成提示只能从 pending metadata 构造，不能再次检查 zip 是否存在。
+ * helper 已经替换 exe，当前 v2 进程也已经提交 resources，zip 通常已经被删除。
+ * pending metadata 可用于展示版本和更新日志，但缺失时仍应根据事务结果提示成功。
  */
 export async function initUpdateState(): Promise<void> {
   const startupUpdateResult = await consumeStartupUpdateResult();
   if (startupUpdateResult === 'completed') {
     const pending = readPendingUpdateInfo();
+    installStatus.value = UpdateInstallStatus.Completed;
+    installError.value = null;
+    installStage.value = null;
     if (pending) {
-      installStatus.value = UpdateInstallStatus.Completed;
-      installError.value = null;
-      installStage.value = null;
       justUpdatedInfo.value = {
         previousVersion: pending.previousVersion ?? '未知',
         newVersion: pending.versionName,
         releaseNote: pending.releaseNote,
         timestamp: Date.now(),
       };
-      showInstallModal.value = true;
     } else {
-      logWarn('启动更新事务已完成，但缺少待安装更新信息，跳过完成提示');
+      // Rust 的启动结果是事务完成的事实来源。WebView 状态可能跨进程丢失，此时仍
+      // 展示简化提示；以后可由 transaction 直接携带版本信息并统一两种展示。
+      justUpdatedInfo.value = { timestamp: Date.now() };
+      logWarn('启动更新事务已完成，但缺少待安装更新信息，显示简化完成提示');
     }
+    showInstallModal.value = true;
     clearPendingUpdateInfo();
   } else {
     // helper 未能接管时 zip 会被 Rust 删除；此检查会清除 stale pending，之后正常的

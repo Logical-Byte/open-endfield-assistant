@@ -105,10 +105,10 @@ export interface PendingUpdateInfo {
   timestamp: number;
 }
 
-/** 更新完成弹窗使用的信息，由 Rust 启动结果与 pending metadata 组合得到。 */
+/** 更新完成弹窗使用的信息；跨进程 metadata 缺失时只保证 `timestamp`。 */
 export interface UpdateCompleteInfo {
-  previousVersion: string;
-  newVersion: string;
-  releaseNote: string;
+  previousVersion?: string;
+  newVersion?: string;
+  releaseNote?: string;
   timestamp: number;
 }
