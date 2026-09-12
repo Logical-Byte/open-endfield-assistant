@@ -6,8 +6,11 @@
 
 - 使用 `cargo add` 和 `cargo remove` 管理依赖。除非兼容性要求必须锁定版本，否则让 Cargo 选择版本；
 - 在 `src-tauri/` 目录中运行 Cargo 命令。从仓库根目录运行时，通过 `--manifest-path src-tauri/Cargo.toml` 指定 manifest；
-- 开发过程中先运行 `cargo check` 获取编译反馈。使用 `cargo fix --allow-dirty` 和 `cargo clippy --fix --allow-dirty` 应用 Rust 自动修复；
-- 提交前运行格式检查、Clippy 和测试。完整检查要求见[贡献指南](../CONTRIBUTING.md#检查与测试)。
+- 开发过程中先运行 `cargo check` 获取编译反馈。使用 `cargo fix --allow-dirty` 和 `cargo clippy --fix --allow-dirty` 应用 Rust 自动修复。
+
+## 检查与测试
+
+提交前，在 Windows 的 `src-tauri/` 目录中运行：
 
 ```bash
 cargo fmt --all -- --check
