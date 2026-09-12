@@ -4,9 +4,8 @@ use crate::config::{OeaConfig, UpdateProxyMode};
 
 /// 构造更新服务可见的 User-Agent。
 pub(super) fn update_user_agent(app_version: &str) -> String {
-    let os_version = tauri_plugin_os::version().to_string();
-    let nt_version = os_version.split('.').take(2).collect::<Vec<_>>().join(".");
-    format!("OEA/{app_version} (Windows NT {nt_version}; Win64; x64)")
+    // Windows 10 和 11 都使用 NT 10.0；项目不支持更早版本的 Windows。
+    format!("OEA/{app_version} (Windows NT 10.0; Win64; x64)")
 }
 
 /// 按一次调用的配置快照构建更新 HTTP 客户端。
@@ -69,7 +68,6 @@ mod tests {
     fn user_agent_preserves_the_service_visible_shape() {
         let user_agent = update_user_agent("1.2.3");
 
-        assert!(user_agent.starts_with("OEA/1.2.3 (Windows NT "));
-        assert!(user_agent.ends_with("; Win64; x64)"));
+        assert_eq!(user_agent, "OEA/1.2.3 (Windows NT 10.0; Win64; x64)");
     }
 }

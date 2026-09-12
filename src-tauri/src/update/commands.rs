@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::controller::Controller;
 
@@ -94,10 +94,7 @@ pub async fn download_update(
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .clone();
-    let metadata = download_lease
-        .available_update()
-        .expect("高层下载 lease 必须包含可用更新")
-        .clone();
+    let metadata = download_lease.available_update().clone();
     let session = download_lease.session();
     let cancellation = session.cancellation();
     let user_agent = http::update_user_agent(&app.package_info().version.to_string());
@@ -120,86 +117,10 @@ pub async fn download_update(
     })
 }
 
-/// 下载进度事件（前端按 `session_id` 过滤旧任务的迟到事件）。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadProgressEvent {
-    /// 下载会话编号（自增，用于区分新旧任务）。
-    pub(super) session_id: u64,
-    /// 已下载字节数。
-    pub(super) downloaded_size: u64,
-    /// 总字节数（未知时为 `0`）。
-    pub(super) total_size: u64,
-    /// EMA 平滑后的瞬时速度（字节/秒）。
-    pub(super) speed: u64,
-    /// 进度百分比（`0.0` ~ `100.0`，总大小未知时为 `0.0`）。
-    pub(super) progress: f64,
-}
-
-/// 下载结果。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadResult {
-    /// 本次下载的会话编号。
-    pub(super) session_id: u64,
-    /// 实际保存路径（可能因响应中的文件名而不同于请求值）。
-    pub(super) actual_save_path: String,
-    /// 从响应中检测到的文件名。
-    pub(super) detected_filename: Option<String>,
-}
-
-/// 文件下载命令的请求参数。
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadRequest {
-    pub(super) url: String,
-    pub(super) save_path: String,
-    pub(super) total_size: Option<u64>,
-    pub(super) expected_sha256: Option<String>,
-    pub(super) proxy_mode: Option<ProxyMode>,
-    pub(super) proxy_url: Option<String>,
-    pub(super) accept: Option<String>,
-    pub(super) user_agent: Option<String>,
-}
-
-/// 文件下载使用的代理模式。
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ProxyMode {
-    /// 不使用代理。
-    None,
-    /// 使用操作系统代理。
-    System,
-    /// 使用请求中提供的代理 URL。
-    Custom,
-}
-
-/// 下载文件。
-#[tauri::command]
-pub async fn download_file(
-    manager: tauri::State<'_, UpdateManager>,
-    app: tauri::AppHandle,
-    request: DownloadRequest,
-) -> Result<DownloadResult, String> {
-    download::download(&manager, app, request).await
-}
-
 /// 取消当前文件下载。
 #[tauri::command]
 pub fn cancel_download(manager: tauri::State<'_, UpdateManager>) -> Result<(), String> {
     manager.cancel_download().map_err(|error| error.to_string())
-}
-
-/// 返回文件下载目录。
-#[tauri::command]
-pub fn get_download_dir() -> Result<String, String> {
-    download::get_download_dir()
-}
-
-/// 返回更新检查和下载共用的 Windows 系统代理。
-#[tauri::command]
-pub fn resolve_system_proxy() -> Result<Option<String>, String> {
-    download::resolve_system_proxy()
 }
 
 #[cfg(test)]

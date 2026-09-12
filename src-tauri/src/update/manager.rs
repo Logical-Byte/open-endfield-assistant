@@ -40,7 +40,7 @@ pub(super) struct DownloadSession {
 pub(super) struct DownloadLease<'a> {
     manager: &'a UpdateManager,
     session: Arc<DownloadSession>,
-    available_update: Option<AvailableUpdateMetadata>,
+    available_update: AvailableUpdateMetadata,
 }
 
 impl Default for UpdateManager {
@@ -74,30 +74,6 @@ impl UpdateManager {
         self.lock_state().available_update.clone()
     }
 
-    pub(super) fn start_download(&self) -> Result<DownloadLease<'_>> {
-        let mut state = self.lock_state();
-        match state.operation {
-            UpdateOperation::Idle => {}
-            UpdateOperation::Checking => bail!("检查更新期间无法开始下载"),
-            UpdateOperation::Downloading(_) => bail!("更新下载已在进行"),
-            UpdateOperation::Installing => bail!("安装更新期间无法开始下载"),
-        }
-
-        state.next_session_id += 1;
-        let session = Arc::new(DownloadSession {
-            id: state.next_session_id,
-            cancellation: CancellationToken::new(),
-            downloaded_bytes: AtomicU64::new(0),
-        });
-        state.operation = UpdateOperation::Downloading(Arc::clone(&session));
-
-        Ok(DownloadLease {
-            manager: self,
-            session,
-            available_update: None,
-        })
-    }
-
     /// 使用已缓存的可用更新开始一次完整下载操作。
     pub(super) fn start_update_download(&self) -> Result<DownloadLease<'_>> {
         let mut state = self.lock_state();
@@ -123,7 +99,7 @@ impl UpdateManager {
         Ok(DownloadLease {
             manager: self,
             session,
-            available_update: Some(available_update),
+            available_update,
         })
     }
 
@@ -213,8 +189,8 @@ impl DownloadLease<'_> {
         Arc::clone(&self.session)
     }
 
-    pub(super) fn available_update(&self) -> Option<&AvailableUpdateMetadata> {
-        self.available_update.as_ref()
+    pub(super) fn available_update(&self) -> &AvailableUpdateMetadata {
+        &self.available_update
     }
 }
 
@@ -260,6 +236,13 @@ mod tests {
         }
     }
 
+    fn cache_update(manager: &UpdateManager) {
+        manager
+            .start_check()
+            .unwrap()
+            .complete(Some(metadata("1.3.0")));
+    }
+
     #[test]
     fn check_replaces_cache_and_all_exit_paths_restore_idle() {
         let manager = UpdateManager::default();
@@ -271,18 +254,16 @@ mod tests {
 
         let failed_check = manager.start_check().unwrap();
         assert_eq!(manager.available_update(), None);
-        assert!(manager.start_download().is_err());
+        assert!(manager.start_update_download().is_err());
         assert!(manager.begin_install().is_err());
         drop(failed_check);
 
-        let download = manager.start_download().unwrap();
-        drop(download);
         manager.begin_install().unwrap();
         manager.finish_install().unwrap();
 
         manager.start_check().unwrap().complete(None);
         assert_eq!(manager.available_update(), None);
-        manager.start_download().unwrap();
+        assert!(manager.start_update_download().is_err());
     }
 
     #[test]
@@ -293,18 +274,19 @@ mod tests {
 
         let check = manager.start_check().unwrap();
         assert!(manager.start_check().is_err());
-        assert!(manager.start_download().is_err());
+        assert!(manager.start_update_download().is_err());
         assert!(manager.begin_install().is_err());
         manager.cancel_download().unwrap();
         drop(check);
 
-        let download = manager.start_download().unwrap();
+        cache_update(&manager);
+        let download = manager.start_update_download().unwrap();
         let session = download.session();
         session.set_downloaded_bytes(10);
         assert_eq!(session.downloaded_bytes(), 10);
         assert!(!session.is_cancelled());
         assert!(manager.start_check().is_err());
-        assert!(manager.start_download().is_err());
+        assert!(manager.start_update_download().is_err());
         assert!(manager.begin_install().is_err());
         manager.cancel_download().unwrap();
         assert!(session.is_cancelled());
@@ -313,7 +295,7 @@ mod tests {
         manager.begin_install().unwrap();
         assert!(manager.begin_install().is_err());
         assert!(manager.start_check().is_err());
-        assert!(manager.start_download().is_err());
+        assert!(manager.start_update_download().is_err());
         assert!(manager.cancel_download().is_err());
         manager.finish_install().unwrap();
         assert!(manager.finish_install().is_err());
@@ -333,7 +315,7 @@ mod tests {
             .unwrap()
             .complete(Some(metadata("1.3.0")));
         let download = manager.start_update_download().unwrap();
-        assert_eq!(download.available_update(), Some(&metadata("1.3.0")));
+        assert_eq!(download.available_update(), &metadata("1.3.0"));
         assert_eq!(manager.available_update(), Some(metadata("1.3.0")));
         drop(download);
 
@@ -344,7 +326,8 @@ mod tests {
     #[tokio::test]
     async fn cancellation_actively_wakes_download_waiters() {
         let manager = UpdateManager::default();
-        let download = manager.start_download().unwrap();
+        cache_update(&manager);
+        let download = manager.start_update_download().unwrap();
         let session = download.session();
         let cancellation = session.cancellation();
 
@@ -362,7 +345,8 @@ mod tests {
     #[test]
     fn stale_download_completion_does_not_clear_active_operation() {
         let manager = UpdateManager::default();
-        let download = manager.start_download().unwrap();
+        cache_update(&manager);
+        let download = manager.start_update_download().unwrap();
         let active_id = download.id();
 
         manager.finish_download(active_id.wrapping_add(1));
