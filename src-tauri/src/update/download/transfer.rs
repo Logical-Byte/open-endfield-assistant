@@ -31,8 +31,11 @@ pub(super) async fn download_to_target(
     session: Arc<DownloadSession>,
     expected_sha256: Option<&str>,
 ) -> Result<DownloadSummary, String> {
-    let transfer = response_to_file(response, target.staging_path(), session).await?;
+    let transfer = response_to_file(response, target.staging_path(), Arc::clone(&session)).await?;
     verify_sha256(&transfer.sha256, expected_sha256)?;
+    if session.cancellation().is_cancelled() {
+        return Err("下载已取消".to_string());
+    }
     let path = target.publish()?;
 
     Ok(DownloadSummary {
@@ -51,6 +54,7 @@ async fn response_to_file(
     let (tx, rx) = tokio::sync::mpsc::channel::<bytes::Bytes>(64);
     let output_path = output_path.to_path_buf();
     let writer_task = tokio::task::spawn_blocking(move || write_file(&output_path, rx));
+    let cancellation = session.cancellation();
 
     let transfer_result = stream_response(response, tx, session).await;
     let writer_result = writer_task
@@ -58,7 +62,12 @@ async fn response_to_file(
         .map_err(|error| format!("写入任务异常: {error}"))?;
 
     // 磁盘已满等具体 I/O 错误优先于同时发生的响应流错误。
-    writer_result.and(transfer_result)
+    writer_result?;
+    let transfer = transfer_result?;
+    if cancellation.is_cancelled() {
+        return Err("下载已取消".to_string());
+    }
+    Ok(transfer)
 }
 
 async fn stream_response(
@@ -69,25 +78,30 @@ async fn stream_response(
     let mut hasher = Sha256::new();
     let mut stream = response.bytes_stream();
     let mut downloaded = 0u64;
+    let cancellation = session.cancellation();
 
-    while let Some(chunk) = stream.next().await {
-        if session.is_cancelled() {
-            return Err("下载已取消".to_string());
-        }
-
+    loop {
+        let chunk = tokio::select! {
+            biased;
+            chunk = stream.next() => chunk,
+            _ = cancellation.cancelled() => return Err("下载已取消".to_string()),
+        };
+        let Some(chunk) = chunk else {
+            break;
+        };
         let chunk = chunk.map_err(|error| format!("下载数据失败: {error}"))?;
 
         hasher.update(&chunk);
         let chunk_size = chunk.len() as u64;
-        tx.send(chunk)
-            .await
-            .map_err(|_| "磁盘写入线程异常退出".to_string())?;
+        tokio::select! {
+            biased;
+            result = tx.send(chunk) => {
+                result.map_err(|_| "磁盘写入线程异常退出".to_string())?;
+            }
+            _ = cancellation.cancelled() => return Err("下载已取消".to_string()),
+        }
         downloaded += chunk_size;
         session.set_downloaded_bytes(downloaded);
-    }
-
-    if session.is_cancelled() {
-        return Err("下载已取消".to_string());
     }
 
     Ok(TransferSummary {

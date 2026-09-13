@@ -1,20 +1,5 @@
-import { oeaVersion } from '@/main';
-import { UpdateSource } from '@/types/oeaConfig';
-import {
-  PreparedUpdate,
-  UpdateDownloadStatus,
-  UpdateInstallStageEvent,
-  UpdateInstallStatus,
-  UpdatePackageType,
-} from '@/types/update';
-import {
-  downloadSavePath,
-  downloadStatus,
-  installError,
-  installStatus,
-  preparedUpdate,
-  startInstall,
-} from '@/utils/app/update';
+import { UpdateInstallStageEvent } from '@/types/update';
+import { installError, installLocalUpdatePackage, updateOperationBusy } from '@/utils/app/update';
 import { logInfo } from '@/utils/tauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -25,19 +10,9 @@ export const developerInstallTrace = ref<string[]>([]);
 /** 是否正在等待本地包选择或执行手动安装。 */
 export const developerInstallBusy = ref<boolean>(false);
 
-/** 普通更新状态占用安装入口时，不允许开始开发者流程。 */
-function hasUpdateActivity(): boolean {
-  return (
-    downloadStatus.value === UpdateDownloadStatus.Downloading ||
-    downloadStatus.value === UpdateDownloadStatus.Cancelling ||
-    downloadStatus.value === UpdateDownloadStatus.Completed ||
-    installStatus.value === UpdateInstallStatus.Installing
-  );
-}
-
 /** 开发者安装入口是否暂时不可用。 */
 export const developerInstallUnavailable = computed<boolean>(
-  () => developerInstallBusy.value || hasUpdateActivity(),
+  () => developerInstallBusy.value || updateOperationBusy.value,
 );
 
 function appendTrace(message: string): void {
@@ -53,7 +28,7 @@ function appendTrace(message: string): void {
 
 /** 更新流程正在使用共享状态时，拒绝覆盖其更新包。 */
 function refuseActiveUpdate(): boolean {
-  if (!hasUpdateActivity()) {
+  if (!updateOperationBusy.value) {
     return false;
   }
   appendTrace('another update operation owns the package state; refusing developer install');
@@ -84,14 +59,6 @@ export async function developerInstallUpdatePackage(): Promise<void> {
     if (packagePath === null) {
       return;
     }
-    const localUpdate: PreparedUpdate = {
-      url: '',
-      source: UpdateSource.Github,
-      // Rust 会根据 ZIP 内容识别全量包或增量包；这里仅满足共享前端状态的类型。
-      updateType: UpdatePackageType.Full,
-      versionName: oeaVersion,
-      releaseNote: '',
-    };
     unlisten = await listen<UpdateInstallStageEvent>('update-install-stage', (event) => {
       appendTrace(`Rust stage event: ${event.payload.stage}`);
     });
@@ -101,12 +68,9 @@ export async function developerInstallUpdatePackage(): Promise<void> {
     if (refuseActiveUpdate()) {
       return;
     }
-    preparedUpdate.value = localUpdate;
-    downloadSavePath.value = packagePath;
-    downloadStatus.value = UpdateDownloadStatus.Completed;
-    appendTrace('frontend package state prepared; entering production installer');
+    appendTrace('entering production installer with the selected local package');
     appendTrace(`invoking Rust install_update: ${packagePath}`);
-    const result = await startInstall();
+    const result = await installLocalUpdatePackage(packagePath);
     if (result === 'failed') {
       appendTrace(`developer flow failed: ${installError.value ?? 'Rust installer failed'}`);
     } else if (result === 'skipped') {

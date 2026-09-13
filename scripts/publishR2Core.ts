@@ -1,4 +1,4 @@
-import semver from 'semver';
+import { compareStrictSemver, parseStrictSemver } from './semver';
 
 export const R2_BUCKET = 'opendfieldmap-package';
 export const PACKAGE_APP_ID = 'oea';
@@ -30,7 +30,7 @@ export function parseReleaseTag(tag: string): string {
   }
 
   const version = tag.slice(1);
-  if (!semver.valid(version) || semver.clean(version) !== version) {
+  if (!parseStrictSemver(version)) {
     throw new Error(`发布 tag 不是规范 SemVer: ${tag}`);
   }
 
@@ -165,7 +165,7 @@ export function decideStableUpdate(
 ): StableUpdateDecision {
   if (!current) return 'write';
 
-  const comparison = semver.compare(candidate.version, current.version);
+  const comparison = compareStrictSemver(candidate.version, current.version);
   if (comparison < 0) return 'skip-newer-exists';
   if (comparison > 0) return 'write';
 

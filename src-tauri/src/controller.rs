@@ -102,6 +102,14 @@ impl Controller {
         &self.oea_config
     }
 
+    /// 获取当前应用配置的独立快照，供无需持锁的异步流程使用。
+    pub fn oea_config_snapshot(&self) -> OeaConfig {
+        self.oea_config
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
     /// 读取当前状态（只读原子标志；失败原因不存储，由结束事件一次性推送）。
     pub fn get_status(&self) -> AppStatus {
         self.scan_runtime.status()

@@ -2,7 +2,6 @@
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import { oeaVersion } from '@/main';
 import { UpdateProxyMode } from '@/types/oeaConfig';
-import { UpdateCheckStatus } from '@/types/update';
 import {
   CURRENT_SCAN_TIPS_VERSION,
   mirrorchyanCdk,
@@ -11,7 +10,7 @@ import {
   saving,
   updateSourceItems,
 } from '@/utils/app/config';
-import { checkUpdate, updateCheckResult } from '@/utils/app/update';
+import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
@@ -65,7 +64,7 @@ const scanGuideEnabled = computed<boolean>({
 /** 手动检查更新。 */
 async function manualCheckUpdate(): Promise<void> {
   await checkUpdate();
-  if (updateCheckResult.value.status === UpdateCheckStatus.NoUpdate) {
+  if (updateCheckState.value.status === 'upToDate') {
     toast.add({
       title: '当前已是最新版本',
       description: `v${oeaVersion}`,
@@ -303,9 +302,10 @@ onBeforeUnmount(() => {
           <div>
             <UButton
               block
+              :disabled="updateOperationBusy"
               icon="i-lucide-refresh-cw"
               label="检查更新"
-              :loading="updateCheckResult.status === UpdateCheckStatus.Checking"
+              :loading="updateCheckState.status === 'checking'"
               @click="manualCheckUpdate"
             />
           </div>

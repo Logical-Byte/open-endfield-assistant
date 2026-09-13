@@ -31,7 +31,7 @@ fn hex_val(byte: u8) -> Option<u8> {
 }
 
 /// 清理文件名，防止目录穿越：只保留最后一段、拒绝 `..` 与空名、要求含扩展名。
-fn sanitize_filename(filename: &str) -> Option<String> {
+pub(crate) fn sanitize_filename(filename: &str) -> Option<String> {
     let name = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
     if name.is_empty() || name == "." || name == ".." || name.starts_with("..") {
         return None;

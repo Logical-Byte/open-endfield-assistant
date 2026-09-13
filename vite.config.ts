@@ -3,11 +3,12 @@ import vue from '@vitejs/plugin-vue';
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
 import { fileURLToPath, URL } from 'node:url';
-import { valid } from 'semver';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vite';
 import { createHtmlPlugin } from 'vite-plugin-html';
 import vueRouter from 'vue-router/vite';
+
+import { parseStrictSemver } from './scripts/semver';
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -49,7 +50,7 @@ function readOeaVersion(): string {
   if (!config.version) {
     throw new Error('`src-tauri/tauri.conf.json` 缺少 `version` 字段');
   }
-  if (valid(config.version) !== config.version) {
+  if (!parseStrictSemver(config.version)) {
     throw new Error(
       `\`src-tauri/tauri.conf.json\` 的 \`version\` 不是干净的 semver（如 \`0.1.0\`，不接受 \`v\` 前缀或构建元数据）: ${config.version}`,
     );

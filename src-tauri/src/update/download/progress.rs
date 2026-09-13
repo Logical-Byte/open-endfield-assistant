@@ -1,25 +1,21 @@
 use std::{sync::Arc, time::Duration};
 
-use tauri::Emitter;
-
-use crate::update::{commands::DownloadProgressEvent, manager::DownloadSession};
+use crate::update::{commands::DownloadProgress, manager::DownloadSession};
 
 /// 管理进度采样任务，并保证成功事件一定是该会话的最后一个进度事件。
 pub(super) struct ProgressReporter {
-    app: tauri::AppHandle,
-    session_id: u64,
+    channel: tauri::ipc::Channel<DownloadProgress>,
     stop_tx: Option<tokio::sync::oneshot::Sender<()>>,
     task: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl ProgressReporter {
-    pub(super) fn start(
-        app: tauri::AppHandle,
-        session_id: u64,
+    pub(super) fn start_channel(
+        channel: tauri::ipc::Channel<DownloadProgress>,
         session: Arc<DownloadSession>,
         total: u64,
     ) -> Self {
-        let app_for_task = app.clone();
+        let channel_for_task = channel.clone();
         let (stop_tx, mut stop_rx) = tokio::sync::oneshot::channel::<()>();
         let task = tokio::spawn(async move {
             let mut last_downloaded = 0u64;
@@ -49,16 +45,12 @@ impl ProgressReporter {
                         } else {
                             0.0
                         };
-                        let _ = app_for_task.emit(
-                            "download-progress",
-                            DownloadProgressEvent {
-                                session_id,
-                                downloaded_size: downloaded,
-                                total_size: total,
-                                speed: smoothed_speed as u64,
-                                progress,
-                            },
-                        );
+                        let _ = channel_for_task.send(DownloadProgress {
+                            downloaded_size: downloaded,
+                            total_size: total,
+                            speed: smoothed_speed as u64,
+                            progress,
+                        });
                         last_downloaded = downloaded;
                         last_instant = now;
                     }
@@ -67,8 +59,7 @@ impl ProgressReporter {
         });
 
         Self {
-            app,
-            session_id,
+            channel,
             stop_tx: Some(stop_tx),
             task: Some(task),
         }
@@ -82,16 +73,12 @@ impl ProgressReporter {
     }
 
     pub(super) fn emit_complete(&self, downloaded: u64, total: u64) {
-        let _ = self.app.emit(
-            "download-progress",
-            DownloadProgressEvent {
-                session_id: self.session_id,
-                downloaded_size: downloaded,
-                total_size: if total > 0 { total } else { downloaded },
-                speed: 0,
-                progress: 100.0,
-            },
-        );
+        let _ = self.channel.send(DownloadProgress {
+            downloaded_size: downloaded,
+            total_size: if total > 0 { total } else { downloaded },
+            speed: 0,
+            progress: 100.0,
+        });
     }
 
     fn signal_stop(&mut self) {

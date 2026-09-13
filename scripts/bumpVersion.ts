@@ -19,7 +19,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
-import { valid } from 'semver';
+import { parseStrictSemver } from './semver';
 
 // 项目根目录（本文件位于 <root>/scripts/ 下），不依赖运行时 cwd
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -50,7 +50,7 @@ function writeVersion(version: string): void {
 // 规范化版本号：去除 `v` 前缀并按 semver 严格校验（如 `0.2.0`）
 function normalizeVersion(raw: string): string | null {
   const stripped = raw.trim().replace(/^v/i, '');
-  return valid(stripped) === stripped ? stripped : null;
+  return parseStrictSemver(stripped) ? stripped : null;
 }
 
 // 执行 git 命令；失败时抛出带 stderr 的错误
