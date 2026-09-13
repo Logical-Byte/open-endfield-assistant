@@ -1,8 +1,5 @@
-import { UpdateInstallStageEvent } from '@/types/update';
-import { installError, installLocalUpdatePackage, updateOperationBusy } from '@/utils/app/update';
+import { installError, startDeveloperInstall, updateOperationBusy } from '@/utils/app/update';
 import { logInfo } from '@/utils/tauri';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { computed, ref } from 'vue';
 
 /** 开发者选项手动安装流程的可见诊断日志。 */
@@ -35,7 +32,7 @@ function refuseActiveUpdate(): boolean {
   return true;
 }
 
-/** 从本地选择 ZIP，并从“下载完成”状态进入生产安装路径。 */
+/** 在 Rust 内选择、暂存本地 ZIP 并进入生产安装路径。 */
 export async function developerInstallUpdatePackage(): Promise<void> {
   if (developerInstallBusy.value) {
     return;
@@ -48,38 +45,18 @@ export async function developerInstallUpdatePackage(): Promise<void> {
   developerInstallBusy.value = true;
   appendTrace('invoking native Rust picker and confirmation');
 
-  let unlisten: (() => void) | null = null;
   try {
-    const packagePath = await invoke<string | null>('developer_choose_update_package');
-    appendTrace(
-      packagePath === null
-        ? 'native picker or confirmation cancelled'
-        : `native confirmation accepted: ${packagePath}`,
-    );
-    if (packagePath === null) {
-      return;
-    }
-    unlisten = await listen<UpdateInstallStageEvent>('update-install-stage', (event) => {
-      appendTrace(`Rust stage event: ${event.payload.stage}`);
+    const result = await startDeveloperInstall((stage) => {
+      appendTrace(`Rust stage event: ${stage}`);
     });
-
-    // Picker 和事件订阅期间可能已有普通更新开始安装。此后到 `startInstall`
-    // 设置内部互斥标记之前不再让出事件循环，避免覆盖正在安装的包状态。
-    if (refuseActiveUpdate()) {
-      return;
-    }
-    appendTrace('entering production installer with the selected local package');
-    appendTrace(`invoking Rust install_update: ${packagePath}`);
-    const result = await installLocalUpdatePackage(packagePath);
     if (result === 'failed') {
       appendTrace(`developer flow failed: ${installError.value ?? 'Rust installer failed'}`);
-    } else if (result === 'skipped') {
-      appendTrace('developer install did not start because an install condition blocked it');
+    } else if (result === 'cancelled') {
+      appendTrace('native picker or confirmation cancelled');
     }
   } catch (error) {
     appendTrace(`developer flow failed: ${String(error)}`);
   } finally {
-    unlisten?.();
     developerInstallBusy.value = false;
   }
 }

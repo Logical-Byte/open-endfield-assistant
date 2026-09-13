@@ -1,9 +1,13 @@
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicU64, Ordering},
+use std::{
+    path::{Path, PathBuf},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use anyhow::{Result, bail};
+use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 
 use super::check::AvailableUpdateMetadata;
@@ -16,7 +20,13 @@ pub struct UpdateManager {
 struct UpdateState {
     next_session_id: u64,
     available_update: Option<AvailableUpdateMetadata>,
+    pending_update: Option<PendingUpdate>,
     operation: UpdateOperation,
+}
+
+struct PendingUpdate {
+    package_path: PathBuf,
+    info: UpdateInfo,
 }
 
 enum UpdateOperation {
@@ -24,6 +34,33 @@ enum UpdateOperation {
     Checking,
     Downloading(Arc<DownloadSession>),
     Installing,
+}
+
+/// 前端可见的更新展示信息。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfo {
+    pub(super) version_name: String,
+    pub(super) release_note: String,
+}
+
+/// 前端可见的更新操作状态。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum UpdateOperationStatus {
+    Idle,
+    Checking,
+    Downloading,
+    Installing,
+}
+
+/// 一次加锁取得的更新状态快照。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateStatus {
+    operation: UpdateOperationStatus,
+    available_update: Option<UpdateInfo>,
+    pending_update: Option<UpdateInfo>,
 }
 
 pub(super) struct CheckLease<'a> {
@@ -41,6 +78,18 @@ pub(super) struct DownloadLease<'a> {
     manager: &'a UpdateManager,
     session: Arc<DownloadSession>,
     available_update: AvailableUpdateMetadata,
+    completed: bool,
+}
+
+pub(super) struct InstallLease<'a> {
+    manager: &'a UpdateManager,
+    pending_update: PendingUpdate,
+    completed: bool,
+}
+
+pub(super) struct DeveloperInstallLease<'a> {
+    manager: &'a UpdateManager,
+    completed: bool,
 }
 
 impl Default for UpdateManager {
@@ -49,6 +98,7 @@ impl Default for UpdateManager {
             inner: Mutex::new(UpdateState {
                 next_session_id: 0,
                 available_update: None,
+                pending_update: None,
                 operation: UpdateOperation::Idle,
             }),
         }
@@ -58,6 +108,9 @@ impl Default for UpdateManager {
 impl UpdateManager {
     pub(super) fn start_check(&self) -> Result<CheckLease<'_>> {
         let mut state = self.lock_state();
+        if state.pending_update.is_some() {
+            bail!("已有待安装更新，无法重新检查更新");
+        }
         if !matches!(state.operation, UpdateOperation::Idle) {
             bail!("已有更新操作正在进行，请稍后重试");
         }
@@ -69,14 +122,12 @@ impl UpdateManager {
         })
     }
 
-    #[cfg(test)]
-    fn available_update(&self) -> Option<AvailableUpdateMetadata> {
-        self.lock_state().available_update.clone()
-    }
-
     /// 使用已缓存的可用更新开始一次完整下载操作。
     pub(super) fn start_update_download(&self) -> Result<DownloadLease<'_>> {
         let mut state = self.lock_state();
+        if state.pending_update.is_some() {
+            bail!("已有待安装更新，无法重复下载");
+        }
         match state.operation {
             UpdateOperation::Idle => {}
             UpdateOperation::Checking => bail!("检查更新期间无法开始下载"),
@@ -100,6 +151,7 @@ impl UpdateManager {
             manager: self,
             session,
             available_update,
+            completed: false,
         })
     }
 
@@ -115,31 +167,65 @@ impl UpdateManager {
         }
     }
 
-    pub(super) fn begin_install(&self) -> Result<()> {
+    /// 原子取走待安装更新并进入安装状态。
+    pub(super) fn start_install(&self) -> Result<InstallLease<'_>> {
         let mut state = self.lock_state();
         match state.operation {
-            UpdateOperation::Idle => {
-                state.operation = UpdateOperation::Installing;
-                Ok(())
-            }
+            UpdateOperation::Idle => {}
             UpdateOperation::Checking => bail!("检查更新期间无法开始安装更新"),
             UpdateOperation::Downloading(_) => bail!("下载期间无法开始安装更新"),
             UpdateOperation::Installing => bail!("更新安装已在进行"),
         }
+        let pending_update = state
+            .pending_update
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("没有待安装的更新，请先下载更新"))?;
+        state.operation = UpdateOperation::Installing;
+        Ok(InstallLease {
+            manager: self,
+            pending_update,
+            completed: false,
+        })
     }
 
-    pub(super) fn finish_install(&self) -> Result<()> {
+    /// 开发者本地包使用独立入口，不创建或消费普通待安装更新。
+    pub(super) fn start_developer_install(&self) -> Result<DeveloperInstallLease<'_>> {
         let mut state = self.lock_state();
-        if !matches!(state.operation, UpdateOperation::Installing) {
-            bail!("当前没有正在进行的更新安装");
+        if state.pending_update.is_some() {
+            bail!("已有待安装更新，无法开始开发者安装");
         }
-        state.operation = UpdateOperation::Idle;
-        Ok(())
+        match state.operation {
+            UpdateOperation::Idle => state.operation = UpdateOperation::Installing,
+            UpdateOperation::Checking => bail!("检查更新期间无法开始安装更新"),
+            UpdateOperation::Downloading(_) => bail!("下载期间无法开始安装更新"),
+            UpdateOperation::Installing => bail!("更新安装已在进行"),
+        }
+        Ok(DeveloperInstallLease {
+            manager: self,
+            completed: false,
+        })
+    }
+
+    /// 返回不包含安装包路径和下载会话的原子状态快照。
+    pub fn status(&self) -> UpdateStatus {
+        let state = self.lock_state();
+        UpdateStatus {
+            operation: match state.operation {
+                UpdateOperation::Idle => UpdateOperationStatus::Idle,
+                UpdateOperation::Checking => UpdateOperationStatus::Checking,
+                UpdateOperation::Downloading(_) => UpdateOperationStatus::Downloading,
+                UpdateOperation::Installing => UpdateOperationStatus::Installing,
+            },
+            available_update: state.available_update.as_ref().map(UpdateInfo::from),
+            pending_update: state
+                .pending_update
+                .as_ref()
+                .map(|pending| pending.info.clone()),
+        }
     }
 
     pub(crate) fn is_installing(&self) -> bool {
-        let state = self.lock_state();
-        matches!(state.operation, UpdateOperation::Installing)
+        self.status().operation == UpdateOperationStatus::Installing
     }
 
     fn finish_check(&self, available_update: Option<AvailableUpdateMetadata>) {
@@ -158,10 +244,43 @@ impl UpdateManager {
         }
     }
 
+    fn complete_download(
+        &self,
+        session_id: u64,
+        package_path: PathBuf,
+        metadata: &AvailableUpdateMetadata,
+    ) {
+        let mut state = self.lock_state();
+        if matches!(&state.operation, UpdateOperation::Downloading(session) if session.id == session_id)
+        {
+            state.pending_update = Some(PendingUpdate {
+                package_path,
+                info: UpdateInfo::from(metadata),
+            });
+            state.operation = UpdateOperation::Idle;
+        }
+    }
+
+    fn finish_failed_install(&self) {
+        let mut state = self.lock_state();
+        if matches!(state.operation, UpdateOperation::Installing) {
+            state.operation = UpdateOperation::Idle;
+        }
+    }
+
     fn lock_state(&self) -> std::sync::MutexGuard<'_, UpdateState> {
         self.inner
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+impl From<&AvailableUpdateMetadata> for UpdateInfo {
+    fn from(metadata: &AvailableUpdateMetadata) -> Self {
+        Self {
+            version_name: metadata.version_name.clone(),
+            release_note: metadata.release_note.clone(),
+        }
     }
 }
 
@@ -192,6 +311,13 @@ impl DownloadLease<'_> {
     pub(super) fn available_update(&self) -> &AvailableUpdateMetadata {
         &self.available_update
     }
+
+    /// 发布成功后登记待安装更新。此后不再观察取消请求。
+    pub(super) fn complete(mut self, package_path: PathBuf) {
+        self.manager
+            .complete_download(self.session.id, package_path, &self.available_update);
+        self.completed = true;
+    }
 }
 
 impl DownloadSession {
@@ -219,13 +345,51 @@ impl DownloadSession {
 
 impl Drop for DownloadLease<'_> {
     fn drop(&mut self) {
-        self.manager.finish_download(self.session.id);
+        if !self.completed {
+            self.manager.finish_download(self.session.id);
+        }
+    }
+}
+
+impl InstallLease<'_> {
+    pub(super) fn package_path(&self) -> &Path {
+        &self.pending_update.package_path
+    }
+
+    /// helper 接管成功后保持 `Installing`，直到当前进程退出。
+    pub(super) fn complete(mut self) {
+        self.completed = true;
+    }
+}
+
+impl Drop for InstallLease<'_> {
+    fn drop(&mut self) {
+        if !self.completed {
+            self.manager.finish_failed_install();
+        }
+    }
+}
+
+impl DeveloperInstallLease<'_> {
+    /// helper 接管成功后保持 `Installing`，直到当前进程退出。
+    pub(super) fn complete(mut self) {
+        self.completed = true;
+    }
+}
+
+impl Drop for DeveloperInstallLease<'_> {
+    fn drop(&mut self) {
+        if !self.completed {
+            self.manager.finish_failed_install();
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::UpdateManager;
+    use std::path::{Path, PathBuf};
+
+    use super::{UpdateManager, UpdateOperationStatus};
     use crate::update::check::AvailableUpdateMetadata;
 
     fn metadata(version: &str) -> AvailableUpdateMetadata {
@@ -243,82 +407,163 @@ mod tests {
             .complete(Some(metadata("1.3.0")));
     }
 
+    fn complete_download(manager: &UpdateManager) {
+        manager
+            .start_update_download()
+            .unwrap()
+            .complete(PathBuf::from("C:/OEA/cache/downloads/update.zip"));
+    }
+
     #[test]
     fn check_replaces_cache_and_all_exit_paths_restore_idle() {
         let manager = UpdateManager::default();
-        manager
-            .start_check()
-            .unwrap()
-            .complete(Some(metadata("1.3.0")));
-        assert_eq!(manager.available_update(), Some(metadata("1.3.0")));
+        cache_update(&manager);
+        assert_eq!(manager.status().operation, UpdateOperationStatus::Idle);
 
         let failed_check = manager.start_check().unwrap();
-        assert_eq!(manager.available_update(), None);
+        assert!(manager.status().available_update.is_none());
         assert!(manager.start_update_download().is_err());
-        assert!(manager.begin_install().is_err());
+        assert!(manager.start_install().is_err());
         drop(failed_check);
 
-        manager.begin_install().unwrap();
-        manager.finish_install().unwrap();
-
         manager.start_check().unwrap().complete(None);
-        assert_eq!(manager.available_update(), None);
+        assert!(manager.status().available_update.is_none());
         assert!(manager.start_update_download().is_err());
     }
 
     #[test]
-    fn check_download_and_install_are_mutually_exclusive() {
+    fn operation_leases_are_mutually_exclusive() {
         let manager = UpdateManager::default();
-
         manager.cancel_download().unwrap();
 
         let check = manager.start_check().unwrap();
         assert!(manager.start_check().is_err());
         assert!(manager.start_update_download().is_err());
-        assert!(manager.begin_install().is_err());
+        assert!(manager.start_install().is_err());
+        assert!(manager.start_developer_install().is_err());
         manager.cancel_download().unwrap();
         drop(check);
 
         cache_update(&manager);
         let download = manager.start_update_download().unwrap();
         let session = download.session();
-        assert!(!session.is_cancelled());
         assert!(manager.start_check().is_err());
         assert!(manager.start_update_download().is_err());
-        assert!(manager.begin_install().is_err());
+        assert!(manager.start_install().is_err());
+        assert!(manager.start_developer_install().is_err());
         manager.cancel_download().unwrap();
         assert!(session.is_cancelled());
         drop(download);
 
-        manager.begin_install().unwrap();
-        assert!(manager.begin_install().is_err());
+        let developer_install = manager.start_developer_install().unwrap();
         assert!(manager.start_check().is_err());
         assert!(manager.start_update_download().is_err());
+        assert!(manager.start_install().is_err());
+        assert!(manager.start_developer_install().is_err());
         assert!(manager.cancel_download().is_err());
-        manager.finish_install().unwrap();
-        assert!(manager.finish_install().is_err());
+        drop(developer_install);
+        assert_eq!(manager.status().operation, UpdateOperationStatus::Idle);
     }
 
     #[test]
-    fn cached_download_requires_and_preserves_available_update() {
+    fn failed_or_cancelled_download_preserves_available_without_pending() {
         let manager = UpdateManager::default();
-        let error = match manager.start_update_download() {
-            Ok(_) => panic!("没有缓存时不应开始下载"),
-            Err(error) => error,
-        };
-        assert_eq!(error.to_string(), "没有可用的更新，请先检查更新");
+        cache_update(&manager);
 
-        manager
-            .start_check()
-            .unwrap()
-            .complete(Some(metadata("1.3.0")));
         let download = manager.start_update_download().unwrap();
-        assert_eq!(download.available_update(), &metadata("1.3.0"));
-        assert_eq!(manager.available_update(), Some(metadata("1.3.0")));
+        manager.cancel_download().unwrap();
         drop(download);
 
-        assert_eq!(manager.available_update(), Some(metadata("1.3.0")));
+        let status = manager.status();
+        assert!(status.available_update.is_some());
+        assert!(status.pending_update.is_none());
         manager.start_update_download().unwrap();
+    }
+
+    #[test]
+    fn completed_download_registers_pending_and_blocks_check_and_download() {
+        let manager = UpdateManager::default();
+        cache_update(&manager);
+        complete_download(&manager);
+
+        let status = manager.status();
+        assert_eq!(status.operation, UpdateOperationStatus::Idle);
+        assert_eq!(
+            status.available_update.as_ref().unwrap().version_name,
+            "1.3.0"
+        );
+        assert_eq!(
+            status.pending_update.as_ref().unwrap().version_name,
+            "1.3.0"
+        );
+        assert!(manager.start_check().is_err());
+        assert!(manager.start_update_download().is_err());
+        assert!(manager.start_developer_install().is_err());
+    }
+
+    #[test]
+    fn published_download_wins_over_a_late_cancellation_request() {
+        let manager = UpdateManager::default();
+        cache_update(&manager);
+        let download = manager.start_update_download().unwrap();
+
+        manager.cancel_download().unwrap();
+        download.complete(PathBuf::from("C:/OEA/cache/downloads/update.zip"));
+
+        let status = manager.status();
+        assert_eq!(status.operation, UpdateOperationStatus::Idle);
+        assert!(status.pending_update.is_some());
+    }
+
+    #[test]
+    fn install_atomically_consumes_pending_and_failure_does_not_restore_it() {
+        let manager = UpdateManager::default();
+        cache_update(&manager);
+        complete_download(&manager);
+
+        let install = manager.start_install().unwrap();
+        assert_eq!(
+            install.package_path(),
+            Path::new("C:/OEA/cache/downloads/update.zip")
+        );
+        let status = manager.status();
+        assert_eq!(status.operation, UpdateOperationStatus::Installing);
+        assert!(status.pending_update.is_none());
+        assert!(manager.start_install().is_err());
+        drop(install);
+
+        let status = manager.status();
+        assert_eq!(status.operation, UpdateOperationStatus::Idle);
+        assert!(status.pending_update.is_none());
+        assert!(status.available_update.is_some());
+        manager.start_update_download().unwrap();
+    }
+
+    #[test]
+    fn successful_install_keeps_installing_until_process_exit() {
+        let manager = UpdateManager::default();
+        cache_update(&manager);
+        complete_download(&manager);
+
+        manager.start_install().unwrap().complete();
+
+        assert_eq!(
+            manager.status().operation,
+            UpdateOperationStatus::Installing
+        );
+        assert!(manager.is_installing());
+    }
+
+    #[test]
+    fn developer_install_never_creates_pending_update() {
+        let manager = UpdateManager::default();
+
+        manager.start_developer_install().unwrap().complete();
+
+        let status = manager.status();
+        assert_eq!(status.operation, UpdateOperationStatus::Installing);
+        assert!(status.pending_update.is_none());
+        assert!(status.available_update.is_none());
     }
 
     #[tokio::test]
@@ -352,5 +597,24 @@ mod tests {
         assert!(manager.start_check().is_err());
         drop(download);
         manager.start_check().unwrap();
+    }
+
+    #[test]
+    fn status_serialization_hides_pending_package_path() {
+        let manager = UpdateManager::default();
+        cache_update(&manager);
+        complete_download(&manager);
+
+        let json = serde_json::to_value(manager.status()).unwrap();
+
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "operation": "idle",
+                "availableUpdate": { "versionName": "1.3.0", "releaseNote": "notes" },
+                "pendingUpdate": { "versionName": "1.3.0", "releaseNote": "notes" }
+            })
+        );
+        assert!(!json.to_string().contains("update.zip"));
     }
 }

@@ -29,7 +29,7 @@ pub(super) async fn download_update_plan(
     config: &OeaConfig,
     user_agent: &str,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
-) -> Result<String, String> {
+) -> Result<PathBuf, String> {
     info!(
         "download_update: session={session_id} source={:?} url={}",
         plan.source, plan.url
@@ -78,7 +78,7 @@ pub(super) async fn download_update_plan(
         download.downloaded_size,
         download.path.display()
     );
-    Ok(download.path.to_string_lossy().into_owned())
+    Ok(download.path)
 }
 
 /// 返回文件下载目录（`<root>/cache/downloads`），不存在时创建。

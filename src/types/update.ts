@@ -1,19 +1,29 @@
-/** 后端检查到的可用更新。 */
-export interface AvailableUpdate {
+/** 后端可公开展示的更新信息，不包含本机安装包路径。 */
+export interface UpdateInfo {
   versionName: string;
   releaseNote: string;
 }
 
 /** `check_update` 命令返回值。 */
 export type UpdateAvailability =
-  { status: 'upToDate' } | { status: 'available'; update: AvailableUpdate };
+  { status: 'upToDate' } | { status: 'available'; update: UpdateInfo };
+
+/** 后端更新操作状态。 */
+export type UpdateOperation = 'idle' | 'checking' | 'downloading' | 'installing';
+
+/** 后端一次加锁返回的更新业务状态。 */
+export interface UpdateStatus {
+  operation: UpdateOperation;
+  availableUpdate: UpdateInfo | null;
+  pendingUpdate: UpdateInfo | null;
+}
 
 /** 当前 WebView 生命周期内的检查状态。 */
 export type UpdateCheckState =
   | { status: 'unknown'; lastCheckedAt: null }
   | { status: 'checking'; lastCheckedAt: number | null }
   | { status: 'upToDate'; lastCheckedAt: number }
-  | { status: 'available'; lastCheckedAt: number; update: AvailableUpdate }
+  | { status: 'available'; lastCheckedAt: number | null; update: UpdateInfo }
   | { status: 'error'; lastCheckedAt: number | null; error: Error };
 
 /** 下载进度（来自本次 `download_update` 调用独享的 IPC Channel）。 */
@@ -28,19 +38,12 @@ export interface DownloadProgress {
   progress: number;
 }
 
-/** 后端完成原子发布后的可安装更新。 */
-export interface DownloadedUpdate {
-  downloadedPackagePath: string;
-  versionName: string;
-  releaseNote: string;
-}
-
-/** 下载及其可安装结果的唯一状态。 */
+/** 由后端 operation/pending 与 WebView 展示状态推导的下载状态。 */
 export type DownloadState =
   | { status: 'idle' }
   | { status: 'downloading'; progress: DownloadProgress }
   | { status: 'cancelling'; progress: DownloadProgress }
-  | { status: 'completed'; update: DownloadedUpdate }
+  | { status: 'completed'; update: UpdateInfo }
   | { status: 'failed' };
 
 /** 安装阶段。 */
@@ -64,16 +67,6 @@ export enum UpdateInstallStage {
 /** Rust `update-install-stage` 事件 payload。 */
 export interface UpdateInstallStageEvent {
   stage: UpdateInstallStage;
-}
-
-/** 待安装更新信息（localStorage `oea-pending-update`，下载完成 → 安装完成之间持久化）。 */
-export interface PendingUpdateInfo {
-  /** 开始这次安装时运行中的版本，用于重启后的完成提示。 */
-  previousVersion?: string;
-  versionName: string;
-  releaseNote: string;
-  downloadSavePath: string;
-  timestamp: number;
 }
 
 /** 更新完成弹窗使用的信息；跨进程 metadata 缺失时只保证 `timestamp`。 */
