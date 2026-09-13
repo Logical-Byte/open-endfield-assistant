@@ -9,9 +9,24 @@ use std::{
 
 use crate::app_paths::AppPaths;
 
-/// 选择本地 ZIP 并复制到受控下载目录，供开发者走完整的生产安装入口。
+/// 选择、暂存并安装本地 ZIP，不向 WebView 暴露文件路径。
 #[tauri::command]
-pub fn developer_choose_update_package() -> Result<Option<String>, String> {
+pub fn developer_install_update(
+    manager: tauri::State<'_, super::super::UpdateManager>,
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    let install_lease = manager
+        .start_developer_install()
+        .map_err(|error| error.to_string())?;
+    let Some(package_path) = choose_and_stage_developer_package()? else {
+        return Ok(false);
+    };
+    super::install_update_inner(app, &package_path)?;
+    install_lease.complete();
+    Ok(true)
+}
+
+fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, String> {
     if cfg!(debug_assertions) {
         return Err("开发构建禁止执行真实自更新，请使用 release 构建验证".to_string());
     }
@@ -27,11 +42,10 @@ pub fn developer_choose_update_package() -> Result<Option<String>, String> {
         return Ok(None);
     };
     let staged = stage_developer_package(&paths, &selected)?;
-    let staged = staged
-        .to_str()
-        .ok_or_else(|| "已复制更新包路径不是有效 UTF-8".to_string())?
-        .to_owned();
-    tracing::info!("[developer update] native confirmation accepted: {staged}");
+    tracing::info!(
+        "[developer update] native confirmation accepted: {}",
+        staged.display()
+    );
     Ok(Some(staged))
 }
 
@@ -92,7 +106,7 @@ mod tests {
     #[cfg(debug_assertions)]
     #[test]
     fn developer_update_command_rejects_debug_build() {
-        let error = developer_choose_update_package().unwrap_err();
+        let error = choose_and_stage_developer_package().unwrap_err();
 
         assert_eq!(
             error,

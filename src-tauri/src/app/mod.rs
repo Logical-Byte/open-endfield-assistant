@@ -81,12 +81,12 @@ pub fn run() {
             commands::log_warn,
             commands::log_error,
             update::commands::check_update,
+            update::commands::get_update_status,
             update::commands::download_update,
             update::commands::cancel_download,
             update::install::install_update,
             update::install::consume_startup_update_result,
-            update::install::pending_package_exists,
-            update::install::extra::developer_choose_update_package,
+            update::install::extra::developer_install_update,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用

@@ -72,60 +72,51 @@ fn emit_install_stage(app: &tauri::AppHandle, stage: InstallStage) {
     let _ = app.emit("update-install-stage", InstallStageEvent { stage });
 }
 
-fn validate_download_package(paths: &AppPaths, package_path: &str) -> Result<PathBuf, String> {
+fn validate_download_package(paths: &AppPaths, package_path: &Path) -> Result<PathBuf, String> {
     let downloads = paths.cache_dir().join("downloads");
     let canonical_downloads = downloads
         .canonicalize()
         .map_err(|error| format!("无法定位更新下载目录: {error}"))?;
-    let path = Path::new(package_path);
-    let canonical_path = path
+    let canonical_path = package_path
         .canonicalize()
         .map_err(|error| format!("更新包不存在: {error}"))?;
     if !canonical_path.starts_with(&canonical_downloads) || !canonical_path.is_file() {
-        return Err(format!("更新包不在 cache/downloads 内: {package_path}"));
+        return Err(format!(
+            "更新包不在 cache/downloads 内: {}",
+            package_path.display()
+        ));
     }
     Ok(canonical_path)
 }
 
-/// 检查 pending metadata 指向的 zip 是否仍在受控 downloads 目录内。
-#[tauri::command]
-pub fn pending_package_exists(package_path: String) -> bool {
-    let Ok(paths) = AppPaths::new() else {
-        return false;
-    };
-    validate_download_package(&paths, &package_path).is_ok()
-}
-
 /// 构造 candidate、原子发布 transaction、复制并启动 helper，然后请求当前 v1 退出。
 ///
-/// 这是前端唯一需要调用的安装接口。debug 构建禁止触碰项目根目录；集成测试应直接
+/// 这是普通自动更新唯一需要调用的安装接口。debug 构建禁止触碰项目根目录；集成测试应直接
 /// 使用 [`prepare_candidate`]、[`run_helper`] 和 [`complete_startup_transaction`] 的临时
 /// workspace 模块接口。
 #[tauri::command]
 pub fn install_update(
     manager: tauri::State<'_, super::UpdateManager>,
     app: tauri::AppHandle,
-    package_path: String,
 ) -> Result<(), String> {
-    manager.begin_install().map_err(|error| error.to_string())?;
-    let result = install_update_inner(app, package_path);
-    if result.is_err() {
-        let _ = manager.finish_install();
-    }
-    result
+    let install_lease = manager.start_install().map_err(|error| error.to_string())?;
+    install_update_inner(app, install_lease.package_path())?;
+    install_lease.complete();
+    Ok(())
 }
 
 /// 准备更新并把已发布的事务交给 helper。
 ///
 /// 成功路径会在 helper 启动后调用 `app.exit(0)`，请求当前 v1 退出。末尾的 `Ok(())`
 /// 只用于满足 Tauri command 的返回类型；前端不应在它之后继续安装流程。
-fn install_update_inner(app: tauri::AppHandle, package_path: String) -> Result<(), String> {
+fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<(), String> {
     if cfg!(debug_assertions) {
         return Err("开发构建禁止执行真实自更新，请使用临时目录集成测试".to_string());
     }
 
+    emit_install_stage(&app, InstallStage::Preparing);
     let paths = AppPaths::new().map_err(|error| format!("无法定位应用根目录: {error}"))?;
-    let package_zip = validate_download_package(&paths, &package_path)?;
+    let package_zip = validate_download_package(&paths, package_path)?;
     let workspace = UpdateWorkspace::for_current_executable(paths.root_dir())
         .map_err(|error| format!("无法确定应用 executable name: {error}"))?;
     if workspace.transaction_exists() {
@@ -157,7 +148,6 @@ fn install_update_inner(app: tauri::AppHandle, package_path: String) -> Result<(
     }
     let package_dir = workspace.package_path();
 
-    emit_install_stage(&app, InstallStage::Preparing);
     emit_install_stage(&app, InstallStage::Extracting);
     if let Err(error) = extract_package_zip(&package_zip, &package_dir) {
         return Err(cleanup_failed_preparation(&workspace, &package_zip, error));

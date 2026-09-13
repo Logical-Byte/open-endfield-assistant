@@ -6,22 +6,18 @@ use serde::Serialize;
 
 use crate::controller::Controller;
 
-use super::{UpdateManager, check, download, http, source};
-
-/// 前端可见的可用更新信息。
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AvailableUpdate {
-    version_name: String,
-    release_note: String,
-}
+use super::{
+    UpdateManager, check, download, http,
+    manager::{UpdateInfo, UpdateStatus},
+    source,
+};
 
 /// 更新可用性。第三方下载元数据只保留在后端缓存中。
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum UpdateAvailability {
     UpToDate,
-    Available { update: AvailableUpdate },
+    Available { update: UpdateInfo },
 }
 
 /// 一次高层更新下载的进度。
@@ -34,13 +30,10 @@ pub struct DownloadProgress {
     pub(super) progress: f64,
 }
 
-/// 后端完成原子发布后的可安装更新。
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DownloadedUpdate {
-    downloaded_package_path: String,
-    version_name: String,
-    release_note: String,
+/// 读取可用更新、待安装更新和当前操作的一致快照。
+#[tauri::command]
+pub fn get_update_status(manager: tauri::State<'_, UpdateManager>) -> UpdateStatus {
+    manager.status()
 }
 
 /// 检查更新并缓存规范化后的可用更新。
@@ -59,7 +52,7 @@ pub async fn check_update(
     match available {
         Some(metadata) => {
             let result = UpdateAvailability::Available {
-                update: AvailableUpdate {
+                update: UpdateInfo {
                     version_name: metadata.version_name.clone(),
                     release_note: metadata.release_note.clone(),
                 },
@@ -81,7 +74,7 @@ pub async fn download_update(
     controller: tauri::State<'_, Arc<Controller>>,
     app: tauri::AppHandle,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
-) -> Result<DownloadedUpdate, String> {
+) -> Result<UpdateInfo, String> {
     let download_lease = manager
         .start_update_download()
         .map_err(|error| error.to_string())?;
@@ -92,7 +85,7 @@ pub async fn download_update(
     let user_agent = http::update_user_agent(&app.package_info().version.to_string());
     let plan =
         source::resolve_download_plan(&metadata, &config, &user_agent, &cancellation).await?;
-    let path = download::download_update_plan(
+    let package_path = download::download_update_plan(
         plan,
         download_lease.id(),
         session,
@@ -102,11 +95,9 @@ pub async fn download_update(
     )
     .await?;
 
-    Ok(DownloadedUpdate {
-        downloaded_package_path: path,
-        version_name: metadata.version_name,
-        release_note: metadata.release_note,
-    })
+    let update = UpdateInfo::from(&metadata);
+    download_lease.complete(package_path);
+    Ok(update)
 }
 
 /// 取消当前文件下载。
@@ -117,7 +108,7 @@ pub fn cancel_download(manager: tauri::State<'_, UpdateManager>) -> Result<(), S
 
 #[cfg(test)]
 mod tests {
-    use super::{AvailableUpdate, UpdateAvailability};
+    use super::{UpdateAvailability, UpdateInfo};
 
     #[test]
     fn update_availability_has_a_tagged_camel_case_contract() {
@@ -127,7 +118,7 @@ mod tests {
         );
         assert_eq!(
             serde_json::to_value(UpdateAvailability::Available {
-                update: AvailableUpdate {
+                update: UpdateInfo {
                     version_name: "v1.3.0".to_string(),
                     release_note: "notes".to_string(),
                 },
