@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use anyhow::{Context, Result};
 use rapidocr_core::config::PipelineConfig;
 use tauri::Manager;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     app_paths::AppPaths, config, controller::Controller, data::AppData, logger, ocr::OcrEngine,
@@ -136,24 +136,30 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     // 解析资源目录（`resources/models/logs`），不依赖运行时工作目录
     let app_paths = AppPaths::new()?;
 
-    // 在初始化 Tauri 窗口、日志和资源消费者前完成 v2 的 resources 提交。helper 副本、
+    // 压缩包内直接运行检测：命中则弹原生框提示解压并退出。
+    // 必须在建窗口 / 写 `cache` / 初始化日志之前调用（只读临时目录里这些步骤没有意义）。
+    portable::ensure_extracted(&app_paths);
+
+    // 更新事务可能在正常应用初始化前失败，因此先启用文件日志。早期日志会暂存在通道中，
+    // 等 Controller 启动转发线程后再推送给前端。
+    let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
+
+    // 在初始化 Tauri 窗口和资源消费者前完成 v2 的 resources 提交。helper 副本、
     // candidate 和 transaction 的生命周期都由 install core 管理，前端只消费结果。
     let workspace = update::install::UpdateWorkspace::for_current_executable(app_paths.root_dir())
         .map_err(|error| anyhow::anyhow!("无法确定更新 executable name: {error}"))?;
     let startup_update_result =
         update::install::complete_startup_transaction(&workspace).map_err(|error| {
+            error!(
+                operation = "startup_transaction",
+                error = %error,
+                "启动时完成更新事务失败"
+            );
             #[cfg(target_os = "macos")]
             platform::update::show_update_error("OEA 更新失败", &error);
             anyhow::anyhow!("启动时完成更新事务失败: {error}")
         })?;
     update::install::record_startup_update_result(startup_update_result);
-
-    // 压缩包内直接运行检测：命中则弹原生框提示解压并退出。
-    // 必须在建窗口 / 写 `cache` / 初始化日志之前调用（只读临时目录里这些步骤没有意义）。
-    portable::ensure_extracted(&app_paths);
-
-    // 初始化日志系统：控制台输出 DEBUG+，文件输出 TRACE+，前端转发 TRACE+（界面可过滤等级）。
-    let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
 
     // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
     platform::window::set_thread_dpi_awareness_context();

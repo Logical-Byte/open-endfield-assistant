@@ -12,6 +12,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use tracing::{debug, error, info};
 
 use crate::platform::update::replace_file;
 use crate::platform::update::{UpdatePrompt, show_update_error};
@@ -78,17 +79,69 @@ pub fn run_helper_request(
     root: PathBuf,
     executable_name: OsString,
 ) -> Result<HelperResult, String> {
-    let result = run_helper_request_inner(root, executable_name);
+    let result =
+        validate_helper_request(root, executable_name).and_then(|workspace| run_helper(&workspace));
     if let Err(error) = &result {
         show_update_error("OEA 更新失败", error);
     }
     result
 }
 
-fn run_helper_request_inner(
+/// 校验 helper 参数后启用应用文件日志并执行事务。
+///
+/// 日志目录只能从已经验证过的应用根目录派生，避免外部参数让 helper 在任意位置写文件。
+pub fn run_helper_request_with_logging(
     root: PathBuf,
     executable_name: OsString,
 ) -> Result<HelperResult, String> {
+    let workspace = match validate_helper_request(root, executable_name) {
+        Ok(workspace) => workspace,
+        Err(error) => {
+            show_update_error("OEA 更新失败", &error);
+            return Err(error);
+        }
+    };
+    let (_logger_guard, _log_rx) = crate::logger::init(&workspace.root().join("logs"));
+    debug!(
+        process_role = "update_helper",
+        pid = std::process::id(),
+        root = %workspace.root().display(),
+        "更新 helper 进程已启动"
+    );
+    info!("更新安装程序已启动");
+
+    let result = run_helper(&workspace);
+    match &result {
+        Ok(helper_result) => {
+            debug!(
+                process_role = "update_helper",
+                result = ?helper_result,
+                "更新 helper 进程执行完成"
+            );
+            match helper_result {
+                HelperResult::NoTransaction => info!("没有需要安装的更新事务"),
+                HelperResult::AlreadyCommitted => info!("程序更新已由先前的安装操作完成"),
+                HelperResult::ExecutableCommitted => {
+                    info!("程序更新已准备完成，请重新启动 OEA")
+                }
+            }
+        }
+        Err(helper_error) => error!(
+            process_role = "update_helper",
+            error = %helper_error,
+            "更新 helper 进程执行失败"
+        ),
+    }
+    if let Err(helper_error) = &result {
+        show_update_error("OEA 更新失败", helper_error);
+    }
+    result
+}
+
+fn validate_helper_request(
+    root: PathBuf,
+    executable_name: OsString,
+) -> Result<UpdateWorkspace, String> {
     let root = root
         .canonicalize()
         .map_err(|error| format!("解析 helper 应用根目录失败: {error}"))?;
@@ -106,7 +159,7 @@ fn run_helper_request_inner(
             actual_helper.display()
         ));
     }
-    run_helper(&workspace)
+    Ok(workspace)
 }
 
 /// 启动真实的 helper 子进程。当前应用退出后，helper 会从相同的根目录继续事务。
@@ -157,30 +210,68 @@ pub(super) fn spawn_helper_with_executable(
 /// 重试窗口内仍无法替换，事务材料会被删除，根目录保持旧版本，调用方下次必须重新
 /// 下载 package。
 pub fn run_helper(workspace: &UpdateWorkspace) -> Result<HelperResult, String> {
+    debug!(
+        process_role = "update_helper",
+        lock_path = %workspace.lock_path().display(),
+        "更新 helper 正在等待事务锁"
+    );
     let _lock = workspace
         .lock()
         .map_err(|error| format!("获取 transaction.lock 失败: {error}"))?;
+    debug!(process_role = "update_helper", "更新 helper 已取得事务锁");
 
     if workspace.read_transaction()?.is_none() {
+        debug!(
+            process_role = "update_helper",
+            result = "no_transaction",
+            "更新 helper 未发现待处理事务"
+        );
         return Ok(HelperResult::NoTransaction);
     }
 
     let candidate_executable = workspace.candidate_path().join(workspace.executable_name());
     if !candidate_executable.exists() {
+        debug!(
+            process_role = "update_helper",
+            result = "already_committed",
+            "更新 helper 确认 executable 已由先前操作提交"
+        );
         return Ok(HelperResult::AlreadyCommitted);
     }
 
     let mut prompt = UpdatePrompt::new("OEA 更新", "正在提交程序更新，请稍候…");
 
     let target_executable = workspace.executable_path();
-    let deadline = Instant::now() + REPLACE_RETRY_WINDOW;
+    let started_at = Instant::now();
+    let deadline = started_at + REPLACE_RETRY_WINDOW;
+    let mut attempts = 0u32;
+    debug!(
+        process_role = "update_helper",
+        candidate = %candidate_executable.display(),
+        target = %target_executable.display(),
+        "更新 helper 开始提交 executable"
+    );
     let last_error = loop {
+        attempts += 1;
         match replace_file(&candidate_executable, &target_executable) {
             Ok(()) => {
+                debug!(
+                    process_role = "update_helper",
+                    attempts,
+                    elapsed_ms = started_at.elapsed().as_millis(),
+                    "更新 helper 已提交 executable"
+                );
                 prompt.show_success("OEA 更新", "程序更新已准备好，请重新启动 OEA 以完成更新");
                 return Ok(HelperResult::ExecutableCommitted);
             }
-            Err(_error) if Instant::now() < deadline => {
+            Err(replace_error) if Instant::now() < deadline => {
+                if attempts == 1 {
+                    debug!(
+                        process_role = "update_helper",
+                        error = %replace_error,
+                        "executable 暂时无法替换，等待旧进程释放文件"
+                    );
+                }
                 thread::sleep(REPLACE_RETRY_DELAY);
             }
             Err(error) => {

@@ -12,6 +12,7 @@ use std::{
 
 use serde::Serialize;
 use tauri::Emitter;
+use tracing::{debug, error, info, warn};
 
 use crate::app_paths::AppPaths;
 
@@ -25,7 +26,7 @@ use candidate::{PackageKind, extract_package_zip, prepare_candidate};
 #[cfg(test)]
 use helper::HelperResult;
 use helper::spawn_helper;
-pub use helper::{helper_request_from_args, run_helper_request};
+pub use helper::{helper_request_from_args, run_helper_request, run_helper_request_with_logging};
 pub use startup::{StartupUpdateResult, complete_startup_transaction};
 pub use workspace::UpdateWorkspace;
 
@@ -69,7 +70,19 @@ struct InstallStageEvent {
 }
 
 fn emit_install_stage(app: &tauri::AppHandle, stage: InstallStage) {
-    let _ = app.emit("update-install-stage", InstallStageEvent { stage });
+    debug!(
+        operation = "install",
+        stage = ?stage,
+        "更新安装进入新阶段"
+    );
+    if let Err(emit_error) = app.emit("update-install-stage", InstallStageEvent { stage }) {
+        warn!(
+            operation = "install",
+            stage = ?stage,
+            error = %emit_error,
+            "向前端发送更新安装阶段失败，后端继续执行安装"
+        );
+    }
 }
 
 fn validate_download_package(paths: &AppPaths, package_path: &Path) -> Result<PathBuf, String> {
@@ -99,8 +112,28 @@ pub fn install_update(
     manager: tauri::State<'_, super::UpdateManager>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let install_lease = manager.start_install().map_err(|error| error.to_string())?;
-    install_update_inner(app, install_lease.package_path())?;
+    let install_lease = manager.start_install().map_err(|install_error| {
+        warn!(
+            operation = "install",
+            error = %install_error,
+            "更新安装请求被状态机拒绝"
+        );
+        install_error.to_string()
+    })?;
+    debug!(
+        operation = "install",
+        package = %install_lease.package_path().display(),
+        "更新安装开始"
+    );
+    info!("开始安装更新");
+    if let Err(install_error) = install_update_inner(app, install_lease.package_path()) {
+        error!(
+            operation = "install",
+            error = %install_error,
+            "更新安装失败"
+        );
+        return Err(install_error);
+    }
     install_lease.complete();
     Ok(())
 }
@@ -131,6 +164,12 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
             )),
         };
     }
+    debug!(
+        operation = "install",
+        package = %package_zip.display(),
+        workspace = %workspace.update_path().display(),
+        "更新安装路径校验完成"
+    );
     // 没有正式 transaction 时，这些只能是未发布的准备残留，可以安全抛弃。新的
     // 安装绝不复用已经消费过的 ZIP 或半途 candidate。
     if let Err(error) = workspace.remove_transaction_workspace() {
@@ -173,10 +212,30 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
             Err(cleanup_error) => Err(format!("{message}；清理事务也失败: {cleanup_error}")),
         };
     }
+    debug!(
+        operation = "install",
+        package = %package_zip.display(),
+        "已删除完成消费的更新包"
+    );
     emit_install_stage(&app, InstallStage::CleaningUp);
-    let _ = fs::remove_dir_all(&package_dir);
+    if let Err(cleanup_error) = fs::remove_dir_all(&package_dir) {
+        if cleanup_error.kind() != std::io::ErrorKind::NotFound {
+            warn!(
+                operation = "install",
+                path = %package_dir.display(),
+                error = %cleanup_error,
+                "清理已解压更新包失败，后端继续交接更新事务"
+            );
+        }
+    }
 
-    spawn_helper(&workspace)?;
+    let helper = spawn_helper(&workspace)?;
+    debug!(
+        operation = "install",
+        helper_pid = helper.id(),
+        "更新 helper 已启动，当前进程准备退出"
+    );
+    info!("更新文件准备完成，正在退出 OEA 并启动安装程序");
 
     // helper 已经独立接管事务；当前进程必须退出，释放 Windows 对根 exe 的占用。
     app.exit(0);

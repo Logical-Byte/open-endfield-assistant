@@ -1,7 +1,7 @@
 use base64::{Engine, engine::general_purpose::STANDARD};
 use semver::Version;
 use serde::Deserialize;
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 use crate::config::{OeaConfig, UpdateSource};
 
@@ -73,7 +73,12 @@ pub(super) async fn check_for_update(
         {
             Ok(response) => response,
             Err(request_error) => {
-                warn!("{base} 请求失败: {request_error}");
+                warn!(
+                    operation = "check",
+                    endpoint = base,
+                    error = %request_error,
+                    "更新检查站点请求失败，尝试备用站"
+                );
                 last_error = Some(request_error.to_string());
                 continue;
             }
@@ -82,7 +87,12 @@ pub(super) async fn check_for_update(
         let body = match response.bytes().await {
             Ok(body) => body,
             Err(read_error) => {
-                warn!("{base} 响应读取失败: {read_error}");
+                warn!(
+                    operation = "check",
+                    endpoint = base,
+                    error = %read_error,
+                    "更新检查站点响应读取失败，尝试备用站"
+                );
                 last_error = Some(read_error.to_string());
                 continue;
             }
@@ -90,7 +100,12 @@ pub(super) async fn check_for_update(
         let parsed = match serde_json::from_slice::<MirrorchyanResponse>(&body) {
             Ok(parsed) => parsed,
             Err(parse_error) => {
-                warn!("{base} 响应解析失败: {parse_error}");
+                warn!(
+                    operation = "check",
+                    endpoint = base,
+                    error = %parse_error,
+                    "更新检查站点响应解析失败，尝试备用站"
+                );
                 last_error = Some(parse_error.to_string());
                 continue;
             }
@@ -99,17 +114,17 @@ pub(super) async fn check_for_update(
         if parsed.code == 0 {
             let metadata = normalize_response(parsed)?;
             if is_newer(&metadata.version_name, current_version) {
-                warn!(
-                    "检查更新：有新版本可用，当前 v{current_version}，最新 {}",
-                    metadata.version_name
-                );
                 return Ok(Some(metadata));
             }
-            info!("检查更新：已是最新版本 v{current_version}");
             return Ok(None);
         }
 
-        warn!("{base} 返回错误 code={}，尝试备用站", parsed.code);
+        warn!(
+            operation = "check",
+            endpoint = base,
+            service_code = parsed.code,
+            "更新检查站点返回业务错误，尝试备用站"
+        );
         last_error = Some(format!(
             "Mirror 酱服务返回错误: code={}, msg={}",
             parsed.code, parsed.msg
@@ -139,21 +154,33 @@ pub(super) fn configured_cdk(config: &OeaConfig) -> Option<String> {
     let blob = match STANDARD.decode(encrypted) {
         Ok(blob) => blob,
         Err(decode_error) => {
-            error!("CDK 密文 Base64 解码失败，更新请求将不携带 CDK: {decode_error}");
+            warn!(
+                operation = "check",
+                error = %decode_error,
+                "Mirror酱 CDK 密文 Base64 解码失败，将回退到无 CDK 更新流程"
+            );
             return None;
         }
     };
     let plain = match crate::platform::data_protection::decrypt(&blob) {
         Ok(plain) => plain,
         Err(decrypt_error) => {
-            error!("解密 CDK 失败，更新请求将不携带 CDK: {decrypt_error}");
+            warn!(
+                operation = "check",
+                error = %decrypt_error,
+                "Mirror酱 CDK 解密失败，将回退到无 CDK 更新流程"
+            );
             return None;
         }
     };
     let plain = match String::from_utf8(plain) {
         Ok(plain) => plain,
         Err(utf8_error) => {
-            error!("CDK 明文不是合法 UTF-8，更新请求将不携带 CDK: {utf8_error}");
+            warn!(
+                operation = "check",
+                error = %utf8_error,
+                "Mirror酱 CDK 明文不是合法 UTF-8，将回退到无 CDK 更新流程"
+            );
             return None;
         }
     };
@@ -210,7 +237,13 @@ fn is_newer(latest: &str, current: &str) -> bool {
         Ok(latest > current)
     };
     parsed().unwrap_or_else(|parse_error| {
-        error!("检查更新：版本号比较失败，视为无更新: latest={latest:?}, current={current:?}, error={parse_error}");
+        error!(
+            operation = "check",
+            latest = ?latest,
+            current = ?current,
+            error = %parse_error,
+            "更新版本号比较失败，本次按无更新处理"
+        );
         false
     })
 }
