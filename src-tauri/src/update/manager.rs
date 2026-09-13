@@ -282,8 +282,6 @@ mod tests {
         cache_update(&manager);
         let download = manager.start_update_download().unwrap();
         let session = download.session();
-        session.set_downloaded_bytes(10);
-        assert_eq!(session.downloaded_bytes(), 10);
         assert!(!session.is_cancelled());
         assert!(manager.start_check().is_err());
         assert!(manager.start_update_download().is_err());

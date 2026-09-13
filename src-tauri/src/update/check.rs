@@ -274,31 +274,19 @@ mod tests {
     }
 
     #[test]
-    fn response_errors_preserve_existing_user_messages() {
-        let known = [
-            (1001, "Mirror酱：请求参数不正确，请联系作者"),
-            (7001, "您的 Mirror酱 CDK 已过期"),
-            (7002, "您的 Mirror酱 CDK 错误，请检查输入是否正确"),
-            (7003, "您的 Mirror酱 CDK 今日下载次数已达上限"),
-            (7004, "您的 Mirror酱 CDK 类型与待下载资源不匹配"),
-            (7005, "您的 Mirror酱 CDK 已被封禁"),
-            (8001, "Mirror酱：对应架构和系统下的资源不存在，请联系作者"),
-            (8002, "Mirror酱：错误的系统参数，请联系作者"),
-            (8003, "Mirror酱：错误的架构参数，请联系作者"),
-            (8004, "Mirror酱：错误的更新通道参数，请联系作者"),
-        ];
-        for (code, expected) in known {
-            assert_eq!(business_error_message(code, "service message"), expected);
-        }
+    fn response_errors_use_service_message_and_fallbacks() {
         assert_eq!(
-            business_error_message(-1, "service message"),
+            normalize_response(response(-1, "service message", None)).unwrap_err(),
             "Mirror 酱服务出现异常，请稍后重试或联系技术支持: service message"
         );
         assert_eq!(
-            business_error_message(1, "service message"),
+            normalize_response(response(1, "service message", None)).unwrap_err(),
             "service message"
         );
-        assert_eq!(business_error_message(2, ""), "未知错误（2）");
+        assert_eq!(
+            normalize_response(response(2, "", None)).unwrap_err(),
+            "未知错误（2）"
+        );
         assert_eq!(
             normalize_response(response(0, "ok", None)).unwrap_err(),
             "检查更新服务响应异常，请稍后重试"

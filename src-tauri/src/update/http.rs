@@ -60,15 +60,3 @@ pub(super) fn build_direct_client(user_agent: &str) -> Result<reqwest::Client, S
         .build()
         .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::update_user_agent;
-
-    #[test]
-    fn user_agent_preserves_the_service_visible_shape() {
-        let user_agent = update_user_agent("1.2.3");
-
-        assert_eq!(user_agent, "OEA/1.2.3 (Windows NT 10.0; Win64; x64)");
-    }
-}

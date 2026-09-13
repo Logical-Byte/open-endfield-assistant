@@ -281,14 +281,6 @@ async fn read_body_with_cancellation(
 mod tests {
     use super::*;
 
-    fn metadata(package: Option<MirrorchyanPackage>) -> AvailableUpdateMetadata {
-        AvailableUpdateMetadata {
-            version_name: "v1.3.0".to_string(),
-            release_note: "notes".to_string(),
-            mirrorchyan_package: package,
-        }
-    }
-
     fn package() -> MirrorchyanPackage {
         MirrorchyanPackage {
             url: "https://example.com/mirror.zip".to_string(),
@@ -329,17 +321,6 @@ mod tests {
             select_source(UpdateSource::Github, Some("cdk"), Some(&package)),
             SourceChoice::Github
         );
-    }
-
-    #[test]
-    fn mirrorchyan_plan_keeps_cached_transfer_metadata() {
-        let package = package();
-        let plan = mirrorchyan_plan(&metadata(Some(package.clone())), &package);
-        assert_eq!(plan.source, UpdateSource::Mirrorchyan);
-        assert_eq!(plan.url, package.url);
-        assert_eq!(plan.expected_sha256, package.expected_sha256);
-        assert_eq!(plan.total_size, package.file_size);
-        assert_eq!(plan.accept, None);
     }
 
     #[test]

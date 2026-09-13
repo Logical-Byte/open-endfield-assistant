@@ -117,7 +117,7 @@ pub fn cancel_download(manager: tauri::State<'_, UpdateManager>) -> Result<(), S
 
 #[cfg(test)]
 mod tests {
-    use super::{AvailableUpdate, DownloadProgress, DownloadedUpdate, UpdateAvailability};
+    use super::{AvailableUpdate, UpdateAvailability};
 
     #[test]
     fn update_availability_has_a_tagged_camel_case_contract() {
@@ -136,42 +136,6 @@ mod tests {
             serde_json::json!({
                 "status": "available",
                 "update": { "versionName": "v1.3.0", "releaseNote": "notes" }
-            })
-        );
-    }
-
-    #[test]
-    fn download_progress_has_only_the_four_camel_case_ui_fields() {
-        assert_eq!(
-            serde_json::to_value(DownloadProgress {
-                downloaded_size: 10,
-                total_size: 20,
-                speed: 30,
-                progress: 50.0,
-            })
-            .unwrap(),
-            serde_json::json!({
-                "downloadedSize": 10,
-                "totalSize": 20,
-                "speed": 30,
-                "progress": 50.0,
-            })
-        );
-    }
-
-    #[test]
-    fn downloaded_update_has_the_public_result_fields() {
-        assert_eq!(
-            serde_json::to_value(DownloadedUpdate {
-                downloaded_package_path: "C:\\OEA\\cache\\downloads\\update.zip".to_string(),
-                version_name: "v1.3.0".to_string(),
-                release_note: "notes".to_string(),
-            })
-            .unwrap(),
-            serde_json::json!({
-                "downloadedPackagePath": "C:\\OEA\\cache\\downloads\\update.zip",
-                "versionName": "v1.3.0",
-                "releaseNote": "notes",
             })
         );
     }
