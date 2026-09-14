@@ -150,7 +150,7 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
     emit_install_stage(&app, InstallStage::Preparing);
     let paths = AppPaths::new()?;
     let package_zip = validate_download_package(&paths, package_path)?;
-    let workspace = UpdateWorkspace::for_current_executable(paths.root_dir())
+    let workspace = UpdateWorkspace::for_current_executable(&paths)
         .map_err(|error| format!("无法确定应用 executable name: {error}"))?;
     if workspace.transaction_exists() {
         return match fs::remove_file(&package_zip) {
@@ -299,7 +299,8 @@ mod tests {
     }
 
     fn workspace(root: &Path) -> UpdateWorkspace {
-        UpdateWorkspace::with_executable_name(root, "OEA")
+        let app_paths = AppPaths::with_root_dir(root);
+        UpdateWorkspace::with_executable_name(&app_paths, "OEA")
     }
 
     fn make_full_package(root: &Path) -> PathBuf {
@@ -546,7 +547,8 @@ mod tests {
         let Some(root) = env::var_os("OEA_TEST_STARTUP_ROOT") else {
             return;
         };
-        let workspace = UpdateWorkspace::with_executable_name(root, "OEA");
+        let app_paths = AppPaths::with_root_dir(root);
+        let workspace = UpdateWorkspace::with_executable_name(&app_paths, "OEA");
         assert_eq!(
             complete_startup_transaction(&workspace).unwrap(),
             StartupUpdateResult::Completed

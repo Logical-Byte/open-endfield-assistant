@@ -13,7 +13,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::update::FileLock;
+use crate::{app_paths::AppPaths, platform::update::FileLock};
 
 /// 当前 transaction 文件格式版本。
 pub const TRANSACTION_SCHEMA_VERSION: u32 = 1;
@@ -21,7 +21,7 @@ pub const TRANSACTION_SCHEMA_VERSION: u32 = 1;
 /// 固定的更新工作区。
 #[derive(Debug, Clone)]
 pub struct UpdateWorkspace {
-    root: PathBuf,
+    app_paths: AppPaths,
     executable_name: OsString,
 }
 
@@ -32,19 +32,19 @@ struct TransactionFile {
 }
 
 impl UpdateWorkspace {
-    /// 为测试或调用方提供显式的应用根目录和 exe 名称。
+    /// 为测试或调用方提供显式的应用路径和 exe 名称。
     pub fn with_executable_name(
-        root: impl Into<PathBuf>,
+        app_paths: &AppPaths,
         executable_name: impl Into<OsString>,
     ) -> Self {
         Self {
-            root: root.into(),
+            app_paths: app_paths.clone(),
             executable_name: executable_name.into(),
         }
     }
 
     /// 使用当前平台运行中的 exe 名称构造生产工作区。
-    pub fn for_current_executable(root: impl Into<PathBuf>) -> std::io::Result<Self> {
+    pub fn for_current_executable(app_paths: &AppPaths) -> std::io::Result<Self> {
         let executable_name = if cfg!(target_os = "windows") {
             OsString::from("OEA.exe")
         } else {
@@ -53,11 +53,15 @@ impl UpdateWorkspace {
                 .map(OsString::from)
                 .ok_or_else(|| std::io::Error::other("当前 exe 没有文件名"))?
         };
-        Ok(Self::with_executable_name(root, executable_name))
+        Ok(Self::with_executable_name(app_paths, executable_name))
+    }
+
+    pub fn app_paths(&self) -> &AppPaths {
+        &self.app_paths
     }
 
     pub fn root(&self) -> &Path {
-        &self.root
+        self.app_paths.root_dir()
     }
 
     pub fn executable_name(&self) -> &OsString {
@@ -65,15 +69,15 @@ impl UpdateWorkspace {
     }
 
     pub fn executable_path(&self) -> PathBuf {
-        self.root.join(&self.executable_name)
+        self.root().join(&self.executable_name)
     }
 
     pub fn resources_path(&self) -> PathBuf {
-        self.root.join("resources")
+        self.app_paths.resources_dir()
     }
 
     pub fn cache_path(&self) -> PathBuf {
-        self.root.join("cache")
+        self.app_paths.cache_dir()
     }
 
     pub fn update_path(&self) -> PathBuf {
