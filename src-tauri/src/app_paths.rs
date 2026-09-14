@@ -16,7 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result as AnyhowResult};
+use anyhow::Context;
 
 use crate::utils::path::resolve_existing_relative_file;
 
@@ -90,7 +90,7 @@ impl AppPaths {
     }
 
     /// 解析并验证共享资源目录内当前存在的文件。
-    pub fn resolve_resource_file(&self, relative_path: &str) -> AnyhowResult<PathBuf> {
+    pub fn resolve_resource_file(&self, relative_path: &str) -> anyhow::Result<PathBuf> {
         resolve_existing_relative_file(&self.resources_dir(), relative_path)
             .with_context(|| format!("解析资源文件失败: {relative_path:?}"))
     }
