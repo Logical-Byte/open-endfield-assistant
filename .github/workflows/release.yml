@@ -129,7 +129,7 @@ jobs:
       actions: read
     steps:
       - name: Download shared release artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: ${{ needs.build.outputs.artifact_name }}
           path: release-artifact
@@ -177,7 +177,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Download shared release artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: ${{ needs.build.outputs.artifact_name }}
           path: release-artifact
