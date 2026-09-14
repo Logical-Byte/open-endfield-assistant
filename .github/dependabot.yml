@@ -11,6 +11,12 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: 'chore(deps)'
+    ignore:
+      # windows-rs 与 Tauri/WebView2 交换 HWND、IUnknown 等类型，跨兼容版本升级需同步进行。
+      - dependency-name: windows
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
     groups:
       routine-updates:
         patterns:
