@@ -7,7 +7,7 @@
 [![反馈交流群](https://img.shields.io/badge/反馈交流群-954628501-orange.svg?logo=qq)](https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms)
 [![官网](https://img.shields.io/badge/官网-终末地一图流-yellow.svg)](https://ef.yituliu.cn/resources/oea)
 
-> 开发者请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
+> 想参与开发？请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 OEA：一键识别终末地档案库，并同步到 OEM（终末地地图集），助力每一个全收集梦想！
 
@@ -30,15 +30,15 @@ OEA：一键识别终末地档案库，并同步到 OEM（终末地地图集）�
 
 ### 使用前准备
 
-- 理论上支持任意 **16:9** 的分辨率。我们最建议使用 **1280 × 720**、**窗口模式**，这个分辨率可以兼顾准确性和性能。
+- 理论上支持任意 **16:9** 的分辨率。我们最建议使用 **1280 × 720 窗口模式**，这个分辨率可以兼顾准确性和性能。
 - 理论上目前支持从任意档案库界面、协议终端界面和大世界界面开始扫描，为了稳定性，建议始终从**档案库主界面**开始扫描。
 - 请将终末地的语言调成**简体中文**。
 - 请**关闭 HDR**，关闭任何会遮挡终末地窗口的软件。
 
 ### 快捷键
 
-- 按 `'`（引号键）开始扫描档案库；扫描过程中再次按下可停止
-- 按 `Alt` + `Delete` 退出程序
+- 按 `'`（引号键）开始扫描档案库；扫描过程中再次按下可停止。
+- 按 `Alt` + `Delete` 退出程序。
 
 ## 已知问题
 
@@ -47,13 +47,22 @@ OEA：一键识别终末地档案库，并同步到 OEM（终末地地图集）�
 ## 常见问题
 
 - **手机能用吗？**
+
   不能。OEA 仅支持 Windows 10 / 11（x86_64）。
+
 - **识别结果不准确怎么办？**
+
   可以使用输入框进行人工纠错。建议将识别错误告知我们，以便改进识别算法。
+
 - **OEA 收费吗？**
-  OEA 开源且免费，不会以任何形式收取费用。您可以前往 [GitHub Release](https://github.com/Logical-Byte/open-endfield-assistant/releases) 免费下载和使用 OEA。如果您是通过付费方式获取的 OEA，您可能已经被不法商家欺骗，请立即告知我们。
+
+  OEA 开源且免费，不会以任何形式收取费用。如果您是通过付费方式获取的 OEA，您可能已经被不法商家欺骗，请立即告知我们。
+
 - **OEA 和 Mirror酱的关系是什么？**
-  [Mirror酱](https://mirrorchyan.com/) 是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。OEA 本身不收取任何费用，也提供免费的下载渠道，您可以前往 [GitHub Release](https://github.com/Logical-Byte/open-endfield-assistant/releases) 免费下载和使用。
+
+  [Mirror酱](https://mirrorchyan.com/) 是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。
+
+  OEA 本身不收取任何费用，也提供免费的下载渠道，您可以前往 [GitHub Release](https://github.com/Logical-Byte/open-endfield-assistant/releases) 免费下载和使用。
 
 ## 反馈交流
 

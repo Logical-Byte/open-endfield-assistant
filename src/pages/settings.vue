@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
           <SettingsItem
             description="进入档案扫描页时显示操作指引，关闭后若无更新则不再提示，可随时重新开启"
             icon="i-lucide-circle-help"
-            title="新手操作提示"
+            title="显示新手操作提示"
           >
             <USwitch v-model="scanGuideEnabled" :loading="saving" />
           </SettingsItem>
@@ -195,7 +195,7 @@ onBeforeUnmount(() => {
 
         <SettingsCard id="sound" class="scroll-mt-8" icon="i-lucide-headphones" title="声音设置">
           <SettingsItem
-            description="扫描开始与自然完成时播放提示音，失败或被停止时播放另一提示音"
+            description="扫描开始、完成、失败或被停止时播放提示音"
             icon="i-lucide-volume-2"
             title="扫描提示音音量"
           >
@@ -218,7 +218,7 @@ onBeforeUnmount(() => {
           </SettingsItem>
 
           <SettingsItem
-            description="检查到新版本后自动开始下载，无需手动点击"
+            description="检查到新版本后自动开始下载"
             icon="i-lucide-cloud-download"
             title="自动下载更新"
           >
@@ -226,7 +226,7 @@ onBeforeUnmount(() => {
           </SettingsItem>
 
           <SettingsItem
-            description="下载完成后自动安装；扫描任务运行中不会安装，将在扫描结束后自动安装"
+            description="更新包下载完成后自动安装"
             icon="i-lucide-rocket"
             title="自动安装更新"
           >
@@ -241,14 +241,7 @@ onBeforeUnmount(() => {
                 >
                 是独立的第三方加速下载服务，需要付费使用。
                 <br />
-                <ULink
-                  class="text-primary hover:text-primary/75"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  to="https://ef.yituliu.cn/resources/oea"
-                  >OEA</ULink
-                >
-                本身不收取任何费用，也提供免费的下载渠道。您可以前往
+                OEA 本身不收取任何费用，也提供免费的下载渠道。您可以前往
                 <ULink
                   class="text-primary hover:text-primary/75"
                   rel="noopener noreferrer"
