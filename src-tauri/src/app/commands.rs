@@ -38,8 +38,8 @@ impl ScreenshotFormat {
 
 /// 启动扫描档案库任务（在后台线程执行，立即返回当前状态）。
 #[tauri::command]
-pub fn start_scan(state: tauri::State<Arc<Controller>>) -> AppStatus {
-    state.start_scan();
+pub fn start_scan(state: tauri::State<Arc<Controller>>, app_handle: tauri::AppHandle) -> AppStatus {
+    state.start_scan(&app_handle);
     state.get_status()
 }
 
@@ -70,8 +70,8 @@ pub fn get_archive_contract<'a>(state: tauri::State<'a, Arc<Controller>>) -> &'a
 
 /// 退出程序。
 #[tauri::command]
-pub fn quit(state: tauri::State<Arc<Controller>>) {
-    state.quit();
+pub fn quit(state: tauri::State<Arc<Controller>>, app_handle: tauri::AppHandle) {
+    state.quit(&app_handle);
 }
 
 /// 当前进程是否以管理员权限运行。
