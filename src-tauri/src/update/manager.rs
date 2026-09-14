@@ -9,6 +9,7 @@ use std::{
 use anyhow::{Result, bail};
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, info, warn};
 
 use super::check::AvailableUpdateMetadata;
 
@@ -34,6 +35,17 @@ enum UpdateOperation {
     Checking,
     Downloading(Arc<DownloadSession>),
     Installing,
+}
+
+impl UpdateOperation {
+    fn status(&self) -> UpdateOperationStatus {
+        match self {
+            Self::Idle => UpdateOperationStatus::Idle,
+            Self::Checking => UpdateOperationStatus::Checking,
+            Self::Downloading(_) => UpdateOperationStatus::Downloading,
+            Self::Installing => UpdateOperationStatus::Installing,
+        }
+    }
 }
 
 /// 前端可见的更新展示信息。
@@ -116,6 +128,7 @@ impl UpdateManager {
         }
         state.available_update = None;
         state.operation = UpdateOperation::Checking;
+        debug!(from = "idle", to = "checking", "更新状态机完成状态转换");
         Ok(CheckLease {
             manager: self,
             completed: false,
@@ -146,6 +159,13 @@ impl UpdateManager {
             downloaded_bytes: AtomicU64::new(0),
         });
         state.operation = UpdateOperation::Downloading(Arc::clone(&session));
+        debug!(
+            from = "idle",
+            to = "downloading",
+            session_id = session.id,
+            version = %available_update.version_name,
+            "更新状态机完成状态转换"
+        );
 
         Ok(DownloadLease {
             manager: self,
@@ -160,9 +180,23 @@ impl UpdateManager {
         match &state.operation {
             UpdateOperation::Downloading(session) => {
                 session.cancel();
+                debug!(
+                    operation = "download",
+                    session_id = session.id,
+                    downloaded_bytes = session.downloaded_bytes(),
+                    "更新下载取消信号已设置"
+                );
+                info!("正在取消更新下载");
                 Ok(())
             }
-            UpdateOperation::Idle | UpdateOperation::Checking => Ok(()),
+            UpdateOperation::Idle | UpdateOperation::Checking => {
+                debug!(
+                    operation = "cancel_download",
+                    current_state = ?state.operation.status(),
+                    "当前没有下载任务，取消请求无需处理"
+                );
+                Ok(())
+            }
             UpdateOperation::Installing => bail!("安装更新期间无法取消下载"),
         }
     }
@@ -181,6 +215,12 @@ impl UpdateManager {
             .take()
             .ok_or_else(|| anyhow::anyhow!("没有待安装的更新，请先下载更新"))?;
         state.operation = UpdateOperation::Installing;
+        debug!(
+            from = "idle",
+            to = "installing",
+            version = %pending_update.info.version_name,
+            "更新状态机完成状态转换"
+        );
         Ok(InstallLease {
             manager: self,
             pending_update,
@@ -195,7 +235,15 @@ impl UpdateManager {
             bail!("已有待安装更新，无法开始开发者安装");
         }
         match state.operation {
-            UpdateOperation::Idle => state.operation = UpdateOperation::Installing,
+            UpdateOperation::Idle => {
+                state.operation = UpdateOperation::Installing;
+                debug!(
+                    from = "idle",
+                    to = "installing",
+                    install_kind = "developer_package",
+                    "更新状态机完成状态转换"
+                );
+            }
             UpdateOperation::Checking => bail!("检查更新期间无法开始安装更新"),
             UpdateOperation::Downloading(_) => bail!("下载期间无法开始安装更新"),
             UpdateOperation::Installing => bail!("更新安装已在进行"),
@@ -210,12 +258,7 @@ impl UpdateManager {
     pub fn status(&self) -> UpdateStatus {
         let state = self.lock_state();
         UpdateStatus {
-            operation: match state.operation {
-                UpdateOperation::Idle => UpdateOperationStatus::Idle,
-                UpdateOperation::Checking => UpdateOperationStatus::Checking,
-                UpdateOperation::Downloading(_) => UpdateOperationStatus::Downloading,
-                UpdateOperation::Installing => UpdateOperationStatus::Installing,
-            },
+            operation: state.operation.status(),
             available_update: state.available_update.as_ref().map(UpdateInfo::from),
             pending_update: state
                 .pending_update
@@ -231,8 +274,25 @@ impl UpdateManager {
     fn finish_check(&self, available_update: Option<AvailableUpdateMetadata>) {
         let mut state = self.lock_state();
         if matches!(state.operation, UpdateOperation::Checking) {
+            let result = if available_update.is_some() {
+                "available"
+            } else {
+                "no_update_or_failed"
+            };
             state.available_update = available_update;
             state.operation = UpdateOperation::Idle;
+            debug!(
+                from = "checking",
+                to = "idle",
+                result,
+                "更新状态机完成状态转换"
+            );
+        } else {
+            warn!(
+                expected_state = "checking",
+                actual_state = ?state.operation.status(),
+                "更新检查结束时状态机处于意外状态"
+            );
         }
     }
 
@@ -241,6 +301,20 @@ impl UpdateManager {
         if matches!(&state.operation, UpdateOperation::Downloading(session) if session.id == session_id)
         {
             state.operation = UpdateOperation::Idle;
+            debug!(
+                from = "downloading",
+                to = "idle",
+                session_id,
+                result = "incomplete",
+                "更新状态机完成状态转换"
+            );
+        } else {
+            warn!(
+                expected_state = "downloading",
+                actual_state = ?state.operation.status(),
+                session_id,
+                "更新下载结束时状态机或会话不匹配"
+            );
         }
     }
 
@@ -258,6 +332,21 @@ impl UpdateManager {
                 info: UpdateInfo::from(metadata),
             });
             state.operation = UpdateOperation::Idle;
+            debug!(
+                from = "downloading",
+                to = "idle",
+                session_id,
+                result = "pending_install",
+                version = %metadata.version_name,
+                "更新状态机完成状态转换"
+            );
+        } else {
+            warn!(
+                expected_state = "downloading",
+                actual_state = ?state.operation.status(),
+                session_id,
+                "登记待安装更新时状态机或会话不匹配"
+            );
         }
     }
 
@@ -265,6 +354,18 @@ impl UpdateManager {
         let mut state = self.lock_state();
         if matches!(state.operation, UpdateOperation::Installing) {
             state.operation = UpdateOperation::Idle;
+            debug!(
+                from = "installing",
+                to = "idle",
+                result = "failed",
+                "更新状态机完成状态转换；待安装包已消费，需要重新下载"
+            );
+        } else {
+            warn!(
+                expected_state = "installing",
+                actual_state = ?state.operation.status(),
+                "安装失败回滚时状态机处于意外状态"
+            );
         }
     }
 
@@ -334,6 +435,10 @@ impl DownloadSession {
         self.cancellation.clone()
     }
 
+    pub(super) fn id(&self) -> u64 {
+        self.id
+    }
+
     pub(super) fn downloaded_bytes(&self) -> u64 {
         self.downloaded_bytes.load(Ordering::Relaxed)
     }
@@ -346,6 +451,13 @@ impl DownloadSession {
 impl Drop for DownloadLease<'_> {
     fn drop(&mut self) {
         if !self.completed {
+            debug!(
+                operation = "download",
+                session_id = self.session.id,
+                downloaded_bytes = self.session.downloaded_bytes(),
+                cancelled = self.session.cancellation.is_cancelled(),
+                "更新下载 lease 未完成，准备恢复空闲状态"
+            );
             self.manager.finish_download(self.session.id);
         }
     }
@@ -365,6 +477,11 @@ impl InstallLease<'_> {
 impl Drop for InstallLease<'_> {
     fn drop(&mut self) {
         if !self.completed {
+            warn!(
+                operation = "install",
+                version = %self.pending_update.info.version_name,
+                "更新安装未交给 helper，准备恢复空闲状态"
+            );
             self.manager.finish_failed_install();
         }
     }
@@ -380,6 +497,11 @@ impl DeveloperInstallLease<'_> {
 impl Drop for DeveloperInstallLease<'_> {
     fn drop(&mut self) {
         if !self.completed {
+            debug!(
+                operation = "install",
+                install_kind = "developer_package",
+                "开发者更新安装未开始或未交给 helper，准备恢复空闲状态"
+            );
             self.manager.finish_failed_install();
         }
     }

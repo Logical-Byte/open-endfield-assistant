@@ -1,4 +1,3 @@
-import { oeaVersion } from '@/main';
 import {
   DownloadProgress,
   DownloadState,
@@ -14,7 +13,7 @@ import {
 } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
 import { oeaConfig } from '@/utils/app/config';
-import { logError, logInfo, logWarn, onAppStatus } from '@/utils/tauri';
+import { logDebug, logError, logWarn, onAppStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -32,6 +31,15 @@ const INITIAL_UPDATE_STATUS: UpdateStatus = {
   availableUpdate: null,
   pendingUpdate: null,
 };
+
+type LogWriter = (message: string) => Promise<void>;
+
+/** 日志 IPC 失败不能打断更新流程；浏览器控制台保留最后一层诊断信息。 */
+function writeUpdateLog(write: LogWriter, message: string): void {
+  void write(message).catch((error: unknown) => {
+    console.error(`更新前端：写入后端日志失败: ${String(error)}`);
+  });
+}
 
 /** 后端更新业务状态的只读 WebView 投影。 */
 const updateStatus = shallowRef<UpdateStatus>(INITIAL_UPDATE_STATUS);
@@ -127,13 +135,17 @@ export async function refreshUpdateStatus(): Promise<void> {
   try {
     updateStatus.value = await invoke<UpdateStatus>('get_update_status');
   } catch (error) {
-    logWarn(`读取更新状态失败: ${String(error)}`);
+    writeUpdateLog(logWarn, `更新前端：读取后端更新状态失败: ${String(error)}`);
   }
 }
 
 /** 执行一次检查更新（启动自动检查与设置页手动检查共用）。 */
 export async function checkUpdate(): Promise<void> {
   if (updateOperationBusy.value) {
+    writeUpdateLog(
+      logDebug,
+      `更新前端：跳过检查请求，更新入口忙碌（requested=${requestedOperation.value ?? 'none'}, backend=${updateOperation.value}, pending=${pendingUpdate.value !== null}）`,
+    );
     return;
   }
 
@@ -144,18 +156,20 @@ export async function checkUpdate(): Promise<void> {
     const availability = await invoke<UpdateAvailability>('check_update');
     lastCheckedAt.value = Date.now();
     if (availability.status === 'available') {
-      logWarn(
-        `检查更新：有新版本可用，当前 v${oeaVersion}，最新 ${availability.update.versionName}`,
+      writeUpdateLog(
+        logDebug,
+        `更新前端：检测到可用更新，打开更新提示（autoDownload=${oeaConfig.value.autoDownloadUpdates}）`,
       );
       updatePopoverOpen.value = true;
       shouldAutoDownload = oeaConfig.value.autoDownloadUpdates;
-    } else {
-      logInfo(`检查更新：已是最新版本 v${oeaVersion}`);
     }
   } catch (error) {
     checkError.value = error instanceof Error ? error : new Error(String(error));
     updatePopoverOpen.value = true;
-    logError(`检查更新失败: ${checkError.value.message}`);
+    writeUpdateLog(
+      logError,
+      `更新前端：check_update 调用失败，显示检查错误: ${checkError.value.message}`,
+    );
   } finally {
     await refreshUpdateStatus();
     requestedOperation.value = null;
@@ -173,6 +187,10 @@ export async function startDownload(): Promise<void> {
     availableUpdate.value === null ||
     pendingUpdate.value !== null
   ) {
+    writeUpdateLog(
+      logDebug,
+      `更新前端：跳过下载请求（effective=${effectiveOperation.value}, available=${availableUpdate.value !== null}, pending=${pendingUpdate.value !== null}）`,
+    );
     return;
   }
 
@@ -189,11 +207,11 @@ export async function startDownload(): Promise<void> {
   try {
     const update = await invoke<UpdateInfo>('download_update', { onProgress });
     completed = true;
-    logInfo(`更新下载完成: ${update.versionName}`);
+    writeUpdateLog(logDebug, `更新前端：download_update 调用完成（version=${update.versionName}）`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message === '下载已取消') {
-      logInfo('下载已被用户取消');
+      writeUpdateLog(logDebug, '更新前端：download_update 已确认取消');
     } else {
       downloadFailed.value = true;
       handleDownloadFailure(error, '下载失败');
@@ -212,13 +230,20 @@ export async function startDownload(): Promise<void> {
 /** 取消当前下载（Rust 置取消标志，临时文件由守卫清理）。 */
 export async function cancelDownload(): Promise<void> {
   if (effectiveOperation.value !== 'downloading' || downloadCancelling.value) {
+    writeUpdateLog(
+      logDebug,
+      `更新前端：跳过取消下载请求（effective=${effectiveOperation.value}, cancelling=${downloadCancelling.value}）`,
+    );
     return;
   }
   downloadCancelling.value = true;
   try {
     await invoke('cancel_download');
   } catch (error) {
-    logWarn(`取消下载失败: ${error instanceof Error ? error.message : String(error)}`);
+    writeUpdateLog(
+      logWarn,
+      `更新前端：cancel_download 调用失败: ${error instanceof Error ? error.message : String(error)}`,
+    );
   } finally {
     await refreshUpdateStatus();
   }
@@ -231,6 +256,10 @@ export async function cancelDownload(): Promise<void> {
 export async function initUpdateState(): Promise<void> {
   const startupUpdateResult = await consumeStartupUpdateResult();
   await refreshUpdateStatus();
+  writeUpdateLog(
+    logDebug,
+    `更新前端：初始化更新投影（startup=${startupUpdateResult ?? 'none'}, backend=${updateOperation.value}, pending=${pendingUpdate.value !== null}）`,
+  );
   if (startupUpdateResult === 'completed') {
     installStatus.value = UpdateInstallStatus.Completed;
     installError.value = null;
@@ -264,7 +293,7 @@ async function consumeStartupUpdateResult(): Promise<StartupUpdateResult> {
   try {
     return await invoke<StartupUpdateResult>('consume_startup_update_result');
   } catch (error) {
-    logWarn(`读取启动更新结果失败: ${String(error)}`);
+    writeUpdateLog(logWarn, `更新前端：读取启动更新结果失败: ${String(error)}`);
     return null;
   }
 }
@@ -278,6 +307,10 @@ export async function tryAutoInstall(): Promise<void> {
     !oeaConfig.value.autoInstallUpdates ||
     appStatus.value.running
   ) {
+    writeUpdateLog(
+      logDebug,
+      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${oeaConfig.value.autoInstallUpdates}, scanning=${appStatus.value.running}）`,
+    );
     return;
   }
   await startInstall();
@@ -289,9 +322,14 @@ export type InstallStartResult = 'started' | 'skipped' | 'failed';
 /** 开始安装（自动触发与手动「立即安装」共用；扫描任务运行中拒绝）。 */
 export async function startInstall(): Promise<InstallStartResult> {
   if (pendingUpdate.value === null || effectiveOperation.value !== 'idle') {
+    writeUpdateLog(
+      logDebug,
+      `更新前端：跳过安装请求（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}）`,
+    );
     return 'skipped';
   }
   if (appStatus.value.running) {
+    writeUpdateLog(logDebug, '更新前端：扫描任务运行中，安装请求留待扫描结束后重试');
     useToast().add({
       title: '扫描任务运行中',
       description: '扫描结束后将自动安装更新',
@@ -345,6 +383,7 @@ export async function startDeveloperInstall(
       onStage(event.payload.stage);
     });
     const accepted = await invoke<boolean>('developer_install_update');
+    writeUpdateLog(logDebug, `更新前端：developer_install_update 调用完成（accepted=${accepted}）`);
     return accepted ? 'started' : 'cancelled';
   } catch (error) {
     if (installationStarted) {
@@ -404,12 +443,12 @@ function handleInstallFailure(error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
   installStatus.value = UpdateInstallStatus.Failed;
   installError.value = message;
-  logError(`更新安装失败: ${message}`);
+  writeUpdateLog(logError, `更新前端：install_update 调用失败，显示安装错误: ${message}`);
 }
 
 function handleDownloadFailure(error: unknown, fallbackTitle: string): void {
   const message = error instanceof Error ? error.message : String(error);
-  logError(`${fallbackTitle}: ${message}`);
+  writeUpdateLog(logError, `更新前端：download_update 调用失败，显示下载错误: ${message}`);
   useToast().add({
     title: fallbackTitle,
     description: message,

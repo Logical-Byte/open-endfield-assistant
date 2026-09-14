@@ -8,6 +8,7 @@ use std::{
 };
 
 use crate::app_paths::AppPaths;
+use tracing::{debug, error, info, warn};
 
 /// 选择、暂存并安装本地 ZIP，不向 WebView 暴露文件路径。
 #[tauri::command]
@@ -15,13 +16,43 @@ pub fn developer_install_update(
     manager: tauri::State<'_, super::super::UpdateManager>,
     app: tauri::AppHandle,
 ) -> Result<bool, String> {
-    let install_lease = manager
-        .start_developer_install()
-        .map_err(|error| error.to_string())?;
-    let Some(package_path) = choose_and_stage_developer_package()? else {
-        return Ok(false);
+    let install_lease = manager.start_developer_install().map_err(|install_error| {
+        warn!(
+            operation = "install",
+            install_kind = "developer_package",
+            error = %install_error,
+            "开发者更新安装请求被状态机拒绝"
+        );
+        install_error.to_string()
+    })?;
+    debug!(
+        operation = "install",
+        install_kind = "developer_package",
+        "开发者更新包选择流程开始"
+    );
+    info!("请选择用于安装的开发者更新包");
+    let package_path = match choose_and_stage_developer_package() {
+        Ok(Some(package_path)) => package_path,
+        Ok(None) => return Ok(false),
+        Err(install_error) => {
+            error!(
+                operation = "install",
+                install_kind = "developer_package",
+                error = %install_error,
+                "开发者更新包选择或暂存失败"
+            );
+            return Err(install_error);
+        }
     };
-    super::install_update_inner(app, &package_path)?;
+    if let Err(install_error) = super::install_update_inner(app, &package_path) {
+        error!(
+            operation = "install",
+            install_kind = "developer_package",
+            error = %install_error,
+            "开发者更新安装失败"
+        );
+        return Err(install_error);
+    }
     install_lease.complete();
     Ok(true)
 }
@@ -31,21 +62,34 @@ fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, String> {
         return Err("开发构建禁止执行真实自更新，请使用 release 构建验证".to_string());
     }
 
-    tracing::info!("[developer update] Rust picker command reached");
+    debug!(
+        operation = "install",
+        install_kind = "developer_package",
+        "正在打开开发者更新包选择器"
+    );
     let paths = AppPaths::new().map_err(|error| format!("无法定位应用目录: {error}"))?;
     let downloads = paths.cache_dir().join("downloads");
     fs::create_dir_all(&downloads).map_err(|error| format!("创建更新下载目录失败: {error}"))?;
     let Some(selected) = crate::platform::update::extra::choose_update_package(&downloads)
         .map_err(|error| format!("选择更新包失败: {error}"))?
     else {
-        tracing::info!("[developer update] native picker or confirmation cancelled");
+        debug!(
+            operation = "install",
+            install_kind = "developer_package",
+            result = "cancelled",
+            "用户取消选择或确认开发者更新包"
+        );
+        info!("已取消安装开发者更新包");
         return Ok(None);
     };
     let staged = stage_developer_package(&paths, &selected)?;
-    tracing::info!(
-        "[developer update] native confirmation accepted: {}",
-        staged.display()
+    debug!(
+        operation = "install",
+        install_kind = "developer_package",
+        staged_package = %staged.display(),
+        "开发者更新包已暂存"
     );
+    info!("开发者更新包已导入，准备安装");
     Ok(Some(staged))
 }
 
@@ -93,8 +137,15 @@ fn copy_to_new_file(source: &Path, target: &Path) -> Result<(), String> {
         .open(target)
         .map_err(|error| format!("创建更新包暂存文件失败: {error}"))?;
     if let Err(error) = io::copy(&mut source, &mut target_file) {
-        let _ = fs::remove_file(target);
-        return Err(format!("复制所选更新包到下载目录失败: {error}"));
+        let message = format!("复制所选更新包到下载目录失败: {error}");
+        return match fs::remove_file(target) {
+            Ok(()) => Err(message),
+            Err(cleanup_error) if cleanup_error.kind() == io::ErrorKind::NotFound => Err(message),
+            Err(cleanup_error) => Err(format!(
+                "{message}；清理未完成的暂存文件 [{}] 也失败: {cleanup_error}",
+                target.display()
+            )),
+        };
     }
     Ok(())
 }

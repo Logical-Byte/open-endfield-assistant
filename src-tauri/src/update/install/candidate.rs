@@ -12,7 +12,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::debug;
 
 use super::workspace::UpdateWorkspace;
 
@@ -135,14 +135,10 @@ pub fn prepare_candidate(
 
     let kind = PackageKind::detect(package_dir);
     let result = prepare_candidate_inner(workspace, package_dir, kind);
-    if result.is_err() {
-        let _ = remove_directory_if_present(&workspace.baseline_path());
-        let _ = remove_directory_if_present(&workspace.candidate_path());
-        let _ = remove_directory_if_present(&workspace.candidate_build_path());
-        let _ = remove_directory_if_present(&workspace.discard_path());
-        let _ = workspace.remove_transaction();
+    match result {
+        Ok(kind) => Ok(kind),
+        Err(primary_error) => Err(cleanup_failed_candidate(workspace, primary_error)),
     }
-    result
 }
 
 fn prepare_candidate_inner(
@@ -176,17 +172,42 @@ fn prepare_candidate_inner(
         )
     })?;
 
-    if let Err(error) = workspace.publish_transaction() {
-        let _ = remove_directory_if_present(&workspace.candidate_path());
-        let _ = remove_directory_if_present(&workspace.baseline_path());
-        return Err(error);
-    }
+    workspace.publish_transaction()?;
 
-    info!(
-        "更新 candidate 已发布: {} ({kind:?})",
-        workspace.candidate_path().display()
+    debug!(
+        operation = "install",
+        package_kind = ?kind,
+        candidate = %workspace.candidate_path().display(),
+        transaction = %workspace.transaction_path().display(),
+        "更新 candidate 与事务标记已发布"
     );
     Ok(kind)
+}
+
+fn cleanup_failed_candidate(workspace: &UpdateWorkspace, primary_error: String) -> String {
+    let mut cleanup_errors = Vec::new();
+    for path in [
+        workspace.baseline_path(),
+        workspace.candidate_path(),
+        workspace.candidate_build_path(),
+        workspace.discard_path(),
+    ] {
+        if let Err(cleanup_error) = remove_directory_if_present(&path) {
+            cleanup_errors.push(cleanup_error);
+        }
+    }
+    if let Err(cleanup_error) = workspace.remove_transaction() {
+        cleanup_errors.push(cleanup_error);
+    }
+
+    if cleanup_errors.is_empty() {
+        primary_error
+    } else {
+        format!(
+            "{primary_error}；清理 candidate 构造残留也失败: {}",
+            cleanup_errors.join("；")
+        )
+    }
 }
 
 /// 复制当前 exe/resources 到增量包的 baseline。baseline 只供 candidate 构造读取。

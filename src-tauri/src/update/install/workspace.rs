@@ -139,8 +139,14 @@ impl UpdateWorkspace {
         let building = self
             .update_path()
             .join(format!("helper.building-{}", std::process::id()));
-        let _ = fs::remove_file(&building);
-        let _ = fs::remove_file(&helper);
+        remove_file_if_present(&building).map_err(|error| {
+            format!(
+                "清理旧 helper 临时文件失败 [{}]: {error}",
+                building.display()
+            )
+        })?;
+        remove_file_if_present(&helper)
+            .map_err(|error| format!("清理旧 helper 副本失败 [{}]: {error}", helper.display()))?;
         fs::copy(source, &building).map_err(|error| {
             format!(
                 "复制当前 exe 到 helper 副本失败 [{}] -> [{}]: {error}",
@@ -241,10 +247,16 @@ impl UpdateWorkspace {
                 .map_err(|error| format!("原子发布 transaction.json 失败: {error}"))
         })();
 
-        if result.is_err() {
-            let _ = fs::remove_file(&temporary);
+        match result {
+            Ok(()) => Ok(()),
+            Err(primary_error) => match remove_file_if_present(&temporary) {
+                Ok(()) => Err(primary_error),
+                Err(cleanup_error) => Err(format!(
+                    "{primary_error}；清理 transaction 临时文件 [{}] 也失败: {cleanup_error}",
+                    temporary.display()
+                )),
+            },
         }
-        result
     }
 
     /// 删除 transaction 标记。只有资源已经提交且 candidate 为空时调用。
@@ -304,5 +316,13 @@ impl UpdateWorkspace {
                 );
             }
         }
+    }
+}
+
+fn remove_file_if_present(path: &Path) -> std::io::Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error),
     }
 }

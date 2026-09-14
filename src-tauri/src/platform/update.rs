@@ -129,8 +129,12 @@ impl UpdatePrompt {
         #[cfg(target_os = "macos")]
         {
             if let Some(mut process) = self.status_process.take() {
-                let _ = process.kill();
-                let _ = process.wait();
+                if let Err(error) = process.kill() {
+                    tracing::warn!("关闭 macOS 更新状态窗进程失败: {error}");
+                }
+                if let Err(error) = process.wait() {
+                    tracing::warn!("等待 macOS 更新状态窗进程退出失败: {error}");
+                }
             }
         }
     }
@@ -265,7 +269,9 @@ fn open_lock_file(path: &Path) -> io::Result<File> {
 
 impl Drop for FileLock {
     fn drop(&mut self) {
-        let _ = unlock_file(&self.file);
+        if let Err(error) = unlock_file(&self.file) {
+            tracing::warn!(error = %error, "释放更新事务文件锁失败");
+        }
     }
 }
 

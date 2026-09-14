@@ -154,8 +154,14 @@ fn replace_file_w(target: PCWSTR, replacement: PCWSTR, backup: PCWSTR) -> Window
 /// `S_FALSE` 保持窗口打开。helper 可以继续替换 exe，测试模式则完全不创建窗口。
 #[cfg(not(test))]
 pub(in crate::platform) struct StatusWindow {
-    close: Arc<AtomicBool>,
+    state: Arc<StatusWindowState>,
     thread: Option<JoinHandle<()>>,
+}
+
+#[cfg(not(test))]
+struct StatusWindowState {
+    close: AtomicBool,
+    close_error_logged: AtomicBool,
 }
 
 #[cfg(not(test))]
@@ -163,16 +169,19 @@ impl StatusWindow {
     pub(in crate::platform) fn show(title: &str, content: &str) -> io::Result<Self> {
         let title = title.to_owned();
         let content = content.to_owned();
-        let close = Arc::new(AtomicBool::new(false));
-        let close_for_thread = Arc::clone(&close);
+        let state = Arc::new(StatusWindowState {
+            close: AtomicBool::new(false),
+            close_error_logged: AtomicBool::new(false),
+        });
+        let state_for_thread = Arc::clone(&state);
         let thread = thread::Builder::new()
             .name("oea-update-status".to_string())
             .spawn(move || {
                 let title_wide: Vec<u16> = title.encode_utf16().chain(std::iter::once(0)).collect();
                 let content_wide: Vec<u16> =
                     content.encode_utf16().chain(std::iter::once(0)).collect();
-                let callback_data = Box::new(Arc::clone(&close_for_thread));
-                let callback_data_ptr = (&*callback_data as *const Arc<AtomicBool>) as isize;
+                let callback_data = Box::new(Arc::clone(&state_for_thread));
+                let callback_data_ptr = (&*callback_data as *const Arc<StatusWindowState>) as isize;
                 let config = TASKDIALOGCONFIG {
                     cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as u32,
                     dwFlags: TDF_CALLBACK_TIMER | TDF_SHOW_MARQUEE_PROGRESS_BAR,
@@ -183,12 +192,14 @@ impl StatusWindow {
                     lpCallbackData: callback_data_ptr,
                     ..Default::default()
                 };
-                let _ = unsafe { TaskDialogIndirect(&config, None, None, None) };
+                if let Err(error) = unsafe { TaskDialogIndirect(&config, None, None, None) } {
+                    tracing::warn!(error = %error, "更新状态窗异常退出");
+                }
                 drop(callback_data);
             })
             .map_err(|error| io::Error::other(format!("创建更新状态窗线程失败: {error}")))?;
         Ok(Self {
-            close,
+            state,
             thread: Some(thread),
         })
     }
@@ -197,9 +208,11 @@ impl StatusWindow {
 #[cfg(not(test))]
 impl Drop for StatusWindow {
     fn drop(&mut self) {
-        self.close.store(true, Ordering::Release);
+        self.state.close.store(true, Ordering::Release);
         if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+            if let Err(join_error) = thread.join() {
+                tracing::warn!(error = ?join_error, "更新状态窗线程异常退出");
+            }
         }
     }
 }
@@ -213,29 +226,35 @@ unsafe extern "system" fn status_callback(
     callback_data: isize,
 ) -> ::windows::core::HRESULT {
     if message == TDN_TIMER {
-        let Some(close_pointer) = std::ptr::NonNull::new(callback_data as *mut Arc<AtomicBool>)
+        let Some(state_pointer) =
+            std::ptr::NonNull::new(callback_data as *mut Arc<StatusWindowState>)
         else {
             return S_FALSE;
         };
-        let close = unsafe { close_pointer.as_ref() };
-        if close.load(Ordering::Acquire) {
-            let _ = unsafe {
+        let state = unsafe { state_pointer.as_ref() };
+        if state.close.load(Ordering::Acquire) {
+            if let Err(error) = unsafe {
                 PostMessageW(
                     Some(hwnd),
                     TDM_CLICK_BUTTON.0 as u32,
                     WPARAM(IDOK.0 as usize),
                     LPARAM(0),
                 )
-            };
+            } {
+                if !state.close_error_logged.swap(true, Ordering::Relaxed) {
+                    tracing::warn!(error = %error, "关闭更新状态窗失败，将在下一次回调重试");
+                }
+            }
         }
     }
     if message == TDN_BUTTON_CLICKED {
-        let Some(close_pointer) = std::ptr::NonNull::new(callback_data as *mut Arc<AtomicBool>)
+        let Some(state_pointer) =
+            std::ptr::NonNull::new(callback_data as *mut Arc<StatusWindowState>)
         else {
             return S_FALSE;
         };
-        let close = unsafe { close_pointer.as_ref() };
-        if !close.load(Ordering::Acquire) {
+        let state = unsafe { state_pointer.as_ref() };
+        if !state.close.load(Ordering::Acquire) {
             return S_FALSE;
         }
     }

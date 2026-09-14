@@ -3,7 +3,7 @@
 use reqwest::StatusCode;
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
-use tracing::{info, warn};
+use tracing::debug;
 
 use crate::config::{OeaConfig, UpdateSource};
 
@@ -63,11 +63,20 @@ pub(super) async fn resolve_download_plan(
     cancellation: &CancellationToken,
 ) -> Result<DownloadPlan, String> {
     let cdk = check::configured_cdk(config);
-    match select_source(
+    let selected = select_source(
         config.update_source,
         cdk.as_deref(),
         metadata.mirrorchyan_package.as_ref(),
-    ) {
+    );
+    debug!(
+        operation = "download",
+        configured_source = ?config.update_source,
+        selected_source = ?selected,
+        has_cdk = cdk.is_some(),
+        has_mirrorchyan_package = metadata.mirrorchyan_package.is_some(),
+        "更新下载源已解析"
+    );
+    match selected {
         SourceChoice::Mirrorchyan => Ok(mirrorchyan_plan(
             metadata,
             metadata
@@ -154,9 +163,12 @@ fn parse_oem_manifest(
             manifest.tag
         ));
     }
-    info!(
-        "OEM 与 Mirror酱版本一致: {}，下载地址: {}",
-        manifest.tag, manifest.url
+    debug!(
+        source = "oem",
+        version = %manifest.tag,
+        filename = %manifest.filename,
+        expected_bytes = manifest.size,
+        "OEM 更新清单与检查结果版本一致"
     );
     Ok(DownloadPlan {
         url: manifest.url,
@@ -167,6 +179,14 @@ fn parse_oem_manifest(
         source: UpdateSource::Oem,
         accept: None,
     })
+}
+
+pub(super) fn update_source_label(source: UpdateSource) -> &'static str {
+    match source {
+        UpdateSource::Mirrorchyan => "Mirror酱",
+        UpdateSource::Oem => "OEM",
+        UpdateSource::Github => "GitHub",
+    }
 }
 
 async fn resolve_github_plan(
@@ -223,12 +243,6 @@ fn select_github_asset(version_name: &str, release: GithubRelease) -> Result<Dow
         .ok_or_else(|| "GitHub Release 中未找到 OEA-windows-x86_64 的 zip 资产".to_string())?;
 
     let expected_sha256 = parse_github_digest(asset.digest.as_deref());
-    if expected_sha256.is_none() {
-        warn!(
-            "GitHub 资产缺少合法的 sha256 digest，跳过 sha256 校验: {}",
-            asset.name
-        );
-    }
     Ok(DownloadPlan {
         url: asset.url,
         filename: response::sanitize_filename(&asset.name)

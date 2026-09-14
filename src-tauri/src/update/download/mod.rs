@@ -6,7 +6,7 @@ mod transfer;
 
 use std::{path::PathBuf, sync::Arc};
 
-use tracing::info;
+use tracing::{debug, info, warn};
 
 use crate::config::{OeaConfig, UpdateSource};
 
@@ -30,15 +30,34 @@ pub(super) async fn download_update_plan(
     user_agent: &str,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
 ) -> Result<PathBuf, String> {
+    let download_url = reqwest::Url::parse(&plan.url)
+        .map_err(|url_error| format!("更新包下载地址无效: {url_error}"))?;
+    let download_host = download_url.host_str().unwrap_or("<unknown-host>");
+    let expected_sha256 = plan
+        .expected_sha256
+        .as_deref()
+        .map(str::trim)
+        .filter(|digest| !digest.is_empty());
+    debug!(
+        operation = "download",
+        session_id,
+        source = ?plan.source,
+        host = %download_host,
+        filename = %plan.filename,
+        expected_bytes = ?plan.total_size,
+        verify_sha256 = expected_sha256.is_some(),
+        "更新包下载开始"
+    );
     info!(
-        "download_update: session={session_id} source={:?} url={}",
-        plan.source, plan.url
+        "开始从 {} 下载更新包 {}",
+        super::source::update_source_label(plan.source),
+        plan.filename
     );
     let client = match plan.source {
         UpdateSource::Mirrorchyan => super::http::build_direct_client(user_agent)?,
         UpdateSource::Oem | UpdateSource::Github => super::http::build_client(config, user_agent)?,
     };
-    let mut request = client.get(&plan.url);
+    let mut request = client.get(download_url);
     if let Some(accept) = plan.accept {
         request = request.header(reqwest::header::ACCEPT, accept);
     }
@@ -66,17 +85,37 @@ pub(super) async fn download_update_plan(
         .unwrap_or(0);
     let target = DownloadTarget::new(actual_path, session_id)?;
     let mut progress = ProgressReporter::start_channel(on_progress, Arc::clone(&session), total);
-    let download =
-        download_to_target(response, target, session, plan.expected_sha256.as_deref()).await;
+    let download = download_to_target(response, target, session, expected_sha256).await;
     progress.stop().await;
     let download = download?;
 
-    info!("sha256 校验通过: {}", download.sha256);
+    if expected_sha256.is_some() {
+        debug!(
+            operation = "download",
+            session_id,
+            sha256 = %download.sha256,
+            "更新包 SHA-256 校验通过"
+        );
+        info!("更新包 {} 的完整性校验通过", plan.filename);
+    } else {
+        debug!(
+            operation = "download",
+            session_id,
+            sha256 = %download.sha256,
+            "更新包缺少预期 SHA-256"
+        );
+        warn!(
+            "更新包 {} 未提供预期 SHA-256，已跳过完整性校验",
+            plan.filename
+        );
+    }
     progress.emit_complete(download.downloaded_size, total);
-    info!(
-        "download_update 完成: {} 字节 -> {} (session {session_id})",
-        download.downloaded_size,
-        download.path.display()
+    debug!(
+        operation = "download",
+        session_id,
+        downloaded_bytes = download.downloaded_size,
+        path = %download.path.display(),
+        "更新包已原子发布到下载目录"
     );
     Ok(download.path)
 }

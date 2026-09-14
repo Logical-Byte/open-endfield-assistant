@@ -43,7 +43,16 @@ impl Drop for DownloadTarget {
     fn drop(&mut self) {
         if let Some(path) = self.staging_path.take() {
             // 同步删除可避免旧任务的延迟清理误删新任务创建的同名临时文件。
-            let _ = std::fs::remove_file(path);
+            if let Err(cleanup_error) = std::fs::remove_file(&path) {
+                if cleanup_error.kind() != std::io::ErrorKind::NotFound {
+                    tracing::warn!(
+                        operation = "download",
+                        path = %path.display(),
+                        error = %cleanup_error,
+                        "清理未完成的下载临时文件失败"
+                    );
+                }
+            }
         }
     }
 }

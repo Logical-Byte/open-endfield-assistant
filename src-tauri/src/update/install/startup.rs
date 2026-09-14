@@ -9,7 +9,7 @@
 use std::{fs, io::ErrorKind};
 
 use serde::Serialize;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::platform::update::UpdatePrompt;
 
@@ -39,8 +39,18 @@ pub fn complete_startup_transaction(
         // helper 失败会删除 transaction/candidate，但自身副本不能在运行中删除；由后续
         // 启动在没有事务时尽力清理这个副本。
         workspace.best_effort_cleanup();
+        debug!(
+            process_role = "app_startup",
+            result = "no_transaction",
+            "启动阶段未发现更新事务"
+        );
         return Ok(StartupUpdateResult::NoTransaction);
     }
+    debug!(
+        process_role = "app_startup",
+        transaction = %workspace.transaction_path().display(),
+        "启动阶段发现未完成的更新事务"
+    );
 
     let Some(_lock) = workspace
         .try_lock()
@@ -48,11 +58,17 @@ pub fn complete_startup_transaction(
     else {
         return Err("更新事务正在由另一个进程处理".to_string());
     };
+    debug!(process_role = "app_startup", "启动阶段已取得更新事务锁");
 
     // helper 可能在我们第一次观察 transaction 后完成失败清理；拿到锁后重新读取，
     // 避免把已经取消的事务误判成“exe 已提交但 resources 缺失”。
     if workspace.read_transaction()?.is_none() {
         workspace.best_effort_cleanup();
+        debug!(
+            process_role = "app_startup",
+            result = "transaction_removed_while_waiting",
+            "更新事务已由 helper 清理，继续正常启动"
+        );
         return Ok(StartupUpdateResult::NoTransaction);
     }
 
@@ -62,6 +78,11 @@ pub fn complete_startup_transaction(
         .join(workspace.executable_name())
         .exists()
     {
+        debug!(
+            process_role = "app_startup",
+            result = "waiting_for_helper",
+            "helper 尚未提交 executable，本次启动暂不处理更新事务"
+        );
         return Ok(StartupUpdateResult::WaitingForHelper);
     }
 
@@ -74,7 +95,12 @@ pub fn complete_startup_transaction(
     // transaction 删除是提交点；旧目录的递归删除不再影响新版本可启动性。
     workspace.best_effort_cleanup();
     prompt.finish();
-    info!("更新事务已完成: resources 已提交");
+    debug!(
+        process_role = "app_startup",
+        result = "completed",
+        "更新事务提交完成，resources 已切换到新版本"
+    );
+    info!("更新安装完成");
     Ok(StartupUpdateResult::Completed)
 }
 
@@ -108,6 +134,12 @@ fn commit_candidate_resources(workspace: &UpdateWorkspace) -> Result<(), String>
                     discard_resources.display()
                 )
             })?;
+            debug!(
+                process_role = "app_startup",
+                from = %root_resources.display(),
+                to = %discard_resources.display(),
+                "旧 resources 已移出应用根目录"
+            );
         } else if !discard_resources.exists() {
             return Err("根目录 resources 与 discard/resources 都不存在，无法继续事务".to_string());
         }
@@ -119,6 +151,12 @@ fn commit_candidate_resources(workspace: &UpdateWorkspace) -> Result<(), String>
                 root_resources.display()
             )
         })?;
+        debug!(
+            process_role = "app_startup",
+            from = %candidate_resources.display(),
+            to = %root_resources.display(),
+            "candidate resources 已提交到应用根目录"
+        );
     } else if !root_resources.is_dir() {
         return Err("candidate/resources 已不存在且根目录 resources 也不存在".to_string());
     }
