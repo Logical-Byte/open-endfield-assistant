@@ -7,10 +7,6 @@
 - 在 `src-tauri/` 目录中运行 Cargo 命令。从仓库根目录运行时，利用 `--manifest-path src-tauri/Cargo.toml`。
 - 使用 `cargo add` 和 `cargo remove` 管理依赖。除非兼容性要求必须锁定版本，否则让 Cargo 选择版本。
 
-## 检查与测试
-
-提交前，在 Windows 的 `src-tauri/` 目录中运行：
-
 ## 编译、检查与测试
 
 Windows x86_64 是后端唯一支持的平台和验收环境。CI 只要求 Windows 实现，并通过 Windows 编译和测试。Windows 上的检查与测试：
