@@ -16,7 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result as AnyhowResult};
 
 use crate::utils::path::resolve_existing_relative_file;
 
@@ -24,7 +24,7 @@ use crate::utils::path::resolve_existing_relative_file;
 ///
 /// - debug 构建：`CARGO_MANIFEST_DIR`（编译期指向 `src-tauri/`）的上一级即项目根；
 /// - release 构建：`current_exe()` 所在目录即分发根目录。
-fn get_root_dir() -> Result<PathBuf> {
+fn get_root_dir() -> Result<PathBuf, String> {
     if cfg!(debug_assertions) {
         get_root_dir_for_dev()
     } else {
@@ -33,20 +33,20 @@ fn get_root_dir() -> Result<PathBuf> {
 }
 
 /// 开发期（debug 构建）根目录：`CARGO_MANIFEST_DIR` 的上一级即项目根。
-fn get_root_dir_for_dev() -> Result<PathBuf> {
+fn get_root_dir_for_dev() -> Result<PathBuf, String> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     manifest_dir
         .parent()
-        .context("无法定位项目根目录（src-tauri 的上一级）")
+        .ok_or_else(|| "无法定位项目根目录（src-tauri 的上一级）".to_string())
         .map(Path::to_path_buf)
 }
 
 /// 打包期（release 构建）根目录：exe 所在目录即分发根目录。
-fn get_root_dir_for_release() -> Result<PathBuf> {
-    let exe_path = env::current_exe().context("无法获取当前 exe 路径")?;
+fn get_root_dir_for_release() -> Result<PathBuf, String> {
+    let exe_path = env::current_exe().map_err(|error| format!("无法获取当前 exe 路径: {error}"))?;
     exe_path
         .parent()
-        .context("无法定位 exe 所在目录")
+        .ok_or_else(|| "无法定位 exe 所在目录".to_string())
         .map(Path::to_path_buf)
 }
 
@@ -65,8 +65,10 @@ impl AppPaths {
     /// 根目录在运行时确定：
     /// - debug 构建（`tauri dev` / `cargo run`）：`CARGO_MANIFEST_DIR` 的上一级 = 项目根；
     /// - release 构建（`tauri build` / `cargo build --release`）：exe 所在目录。
-    pub fn new() -> Result<Self> {
-        Ok(Self::with_root_dir(get_root_dir()?))
+    pub fn new() -> Result<Self, String> {
+        get_root_dir()
+            .map(Self::with_root_dir)
+            .map_err(|error| format!("无法定位应用根目录: {error}"))
     }
 
     pub fn with_root_dir(root_dir: impl Into<PathBuf>) -> Self {
@@ -88,7 +90,7 @@ impl AppPaths {
     }
 
     /// 解析并验证共享资源目录内当前存在的文件。
-    pub fn resolve_resource_file(&self, relative_path: &str) -> Result<PathBuf> {
+    pub fn resolve_resource_file(&self, relative_path: &str) -> AnyhowResult<PathBuf> {
         resolve_existing_relative_file(&self.resources_dir(), relative_path)
             .with_context(|| format!("解析资源文件失败: {relative_path:?}"))
     }

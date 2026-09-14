@@ -148,7 +148,7 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
     }
 
     emit_install_stage(&app, InstallStage::Preparing);
-    let paths = AppPaths::new().map_err(|error| format!("无法定位应用根目录: {error}"))?;
+    let paths = AppPaths::new()?;
     let package_zip = validate_download_package(&paths, package_path)?;
     let workspace = UpdateWorkspace::for_current_executable(paths.root_dir())
         .map_err(|error| format!("无法确定应用 executable name: {error}"))?;

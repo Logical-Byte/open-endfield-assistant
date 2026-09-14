@@ -134,7 +134,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     app.manage(update::UpdateManager::default());
 
     // 解析资源目录（`resources/models/logs`），不依赖运行时工作目录
-    let app_paths = AppPaths::new()?;
+    let app_paths = AppPaths::new().map_err(anyhow::Error::msg)?;
 
     // 压缩包内直接运行检测：命中则弹原生框提示解压并退出。
     // 必须在建窗口 / 写 `cache` / 初始化日志之前调用（只读临时目录里这些步骤没有意义）。

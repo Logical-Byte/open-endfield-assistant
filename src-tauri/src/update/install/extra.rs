@@ -67,7 +67,7 @@ fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, String> {
         install_kind = "developer_package",
         "正在打开开发者更新包选择器"
     );
-    let paths = AppPaths::new().map_err(|error| format!("无法定位应用目录: {error}"))?;
+    let paths = AppPaths::new()?;
     let downloads = paths.cache_dir().join("downloads");
     fs::create_dir_all(&downloads).map_err(|error| format!("创建更新下载目录失败: {error}"))?;
     let Some(selected) = crate::platform::update::extra::choose_update_package(&downloads)

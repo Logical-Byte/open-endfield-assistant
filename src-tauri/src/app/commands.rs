@@ -104,9 +104,7 @@ pub fn get_webview_zoom(window: tauri::WebviewWindow) -> Result<f64, String> {
 /// （直接调不经 `scope` 检查），`capabilities` 无需放通任何路径。
 #[tauri::command]
 pub fn open_log_dir() -> Result<(), String> {
-    let logs_dir = AppPaths::new()
-        .map_err(|e| format!("无法定位日志目录: {e}"))?
-        .logs_dir();
+    let logs_dir = AppPaths::new()?.logs_dir();
     fs::create_dir_all(&logs_dir).map_err(|e| format!("无法创建日志目录: {e}"))?;
     tauri_plugin_opener::open_path(&logs_dir, None::<&str>)
         .map_err(|e| format!("无法打开日志目录: {e}"))
