@@ -42,7 +42,6 @@ pub struct AppStatus {
 ///
 /// 由 [`crate::controller::Controller`] 在任务被接受后创建，并移交给唯一的扫描线程。
 pub(crate) struct ScanRunContext {
-    app_path: AppPaths,
     oea_config: Arc<Mutex<OeaConfig>>,
     ocr: Arc<Mutex<OcrEngine>>,
     scenes: Arc<SceneManager>,
@@ -52,9 +51,7 @@ pub(crate) struct ScanRunContext {
 }
 
 impl ScanRunContext {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        app_path: AppPaths,
         oea_config: Arc<Mutex<OeaConfig>>,
         ocr: Arc<Mutex<OcrEngine>>,
         scenes: Arc<SceneManager>,
@@ -63,7 +60,6 @@ impl ScanRunContext {
         handle: AppHandle,
     ) -> Self {
         Self {
-            app_path,
             oea_config,
             ocr,
             scenes,
@@ -171,11 +167,7 @@ impl ScanRuntime {
 
     fn run(&self, context: &ScanRunContext) -> ScanOutcome {
         // 任务开始时才连接游戏
-        let mut session = match Session::connect(
-            &context.ocr,
-            &context.app_path.templates_dir(),
-            Arc::clone(&self.stop),
-        ) {
+        let mut session = match Session::connect(&context.ocr, Arc::clone(&self.stop)) {
             Ok(session) => session,
             Err(error) => {
                 return ScanOutcome::Failed(format!("连接游戏失败: {error:#}"));
@@ -237,10 +229,14 @@ impl ScanRuntime {
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .sound_volume;
-        let path = match context
-            .app_path
-            .resolve_resource_file(sound.relative_path())
-        {
+        let app_paths = match AppPaths::new() {
+            Ok(app_paths) => app_paths,
+            Err(error) => {
+                warn!("无法解析扫描提示音资源: {error}");
+                return;
+            }
+        };
+        let path = match app_paths.resolve_resource_file(sound.relative_path()) {
             Ok(path) => path,
             Err(error) => {
                 warn!("无法解析扫描提示音资源: {error:#}");

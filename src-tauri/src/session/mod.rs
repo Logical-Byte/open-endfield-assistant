@@ -14,7 +14,7 @@
 mod automation;
 mod resolution;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -22,6 +22,7 @@ use anyhow::{Context, Result, bail};
 use tracing::{info, warn};
 
 use crate::{
+    app_paths::AppPaths,
     ocr::OcrEngine,
     platform::{
         self, WindowHandle,
@@ -70,11 +71,7 @@ impl Session {
     /// 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）；
     /// 4. 创建截图器与输入器；
     /// 5. 组装会话（复用共享 OCR 引擎与模板目录）。
-    pub(crate) fn connect(
-        ocr: &Arc<Mutex<OcrEngine>>,
-        templates_root: &Path,
-        stop: StopToken,
-    ) -> Result<Self> {
+    pub(crate) fn connect(ocr: &Arc<Mutex<OcrEngine>>, stop: StopToken) -> Result<Self> {
         // 1. 获取游戏窗口（仅确保窗口在屏幕上，不抢占前台）
         let hwnd = platform::window::get_window_by_title(
             Some(platform::window::ENDFIELD_WINDOW_CLASS),
@@ -110,6 +107,7 @@ impl Session {
         let input = Box::new(SeizeInput::new(hwnd, false));
 
         // 5. 组装 `Session`（复用共享 OCR 引擎与模板目录）
+        let templates_root = AppPaths::new().map_err(anyhow::Error::msg)?.templates_dir();
         Ok(Self::new(
             hwnd,
             screencap,

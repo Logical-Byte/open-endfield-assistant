@@ -226,7 +226,6 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     // 组装 `Controller` 并托管为 `State`，启动后台线程
     let controller = Arc::new(Controller::new(
-        app_paths,
         oea_config,
         ocr,
         scenes,
