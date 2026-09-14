@@ -56,7 +56,7 @@ impl UpdateWorkspace {
         Ok(Self::with_executable_name(app_paths, executable_name))
     }
 
-    pub fn app_paths(&self) -> &AppPaths {
+    pub(super) fn app_paths(&self) -> &AppPaths {
         &self.app_paths
     }
 
