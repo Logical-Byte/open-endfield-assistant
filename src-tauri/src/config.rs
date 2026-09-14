@@ -113,14 +113,16 @@ mod tests {
 
     #[test]
     fn test_load_nonexistent_config() {
-        let path = Path::new("nonexistent_config.json");
-        let config = load_oea_config(path);
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("nonexistent_config.json");
+        let config = load_oea_config(&path);
         assert_eq!(config, OeaConfig::default());
     }
 
     #[test]
     fn test_save_and_load_config() {
-        let path = Path::new("test_config.json");
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("test_config.json");
         let original_config = OeaConfig {
             major_version: 1,
             minor_version: 0,
@@ -134,19 +136,18 @@ mod tests {
             auto_install_updates: false,
             scan_tips_dismissed_version: 1,
         };
-        save_oea_config(&original_config, path).unwrap();
-        let loaded_config = load_oea_config(path);
+        save_oea_config(&original_config, &path).unwrap();
+        let loaded_config = load_oea_config(&path);
         assert_eq!(loaded_config, original_config);
-        fs::remove_file(path).unwrap();
     }
 
     #[test]
     fn test_load_invalid_config() {
-        let path = Path::new("invalid_config.json");
-        fs::write(path, "invalid json").unwrap();
-        let config = load_oea_config(path);
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("invalid_config.json");
+        fs::write(&path, "invalid json").unwrap();
+        let config = load_oea_config(&path);
         assert_eq!(config, OeaConfig::default());
-        fs::remove_file(path).unwrap();
     }
 
     #[test]
