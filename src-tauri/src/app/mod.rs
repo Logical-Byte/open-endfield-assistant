@@ -233,13 +233,12 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
         scan_runtime,
         scan_tx,
         foreground,
-        app.handle().clone(),
         app_data,
         logger_guard,
     ));
     Controller::spawn_log_loop(log_rx, app.handle().clone());
     Controller::spawn_scan_result_loop(scan_rx, app.handle().clone());
-    controller.spawn_hotkey_loop(hotkey_rx);
+    controller.spawn_hotkey_loop(hotkey_rx, app.handle().clone());
     app.manage(controller);
 
     // 初始化系统托盘（依赖已托管的 `Controller`，托盘菜单事件直接驱动它）

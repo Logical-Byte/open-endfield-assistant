@@ -78,12 +78,12 @@ pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
             "show" => show_main_window(app),
             "toggle" => {
                 if let Some(controller) = app.try_state::<Arc<Controller>>() {
-                    controller.toggle_scan();
+                    controller.toggle_scan(app);
                 }
             }
             "quit" => {
                 if let Some(controller) = app.try_state::<Arc<Controller>>() {
-                    controller.quit();
+                    controller.quit(app);
                 } else {
                     app.exit(0);
                 }

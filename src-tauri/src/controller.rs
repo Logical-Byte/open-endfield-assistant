@@ -57,8 +57,6 @@ pub struct Controller {
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
     /// 前台窗口守卫（应用层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
     foreground: platform::window::ForegroundGuard,
-    /// Tauri 应用句柄（创建扫描运行上下文）
-    handle: AppHandle,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
     app_data: Arc<AppData>,
     /// 日志写入线程守卫（保活）
@@ -76,7 +74,6 @@ impl Controller {
         scan_runtime: Arc<ScanRuntime>,
         scan_tx: mpsc::Sender<ScanResult>,
         foreground: platform::window::ForegroundGuard,
-        handle: AppHandle,
         app_data: AppData,
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
     ) -> Self {
@@ -88,7 +85,6 @@ impl Controller {
             scan_runtime,
             scan_tx: Mutex::new(scan_tx),
             foreground,
-            handle,
             app_data: Arc::new(app_data),
             _logger_guard,
         }
@@ -133,8 +129,8 @@ impl Controller {
     // ========== 启动 / 停止 / 退出 ==========
 
     /// 启动扫描档案库任务：CAS 占用运行标志 → 推送状态 → 后台线程执行。
-    pub fn start_scan(self: &Arc<Self>) {
-        self.scan_runtime.start(|| self.scan_context());
+    pub fn start_scan(self: &Arc<Self>, app_handle: &AppHandle) {
+        self.scan_runtime.start(|| self.scan_context(app_handle));
     }
 
     /// 请求停止扫描档案库任务（原子置位，由任务内部轮询实现优雅停止）。
@@ -142,18 +138,17 @@ impl Controller {
         self.scan_runtime.stop();
     }
 
-    pub fn toggle_scan(self: &Arc<Self>) {
+    pub fn toggle_scan(self: &Arc<Self>, app_handle: &AppHandle) {
         if self.get_status().running {
             self.stop_scan();
         } else {
-            self.start_scan();
+            self.start_scan(app_handle);
         }
     }
 
     /// 退出程序：请求停止后退出 Tauri 应用。
-    pub fn quit(&self) {
-        if self
-            .handle
+    pub fn quit(&self, app_handle: &AppHandle) {
+        if app_handle
             .state::<crate::update::UpdateManager>()
             .is_installing()
         {
@@ -162,13 +157,17 @@ impl Controller {
         }
         self.scan_runtime.request_stop_for_shutdown();
         info!("收到退出请求，正在退出程序...");
-        self.handle.exit(0);
+        app_handle.exit(0);
     }
 
     // ========== 后台线程 ==========
 
     /// 启动热键消费线程（应用层：前台窗口过滤 + 动作分发）。
-    pub fn spawn_hotkey_loop(self: &Arc<Self>, rx: mpsc::Receiver<platform::hotkey::KeyEvent>) {
+    pub fn spawn_hotkey_loop(
+        self: &Arc<Self>,
+        rx: mpsc::Receiver<platform::hotkey::KeyEvent>,
+        app_handle: AppHandle,
+    ) {
         let self_cloned = Arc::clone(self);
 
         thread::Builder::new()
@@ -176,10 +175,10 @@ impl Controller {
             .spawn(move || {
                 while let Ok(key_event) = rx.recv() {
                     if key_event == EXIT_HOTKEY {
-                        self_cloned.quit();
+                        self_cloned.quit(&app_handle);
                     } else if key_event == TOGGLE_MAIN_TASK_HOTKEY {
                         if self_cloned.foreground.is_foreground_eligible() {
-                            self_cloned.toggle_scan();
+                            self_cloned.toggle_scan(&app_handle);
                         } else {
                             debug!("前台窗口不是终末地或者 OEA，忽略热键");
                         }
@@ -217,7 +216,7 @@ impl Controller {
             .expect("启动扫描结果转发线程失败");
     }
 
-    fn scan_context(&self) -> ScanRunContext {
+    fn scan_context(&self, app_handle: &AppHandle) -> ScanRunContext {
         ScanRunContext::new(
             self.app_path.clone(),
             Arc::clone(&self.oea_config),
@@ -225,7 +224,7 @@ impl Controller {
             Arc::clone(&self.scenes),
             Arc::clone(&self.app_data),
             self.reporter(),
-            self.handle.clone(),
+            app_handle.clone(),
         )
     }
 }
