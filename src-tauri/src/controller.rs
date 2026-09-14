@@ -1,24 +1,19 @@
-//! 应用控制器（Tauri 托管状态）。
+//! 扫描业务控制器（Tauri 托管状态）。
 //!
 //! 职责边界：
 //! - **应用编排**：为扫描任务创建运行上下文；
-//! - **线程编排**：热键消费线程、日志 / 结果转发线程；
-//! - **热键动作分发**（应用层）：键位常量（[`TOGGLE_MAIN_TASK_HOTKEY`] / [`EXIT_HOTKEY`]）+ 前台窗口过滤 + [`Controller::spawn_hotkey_loop`]；
 //!
 //! 扫描任务的状态机与执行线程由 [`ScanRuntime`] 拥有。
 
 use std::sync::{Arc, Mutex, mpsc};
-use std::thread;
 
-use tauri::{AppHandle, Emitter, Manager};
-use tracing::{debug, error, info, warn};
+use tauri::{AppHandle, Manager};
+use tracing::{info, warn};
 
 use crate::{
     config::OeaConfig,
     data::{AppData, ArchiveContract, PrtsData},
-    logger::LogEntry,
     ocr::OcrEngine,
-    platform,
     scan_runtime::{ScanRunContext, ScanRuntime},
     scene::SceneManager,
     task::archive_scan::{ScanReporter, ScanResult},
@@ -27,20 +22,7 @@ use crate::{
 /// 推送给前端的应用状态。
 pub use crate::scan_runtime::AppStatus;
 
-/// 引号 `'` → 切换扫描档案库任务
-pub const TOGGLE_MAIN_TASK_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
-    vk: platform::hotkey::OEM_7_KEY,
-    down: true,
-    modifiers: 0,
-};
-/// Alt+Delete → 退出
-pub const EXIT_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
-    vk: platform::hotkey::DELETE_KEY,
-    down: true,
-    modifiers: platform::hotkey::ALT_MODIFIER,
-};
-
-/// 应用控制器（Tauri 托管状态，以 `Arc` 共享）。
+/// 扫描业务控制器（Tauri 托管状态）。
 pub struct Controller {
     /// 应用配置
     oea_config: Arc<Mutex<OeaConfig>>,
@@ -52,12 +34,8 @@ pub struct Controller {
     scan_runtime: Arc<ScanRuntime>,
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
-    /// 前台窗口守卫（应用层过滤：分号/引号仅在前台为 OEA 或终末地时响应）
-    foreground: platform::window::ForegroundGuard,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
     app_data: Arc<AppData>,
-    /// 日志写入线程守卫（保活）
-    _logger_guard: tracing_appender::non_blocking::WorkerGuard,
 }
 
 impl Controller {
@@ -69,9 +47,7 @@ impl Controller {
         scenes: Arc<SceneManager>,
         scan_runtime: Arc<ScanRuntime>,
         scan_tx: mpsc::Sender<ScanResult>,
-        foreground: platform::window::ForegroundGuard,
         app_data: AppData,
-        _logger_guard: tracing_appender::non_blocking::WorkerGuard,
     ) -> Self {
         Self {
             oea_config,
@@ -79,9 +55,7 @@ impl Controller {
             scenes,
             scan_runtime,
             scan_tx: Mutex::new(scan_tx),
-            foreground,
             app_data: Arc::new(app_data),
-            _logger_guard,
         }
     }
 
@@ -120,7 +94,7 @@ impl Controller {
     // ========== 启动 / 停止 / 退出 ==========
 
     /// 启动扫描档案库任务：CAS 占用运行标志 → 推送状态 → 后台线程执行。
-    pub fn start_scan(self: &Arc<Self>, app_handle: &AppHandle) {
+    pub fn start_scan(&self, app_handle: &AppHandle) {
         self.scan_runtime.start(|| self.scan_context(app_handle));
     }
 
@@ -129,7 +103,7 @@ impl Controller {
         self.scan_runtime.stop();
     }
 
-    pub fn toggle_scan(self: &Arc<Self>, app_handle: &AppHandle) {
+    pub fn toggle_scan(&self, app_handle: &AppHandle) {
         if self.get_status().running {
             self.stop_scan();
         } else {
@@ -149,62 +123,6 @@ impl Controller {
         self.scan_runtime.request_stop_for_shutdown();
         info!("收到退出请求，正在退出程序...");
         app_handle.exit(0);
-    }
-
-    // ========== 后台线程 ==========
-
-    /// 启动热键消费线程（应用层：前台窗口过滤 + 动作分发）。
-    pub fn spawn_hotkey_loop(
-        self: &Arc<Self>,
-        rx: mpsc::Receiver<platform::hotkey::KeyEvent>,
-        app_handle: AppHandle,
-    ) {
-        let self_cloned = Arc::clone(self);
-
-        thread::Builder::new()
-            .name("oea-hotkey".to_string())
-            .spawn(move || {
-                while let Ok(key_event) = rx.recv() {
-                    if key_event == EXIT_HOTKEY {
-                        self_cloned.quit(&app_handle);
-                    } else if key_event == TOGGLE_MAIN_TASK_HOTKEY {
-                        if self_cloned.foreground.is_foreground_eligible() {
-                            self_cloned.toggle_scan(&app_handle);
-                        } else {
-                            debug!("前台窗口不是终末地或者 OEA，忽略热键");
-                        }
-                    }
-                }
-            })
-            .expect("启动热键消费线程失败");
-    }
-
-    /// 启动日志转发线程：把 logger 通道里的日志逐条 emit 到前端。
-    pub fn spawn_log_loop(rx: mpsc::Receiver<LogEntry>, handle: AppHandle) {
-        thread::Builder::new()
-            .name("oea-log".to_string())
-            .spawn(move || {
-                while let Ok(log_entry) = rx.recv() {
-                    if let Err(e) = handle.emit("log", &log_entry) {
-                        error!("向前端推送日志失败: {e}");
-                    }
-                }
-            })
-            .expect("启动日志转发线程失败");
-    }
-
-    /// 启动扫描结果转发线程：把结果通道里的结果逐个 emit 到前端。
-    pub fn spawn_scan_result_loop(rx: mpsc::Receiver<ScanResult>, handle: AppHandle) {
-        thread::Builder::new()
-            .name("oea-result".to_string())
-            .spawn(move || {
-                while let Ok(result) = rx.recv() {
-                    if let Err(e) = handle.emit("scan-result", &result) {
-                        error!("向前端推送扫描结果失败: {e}");
-                    }
-                }
-            })
-            .expect("启动扫描结果转发线程失败");
     }
 
     fn scan_context(&self, app_handle: &AppHandle) -> ScanRunContext {

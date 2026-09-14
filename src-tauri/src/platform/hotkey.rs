@@ -25,19 +25,41 @@ pub struct KeyEvent {
     pub modifiers: u32,
 }
 
+/// 全局键盘监听线程的释放守卫。
+pub struct KeyboardHookGuard {
+    #[cfg(target_os = "windows")]
+    inner: windows::hotkey::KeyboardHookGuard,
+}
+
+impl KeyboardHookGuard {
+    /// 停止键盘消息泵并等待监听线程退出。
+    pub fn shutdown(self) -> Result<()> {
+        #[cfg(target_os = "windows")]
+        {
+            self.inner.shutdown()
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            Ok(())
+        }
+    }
+}
+
 /// 启动只感知、不拦截按键的全局键盘监听。
 ///
 /// 自动重复在监听层过滤，返回端只收到首次按下与弹起事件。
 /// macOS 开发外壳返回一个不会产生事件的接收端。
-pub fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
+pub fn listen() -> Result<(mpsc::Receiver<KeyEvent>, KeyboardHookGuard)> {
     #[cfg(target_os = "windows")]
     {
-        windows::hotkey::listen()
+        let (rx, inner) = windows::hotkey::listen()?;
+        Ok((rx, KeyboardHookGuard { inner }))
     }
 
     #[cfg(target_os = "macos")]
     {
         let (_tx, rx) = mpsc::channel();
-        Ok(rx)
+        Ok((rx, KeyboardHookGuard {}))
     }
 }

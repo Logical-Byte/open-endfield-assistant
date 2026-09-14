@@ -1,7 +1,10 @@
 //! Tauri 应用外壳与生命周期编排。
 
+mod background_threads;
 mod commands;
+mod frontend_forwarders;
 mod hooks;
+mod hotkeys;
 mod tray;
 
 use std::fs;
@@ -18,6 +21,7 @@ use crate::{
 };
 
 use self::hooks::{crash, portable};
+use background_threads::BackgroundThreads;
 
 #[cfg(target_os = "windows")]
 fn configure_main_window<'a, R, M>(
@@ -98,7 +102,7 @@ pub fn run() {
                     api.prevent_close();
                     return;
                 }
-                let controller = app_handle.state::<Arc<Controller>>();
+                let controller = app_handle.state::<Controller>();
                 if controller
                     .oea_config()
                     .lock()
@@ -124,8 +128,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|app_handle, event| {
-            let (_, _) = (app_handle, event);
-            // `dbg!(app_handle, event)`
+            if let tauri::RunEvent::Exit = event {
+                if let Some(background_threads) = app_handle.try_state::<BackgroundThreads>() {
+                    background_threads.shutdown();
+                }
+            }
         });
 }
 
@@ -141,7 +148,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     portable::ensure_extracted(&app_paths);
 
     // 更新事务可能在正常应用初始化前失败，因此先启用文件日志。早期日志会暂存在通道中，
-    // 等 Controller 启动转发线程后再推送给前端。
+    // 等 BackgroundThreads 启动转发线程后再推送给前端。
     let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
 
     // 在初始化 Tauri 窗口和资源消费者前完成 v2 的 resources 提交。helper 副本、
@@ -217,31 +224,18 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
         Box::new(scene::Scene未知),
     ]));
 
-    // 开始监听热键
-    let oea_window = platform::window::get_app_window(app.handle())?;
-    let foreground = platform::window::ForegroundGuard::new(oea_window);
-    let hotkey_rx = platform::hotkey::listen()?;
-
     let scan_runtime = Arc::new(ScanRuntime::new());
 
-    // 组装 `Controller` 并托管为 `State`，启动后台线程
-    let controller = Arc::new(Controller::new(
-        oea_config,
-        ocr,
-        scenes,
-        scan_runtime,
-        scan_tx,
-        foreground,
-        app_data,
-        logger_guard,
-    ));
-    Controller::spawn_log_loop(log_rx, app.handle().clone());
-    Controller::spawn_scan_result_loop(scan_rx, app.handle().clone());
-    controller.spawn_hotkey_loop(hotkey_rx, app.handle().clone());
+    // 组装扫描业务控制器并托管为 `State`。
+    let controller = Controller::new(oea_config, ocr, scenes, scan_runtime, scan_tx, app_data);
     app.manage(controller);
 
     // 初始化系统托盘（依赖已托管的 `Controller`，托盘菜单事件直接驱动它）
     tray::init_tray(app.handle())?;
+
+    // 托管应用常驻线程；此后 `setup` 不再执行可能失败的初始化步骤。
+    let background_threads = BackgroundThreads::start(app.handle(), logger_guard, log_rx, scan_rx)?;
+    app.manage(background_threads);
 
     info!("OEA 后端初始化完成");
     Ok(())

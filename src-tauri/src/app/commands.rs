@@ -1,6 +1,6 @@
 //! Tauri 命令层：薄胶水，把前端 `invoke` 转发给 [`crate::controller::Controller`]。
 
-use std::{fs, io::Cursor, sync::Arc};
+use std::{fs, io::Cursor};
 
 use anyhow::Context;
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -38,39 +38,39 @@ impl ScreenshotFormat {
 
 /// 启动扫描档案库任务（在后台线程执行，立即返回当前状态）。
 #[tauri::command]
-pub fn start_scan(state: tauri::State<Arc<Controller>>, app_handle: tauri::AppHandle) -> AppStatus {
+pub fn start_scan(state: tauri::State<Controller>, app_handle: tauri::AppHandle) -> AppStatus {
     state.start_scan(&app_handle);
     state.get_status()
 }
 
 /// 请求停止扫描档案库任务。
 #[tauri::command]
-pub fn stop_scan(state: tauri::State<Arc<Controller>>) -> AppStatus {
+pub fn stop_scan(state: tauri::State<Controller>) -> AppStatus {
     state.stop_scan();
     state.get_status()
 }
 
 /// 查询当前应用状态。
 #[tauri::command]
-pub fn get_status(state: tauri::State<Arc<Controller>>) -> AppStatus {
+pub fn get_status(state: tauri::State<Controller>) -> AppStatus {
     state.get_status()
 }
 
 /// 返回 `prts.json` 完整数据（前端用于分类中文名映射与自动补全候选）。
 #[tauri::command]
-pub fn get_prts_data<'a>(state: tauri::State<'a, Arc<Controller>>) -> &'a PrtsData {
+pub fn get_prts_data<'a>(state: tauri::State<'a, Controller>) -> &'a PrtsData {
     state.inner().prts_data()
 }
 
 /// 返回 `archive_contract.json` 完整数据（前端用于按档案 `id` 查询获取方式）。
 #[tauri::command]
-pub fn get_archive_contract<'a>(state: tauri::State<'a, Arc<Controller>>) -> &'a ArchiveContract {
+pub fn get_archive_contract<'a>(state: tauri::State<'a, Controller>) -> &'a ArchiveContract {
     state.inner().archive_contract_data()
 }
 
 /// 退出程序。
 #[tauri::command]
-pub fn quit(state: tauri::State<Arc<Controller>>, app_handle: tauri::AppHandle) {
+pub fn quit(state: tauri::State<Controller>, app_handle: tauri::AppHandle) {
     state.quit(&app_handle);
 }
 
@@ -112,14 +112,14 @@ pub fn open_log_dir() -> Result<(), String> {
 
 /// 加载 OEA 配置文件。
 #[tauri::command]
-pub fn load_oea_config(state: tauri::State<Arc<Controller>>) -> OeaConfig {
+pub fn load_oea_config(state: tauri::State<Controller>) -> OeaConfig {
     state.oea_config().lock().unwrap().clone()
 }
 
 /// 保存 OEA 配置文件。
 #[tauri::command]
 pub fn save_oea_config(
-    state: tauri::State<Arc<Controller>>,
+    state: tauri::State<Controller>,
     oea_config: OeaConfig,
 ) -> Result<(), String> {
     let path = AppPaths::new()?.oea_config_file();
