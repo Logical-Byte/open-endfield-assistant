@@ -6,11 +6,11 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 const faqItems: AccordionItem[] = [
   {
     label: '手机能用吗？',
-    content: '不能。OEA 仅支持 Windows 10 / 11（x86_64）。',
+    slot: 'faq-mobile',
   },
   {
     label: '识别结果不准确怎么办？',
-    content: '可以使用输入框进行人工纠错。建议将识别错误告知我们，以便改进识别算法。',
+    slot: 'faq-accuracy',
   },
   {
     label: 'OEA 收费吗？',
@@ -173,10 +173,10 @@ onBeforeUnmount(() => {
               <span class="font-semibold text-highlighted">操作说明</span>
             </div>
           </template>
-          <div class="flex flex-col gap-6">
+          <div class="space-y-6">
             <div>
-              <p class="mbe-3 font-medium text-highlighted">使用前准备</p>
-              <ul class="flex list-disc flex-col gap-3 ps-6 text-muted marker:text-muted">
+              <p class="mb-3 font-semibold text-highlighted">使用前准备</p>
+              <ul class="flex list-disc flex-col gap-3 ps-6 text-toned marker:text-toned">
                 <li>
                   理论上支持任意 <strong class="text-primary">16:9</strong> 的分辨率。我们最建议使用
                   <strong class="text-primary">1280 × 720</strong>、<strong class="text-primary"
@@ -196,8 +196,8 @@ onBeforeUnmount(() => {
               </ul>
             </div>
             <div>
-              <p class="mbe-3 font-medium text-highlighted">快捷键</p>
-              <ul class="flex list-disc flex-col gap-3 ps-6 text-muted marker:text-muted">
+              <p class="mb-3 font-semibold text-highlighted">快捷键</p>
+              <ul class="flex list-disc flex-col gap-3 ps-6 text-toned marker:text-toned">
                 <li>按 <UKbd>'</UKbd>（引号键）开始扫描档案库；扫描过程中再次按下可停止</li>
                 <li>按 <UKbd>Alt</UKbd> + <UKbd>Delete</UKbd> 退出程序</li>
               </ul>
@@ -213,9 +213,11 @@ onBeforeUnmount(() => {
               <span class="font-semibold text-highlighted">已知问题</span>
             </div>
           </template>
-          <ol class="list-disc space-y-3 text-muted">
-            存在 2 个不同的档案，名称都为「挂在竹子上的字条」。OEA
-            目前无法区分二者，目前只要识别到其一就认为 2 个档案都已收集。
+          <ol class="list-disc space-y-3 text-toned">
+            <li>
+              存在 2 个不同的档案，名称都为「挂在竹子上的字条」。OEA
+              目前无法区分二者，目前只要识别到其一就认为 2 个档案都已收集。
+            </li>
           </ol>
         </UCard>
 
@@ -227,26 +229,23 @@ onBeforeUnmount(() => {
               <span class="font-semibold text-highlighted">常见问题</span>
             </div>
           </template>
-          <UAccordion :items="faqItems">
+          <UAccordion :items="faqItems" :ui="{ trigger: 'text-base' }">
+            <template #faq-mobile>
+              <p class="pb-3.5 text-toned">不能。OEA 仅支持 Windows 10 / 11（x86_64）。</p>
+            </template>
+            <template #faq-accuracy>
+              <p class="pb-3.5 text-toned">
+                可以使用输入框进行人工纠错。建议将识别错误告知我们，以便改进识别算法。
+              </p>
+            </template>
             <template #faq-fee>
-              <p class="pb-3.5 text-sm text-muted">
-                OEA 开源且免费，不会以任何形式收取费用。
-                <br />
-                您可以前往
-                <ULink
-                  class="text-primary hover:text-primary/75"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
-                  >GitHub Release</ULink
-                >
-                免费下载和使用 OEA。
-                <br />
-                如果您是通过付费方式获取的 OEA，您可能已经被不法商家欺骗，请立即告知我们。
+              <p class="pb-3.5 text-toned">
+                OEA 开源且免费，不会以任何形式收取费用。如果您是通过付费方式获取的
+                OEA，您可能已经被不法商家欺骗，请立即告知我们。
               </p>
             </template>
             <template #faq-mirror>
-              <p class="pb-3.5 text-sm text-muted">
+              <p class="pb-3.5 text-toned">
                 <ULink
                   class="text-primary hover:text-primary/75"
                   rel="noopener noreferrer"
@@ -254,8 +253,9 @@ onBeforeUnmount(() => {
                   to="https://mirrorchyan.com/"
                   >Mirror酱</ULink
                 >
-                是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。OEA
-                本身不收取任何费用，也提供免费的下载渠道，您可以前往
+                是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。
+                <br />
+                OEA 本身不收取任何费用，也提供免费的下载渠道，您可以前往
                 <ULink
                   class="text-primary hover:text-primary/75"
                   rel="noopener noreferrer"
@@ -412,7 +412,7 @@ onBeforeUnmount(() => {
               <span class="font-semibold text-highlighted">说明</span>
             </div>
           </template>
-          <ol class="list-disc space-y-3 ps-6 text-muted marker:text-muted">
+          <ol class="list-disc space-y-3 ps-6 text-toned marker:text-toned">
             <li>
               自动更新功能有删除硬盘上的文件的操作，请确保重要数据已备份再使用自动更新功能，避免误删重要文件。
             </li>
