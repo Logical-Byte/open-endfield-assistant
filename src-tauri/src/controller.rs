@@ -14,7 +14,6 @@ use tauri::{AppHandle, Emitter, Manager};
 use tracing::{debug, error, info, warn};
 
 use crate::{
-    app_paths::AppPaths,
     config::OeaConfig,
     data::{AppData, ArchiveContract, PrtsData},
     logger::LogEntry,
@@ -43,8 +42,6 @@ pub const EXIT_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
 
 /// 应用控制器（Tauri 托管状态，以 `Arc` 共享）。
 pub struct Controller {
-    /// 应用根目录
-    app_path: AppPaths,
     /// 应用配置
     oea_config: Arc<Mutex<OeaConfig>>,
     /// 共享 OCR 引擎（跨会话复用模型）
@@ -67,7 +64,6 @@ impl Controller {
     /// 创建控制器。
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        app_path: AppPaths,
         oea_config: Arc<Mutex<OeaConfig>>,
         ocr: Arc<Mutex<OcrEngine>>,
         scenes: Arc<SceneManager>,
@@ -78,7 +74,6 @@ impl Controller {
         _logger_guard: tracing_appender::non_blocking::WorkerGuard,
     ) -> Self {
         Self {
-            app_path,
             oea_config,
             ocr,
             scenes,
@@ -88,10 +83,6 @@ impl Controller {
             app_data: Arc::new(app_data),
             _logger_guard,
         }
-    }
-
-    pub fn app_path(&self) -> &AppPaths {
-        &self.app_path
     }
 
     pub fn oea_config(&self) -> &Arc<Mutex<OeaConfig>> {
@@ -218,7 +209,6 @@ impl Controller {
 
     fn scan_context(&self, app_handle: &AppHandle) -> ScanRunContext {
         ScanRunContext::new(
-            self.app_path.clone(),
             Arc::clone(&self.oea_config),
             Arc::clone(&self.ocr),
             Arc::clone(&self.scenes),

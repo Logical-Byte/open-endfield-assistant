@@ -122,7 +122,7 @@ pub fn save_oea_config(
     state: tauri::State<Arc<Controller>>,
     oea_config: OeaConfig,
 ) -> Result<(), String> {
-    let path = state.app_path().oea_config_file();
+    let path = AppPaths::new()?.oea_config_file();
     debug!("正在保存配置 {oea_config:?} 到 {}", path.display());
     // 先保存到文件
     config::save_oea_config(&oea_config, &path).map_err(|e| {
