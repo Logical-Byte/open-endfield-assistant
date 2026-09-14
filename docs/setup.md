@@ -5,7 +5,7 @@
 - Node.js：建议使用 22 LTS。
 - pnpm：版本见 [package.json](../package.json) 的 `packageManager`，建议启用 Corepack。
 - Rust：使用 stable，最低版本见 [Cargo.toml](../src-tauri/Cargo.toml) 的 `rust-version`。
-- Windows 10 / 11（x86_64）：后端编译需要 MSVC（Microsoft C++ Build Tools，含 Windows SDK）。平台支持范围见[后端规范](rule-backend.md#编译)。
+- Windows 10 / 11（x86_64）：后端编译需要 MSVC（Microsoft C++ Build Tools，含 Windows SDK）。平台支持范围见[后端规范](rule-backend.md#编译检查与测试)。
 
 WebView2 缺失时，应用会在首次启动时引导下载安装。
 
@@ -50,7 +50,7 @@ pnpm download:models
 - 完整应用（Windows）：`pnpm tauri dev`，同时启动 Vite 开发服务器与 Tauri 窗口。
 - 仅前端：`pnpm dev`，无法调用后端命令（`invoke` 会失败），适合纯 UI 调试。
 
-macOS 开发外壳是可选的本地调试入口。初始化 `resources/` 子模块后，可直接运行 `pnpm tauri dev`。能力边界见[后端规范](rule-backend.md#编译)。
+macOS 开发外壳是可选的本地调试入口。初始化 `resources/` 子模块后，可直接运行 `pnpm tauri dev`。能力边界见[后端规范](rule-backend.md#编译检查与测试)。
 
 ## 后端日志
 
