@@ -102,8 +102,8 @@ fn temp_dir_normalized() -> String {
 }
 
 /// 资源是否完整：`resources/ocr-models/` 目录存在且含任意 `.onnx` 模型文件。
-fn resources_ok(root: &Path) -> bool {
-    let models_dir = root.join("resources").join("ocr-models");
+fn resources_ok(app_paths: &AppPaths) -> bool {
+    let models_dir = app_paths.models_dir();
     if !models_dir.is_dir() {
         return false;
     }
@@ -117,12 +117,13 @@ fn resources_ok(root: &Path) -> bool {
 }
 
 /// 组合判定（纯函数，唯一判定入口）。
-pub fn check(root: &Path) -> PathStatus {
+pub fn check(app_paths: &AppPaths) -> PathStatus {
+    let root = app_paths.root_dir();
     if !is_writable(root) {
         return PathStatus::ZipRuntime(ZipReason::ReadOnly);
     }
     if is_temp_location(root) {
-        return if resources_ok(root) {
+        return if resources_ok(app_paths) {
             PathStatus::ZipRuntime(ZipReason::Temp)
         } else {
             PathStatus::ZipRuntime(ZipReason::TempAndMissingResources)
@@ -133,7 +134,7 @@ pub fn check(root: &Path) -> PathStatus {
 
 /// 启动早期调用：命中则写 crash 日志、弹原生框、退出；不命中则无副作用。
 pub fn ensure_extracted(app_paths: &AppPaths) {
-    let PathStatus::ZipRuntime(reason) = check(app_paths.root_dir()) else {
+    let PathStatus::ZipRuntime(reason) = check(app_paths) else {
         return;
     };
 

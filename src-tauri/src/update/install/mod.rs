@@ -86,7 +86,7 @@ fn emit_install_stage(app: &tauri::AppHandle, stage: InstallStage) {
 }
 
 fn validate_download_package(paths: &AppPaths, package_path: &Path) -> Result<PathBuf, String> {
-    let downloads = paths.cache_dir().join("downloads");
+    let downloads = paths.downloads_dir();
     let canonical_downloads = downloads
         .canonicalize()
         .map_err(|error| format!("无法定位更新下载目录: {error}"))?;

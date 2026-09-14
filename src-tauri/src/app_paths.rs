@@ -97,7 +97,7 @@ impl AppPaths {
 
     /// OCR 模型目录（`<root_dir>/resources/ocr-models`）。
     pub fn models_dir(&self) -> PathBuf {
-        self.root_dir.join("resources").join("ocr-models")
+        self.resources_dir().join("ocr-models")
     }
 
     /// 运行日志目录（`<root_dir>/logs`）。
@@ -108,6 +108,11 @@ impl AppPaths {
     /// 缓存目录（`<root_dir>/cache`，存放运行期缓存与临时文件，如 WebView2 安装引导程序）。
     pub fn cache_dir(&self) -> PathBuf {
         self.root_dir.join("cache")
+    }
+
+    /// 更新包下载目录（`<root_dir>/cache/downloads`）。
+    pub fn downloads_dir(&self) -> PathBuf {
+        self.cache_dir().join("downloads")
     }
 
     /// WebView2 用户数据目录（`<root_dir>/cache/webview-data`，不写入 `%LOCALAPPDATA%`，）。
