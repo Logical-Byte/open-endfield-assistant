@@ -134,7 +134,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     app.manage(update::UpdateManager::default());
 
     // 解析资源目录（`resources/models/logs`），不依赖运行时工作目录
-    let app_paths = AppPaths::new()?;
+    let app_paths = AppPaths::new().map_err(anyhow::Error::msg)?;
 
     // 压缩包内直接运行检测：命中则弹原生框提示解压并退出。
     // 必须在建窗口 / 写 `cache` / 初始化日志之前调用（只读临时目录里这些步骤没有意义）。
@@ -146,7 +146,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     // 在初始化 Tauri 窗口和资源消费者前完成 v2 的 resources 提交。helper 副本、
     // candidate 和 transaction 的生命周期都由 install core 管理，前端只消费结果。
-    let workspace = update::install::UpdateWorkspace::for_current_executable(app_paths.root_dir())
+    let workspace = update::install::UpdateWorkspace::for_current_executable(&app_paths)
         .map_err(|error| anyhow::anyhow!("无法确定更新 executable name: {error}"))?;
     let startup_update_result =
         update::install::complete_startup_transaction(&workspace).map_err(|error| {

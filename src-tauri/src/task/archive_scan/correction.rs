@@ -196,7 +196,10 @@ fn similarity(dist: usize, a_len: usize, b_len: usize) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::{PrtsData, archive_title_index::NORM_MAX_CHARS};
+    use crate::{
+        app_paths::AppPaths,
+        data::{PrtsData, archive_title_index::NORM_MAX_CHARS},
+    };
     use serde_json::json;
 
     /// 构造一个覆盖设计文档错误案例的迷你索引。
@@ -393,13 +396,12 @@ mod tests {
     /// 检查纠错是否命中原条目（标题一致即可，同标题多条允许命中任一）。
     #[test]
     fn correct_all_real_titles() {
-        // cargo test 的工作目录是 src-tauri/
-        let prts_path = std::path::Path::new("../resources/data/prts.json");
-        if !prts_path.exists() {
-            eprintln!("跳过：未找到真实 prts.json（{}）", prts_path.display());
+        let app_paths = AppPaths::new().unwrap();
+        let Ok(prts_path) = app_paths.resolve_resource_file("data/prts.json") else {
+            eprintln!("跳过：未找到真实 prts.json");
             return;
-        }
-        let text = std::fs::read_to_string(prts_path).expect("读取 prts.json 失败");
+        };
+        let text = std::fs::read_to_string(&prts_path).expect("读取 prts.json 失败");
         let prts: PrtsData = serde_json::from_str(&text).expect("解析 prts.json 失败");
         let idx = ArchiveTitleIndex::from_prts(&prts);
 

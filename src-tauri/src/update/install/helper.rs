@@ -14,8 +14,10 @@ use std::{
 };
 use tracing::{debug, error, info};
 
-use crate::platform::update::replace_file;
-use crate::platform::update::{UpdatePrompt, show_update_error};
+use crate::{
+    app_paths::AppPaths,
+    platform::update::{UpdatePrompt, replace_file, show_update_error},
+};
 
 use super::workspace::UpdateWorkspace;
 
@@ -101,7 +103,7 @@ pub fn run_helper_request_with_logging(
             return Err(error);
         }
     };
-    let (_logger_guard, _log_rx) = crate::logger::init(&workspace.root().join("logs"));
+    let (_logger_guard, _log_rx) = crate::logger::init(&workspace.app_paths().logs_dir());
     debug!(
         process_role = "update_helper",
         pid = std::process::id(),
@@ -145,7 +147,8 @@ fn validate_helper_request(
     let root = root
         .canonicalize()
         .map_err(|error| format!("解析 helper 应用根目录失败: {error}"))?;
-    let workspace = UpdateWorkspace::with_executable_name(root, executable_name);
+    let app_paths = AppPaths::with_root_dir(root);
+    let workspace = UpdateWorkspace::with_executable_name(&app_paths, executable_name);
     let actual_helper = std::env::current_exe()
         .and_then(|path| path.canonicalize())
         .map_err(|error| format!("解析 helper 实际路径失败: {error}"))?;

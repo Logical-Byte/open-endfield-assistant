@@ -67,8 +67,8 @@ fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, String> {
         install_kind = "developer_package",
         "正在打开开发者更新包选择器"
     );
-    let paths = AppPaths::new().map_err(|error| format!("无法定位应用目录: {error}"))?;
-    let downloads = paths.cache_dir().join("downloads");
+    let paths = AppPaths::new()?;
+    let downloads = paths.downloads_dir();
     fs::create_dir_all(&downloads).map_err(|error| format!("创建更新下载目录失败: {error}"))?;
     let Some(selected) = crate::platform::update::extra::choose_update_package(&downloads)
         .map_err(|error| format!("选择更新包失败: {error}"))?
@@ -102,7 +102,7 @@ fn stage_developer_package(paths: &AppPaths, selected: &Path) -> Result<PathBuf,
         return Err("请选择 .zip 更新包".to_string());
     }
 
-    let downloads = paths.cache_dir().join("downloads");
+    let downloads = paths.downloads_dir();
     fs::create_dir_all(&downloads).map_err(|error| format!("创建更新下载目录失败: {error}"))?;
     let selected = selected
         .canonicalize()
@@ -183,7 +183,7 @@ mod tests {
         fs::write(&selected, "second package").unwrap();
         let second_staged = stage_developer_package(&paths, &selected).unwrap();
 
-        let downloads = paths.cache_dir().join("downloads").canonicalize().unwrap();
+        let downloads = paths.downloads_dir().canonicalize().unwrap();
         assert!(first_staged.starts_with(&downloads));
         assert!(second_staged.starts_with(downloads));
         assert_ne!(first_staged, second_staged);

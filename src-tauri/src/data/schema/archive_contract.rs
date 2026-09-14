@@ -148,17 +148,19 @@ pub struct ArchiveContract {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app_paths::AppPaths;
 
-    /// 真实数据文件路径（相对 crate 根目录 src-tauri/）。
-    const DATA_FILE: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../resources/data/archive_contract.json"
-    );
+    fn data_file() -> std::path::PathBuf {
+        AppPaths::new()
+            .unwrap()
+            .resolve_resource_file("data/archive_contract.json")
+            .unwrap()
+    }
 
     /// 读取真实数据文件并反序列化，校验全部条目都能被类型覆盖。
     #[test]
     fn deserialize_contract() {
-        let text = std::fs::read_to_string(DATA_FILE).expect("读取数据文件失败");
+        let text = std::fs::read_to_string(data_file()).expect("读取数据文件失败");
         let contract: ArchiveContract = serde_json::from_str(&text).expect("反序列化失败");
 
         assert_eq!(contract.version, 1);
@@ -193,7 +195,7 @@ mod tests {
     /// 序列化后重新反序列化，验证往返一致（含内部标记 `method` 与各附加字段）。
     #[test]
     fn round_trip() {
-        let text = std::fs::read_to_string(DATA_FILE).expect("读取数据文件失败");
+        let text = std::fs::read_to_string(data_file()).expect("读取数据文件失败");
         let contract: ArchiveContract = serde_json::from_str(&text).expect("反序列化失败");
 
         let serialized = serde_json::to_string(&contract).expect("序列化失败");

@@ -122,10 +122,7 @@ pub(super) async fn download_update_plan(
 
 /// 返回文件下载目录（`<root>/cache/downloads`），不存在时创建。
 fn ensure_download_dir() -> Result<PathBuf, String> {
-    let dir = crate::app_paths::AppPaths::new()
-        .map_err(|e| format!("无法定位应用根目录: {e}"))?
-        .cache_dir()
-        .join("downloads");
+    let dir = crate::app_paths::AppPaths::new()?.downloads_dir();
     std::fs::create_dir_all(&dir)
         .map_err(|e| format!("无法创建下载目录 {}: {e}", dir.display()))?;
     Ok(dir)
