@@ -12,7 +12,7 @@ updates:
     commit-message:
       prefix: 'chore(deps)'
     ignore:
-      # windows-rs 与 Tauri/WebView2 交换 HWND、IUnknown 等类型，跨兼容版本升级需同步进行。
+      # Tauri/WebView2 仍使用 0.61；跨 minor/major 升级会新增一套 windows-rs 编译。
       - dependency-name: windows
         update-types:
           - version-update:semver-major
