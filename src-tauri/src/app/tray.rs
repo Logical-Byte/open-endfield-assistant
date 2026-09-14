@@ -3,7 +3,7 @@
 //! - 托盘菜单直接驱动 [`Controller`]，无需前端中转（与热键分发同一模式）；
 //! - 左键单击托盘图标显示主窗口；
 
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result};
 use tauri::{
@@ -77,12 +77,12 @@ pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => show_main_window(app),
             "toggle" => {
-                if let Some(controller) = app.try_state::<Arc<Controller>>() {
+                if let Some(controller) = app.try_state::<Controller>() {
                     controller.toggle_scan(app);
                 }
             }
             "quit" => {
-                if let Some(controller) = app.try_state::<Arc<Controller>>() {
+                if let Some(controller) = app.try_state::<Controller>() {
                     controller.quit(app);
                 } else {
                     app.exit(0);
@@ -126,7 +126,7 @@ pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
         }
     });
     // 同步初始状态（启动时未运行，菜单已显示"开始扫描"）
-    if let Some(controller) = app_handle.try_state::<Arc<Controller>>() {
+    if let Some(controller) = app_handle.try_state::<Controller>() {
         update_toggle_item(controller.get_status().running);
     }
 

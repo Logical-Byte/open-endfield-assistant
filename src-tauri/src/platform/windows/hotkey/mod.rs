@@ -9,17 +9,19 @@
 
 use std::cell::RefCell;
 use std::sync::mpsc;
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 use ::windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
+use ::windows::Win32::System::Threading::GetCurrentThreadId;
 use ::windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
 };
 use ::windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, GetMessageW, HC_ACTION, KBDLLHOOKSTRUCT, LLKHF_ALTDOWN, MSG, SetWindowsHookExW,
-    UnhookWindowsHookEx, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    CallNextHookEx, GetMessageW, HC_ACTION, KBDLLHOOKSTRUCT, LLKHF_ALTDOWN, MSG, PM_NOREMOVE,
+    PeekMessageW, PostThreadMessageW, SetWindowsHookExW, UnhookWindowsHookEx, WH_KEYBOARD_LL,
+    WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
-use anyhow::Result;
+use anyhow::{Context, Result, anyhow};
 use scopeguard::defer;
 use tracing::{error, info};
 
@@ -40,6 +42,53 @@ struct ListenerState {
     pressed: Vec<u32>,
     /// 修饰键按下状态（基于钩子事件流自跟踪）
     mods: u32,
+}
+
+enum ListenerStartup {
+    Ready(u32),
+    Failed(String),
+}
+
+struct HookThread {
+    id: u32,
+    handle: JoinHandle<()>,
+}
+
+pub(in crate::platform) struct KeyboardHookGuard {
+    inner: Option<HookThread>,
+}
+
+impl KeyboardHookGuard {
+    pub(in crate::platform) fn shutdown(mut self) -> Result<()> {
+        self.shutdown_inner()
+    }
+
+    fn shutdown_inner(&mut self) -> Result<()> {
+        let Some(thread) = self.inner.take() else {
+            return Ok(());
+        };
+
+        let post_result = if thread.handle.is_finished() {
+            Ok(())
+        } else {
+            unsafe { PostThreadMessageW(thread.id, WM_QUIT, WPARAM(0), LPARAM(0)) }
+                .context("发送 WM_QUIT 失败")
+        };
+        let join_result = thread
+            .handle
+            .join()
+            .map_err(|_| anyhow!("键盘监听线程发生 panic"));
+
+        post_result.and(join_result)
+    }
+}
+
+impl Drop for KeyboardHookGuard {
+    fn drop(&mut self) {
+        if let Err(error) = self.shutdown_inner() {
+            error!(%error, "释放键盘监听线程失败");
+        }
+    }
 }
 
 thread_local! {
@@ -129,10 +178,11 @@ unsafe extern "system" fn keyboard_hook_proc(
 ///
 /// 安装 `WH_KEYBOARD_LL` 低级键盘钩子，把键盘消息（按下 / 弹起，自动重复已过滤）
 /// 广播到返回的接收端。钩子只感知、不拦截任何按键。
-pub(in crate::platform) fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
+pub(in crate::platform) fn listen() -> Result<(mpsc::Receiver<KeyEvent>, KeyboardHookGuard)> {
     let (tx, rx) = mpsc::channel();
+    let (startup_tx, startup_rx) = mpsc::sync_channel(0);
 
-    thread::Builder::new()
+    let handle = thread::Builder::new()
         .name("oea-keyboard".to_string())
         .spawn(move || {
             // 安装低级键盘钩子（统一感知所有按键，不拦截任何按键）。
@@ -144,6 +194,10 @@ pub(in crate::platform) fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
             };
             LISTENER_STATE.with(|cell| *cell.borrow_mut() = Some(listener_state));
 
+            // `PostThreadMessageW` 只有在线程创建消息队列后才能可靠投递。
+            let mut msg = MSG::default();
+            let _ = unsafe { PeekMessageW(&mut msg, None, 0, 0, PM_NOREMOVE) };
+
             let hook = match unsafe {
                 SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), None, 0)
             } {
@@ -153,6 +207,7 @@ pub(in crate::platform) fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
                 }
                 Err(e) => {
                     error!("键盘监听钩子安装失败: {e}");
+                    let _ = startup_tx.send(ListenerStartup::Failed(e.to_string()));
                     None
                 }
             };
@@ -167,8 +222,12 @@ pub(in crate::platform) fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
                 LISTENER_STATE.with(|cell| *cell.borrow_mut() = None);
             }
 
+            let thread_id = unsafe { GetCurrentThreadId() };
+            if startup_tx.send(ListenerStartup::Ready(thread_id)).is_err() {
+                return;
+            }
+
             // 消息循环：泵出低级键盘钩子消息（回调由系统在此线程的消息泵中调用）
-            let mut msg = MSG::default();
             loop {
                 let ret = unsafe { GetMessageW(&mut msg, None, 0, 0) };
                 if ret.0 == 0 || ret.0 == -1 {
@@ -176,7 +235,25 @@ pub(in crate::platform) fn listen() -> Result<mpsc::Receiver<KeyEvent>> {
                 }
             }
         })
-        .expect("启动键盘监听线程失败");
+        .context("启动键盘监听线程失败")?;
 
-    Ok(rx)
+    match startup_rx.recv() {
+        Ok(ListenerStartup::Ready(thread_id)) => Ok((
+            rx,
+            KeyboardHookGuard {
+                inner: Some(HookThread {
+                    id: thread_id,
+                    handle,
+                }),
+            },
+        )),
+        Ok(ListenerStartup::Failed(message)) => {
+            let _ = handle.join();
+            Err(anyhow!("安装键盘监听钩子失败: {message}"))
+        }
+        Err(error) => {
+            let _ = handle.join();
+            Err(anyhow!("等待键盘监听线程初始化失败: {error}"))
+        }
+    }
 }

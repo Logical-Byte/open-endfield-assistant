@@ -1,7 +1,5 @@
 //! 更新下载相关的 Tauri 命令及其序列化接口。
 
-use std::sync::Arc;
-
 use serde::Serialize;
 use tracing::{debug, error, info, warn};
 
@@ -41,7 +39,7 @@ pub fn get_update_status(manager: tauri::State<'_, UpdateManager>) -> UpdateStat
 #[tauri::command]
 pub async fn check_update(
     manager: tauri::State<'_, UpdateManager>,
-    controller: tauri::State<'_, Arc<Controller>>,
+    controller: tauri::State<'_, Controller>,
     app: tauri::AppHandle,
 ) -> Result<UpdateAvailability, String> {
     let check_lease = manager.start_check().map_err(|check_error| {
@@ -121,7 +119,7 @@ pub async fn check_update(
 #[tauri::command]
 pub async fn download_update(
     manager: tauri::State<'_, UpdateManager>,
-    controller: tauri::State<'_, Arc<Controller>>,
+    controller: tauri::State<'_, Controller>,
     app: tauri::AppHandle,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
 ) -> Result<UpdateInfo, String> {
