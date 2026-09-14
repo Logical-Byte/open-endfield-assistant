@@ -15,7 +15,6 @@
 pnpm fix
 pnpm build
 pnpm check
-pnpm lint:fix
 ```
 
 ## TS 编码风格
