@@ -2,7 +2,9 @@
 
 mod background_threads;
 mod commands;
+mod frontend_forwarders;
 mod hooks;
+mod hotkeys;
 mod tray;
 
 use std::fs;
