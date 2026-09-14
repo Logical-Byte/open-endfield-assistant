@@ -18,6 +18,8 @@ use crate::{logger::LogEntry, task::archive_scan::ScanResult};
 const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
 
 /// 启动日志前端转发线程。
+///
+/// `stop` 被设置为 `true` 后，线程会在观察到该值后退出。
 pub(super) fn spawn_log_forwarder(
     rx: Receiver<LogEntry>,
     stop: Arc<AtomicBool>,
@@ -43,6 +45,8 @@ pub(super) fn spawn_log_forwarder(
 }
 
 /// 启动扫描结果前端转发线程。
+///
+/// `stop` 被设置为 `true` 后，线程会在观察到该值后退出。
 pub(super) fn spawn_scan_result_forwarder(
     rx: Receiver<ScanResult>,
     stop: Arc<AtomicBool>,

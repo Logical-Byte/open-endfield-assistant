@@ -32,6 +32,8 @@ const EXIT_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
 };
 
 /// 启动热键动作分发线程。
+///
+/// `stop` 被设置为 `true` 后，线程会在观察到该值后退出。
 pub(super) fn spawn_dispatcher(
     rx: Receiver<platform::hotkey::KeyEvent>,
     stop: Arc<AtomicBool>,
