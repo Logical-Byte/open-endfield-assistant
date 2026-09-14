@@ -1,13 +1,65 @@
 {
-  "extends": ["github>nuxt/renovate-config-nuxt"],
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["npm", "cargo", "github-actions"],
+  "timezone": "Asia/Shanghai",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "prBodyColumns": ["Package", "Type", "Update", "Change", "Package file"],
+  "major": {
+    "dependencyDashboardApproval": true
+  },
   "lockFileMaintenance": {
-    "enabled": true
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "postUpdateOptions": ["pnpmDedupe"],
+  "vulnerabilityAlerts": {
+    "enabled": false
   },
   "packageRules": [
     {
-      "matchDepTypes": ["resolutions"],
-      "enabled": false
+      "description": "Label Cargo dependency updates",
+      "matchManagers": ["cargo"],
+      "addLabels": ["rust"]
+    },
+    {
+      "description": "Label GitHub Actions dependency updates",
+      "matchManagers": ["github-actions"],
+      "addLabels": ["github_actions"]
+    },
+    {
+      "description": "Wait three days before proposing newly published npm packages",
+      "matchDatasources": ["npm"],
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Review pre-1.0 Cargo minor updates before opening a PR",
+      "matchManagers": ["cargo"],
+      "matchCurrentVersion": "/^0\\./",
+      "matchUpdateTypes": ["minor"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Review Windows bindings and WebView2 as one compatibility unit",
+      "groupName": "windows-rs and webview2",
+      "matchPackageNames": ["windows", "webview2-com"],
+      "matchUpdateTypes": ["major", "minor"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Group Tauri JavaScript and Rust packages for compatibility review",
+      "groupName": "Tauri packages",
+      "matchPackageNames": ["tauri", "tauri-build", "tauri-plugin-*", "@tauri-apps/**"]
+    },
+    {
+      "description": "Do not apply release-age checks to lockfile maintenance",
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "minimumReleaseAge": null
     }
-  ],
-  "postUpdateOptions": ["pnpmDedupe"]
+  ]
 }
