@@ -4,8 +4,8 @@
 
 ## 工具链
 
-- 使用 `cargo add` 和 `cargo remove` 管理依赖。除非兼容性要求必须锁定版本，否则让 Cargo 选择版本；
-- 在 `src-tauri/` 目录中运行 Cargo 命令。从仓库根目录运行时，通过 `--manifest-path src-tauri/Cargo.toml` 指定 manifest；
+- 使用 `cargo add` 和 `cargo remove` 管理依赖。除非兼容性要求必须锁定版本，否则让 Cargo 选择版本。
+- 在 `src-tauri/` 目录中运行 Cargo 命令。从仓库根目录运行时，通过 `--manifest-path src-tauri/Cargo.toml` 指定 manifest。
 - 开发过程中先运行 `cargo check` 获取编译反馈。使用 `cargo fix --allow-dirty` 和 `cargo clippy --fix --allow-dirty` 应用 Rust 自动修复。
 
 ## 检查与测试
@@ -27,8 +27,8 @@ Windows x86_64 是后端唯一支持的平台和验收环境。新功能只需�
 
 ## 编码风格
 
-- 使用 `Arc::clone(&value)` 克隆原子引用计数指针；
-- 在注释中使用反引号包裹代码片段；
+- 使用 `Arc::clone(&value)` 克隆原子引用计数指针。
+- 在注释中使用反引号包裹代码片段。
 - `unsafe` 块只包裹单个函数调用表达式，赋值、`?` 和分号放在块外。例如：`let value = unsafe { call() }?;`。
 
 ## 后台线程生命周期
@@ -42,8 +42,8 @@ Windows x86_64 是后端唯一支持的平台和验收环境。新功能只需�
 
 ## 语义与行为规则
 
-- 后端运行时只读写应用根目录内的文件。开发环境的根目录是 `package.json` 所在目录，打包后的根目录是可执行文件所在目录；统一通过 `src-tauri/src/app_paths.rs` 获取这些路径；
-- 避免为了让下游取得某一个路径而层层透传或长期保存 `AppPaths`。调用方应优先解析出具体的 `Path` 或 `PathBuf` 后传入；一段内聚流程需要访问多个应用目录、需要保持已经验证或选择的应用根目录、测试需要注入临时根目录，或对象本身负责一组基于应用根目录的路径布局时，可以传递或保存 `AppPaths`；
-- 将外部输入的相对路径与根目录拼接前，验证其不能使用绝对路径、父目录片段、Windows 路径前缀或符号链接逃逸根目录。最终目标仍位于根目录内的符号链接可以使用；解析已经存在的相对文件时复用 `resolve_existing_relative_file`；
-- Windows API 的原生类型、常量、直接调用及其私有实现放在 `platform::windows`；
+- 后端运行时只读写应用根目录内的文件。开发环境的根目录是 `package.json` 所在目录，打包后的根目录是可执行文件所在目录；统一通过 `src-tauri/src/app_paths.rs` 获取这些路径。
+- 避免为了让下游取得某一个路径而层层透传或长期保存 `AppPaths`。调用方应优先解析出具体的 `Path` 或 `PathBuf` 后传入；一段内聚流程需要访问多个应用目录、需要保持已经验证或选择的应用根目录、测试需要注入临时根目录，或对象本身负责一组基于应用根目录的路径布局时，可以传递或保存 `AppPaths`。
+- 将外部输入的相对路径与根目录拼接前，验证其不能使用绝对路径、父目录片段、Windows 路径前缀或符号链接逃逸根目录。最终目标仍位于根目录内的符号链接可以使用；解析已经存在的相对文件时复用 `resolve_existing_relative_file`。
+- Windows API 的原生类型、常量、直接调用及其私有实现放在 `platform::windows`。
 - 通过 `platform::<topic>` 向其他模块提供平台能力。接口使用项目自有或平台无关的类型，调用方不得依赖 `windows` crate 的句柄、错误、常量或其他原生类型。
