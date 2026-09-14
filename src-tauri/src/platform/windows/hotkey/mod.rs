@@ -68,6 +68,9 @@ impl KeyboardHookGuard {
             return Ok(());
         };
 
+        // hook 线程通常阻塞在 `GetMessageW`。向它的消息队列投递 `WM_QUIT` 后，
+        // `GetMessageW` 会返回 0，使消息循环结束；线程随后通过下方 `defer!` 卸载
+        // keyboard hook 并返回，最后这里的 `join` 才能完成。
         let post_result = if thread.handle.is_finished() {
             Ok(())
         } else {
