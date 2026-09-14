@@ -32,7 +32,7 @@ imageproc = "0.27.0"
 indexmap = { version = "2.14.0", features = ["serde"] }
 libc = "0.2.189"
 rapidocr-core = { version = "0.2.2", default-features = false }
-reqwest = { version = "0.12", features = ["blocking", "native-tls", "stream"], default-features = false }
+reqwest = { version = "0.13", features = ["blocking", "native-tls", "stream"], default-features = false }
 rodio = { version = "0.21.1", features = ["hound", "playback", "tracing"], default-features = false }
 scopeguard = "1.2.0"
 semver = "1.0.28"
