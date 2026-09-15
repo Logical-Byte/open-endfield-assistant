@@ -250,7 +250,14 @@ pub(crate) fn complete_startup(
         TransactionState::Active(_) => {}
     }
 
-    on_commit_start();
+    if matches!(
+        transaction.state,
+        TransactionState::Active(
+            ActiveState::AwaitingOldResourcesMove | ActiveState::AwaitingNewResourcesMove
+        )
+    ) {
+        on_commit_start();
+    }
     transaction.complete_resources()?;
     transaction
         .remove_marker()
@@ -528,6 +535,7 @@ fn remove_file_if_present(path: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use std::{
+        cell::Cell,
         env,
         ffi::OsString,
         fs,
@@ -755,6 +763,26 @@ mod tests {
                 fs::read_to_string(root.path().join("resources/data/new.txt")).unwrap(),
                 "v2-resource"
             );
+        }
+    }
+
+    #[test]
+    fn startup_only_signals_commit_when_resources_remain_to_move() {
+        for (phase, expected_callbacks) in [(0, 1), (1, 1), (2, 0)] {
+            let root = tempfile::tempdir().unwrap();
+            let builder = CrashSnapshotBuilder { root: root.path() };
+            let target = match phase {
+                0 => builder.after_executable_commit(),
+                1 => builder.after_old_resources_move(),
+                _ => builder.after_new_resources_move(),
+            };
+            let callbacks = Cell::new(0);
+
+            assert_eq!(
+                complete_startup(&target, || callbacks.set(callbacks.get() + 1)).unwrap(),
+                startup::StartupUpdateResult::Completed
+            );
+            assert_eq!(callbacks.get(), expected_callbacks);
         }
     }
 
