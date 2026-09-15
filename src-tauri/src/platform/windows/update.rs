@@ -3,7 +3,7 @@
 use std::{
     fs::File,
     io,
-    os::windows::{ffi::OsStrExt, io::AsRawHandle, process::CommandExt},
+    os::windows::{io::AsRawHandle, process::CommandExt},
     path::{Path, PathBuf},
     process::Command,
 };
@@ -20,29 +20,28 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use ::windows::{
-    Win32::{
-        Foundation::{ERROR_LOCK_VIOLATION, HANDLE},
-        Storage::FileSystem::{
-            LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY, LockFileEx, ReplaceFileW,
-            UnlockFileEx,
-        },
-        System::IO::OVERLAPPED,
+use ::windows::Win32::{
+    Foundation::{ERROR_LOCK_VIOLATION, HANDLE},
+    Storage::FileSystem::{
+        LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY, LockFileEx, UnlockFileEx,
     },
-    core::{PCWSTR, Result as WindowsResult},
+    System::IO::OVERLAPPED,
 };
 
 #[cfg(not(test))]
-use ::windows::Win32::{
-    Foundation::{LPARAM, S_FALSE, S_OK, WPARAM},
-    UI::{
-        Controls::{
-            TASKDIALOG_NOTIFICATIONS, TASKDIALOGCONFIG, TDF_CALLBACK_TIMER,
-            TDF_SHOW_MARQUEE_PROGRESS_BAR, TDM_CLICK_BUTTON, TDN_BUTTON_CLICKED, TDN_TIMER,
-            TaskDialogIndirect,
+use ::windows::{
+    Win32::{
+        Foundation::{LPARAM, S_FALSE, S_OK, WPARAM},
+        UI::{
+            Controls::{
+                TASKDIALOG_NOTIFICATIONS, TASKDIALOGCONFIG, TDF_CALLBACK_TIMER,
+                TDF_SHOW_MARQUEE_PROGRESS_BAR, TDM_CLICK_BUTTON, TDN_BUTTON_CLICKED, TDN_TIMER,
+                TaskDialogIndirect,
+            },
+            WindowsAndMessaging::{IDOK, PostMessageW},
         },
-        WindowsAndMessaging::{IDOK, PostMessageW},
     },
+    core::PCWSTR,
 };
 
 #[cfg(not(test))]
@@ -118,33 +117,6 @@ pub(in crate::platform) fn unlock_file(file: &File) -> io::Result<()> {
     let mut overlapped = OVERLAPPED::default();
     unsafe { UnlockFileEx(HANDLE(file.as_raw_handle()), None, 1, 0, &mut overlapped) }
         .map_err(|error| io::Error::other(error.to_string()))
-}
-
-/// 用 Windows 的原子替换接口替换应用 exe。
-pub(in crate::platform) fn replace_file(replacement: &Path, target: &Path) -> io::Result<()> {
-    if !target.exists() {
-        return std::fs::rename(replacement, target);
-    }
-
-    let replacement_wide = path_to_wide(replacement);
-    let target_wide = path_to_wide(target);
-    replace_file_w(
-        PCWSTR::from_raw(target_wide.as_ptr()),
-        PCWSTR::from_raw(replacement_wide.as_ptr()),
-        PCWSTR::null(),
-    )
-    .map_err(|error| io::Error::other(error.to_string()))
-}
-
-fn path_to_wide(path: &Path) -> Vec<u16> {
-    path.as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect()
-}
-
-fn replace_file_w(target: PCWSTR, replacement: PCWSTR, backup: PCWSTR) -> WindowsResult<()> {
-    unsafe { ReplaceFileW(target, replacement, backup, Default::default(), None, None) }
 }
 
 /// 一个非阻塞的 Windows 原生 Task Dialog 状态窗。

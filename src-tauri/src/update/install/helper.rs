@@ -16,7 +16,10 @@ use tracing::{debug, error, info};
 
 use crate::{
     app_paths::AppPaths,
-    platform::update::{UpdatePrompt, replace_file, show_update_error},
+    platform::{
+        file::replace,
+        update::{UpdatePrompt, show_update_error},
+    },
 };
 
 use super::workspace::UpdateWorkspace;
@@ -256,7 +259,7 @@ pub fn run_helper(workspace: &UpdateWorkspace) -> Result<HelperResult, String> {
     );
     let last_error = loop {
         attempts += 1;
-        match replace_file(&candidate_executable, &target_executable) {
+        match replace(&candidate_executable, &target_executable) {
             Ok(()) => {
                 debug!(
                     process_role = "update_helper",
