@@ -9,20 +9,12 @@ use std::{
     ffi::OsString,
     path::{Component, Path, PathBuf},
     process::{Child, Command},
-    thread,
-    time::{Duration, Instant},
 };
 use tracing::{debug, error, info};
 
-use crate::{
-    app_paths::AppPaths,
-    platform::{
-        file::replace,
-        update::{UpdatePrompt, show_update_error},
-    },
-};
+use crate::{app_paths::AppPaths, platform::update::show_update_error};
 
-use super::workspace::UpdateWorkspace;
+use super::{transaction, workspace::InstallTarget};
 
 /// helper 模式命令行参数。
 pub(super) const HELPER_ARGUMENT: &str = "--oea-update-helper";
@@ -30,8 +22,6 @@ pub(super) const HELPER_ARGUMENT: &str = "--oea-update-helper";
 pub(super) const ROOT_ARGUMENT: &str = "--oea-update-root";
 /// helper 目标应用 executable name 参数。
 pub(super) const EXECUTABLE_NAME_ARGUMENT: &str = "--oea-update-executable-name";
-const REPLACE_RETRY_WINDOW: Duration = Duration::from_secs(30);
-const REPLACE_RETRY_DELAY: Duration = Duration::from_millis(100);
 
 /// helper 执行结果。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,7 +75,7 @@ pub fn run_helper_request(
     executable_name: OsString,
 ) -> Result<HelperResult, String> {
     let result =
-        validate_helper_request(root, executable_name).and_then(|workspace| run_helper(&workspace));
+        validate_helper_request(root, executable_name).and_then(|target| run_helper(&target));
     if let Err(error) = &result {
         show_update_error("OEA 更新失败", error);
     }
@@ -99,23 +89,23 @@ pub fn run_helper_request_with_logging(
     root: PathBuf,
     executable_name: OsString,
 ) -> Result<HelperResult, String> {
-    let workspace = match validate_helper_request(root, executable_name) {
-        Ok(workspace) => workspace,
+    let target = match validate_helper_request(root, executable_name) {
+        Ok(target) => target,
         Err(error) => {
             show_update_error("OEA 更新失败", &error);
             return Err(error);
         }
     };
-    let (_logger_guard, _log_rx) = crate::logger::init(&workspace.app_paths().logs_dir());
+    let (_logger_guard, _log_rx) = crate::logger::init(&target.app_paths().logs_dir());
     debug!(
         process_role = "update_helper",
         pid = std::process::id(),
-        root = %workspace.root().display(),
+        root = %target.root().display(),
         "更新 helper 进程已启动"
     );
     info!("更新安装程序已启动");
 
-    let result = run_helper(&workspace);
+    let result = run_helper(&target);
     match &result {
         Ok(helper_result) => {
             debug!(
@@ -146,16 +136,16 @@ pub fn run_helper_request_with_logging(
 fn validate_helper_request(
     root: PathBuf,
     executable_name: OsString,
-) -> Result<UpdateWorkspace, String> {
+) -> Result<InstallTarget, String> {
     let root = root
         .canonicalize()
         .map_err(|error| format!("解析 helper 应用根目录失败: {error}"))?;
     let app_paths = AppPaths::with_root_dir(root);
-    let workspace = UpdateWorkspace::with_executable_name(&app_paths, executable_name);
+    let target = InstallTarget::with_executable_name(&app_paths, executable_name);
     let actual_helper = std::env::current_exe()
         .and_then(|path| path.canonicalize())
         .map_err(|error| format!("解析 helper 实际路径失败: {error}"))?;
-    let expected_helper = workspace
+    let expected_helper = target
         .helper_path()
         .canonicalize()
         .map_err(|error| format!("解析 helper 期望路径失败: {error}"))?;
@@ -165,14 +155,14 @@ fn validate_helper_request(
             actual_helper.display()
         ));
     }
-    Ok(workspace)
+    Ok(target)
 }
 
 /// 启动真实的 helper 子进程。当前应用退出后，helper 会从相同的根目录继续事务。
-pub(super) fn spawn_helper(workspace: &UpdateWorkspace) -> Result<Child, String> {
+pub(super) fn spawn_helper(target: &InstallTarget) -> Result<Child, String> {
     let executable =
         std::env::current_exe().map_err(|error| format!("获取当前可执行文件路径失败: {error}"))?;
-    spawn_helper_with_executable(workspace, &executable)
+    spawn_helper_with_executable(target, &executable)
 }
 
 /// 复制显式 source binary 到 cache/update/helper，再从副本启动 helper。
@@ -181,31 +171,22 @@ pub(super) fn spawn_helper(workspace: &UpdateWorkspace) -> Result<Child, String>
 /// 这个路径。source 复制失败或子进程启动失败时会清理 transaction workspace；helper
 /// 副本本身留给后续启动的 best-effort cleanup，因为当前进程可能仍在使用它。
 pub(super) fn spawn_helper_with_executable(
-    workspace: &UpdateWorkspace,
+    target: &InstallTarget,
     source_executable: &Path,
 ) -> Result<Child, String> {
-    let helper_executable = match workspace.prepare_helper_copy(source_executable) {
-        Ok(path) => path,
-        Err(error) => {
-            return Err(with_cleanup_error(
-                workspace,
-                format!("准备更新 helper 失败: {error}"),
-            ));
-        }
-    };
+    let helper_executable = target
+        .prepare_helper_copy(source_executable)
+        .map_err(|error| format!("准备更新 helper 失败: {error}"))?;
     let result = Command::new(&helper_executable)
         .arg(HELPER_ARGUMENT)
         .arg(ROOT_ARGUMENT)
-        .arg(workspace.root())
+        .arg(target.root())
         .arg(EXECUTABLE_NAME_ARGUMENT)
-        .arg(workspace.executable_name())
+        .arg(target.executable_name())
         .spawn();
     match result {
         Ok(child) => Ok(child),
-        Err(error) => Err(with_cleanup_error(
-            workspace,
-            format!("启动更新 helper 失败: {error}"),
-        )),
+        Err(error) => Err(format!("启动更新 helper 失败: {error}")),
     }
 }
 
@@ -215,87 +196,6 @@ pub(super) fn spawn_helper_with_executable(
 /// 根路径，`transaction.json` 保持不变，candidate/resources 留待 v2 启动提交。若在
 /// 重试窗口内仍无法替换，事务材料会被删除，根目录保持旧版本，调用方下次必须重新
 /// 下载 package。
-pub fn run_helper(workspace: &UpdateWorkspace) -> Result<HelperResult, String> {
-    debug!(
-        process_role = "update_helper",
-        lock_path = %workspace.lock_path().display(),
-        "更新 helper 正在等待事务锁"
-    );
-    let _lock = workspace
-        .lock()
-        .map_err(|error| format!("获取 transaction.lock 失败: {error}"))?;
-    debug!(process_role = "update_helper", "更新 helper 已取得事务锁");
-
-    if workspace.read_transaction()?.is_none() {
-        debug!(
-            process_role = "update_helper",
-            result = "no_transaction",
-            "更新 helper 未发现待处理事务"
-        );
-        return Ok(HelperResult::NoTransaction);
-    }
-
-    let candidate_executable = workspace.candidate_path().join(workspace.executable_name());
-    if !candidate_executable.exists() {
-        debug!(
-            process_role = "update_helper",
-            result = "already_committed",
-            "更新 helper 确认 executable 已由先前操作提交"
-        );
-        return Ok(HelperResult::AlreadyCommitted);
-    }
-
-    let mut prompt = UpdatePrompt::new("OEA 更新", "正在提交程序更新，请稍候…");
-
-    let target_executable = workspace.executable_path();
-    let started_at = Instant::now();
-    let deadline = started_at + REPLACE_RETRY_WINDOW;
-    let mut attempts = 0u32;
-    debug!(
-        process_role = "update_helper",
-        candidate = %candidate_executable.display(),
-        target = %target_executable.display(),
-        "更新 helper 开始提交 executable"
-    );
-    let last_error = loop {
-        attempts += 1;
-        match replace(&candidate_executable, &target_executable) {
-            Ok(()) => {
-                debug!(
-                    process_role = "update_helper",
-                    attempts,
-                    elapsed_ms = started_at.elapsed().as_millis(),
-                    "更新 helper 已提交 executable"
-                );
-                prompt.show_success("OEA 更新", "程序更新已准备好，请重新启动 OEA 以完成更新");
-                return Ok(HelperResult::ExecutableCommitted);
-            }
-            Err(replace_error) if Instant::now() < deadline => {
-                if attempts == 1 {
-                    debug!(
-                        process_role = "update_helper",
-                        error = %replace_error,
-                        "executable 暂时无法替换，等待旧进程释放文件"
-                    );
-                }
-                thread::sleep(REPLACE_RETRY_DELAY);
-            }
-            Err(error) => {
-                break error;
-            }
-        }
-    };
-
-    let reason = last_error.to_string();
-    Err(with_cleanup_error(
-        workspace,
-        format!("替换应用 exe 失败: {reason}"),
-    ))
-}
-
-fn with_cleanup_error(workspace: &UpdateWorkspace, message: String) -> String {
-    match workspace.remove_transaction_workspace() {
-        Ok(()) => message,
-        Err(cleanup_error) => format!("{message}；清理事务也失败: {cleanup_error}"),
-    }
+pub(crate) fn run_helper(target: &InstallTarget) -> Result<HelperResult, String> {
+    transaction::commit_executable(target)
 }
