@@ -1,8 +1,13 @@
-use std::{fs, path::Path};
+use std::{
+    io::ErrorKind,
+    path::{Path, PathBuf},
+};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
+
+use crate::storage::CachedJsonFile;
 
 /// 当前配置文件主要版本号
 pub const CURRENT_MAJOR_VERSION: u32 = 0;
@@ -83,40 +88,63 @@ impl Default for OeaConfig {
     }
 }
 
-/// 从配置文件加载；文件不存在或解析失败时回退默认配置。
-pub fn load_oea_config(path: &Path) -> OeaConfig {
-    match fs::read_to_string(path) {
-        Ok(text) => serde_json::from_str(&text).unwrap_or_else(|e| {
-            warn!("解析配置文件失败，使用默认配置: {e}");
-            OeaConfig::default()
-        }),
-        Err(e) => {
-            warn!("读取配置文件失败，使用默认配置: {e}");
-            OeaConfig::default()
-        }
+/// OEA 配置的内存缓存与持久化入口。
+///
+/// 配置默认值和错误回退等领域语义由本模块负责；JSON 格式、并发缓存和文件提交交给
+/// 通用的 [`CachedJsonFile`]。
+pub struct ConfigStore {
+    file: CachedJsonFile<OeaConfig>,
+}
+
+impl ConfigStore {
+    /// 从配置文件创建存储；文件不存在或内容无效时以默认配置初始化内存缓存。
+    ///
+    /// 回退默认值不会立即覆盖磁盘上的无效内容。只有显式调用 [`Self::save`] 才会写盘。
+    pub fn at(path: PathBuf) -> Self {
+        let file = match CachedJsonFile::at(path.clone()) {
+            Ok(file) => file,
+            Err(error) if is_not_found(&error) => CachedJsonFile::new(path, OeaConfig::default()),
+            Err(error) => {
+                warn!(error = %error, path = %path.display(), "加载配置文件失败，使用默认配置");
+                CachedJsonFile::new(path, OeaConfig::default())
+            }
+        };
+        Self { file }
+    }
+
+    /// 返回当前配置的独立快照。
+    pub fn snapshot(&self) -> OeaConfig {
+        self.file.snapshot().as_ref().clone()
+    }
+
+    /// 保存完整配置；文件提交成功后才会发布新的内存快照。
+    pub fn save(&self, config: OeaConfig) -> Result<()> {
+        self.file.replace(config)
+    }
+
+    pub fn path(&self) -> &Path {
+        self.file.path()
     }
 }
 
-/// 保存到配置文件（自动创建父目录）。
-pub fn save_oea_config(config: &OeaConfig, path: &Path) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).context("创建配置文件父目录失败")?;
-    }
-    let text = serde_json::to_string_pretty(config).context("序列化配置失败")?;
-    fs::write(path, text).context("写入配置文件失败")?;
-    Ok(())
+fn is_not_found(error: &anyhow::Error) -> bool {
+    error
+        .downcast_ref::<std::io::Error>()
+        .is_some_and(|error| error.kind() == ErrorKind::NotFound)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::*;
 
     #[test]
     fn test_load_nonexistent_config() {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("nonexistent_config.json");
-        let config = load_oea_config(&path);
-        assert_eq!(config, OeaConfig::default());
+        let store = ConfigStore::at(path);
+        assert_eq!(store.snapshot(), OeaConfig::default());
     }
 
     #[test]
@@ -136,9 +164,11 @@ mod tests {
             auto_install_updates: false,
             scan_tips_dismissed_version: 1,
         };
-        save_oea_config(&original_config, &path).unwrap();
-        let loaded_config = load_oea_config(&path);
-        assert_eq!(loaded_config, original_config);
+        let store = ConfigStore::at(path.clone());
+        store.save(original_config.clone()).unwrap();
+
+        assert_eq!(store.snapshot(), original_config);
+        assert_eq!(ConfigStore::at(path).snapshot(), original_config);
     }
 
     #[test]
@@ -146,8 +176,8 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("invalid_config.json");
         fs::write(&path, "invalid json").unwrap();
-        let config = load_oea_config(&path);
-        assert_eq!(config, OeaConfig::default());
+        let store = ConfigStore::at(path);
+        assert_eq!(store.snapshot(), OeaConfig::default());
     }
 
     #[test]

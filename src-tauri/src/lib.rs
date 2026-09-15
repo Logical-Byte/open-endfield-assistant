@@ -13,6 +13,7 @@ pub mod platform;
 pub(crate) mod scan_runtime;
 pub mod scene;
 pub mod session;
+pub(crate) mod storage;
 pub mod task;
 pub mod template_matching;
 pub mod update;

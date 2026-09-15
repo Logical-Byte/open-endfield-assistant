@@ -16,8 +16,8 @@ use tauri::Manager;
 use tracing::{error, info, warn};
 
 use crate::{
-    app_paths::AppPaths, config, controller::Controller, data::AppData, logger, ocr::OcrEngine,
-    platform, scan_runtime::ScanRuntime, scene, scene::SceneManager, update,
+    app_paths::AppPaths, config::ConfigStore, controller::Controller, data::AppData, logger,
+    ocr::OcrEngine, platform, scan_runtime::ScanRuntime, scene, scene::SceneManager, update,
 };
 
 use self::hooks::{crash, portable};
@@ -103,12 +103,7 @@ pub fn run() {
                     return;
                 }
                 let controller = app_handle.state::<Controller>();
-                if controller
-                    .oea_config()
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .minimize_to_tray
-                {
+                if controller.oea_config_snapshot().minimize_to_tray {
                     api.prevent_close();
                     if let Some(window) = app_handle.get_webview_window("main") {
                         let _ = window.hide();
@@ -175,9 +170,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     platform::webview::ensure_installed(&app_paths.cache_dir()).inspect_err(|e| warn!("{e:#}"))?;
 
     // 解析应用配置文件
-    let oea_config = Arc::new(Mutex::new(config::load_oea_config(
-        &app_paths.oea_config_file(),
-    )));
+    let config_store = Arc::new(ConfigStore::at(app_paths.oea_config_file()));
 
     // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。
     fs::create_dir_all(app_paths.webview_data_dir()).with_context(|| {
@@ -227,7 +220,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let scan_runtime = Arc::new(ScanRuntime::new());
 
     // 组装扫描业务控制器并托管为 `State`。
-    let controller = Controller::new(oea_config, ocr, scenes, scan_runtime, scan_tx, app_data);
+    let controller = Controller::new(config_store, ocr, scenes, scan_runtime, scan_tx, app_data);
     app.manage(controller);
 
     // 初始化系统托盘（依赖已托管的 `Controller`，托盘菜单事件直接驱动它）

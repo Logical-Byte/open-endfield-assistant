@@ -10,7 +10,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::{
     app_paths::AppPaths,
-    config::{self, OeaConfig},
+    config::OeaConfig,
     controller::{AppStatus, Controller},
     data::{ArchiveContract, PrtsData},
     platform,
@@ -113,7 +113,7 @@ pub fn open_log_dir() -> Result<(), String> {
 /// 加载 OEA 配置文件。
 #[tauri::command]
 pub fn load_oea_config(state: tauri::State<Controller>) -> OeaConfig {
-    state.oea_config().lock().unwrap().clone()
+    state.config_store().snapshot()
 }
 
 /// 保存 OEA 配置文件。
@@ -122,17 +122,13 @@ pub fn save_oea_config(
     state: tauri::State<Controller>,
     oea_config: OeaConfig,
 ) -> Result<(), String> {
-    let path = AppPaths::new()?.oea_config_file();
-    debug!("正在保存配置 {oea_config:?} 到 {}", path.display());
-    // 先保存到文件
-    config::save_oea_config(&oea_config, &path).map_err(|e| {
+    let store = state.config_store();
+    debug!("正在保存配置 {oea_config:?} 到 {}", store.path().display());
+    store.save(oea_config).map_err(|e| {
         error!("保存配置文件失败: {e:#}");
         format!("{e:#}")
     })?;
-    // 如果保存到文件成功，再更新内存配置，确保内存配置与磁盘配置一致
-    let mut config_guard = state.oea_config().lock().unwrap_or_else(|e| e.into_inner());
-    *config_guard = oea_config;
-    info!("已成功保存配置到 {}", path.display());
+    info!("已成功保存配置到 {}", store.path().display());
     Ok(())
 }
 

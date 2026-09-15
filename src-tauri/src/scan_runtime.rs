@@ -14,7 +14,7 @@ use tracing::{error, info, warn};
 
 use crate::{
     app_paths::AppPaths,
-    config::OeaConfig,
+    config::ConfigStore,
     data::AppData,
     ocr::OcrEngine,
     platform,
@@ -42,7 +42,7 @@ pub struct AppStatus {
 ///
 /// 由 [`crate::controller::Controller`] 在任务被接受后创建，并移交给唯一的扫描线程。
 pub(crate) struct ScanRunContext {
-    oea_config: Arc<Mutex<OeaConfig>>,
+    config_store: Arc<ConfigStore>,
     ocr: Arc<Mutex<OcrEngine>>,
     scenes: Arc<SceneManager>,
     app_data: Arc<AppData>,
@@ -52,7 +52,7 @@ pub(crate) struct ScanRunContext {
 
 impl ScanRunContext {
     pub(crate) fn new(
-        oea_config: Arc<Mutex<OeaConfig>>,
+        config_store: Arc<ConfigStore>,
         ocr: Arc<Mutex<OcrEngine>>,
         scenes: Arc<SceneManager>,
         app_data: Arc<AppData>,
@@ -60,7 +60,7 @@ impl ScanRunContext {
         handle: AppHandle,
     ) -> Self {
         Self {
-            oea_config,
+            config_store,
             ocr,
             scenes,
             app_data,
@@ -224,11 +224,7 @@ impl ScanRuntime {
 
     /// 播放扫描提示音（音量取配置；开始/自然完成播 enable，失败/被停止播 disable）。
     fn play_scan_sound(&self, context: &ScanRunContext, sound: ScanSound) {
-        let volume = context
-            .oea_config
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .sound_volume;
+        let volume = context.config_store.snapshot().sound_volume;
         let app_paths = match AppPaths::new() {
             Ok(app_paths) => app_paths,
             Err(error) => {
