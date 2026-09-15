@@ -50,9 +50,9 @@ pub struct Session {
     pub hwnd: WindowHandle,
     /// 720p 识别坐标与游戏窗口物理坐标之间的转换
     resolution_transform: ResolutionTransform,
-    /// 截图器（可运行时替换，扩展点）
+    /// 截图器
     screencap: Box<dyn ScreencapBase>,
-    /// 输入器（可运行时替换，扩展点）
+    /// 输入器
     input: Box<dyn InputBase>,
     /// 共享 OCR 引擎（跨会话复用模型加载）
     ocr: Arc<Mutex<OcrEngine>>,
@@ -157,17 +157,5 @@ impl Session {
     /// 清除停止信号（启动任务前调用，避免上次残留误伤后续操作）。
     pub fn reset_stop(&mut self) {
         self.stop.store(false, Ordering::Relaxed);
-    }
-
-    // ========== 截图器 / 输入器切换（扩展点） ==========
-
-    /// 替换截图器（运行时切换，为未来多种截图器铺路）。
-    pub fn set_screencap(&mut self, screencap: Box<dyn ScreencapBase>) {
-        self.screencap = screencap;
-    }
-
-    /// 替换输入器（运行时切换，为未来多种输入器铺路）。
-    pub fn set_input(&mut self, input: Box<dyn InputBase>) {
-        self.input = input;
     }
 }

@@ -1,8 +1,7 @@
 //! 截图器模块（基础设施，通用库）。
 //!
-//! 通过 [`ScreencapBase`] trait 抽象截图能力，`Session` 持有 `Box<dyn ScreencapBase>`，
-//! 运行时可切换（见 `Session::set_screencap`）。当前生产使用 [`PrintWindowScreencap`]，
-//! 其余实现保留作为备选 / 实验（未来可切换）。
+//! 通过 [`ScreencapBase`] trait 抽象截图能力，`Session` 持有 `Box<dyn ScreencapBase>`。
+//! 当前生产使用 [`PrintWindowScreencap`]，其余实现保留作为备选 / 实验。
 //!
 //! 各实现的适用场景：
 //! - [`PrintWindowScreencap`]：`PrintWindow` API 捕获窗口客户区
