@@ -124,7 +124,7 @@ impl Controller {
 
     fn scan_context(&self, app_handle: &AppHandle) -> ScanRunContext {
         ScanRunContext::new(
-            Arc::clone(&self.config_store),
+            self.config_store.snapshot(),
             Arc::clone(&self.ocr),
             Arc::clone(&self.scenes),
             Arc::clone(&self.app_data),
