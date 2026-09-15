@@ -11,7 +11,7 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    config::OeaConfig,
+    config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     ocr::OcrEngine,
     scan_runtime::{ScanRunContext, ScanRuntime},
@@ -24,8 +24,8 @@ pub use crate::scan_runtime::AppStatus;
 
 /// 扫描业务控制器（Tauri 托管状态）。
 pub struct Controller {
-    /// 应用配置
-    oea_config: Arc<Mutex<OeaConfig>>,
+    /// 应用配置存储
+    config_store: Arc<ConfigStore>,
     /// 共享 OCR 引擎（跨会话复用模型）
     ocr: Arc<Mutex<OcrEngine>>,
     /// 场景管理器（本游戏全部场景，跨线程共享只读）
@@ -42,7 +42,7 @@ impl Controller {
     /// 创建控制器。
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        oea_config: Arc<Mutex<OeaConfig>>,
+        config_store: Arc<ConfigStore>,
         ocr: Arc<Mutex<OcrEngine>>,
         scenes: Arc<SceneManager>,
         scan_runtime: Arc<ScanRuntime>,
@@ -50,7 +50,7 @@ impl Controller {
         app_data: AppData,
     ) -> Self {
         Self {
-            oea_config,
+            config_store,
             ocr,
             scenes,
             scan_runtime,
@@ -59,16 +59,13 @@ impl Controller {
         }
     }
 
-    pub fn oea_config(&self) -> &Arc<Mutex<OeaConfig>> {
-        &self.oea_config
+    pub fn config_store(&self) -> &ConfigStore {
+        &self.config_store
     }
 
     /// 获取当前应用配置的独立快照，供无需持锁的异步流程使用。
     pub fn oea_config_snapshot(&self) -> OeaConfig {
-        self.oea_config
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone()
+        self.config_store.snapshot()
     }
 
     /// 读取当前状态（只读原子标志；失败原因不存储，由结束事件一次性推送）。
@@ -127,7 +124,7 @@ impl Controller {
 
     fn scan_context(&self, app_handle: &AppHandle) -> ScanRunContext {
         ScanRunContext::new(
-            Arc::clone(&self.oea_config),
+            Arc::clone(&self.config_store),
             Arc::clone(&self.ocr),
             Arc::clone(&self.scenes),
             Arc::clone(&self.app_data),
