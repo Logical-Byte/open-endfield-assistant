@@ -34,7 +34,7 @@ pub enum PackageKind {
     Incremental,
 }
 
-/// 已发布完整 payload 的一次性能力。
+/// 已发布完整 `payload` 的一次性能力。
 ///
 /// 只有 `transaction::begin` 能消费它并创建事务标记。
 pub(crate) struct PreparedCandidate {
@@ -139,7 +139,6 @@ pub(crate) fn prepare(
     // 上一次准备或 helper 失败已经清理 transaction；这些目录不再有消费者，可以安全重建。
     remove_directory_if_present(&site.baseline)?;
     remove_directory_if_present(&site.candidate)?;
-    remove_directory_if_present(&site.discard)?;
     remove_directory_if_present(&site.building_path())?;
 
     let kind = PackageKind::detect(package_dir);
@@ -201,7 +200,6 @@ fn cleanup_failed_candidate(site: &CandidateSite, primary_error: String) -> Stri
         site.baseline.clone(),
         site.candidate.clone(),
         site.building_path(),
-        site.discard.clone(),
     ] {
         if let Err(cleanup_error) = remove_directory_if_present(&path) {
             cleanup_errors.push(cleanup_error);

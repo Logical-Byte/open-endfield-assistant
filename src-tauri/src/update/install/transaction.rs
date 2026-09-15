@@ -158,7 +158,7 @@ impl BegunTransaction {
     }
 }
 
-/// 在 `candidate` 发布后开始事务并原子发布 marker。
+/// 在 `candidate` 发布后开始事务并原子发布 `marker`。
 pub(crate) fn begin(candidate: PreparedCandidate) -> Result<BegunTransaction, String> {
     let target = candidate.into_target();
     let mut transaction = LockedTransaction::acquire(&target)?;
@@ -711,6 +711,29 @@ mod tests {
             startup::StartupUpdateResult::NoTransaction
         );
         assert!(!root.path().join("cache/update").exists());
+    }
+
+    #[test]
+    fn startup_rejects_malformed_transaction_marker() {
+        let root = tempfile::tempdir().unwrap();
+        let target = target(root.path());
+        write_file(&root.path().join("cache/update/transaction.json"), "{");
+
+        let error = startup::complete_startup_transaction(&target).unwrap_err();
+        assert!(error.contains("解析 transaction.json 失败"));
+    }
+
+    #[test]
+    fn startup_rejects_unsupported_transaction_schema() {
+        let root = tempfile::tempdir().unwrap();
+        let target = target(root.path());
+        write_file(
+            &root.path().join("cache/update/transaction.json"),
+            r#"{"schema_version":2}"#,
+        );
+
+        let error = startup::complete_startup_transaction(&target).unwrap_err();
+        assert!(error.contains("不支持的 transaction schema version: 2"));
     }
 
     #[test]

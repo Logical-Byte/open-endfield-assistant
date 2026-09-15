@@ -76,7 +76,6 @@ impl InstallWorkspace {
         CandidateSite {
             baseline: update.join("baseline"),
             candidate: update.join("candidate"),
-            discard: update.join("discard"),
             update,
             executable: self.executable_path(),
             executable_name: self.target.executable_name().clone(),
@@ -231,7 +230,6 @@ pub(super) struct CandidateSite {
     pub(super) update: PathBuf,
     pub(super) baseline: PathBuf,
     pub(super) candidate: PathBuf,
-    pub(super) discard: PathBuf,
     pub(super) executable: PathBuf,
     pub(super) executable_name: OsString,
     pub(super) resources: PathBuf,

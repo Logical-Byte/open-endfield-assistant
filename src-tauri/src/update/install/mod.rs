@@ -103,11 +103,10 @@ fn validate_download_package(paths: &AppPaths, package_path: &Path) -> Result<Pa
     Ok(canonical_path)
 }
 
-/// 构造 candidate、原子发布 transaction、复制并启动 helper，然后请求当前 v1 退出。
+/// 构造 `candidate`、原子发布 `transaction`、复制并启动 `helper`，然后请求当前 `v1` 退出。
 ///
-/// 这是普通自动更新唯一需要调用的安装接口。debug 构建禁止触碰项目根目录；集成测试应直接
-/// 使用 candidate、transaction 与 helper 的语义接口的临时
-/// workspace 模块接口。
+/// 这是普通自动更新唯一需要调用的安装接口。`debug` 构建禁止触碰项目根目录；集成测试应直接
+/// 使用 `candidate`、`transaction` 与 `helper` 的语义接口，而非临时 `workspace` module 接口。
 #[tauri::command]
 pub fn install_update(
     manager: tauri::State<'_, super::UpdateManager>,
