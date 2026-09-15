@@ -2,8 +2,8 @@
 //!
 //! candidate 构造是一个高层、可能失败的步骤。增量包只从 `baseline` 读取，所有
 //! 修改都写入临时 candidate；只有完整 candidate 构造成功后才会把它 rename 到
-//! 正式 `candidate/` 并发布 `transaction.json`。因此失败不会留下事务标记，根目录
-//! 的 exe 与 resources 也不会被触碰。
+//! 正式 `candidate/`。随后由 `transaction` module 发布 `transaction.json`；因此失败
+//! 不会留下事务标记，根目录的 `exe` 与 `resources` 也不会被触碰。
 
 use std::{
     ffi::OsString,
@@ -14,7 +14,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-use super::workspace::UpdateWorkspace;
+use super::workspace::{CandidateSite, InstallTarget, InstallWorkspace};
 
 /// MirrorChyan 增量包的五个变更列表。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -34,10 +34,23 @@ pub enum PackageKind {
     Incremental,
 }
 
+/// 已发布完整 `payload` 的一次性能力。
+///
+/// 只有 `transaction::begin` 能消费它并创建事务标记。
+pub(crate) struct PreparedCandidate {
+    target: InstallTarget,
+}
+
+impl PreparedCandidate {
+    pub(super) fn into_target(self) -> InstallTarget {
+        self.target
+    }
+}
+
 /// 将 zip 解压到一个新的 package 目录。
 ///
 /// 解压器只接受 zip crate 判定为 enclosed 的路径；`changes.json` 仍保留在 package
-/// 中供增量 candidate 构造读取。调用方应在此步骤成功后再调用 [`prepare_candidate`]。
+/// 中供增量 candidate 构造读取。调用方应在此步骤成功后再调用 [`prepare`]。
 pub fn extract_package_zip(zip_path: &Path, package_dir: &Path) -> Result<(), String> {
     let file = fs::File::open(zip_path)
         .map_err(|error| format!("打开更新 ZIP [{}] 失败: {error}", zip_path.display()))?;
@@ -116,37 +129,37 @@ impl PackageKind {
 /// 增量包会先复制当前根目录下的 exe/resources 到 `baseline/`，然后执行一次只读
 /// baseline 的高层构造步骤。全量包直接构造 candidate，不创建 baseline。任一步失
 /// 败都会删除临时 candidate 和 baseline，不会创建 `transaction.json`。
-pub fn prepare_candidate(
-    workspace: &UpdateWorkspace,
+pub(crate) fn prepare(
+    target: &InstallTarget,
     package_dir: &Path,
-) -> Result<PackageKind, String> {
-    workspace
-        .ensure_update_path()
-        .map_err(|error| format!("创建更新工作区失败: {error}"))?;
-    if workspace.transaction_exists() {
-        return Err("已有未完成的更新事务，不能准备新的 candidate".to_string());
-    }
+) -> Result<(PreparedCandidate, PackageKind), String> {
+    let site = InstallWorkspace::new(target).candidate_site();
+    fs::create_dir_all(&site.update).map_err(|error| format!("创建更新工作区失败: {error}"))?;
 
     // 上一次准备或 helper 失败已经清理 transaction；这些目录不再有消费者，可以安全重建。
-    remove_directory_if_present(&workspace.baseline_path())?;
-    remove_directory_if_present(&workspace.candidate_path())?;
-    remove_directory_if_present(&workspace.discard_path())?;
-    remove_directory_if_present(&workspace.candidate_build_path())?;
+    remove_directory_if_present(&site.baseline)?;
+    remove_directory_if_present(&site.candidate)?;
+    remove_directory_if_present(&site.building_path())?;
 
     let kind = PackageKind::detect(package_dir);
-    let result = prepare_candidate_inner(workspace, package_dir, kind);
+    let result = prepare_candidate_inner(&site, package_dir, kind);
     match result {
-        Ok(kind) => Ok(kind),
-        Err(primary_error) => Err(cleanup_failed_candidate(workspace, primary_error)),
+        Ok(kind) => Ok((
+            PreparedCandidate {
+                target: target.clone(),
+            },
+            kind,
+        )),
+        Err(primary_error) => Err(cleanup_failed_candidate(&site, primary_error)),
     }
 }
 
 fn prepare_candidate_inner(
-    workspace: &UpdateWorkspace,
+    site: &CandidateSite,
     package_dir: &Path,
     kind: PackageKind,
 ) -> Result<PackageKind, String> {
-    let building = workspace.candidate_build_path();
+    let building = site.building_path();
     fs::create_dir_all(&building)
         .map_err(|error| format!("创建 candidate 临时目录失败: {error}"))?;
 
@@ -155,51 +168,43 @@ fn prepare_candidate_inner(
     }
 
     let result = match kind {
-        PackageKind::Full => construct_full_candidate(workspace, package_dir, &building),
+        PackageKind::Full => construct_full_candidate(site, package_dir, &building),
         PackageKind::Incremental => {
-            copy_current_payload_to_baseline(workspace)?;
-            construct_incremental_candidate(workspace, package_dir, &building)
+            copy_current_payload_to_baseline(site)?;
+            construct_incremental_candidate(site, package_dir, &building)
         }
     };
     result?;
 
-    validate_candidate(workspace, &building)?;
-    fs::rename(&building, workspace.candidate_path()).map_err(|error| {
+    validate_candidate(site, &building)?;
+    fs::rename(&building, &site.candidate).map_err(|error| {
         format!(
             "发布 candidate 目录失败 [{}] -> [{}]: {error}",
             building.display(),
-            workspace.candidate_path().display()
+            site.candidate.display()
         )
     })?;
-
-    workspace.publish_transaction()?;
 
     debug!(
         operation = "install",
         package_kind = ?kind,
-        candidate = %workspace.candidate_path().display(),
-        transaction = %workspace.transaction_path().display(),
-        "更新 candidate 与事务标记已发布"
+        candidate = %site.candidate.display(),
+        "更新 candidate 已发布"
     );
     Ok(kind)
 }
 
-fn cleanup_failed_candidate(workspace: &UpdateWorkspace, primary_error: String) -> String {
+fn cleanup_failed_candidate(site: &CandidateSite, primary_error: String) -> String {
     let mut cleanup_errors = Vec::new();
     for path in [
-        workspace.baseline_path(),
-        workspace.candidate_path(),
-        workspace.candidate_build_path(),
-        workspace.discard_path(),
+        site.baseline.clone(),
+        site.candidate.clone(),
+        site.building_path(),
     ] {
         if let Err(cleanup_error) = remove_directory_if_present(&path) {
             cleanup_errors.push(cleanup_error);
         }
     }
-    if let Err(cleanup_error) = workspace.remove_transaction() {
-        cleanup_errors.push(cleanup_error);
-    }
-
     if cleanup_errors.is_empty() {
         primary_error
     } else {
@@ -211,43 +216,40 @@ fn cleanup_failed_candidate(workspace: &UpdateWorkspace, primary_error: String) 
 }
 
 /// 复制当前 exe/resources 到增量包的 baseline。baseline 只供 candidate 构造读取。
-fn copy_current_payload_to_baseline(workspace: &UpdateWorkspace) -> Result<(), String> {
-    let baseline = workspace.baseline_path();
-    fs::create_dir_all(&baseline).map_err(|error| format!("创建 baseline 目录失败: {error}"))?;
-    copy_regular_file(
-        &workspace.executable_path(),
-        &baseline.join(workspace.executable_name()),
-    )?;
-    copy_directory(&workspace.resources_path(), &baseline.join("resources"))?;
+fn copy_current_payload_to_baseline(site: &CandidateSite) -> Result<(), String> {
+    let baseline = &site.baseline;
+    fs::create_dir_all(baseline).map_err(|error| format!("创建 baseline 目录失败: {error}"))?;
+    copy_regular_file(&site.executable, &baseline.join(&site.executable_name))?;
+    copy_directory(&site.resources, &baseline.join("resources"))?;
     Ok(())
 }
 
 /// 全量包只读取 package 的 exe/resources，构造出 candidate 所需的完整 payload。
 fn construct_full_candidate(
-    workspace: &UpdateWorkspace,
+    site: &CandidateSite,
     package_dir: &Path,
     building: &Path,
 ) -> Result<(), String> {
-    let package_exe = find_package_executable(package_dir, workspace.executable_name())?;
-    copy_regular_file(&package_exe, &building.join(workspace.executable_name()))?;
+    let package_exe = find_package_executable(package_dir, &site.executable_name)?;
+    copy_regular_file(&package_exe, &building.join(&site.executable_name))?;
     copy_directory(&package_dir.join("resources"), &building.join("resources"))?;
     Ok(())
 }
 
 /// 从 baseline 构造完整 candidate。这个函数只把 baseline 当作读源，所有写入均在 building。
 fn construct_incremental_candidate(
-    workspace: &UpdateWorkspace,
+    site: &CandidateSite,
     package_dir: &Path,
     building: &Path,
 ) -> Result<(), String> {
     let changes = read_changes_json(package_dir)?;
-    let baseline = workspace.baseline_path();
-    copy_directory(&baseline, building)?;
+    let baseline = &site.baseline;
+    copy_directory(baseline, building)?;
 
     // 文件先于目录删除，否则 `deleted_dir` 删除父目录后，同一目录中的 `deleted`
     // 文件会被误判为缺失。目录按路径深度降序处理，允许清单同时列出父子目录。
     for raw in changes.deleted {
-        let relative = validate_payload_path(workspace, &raw, true)?;
+        let relative = validate_payload_path(site, &raw, true)?;
         let target = building.join(&relative);
         if !target.is_file() {
             return Err(format!("增量包要删除的文件不存在: {raw}"));
@@ -260,7 +262,7 @@ fn construct_incremental_candidate(
         .deleted_dir
         .into_iter()
         .map(|raw| {
-            let relative = validate_payload_path(workspace, &raw, false)?;
+            let relative = validate_payload_path(site, &raw, false)?;
             Ok((raw, relative))
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -276,7 +278,7 @@ fn construct_incremental_candidate(
     }
 
     for raw in changes.added_dir {
-        let relative = validate_payload_path(workspace, &raw, false)?;
+        let relative = validate_payload_path(site, &raw, false)?;
         let source = package_dir.join(&relative);
         if source.exists() && !source.is_dir() {
             return Err(format!("增量包 added_dir 不是目录: {raw}"));
@@ -286,7 +288,7 @@ fn construct_incremental_candidate(
     }
 
     for raw in changes.added.into_iter().chain(changes.modified) {
-        let relative = validate_payload_path(workspace, &raw, true)?;
+        let relative = validate_payload_path(site, &raw, true)?;
         let source = package_dir.join(&relative);
         if !source.is_file() {
             return Err(format!("增量包文件不存在: {raw}"));
@@ -306,7 +308,7 @@ fn read_changes_json(package_dir: &Path) -> Result<ChangesJson, String> {
 
 /// 严格限制增量字段只能触碰目标 exe 或 resources 子树。
 fn validate_payload_path(
-    workspace: &UpdateWorkspace,
+    site: &CandidateSite,
     raw: &str,
     file_path: bool,
 ) -> Result<PathBuf, String> {
@@ -327,7 +329,7 @@ fn validate_payload_path(
         }
     }
 
-    let is_executable = relative.as_path() == Path::new(workspace.executable_name());
+    let is_executable = relative.as_path() == Path::new(&site.executable_name);
     let is_resource = relative
         .components()
         .next()
@@ -335,7 +337,7 @@ fn validate_payload_path(
     if !is_executable && !is_resource {
         return Err(format!(
             "增量包路径只能指向 {} 或 resources/**: {raw:?}",
-            workspace.executable_name().to_string_lossy()
+            site.executable_name.to_string_lossy()
         ));
     }
     if file_path && relative.file_name().is_none() {
@@ -367,8 +369,8 @@ fn find_package_executable(package_dir: &Path, expected: &OsString) -> Result<Pa
     ))
 }
 
-fn validate_candidate(workspace: &UpdateWorkspace, candidate: &Path) -> Result<(), String> {
-    let executable = candidate.join(workspace.executable_name());
+fn validate_candidate(site: &CandidateSite, candidate: &Path) -> Result<(), String> {
+    let executable = candidate.join(&site.executable_name);
     let resources = candidate.join("resources");
     if !executable.is_file() {
         return Err(format!(
@@ -387,7 +389,7 @@ fn validate_candidate(workspace: &UpdateWorkspace, candidate: &Path) -> Result<(
     {
         let entry = entry.map_err(|error| format!("读取 candidate 条目失败: {error}"))?;
         let name = entry.file_name();
-        if name.as_os_str() != workspace.executable_name().as_os_str() && name != "resources" {
+        if name.as_os_str() != site.executable_name.as_os_str() && name != "resources" {
             return Err(format!(
                 "candidate 含有未允许的顶层条目: {}",
                 name.to_string_lossy()
