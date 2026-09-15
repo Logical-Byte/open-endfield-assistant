@@ -2,8 +2,8 @@
 //!
 //! candidate 构造是一个高层、可能失败的步骤。增量包只从 `baseline` 读取，所有
 //! 修改都写入临时 candidate；只有完整 candidate 构造成功后才会把它 rename 到
-//! 正式 `candidate/` 并发布 `transaction.json`。因此失败不会留下事务标记，根目录
-//! 的 exe 与 resources 也不会被触碰。
+//! 正式 `candidate/`。随后由 `transaction` module 发布 `transaction.json`；因此失败
+//! 不会留下事务标记，根目录的 `exe` 与 `resources` 也不会被触碰。
 
 use std::{
     ffi::OsString,

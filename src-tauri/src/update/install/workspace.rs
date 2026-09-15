@@ -1,6 +1,6 @@
 //! 安装目录的固定布局。
 //!
-//! 这里不解释事务阶段；它只把 `InstallTarget` 转换为 candidate 与 transaction
+//! 这里不解释事务阶段；它只把 `InstallTarget` 转换为 `candidate` 与 `transaction`
 //! 所需的受限站点。事务标记的读写和锁生命周期由 `transaction` 独占。
 
 use std::{
@@ -11,7 +11,7 @@ use std::{
 
 use crate::app_paths::AppPaths;
 
-/// 一次安装所针对的应用 payload。
+/// 一次安装所针对的应用 `payload`。
 #[derive(Debug, Clone)]
 pub(crate) struct InstallTarget {
     app_paths: AppPaths,
@@ -53,8 +53,9 @@ impl InstallTarget {
     pub(crate) fn prepare_helper_copy(&self, source: &Path) -> Result<PathBuf, String> {
         InstallWorkspace::new(self).prepare_helper_copy(source)
     }
-    pub(crate) fn helper_path(&self) -> PathBuf {
-        InstallWorkspace::new(self).helper_path()
+    /// 验证 `helper` 当前运行的 `executable` 确实是本安装目标准备的副本。
+    pub(crate) fn validate_helper_executable(&self, actual: &Path) -> Result<(), String> {
+        InstallWorkspace::new(self).validate_helper_executable(actual)
     }
 }
 
@@ -99,6 +100,10 @@ impl InstallWorkspace {
 
     pub(super) fn package_path(&self) -> PathBuf {
         self.update_path().join("package")
+    }
+
+    pub(super) fn has_transaction_marker(&self) -> bool {
+        self.transaction_site().transaction.is_file()
     }
 
     pub(super) fn cleanup_inactive_material(&self) -> Result<(), String> {
@@ -154,6 +159,24 @@ impl InstallWorkspace {
         } else {
             "helper"
         })
+    }
+
+    fn validate_helper_executable(&self, actual: &Path) -> Result<(), String> {
+        let actual = actual
+            .canonicalize()
+            .map_err(|error| format!("解析 helper 实际路径失败: {error}"))?;
+        let expected = self
+            .helper_path()
+            .canonicalize()
+            .map_err(|error| format!("解析 helper 期望路径失败: {error}"))?;
+        if actual == expected {
+            Ok(())
+        } else {
+            Err(format!(
+                "拒绝从更新工作区外执行 helper: {}",
+                actual.display()
+            ))
+        }
     }
 
     fn prepare_helper_copy(&self, source: &Path) -> Result<PathBuf, String> {

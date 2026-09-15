@@ -162,7 +162,20 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
     );
     // 没有正式 transaction 时，这些只能是未发布的准备残留，可以安全抛弃。新的
     // 安装绝不复用已经消费过的 ZIP 或半途 candidate。
-    if let Err(error) = transaction::prepare_for_install(&target) {
+    if let Err(error) = transaction::ensure_inactive(&target) {
+        let message = format!("开始安装前检查更新事务失败: {error}");
+        return match fs::remove_file(&package_zip) {
+            Ok(()) => Err(message),
+            Err(remove_error) if remove_error.kind() == std::io::ErrorKind::NotFound => {
+                Err(message)
+            }
+            Err(remove_error) => Err(format!(
+                "{message}；删除下载文件 [{}] 也失败: {remove_error}",
+                package_zip.display()
+            )),
+        };
+    }
+    if let Err(error) = workspace.cleanup_inactive_material() {
         let message = format!("开始安装前清理旧更新文件失败: {error}");
         return match fs::remove_file(&package_zip) {
             Ok(()) => Err(message),

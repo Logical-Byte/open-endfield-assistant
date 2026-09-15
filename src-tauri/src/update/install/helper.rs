@@ -12,7 +12,10 @@ use std::{
 };
 use tracing::{debug, error, info};
 
-use crate::{app_paths::AppPaths, platform::update::show_update_error};
+use crate::{
+    app_paths::AppPaths,
+    platform::update::{UpdatePrompt, show_update_error},
+};
 
 use super::{transaction, workspace::InstallTarget};
 
@@ -142,19 +145,9 @@ fn validate_helper_request(
         .map_err(|error| format!("解析 helper 应用根目录失败: {error}"))?;
     let app_paths = AppPaths::with_root_dir(root);
     let target = InstallTarget::with_executable_name(&app_paths, executable_name);
-    let actual_helper = std::env::current_exe()
-        .and_then(|path| path.canonicalize())
-        .map_err(|error| format!("解析 helper 实际路径失败: {error}"))?;
-    let expected_helper = target
-        .helper_path()
-        .canonicalize()
-        .map_err(|error| format!("解析 helper 期望路径失败: {error}"))?;
-    if actual_helper != expected_helper {
-        return Err(format!(
-            "拒绝从更新工作区外执行 helper: {}",
-            actual_helper.display()
-        ));
-    }
+    let actual_helper =
+        std::env::current_exe().map_err(|error| format!("获取 helper 实际路径失败: {error}"))?;
+    target.validate_helper_executable(&actual_helper)?;
     Ok(target)
 }
 
@@ -197,5 +190,14 @@ pub(super) fn spawn_helper_with_executable(
 /// 重试窗口内仍无法替换，事务材料会被删除，根目录保持旧版本，调用方下次必须重新
 /// 下载 package。
 pub(crate) fn run_helper(target: &InstallTarget) -> Result<HelperResult, String> {
-    transaction::commit_executable(target)
+    let mut prompt = None;
+    let result = transaction::commit_executable(target, || {
+        prompt = Some(UpdatePrompt::new("OEA 更新", "正在提交程序更新，请稍候…"));
+    });
+    if result == Ok(HelperResult::ExecutableCommitted) {
+        prompt
+            .expect("提交 executable 前必须创建提示")
+            .show_success("OEA 更新", "程序更新已准备好，请重新启动 OEA 以完成更新");
+    }
+    result
 }
