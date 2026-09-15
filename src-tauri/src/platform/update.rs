@@ -1,7 +1,6 @@
-//! 更新流程需要的跨进程文件原语。
+//! 更新流程需要的跨进程文件锁与状态提示。
 //!
-//! 更新模块只依赖这里提供的文件锁和替换接口。Windows 的句柄、锁标志和
-//! `ReplaceFileW` 都留在 `platform::windows` 内，Unix 实现使用文件描述符上的
+//! Windows 的句柄与锁标志留在 `platform::windows` 内，Unix 实现使用文件描述符上的
 //! `flock`。调用方因此不需要知道当前平台的原生类型。
 
 use std::{
@@ -272,22 +271,6 @@ impl Drop for FileLock {
         if let Err(error) = unlock_file(&self.file) {
             tracing::warn!(error = %error, "释放更新事务文件锁失败");
         }
-    }
-}
-
-/// 原子地用 `replacement` 替换 `target`。
-///
-/// Windows 使用 `ReplaceFileW`，因为普通 `rename` 不能替换仍然存在的 exe；
-/// macOS/Unix 的同文件系统 `rename` 本身就是原子替换。成功后 source 不再存在。
-pub fn replace_file(replacement: &Path, target: &Path) -> io::Result<()> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::update::replace_file(replacement, target)
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        fs::rename(replacement, target)
     }
 }
 

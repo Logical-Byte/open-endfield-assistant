@@ -4,6 +4,7 @@ pub(super) mod admin;
 pub(super) mod capture;
 pub(super) mod dialog;
 pub(super) mod dpapi;
+pub(super) mod file;
 mod geometry;
 pub(super) mod hotkey;
 pub(super) mod input;
