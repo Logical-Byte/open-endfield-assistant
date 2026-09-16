@@ -148,10 +148,10 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     // 在初始化 Tauri 窗口和资源消费者前完成 v2 的 resources 提交。helper 副本、
     // candidate 和 transaction 的生命周期都由 install core 管理，前端只消费结果。
-    let workspace = update::install::UpdateWorkspace::for_current_executable(&app_paths)
+    let target = update::install::InstallTarget::for_current_executable(&app_paths)
         .map_err(|error| anyhow::anyhow!("无法确定更新 executable name: {error}"))?;
     let startup_update_result =
-        update::install::complete_startup_transaction(&workspace).map_err(|error| {
+        update::install::complete_startup_transaction(&target).map_err(|error| {
             error!(
                 operation = "startup_transaction",
                 error = %error,
