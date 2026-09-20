@@ -11,16 +11,16 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
+    automation::scan_runtime::{ScanRunContext, ScanRuntime},
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     ocr::OcrEngine,
-    scan_runtime::{ScanRunContext, ScanRuntime},
     scene::SceneManager,
     task::archive_scan::{ScanReporter, ScanResult},
 };
 
 /// 推送给前端的应用状态。
-pub use crate::scan_runtime::AppStatus;
+pub use crate::automation::scan_runtime::AppStatus;
 
 /// 扫描业务控制器（Tauri 托管状态）。
 pub struct Controller {

@@ -12,23 +12,7 @@ use anyhow::Result;
 use crate::{
     automation::{Clock, Input, Ocr, ScreenCapture, TemplateMatching},
     scene::{SceneId, scene_manager::SceneManager},
-    session::Session,
 };
-
-/// 任务被用户停止的错误信号。
-///
-/// 停止不是"任务出错"：上层用 `downcast_ref::<TaskStopped>()` 区分
-/// "被停止"与"出错"，避免把停止当作异常处理。
-#[derive(Debug)]
-pub struct TaskStopped;
-
-impl std::fmt::Display for TaskStopped {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "任务已被用户停止")
-    }
-}
-
-impl std::error::Error for TaskStopped {}
 
 /// 任务 trait：一个完整的自动化脚本。
 ///
@@ -52,18 +36,22 @@ pub trait Task {
 }
 
 /// 运行任务：满足任务的前置场景 → 执行任务。
-pub fn run_task<T: Task>(task: &T, session: &mut Session, scenes: &SceneManager) -> Result<()> {
+pub fn run_task<T, C>(task: &T, cx: &mut C, scenes: &SceneManager) -> Result<()>
+where
+    T: Task,
+    C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
+{
     tracing::info!("========== 开始执行任务: {} ==========", task.name());
 
     // 0. 任务开始前先把鼠标移到窗口中心，避免鼠标恰好 hover 在按钮上，
     //    按钮 hover 样式变化干扰首次场景识别 / 导航。
-    session.move_mouse_to_safe_position()?;
+    cx.move_mouse_to_safe_position()?;
 
     // 1. 满足任务的前置场景
-    scenes.ensure_scene(task.precondition_scene(), session)?;
+    scenes.ensure_scene(task.precondition_scene(), cx)?;
 
     // 2. 执行任务
-    task.run(session, scenes)?;
+    task.run(cx, scenes)?;
 
     tracing::info!("========== 任务 {} 执行完毕 ==========", task.name());
     Ok(())
