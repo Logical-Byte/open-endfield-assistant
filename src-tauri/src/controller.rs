@@ -90,7 +90,7 @@ impl Controller {
 
     // ========== 启动 / 停止 / 退出 ==========
 
-    /// 启动扫描档案库任务：CAS 占用运行标志 → 推送状态 → 后台线程执行。
+    /// 启动扫描档案库任务：占用运行状态并创建本次停止令牌 → 推送状态 → 后台线程执行。
     pub fn start_scan(&self, app_handle: &AppHandle) {
         self.scan_runtime.start(|| self.scan_context(app_handle));
     }

@@ -15,7 +15,6 @@ mod capability_impls;
 mod resolution;
 
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result, bail};
@@ -23,7 +22,7 @@ use tracing::{info, warn};
 
 use crate::{
     app_paths::AppPaths,
-    automation::{AutomationStopped, StopToken},
+    automation::{AutomationStopped, StopToken, is_stop_requested},
     ocr::OcrEngine,
     platform::{
         self, WindowHandle,
@@ -144,15 +143,10 @@ impl Session {
     ///
     /// 停止不是"任务出错"：上层用 `downcast_ref::<AutomationStopped>()` 区分。
     fn check_stop(&self) -> Result<()> {
-        if self.stop.load(Ordering::Relaxed) {
+        if is_stop_requested(&self.stop) {
             Err(AutomationStopped.into())
         } else {
             Ok(())
         }
-    }
-
-    /// 清除停止信号（启动任务前调用，避免上次残留误伤后续操作）。
-    pub fn reset_stop(&mut self) {
-        self.stop.store(false, Ordering::Relaxed);
     }
 }
