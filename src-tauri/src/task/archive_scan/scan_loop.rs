@@ -10,7 +10,10 @@ use tracing::{debug, info};
 
 use crate::{
     automation::{Clock, Input, Ocr, Point720p, ScreenCapture, TemplateMatching, TemplateTarget},
-    scene::{SceneId, scene_manager::SceneManager, 档案库SubSceneId},
+    navigation::{
+        Navigator,
+        scenes::{SceneId, 档案库SubSceneId},
+    },
 };
 
 use super::constants::{ARROW_RIGHT_ROI, CLOSE_BUTTON_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
@@ -31,7 +34,7 @@ use crate::data::ArchiveTitleIndex;
 /// 3. 点击关闭返回子界面
 pub fn scan_current_sub_scene<C>(
     cx: &mut C,
-    scene_manager: &SceneManager,
+    navigator: &Navigator,
     sub_scene: 档案库SubSceneId,
     archive_titles: &ArchiveTitleIndex,
     correction_overrides: Option<&[CorrectionOverride<'_>]>,
@@ -48,7 +51,7 @@ where
     cx.sleep(std::time::Duration::from_millis(800));
 
     // 验证是否进入了详情页面
-    let arrived = scene_manager.wait_for_scene(SceneId::档案详情页面, cx, 15)?;
+    let arrived = navigator.wait_for_scene(SceneId::档案详情页面, cx, 15)?;
     if !arrived {
         anyhow::bail!("未能进入档案详情页面，可能该子分类没有档案");
     }

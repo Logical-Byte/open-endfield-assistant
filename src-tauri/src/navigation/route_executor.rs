@@ -5,7 +5,7 @@ use std::time::Duration;
 use anyhow::Result;
 use tracing::{debug, warn};
 
-use super::{model::SceneId, route_planner::Route, scene_detector::SceneDetector};
+use super::{route_planner::Route, scene_detector::SceneDetector, scenes::SceneId};
 use crate::automation::{Clock, Input, ScreenCapture, TemplateMatching};
 
 /// 一次路由执行的可恢复结果；`Err` 仅表示动作或场景检测本身出错。

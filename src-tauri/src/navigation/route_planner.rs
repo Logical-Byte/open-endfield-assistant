@@ -4,7 +4,7 @@ use std::collections::{HashMap, VecDeque};
 
 use anyhow::{Result, bail};
 
-use super::model::{SceneId, 档案库SubSceneId};
+use super::scenes::{SceneId, 档案库SubSceneId};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct Route {

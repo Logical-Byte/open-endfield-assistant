@@ -8,7 +8,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use tracing::{debug, warn};
 
-use super::model::{Scene, SceneId};
+use super::scenes::{Scene, SceneId};
 use crate::automation::{ScreenCapture, TemplateMatching};
 
 /// 已注册场景的查找与检测入口。

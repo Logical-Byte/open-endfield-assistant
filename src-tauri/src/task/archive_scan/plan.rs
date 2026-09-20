@@ -1,6 +1,6 @@
 //! 扫描计划：定义 6 个子分类的遍历顺序。
 
-use crate::scene::档案库SubSceneId;
+use crate::navigation::scenes::档案库SubSceneId;
 
 /// 一个扫描步骤：从档案库主界面点击哪个按钮进入哪个子分类，
 /// 该分类下有哪些子界面需要扫描。

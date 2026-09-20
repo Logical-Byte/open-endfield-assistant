@@ -1,4 +1,4 @@
-//! 场景管理器。
+//! 导航门面。
 //!
 //! 提供：
 //! 1. 场景检测：自动判断当前处于哪个游戏界面
@@ -10,22 +10,22 @@ use anyhow::{Result, bail};
 use tracing::{debug, info, warn};
 
 use super::{
-    model::{Scene, SceneId},
     route_executor::{RouteExecutionOutcome, RouteExecutor},
     route_planner::RoutePlanner,
     scene_detector::SceneDetector,
+    scenes::{Scene, SceneId},
 };
 use crate::automation::{Clock, Input, ScreenCapture, TemplateMatching};
 
-/// 场景管理器：负责场景检测和导航。
+/// 导航器：负责场景检测和导航。
 ///
 /// 注册所有已知场景后，可以自动检测当前场景并从任意受支持场景导航到目标场景。
-pub struct SceneManager {
+pub struct Navigator {
     scene_detector: SceneDetector,
     route_planner: RoutePlanner,
 }
 
-impl SceneManager {
+impl Navigator {
     /// 注册所有场景，并根据其跳转关系构建不可变的路由规划器。
     ///
     /// 场景按注册顺序排列识别优先级——应先注册更具体的场景（如"档案详情页面"），

@@ -7,11 +7,13 @@ use tracing::info;
 
 use crate::{
     automation::{Clock, Input, Ocr, ScreenCapture, TemplateMatching, TemplateTarget},
-    scene::{
-        SceneId,
-        archive::{ROI_中枢档案按钮, ROI_见闻辑录按钮, ROI_音像存档按钮},
-        scene_manager::SceneManager,
-        档案库SubSceneId,
+    navigation::{
+        Navigator,
+        scenes::{
+            SceneId,
+            archive::{ROI_中枢档案按钮, ROI_见闻辑录按钮, ROI_音像存档按钮},
+            档案库SubSceneId,
+        },
     },
     task::Task,
 };
@@ -52,7 +54,7 @@ impl Task for ArchiveScanTask<'_> {
         SceneId::档案库主界面
     }
 
-    fn run<C>(&self, cx: &mut C, scene_manager: &SceneManager) -> Result<()>
+    fn run<C>(&self, cx: &mut C, navigator: &Navigator) -> Result<()>
     where
         C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
     {
@@ -66,7 +68,7 @@ impl Task for ArchiveScanTask<'_> {
             );
 
             // 1a. 从档案库主界面点击入口按钮进入子分类
-            self.enter_sub_scene_from_main(cx, scene_manager, step)?;
+            self.enter_sub_scene_from_main(cx, navigator, step)?;
 
             // 1b. 遍历该分类下的所有子界面
             for (sub_idx, &sub_scene) in step.sub_scenes.iter().enumerate() {
@@ -84,7 +86,7 @@ impl Task for ArchiveScanTask<'_> {
                 info!("开始扫描 {:?} 中的档案...", sub_scene);
                 scan_current_sub_scene(
                     cx,
-                    scene_manager,
+                    navigator,
                     sub_scene,
                     self.archive_titles,
                     self.correction_overrides,
@@ -95,7 +97,7 @@ impl Task for ArchiveScanTask<'_> {
 
             // 1c. 返回档案库主界面（准备进入下一个子分类）
             info!("返回档案库主界面...");
-            scene_manager.navigate_to(SceneId::档案库主界面, cx)?;
+            navigator.navigate_to(SceneId::档案库主界面, cx)?;
         }
 
         info!("全部 6 个子分类扫描完毕！");
@@ -110,13 +112,13 @@ impl ArchiveScanTask<'_> {
     fn enter_sub_scene_from_main<C>(
         &self,
         cx: &mut C,
-        scene_manager: &SceneManager,
+        navigator: &Navigator,
         step: &ScanStep,
     ) -> Result<()>
     where
         C: ScreenCapture + Input + TemplateMatching + Clock,
     {
-        scene_manager.require_scene(SceneId::档案库主界面, cx)?;
+        navigator.require_scene(SceneId::档案库主界面, cx)?;
 
         let roi = match step.first_sub_scene {
             档案库SubSceneId::音像存档_多媒体 => ROI_音像存档按钮,
@@ -141,7 +143,7 @@ impl ArchiveScanTask<'_> {
 
         // 验证是否进入了目标子界面
         let target_id = SceneId::档案库子界面(step.first_sub_scene);
-        let arrived = scene_manager.wait_for_scene(target_id, cx, 10)?;
+        let arrived = navigator.wait_for_scene(target_id, cx, 10)?;
         if !arrived {
             anyhow::bail!("未能进入子界面 {:?}", step.first_sub_scene);
         }
@@ -156,7 +158,7 @@ impl ArchiveScanTask<'_> {
     where
         C: ScreenCapture + Input + TemplateMatching + Clock,
     {
-        crate::scene::archive::sidebar_transition(target).execute(cx)?;
+        crate::navigation::scenes::archive::sidebar_transition(target).execute(cx)?;
 
         // 等待界面切换
         cx.sleep(Duration::from_millis(800));

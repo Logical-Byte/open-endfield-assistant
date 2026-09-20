@@ -8,7 +8,7 @@ use crate::automation::{
     Clock, Input, Key, Point720p, ScreenCapture, TemplateMatching, TemplateTarget,
 };
 
-use super::SceneId;
+use super::scenes::SceneId;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 场景跳转专用的有限操作词汇。
@@ -92,8 +92,8 @@ mod tests {
             Clock, Input, Key, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
             TemplateTarget,
         },
-        scene::{
-            SceneId,
+        navigation::{
+            scenes::SceneId,
             transition::{Op, Transition},
         },
         utils::region::Region2D,

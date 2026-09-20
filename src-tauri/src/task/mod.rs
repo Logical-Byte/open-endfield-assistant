@@ -3,7 +3,7 @@
 //! `Task` trait 是脚本的扩展点：每个自动化脚本实现一个 Task。
 //! [`run_task`] 提供通用启动流程：满足任务的前置场景 → 执行任务。
 //!
-//! 任务运行中的导航一律委托 [`crate::scene::SceneManager`]，Task 只写业务节奏。
+//! 任务运行中的导航一律委托 [`crate::navigation::Navigator`]，Task 只写业务节奏。
 
 pub mod archive_scan;
 
@@ -11,7 +11,7 @@ use anyhow::Result;
 
 use crate::{
     automation::{Clock, Input, Ocr, ScreenCapture, TemplateMatching},
-    scene::{SceneId, scene_manager::SceneManager},
+    navigation::{Navigator, scenes::SceneId},
 };
 
 /// 任务 trait：一个完整的自动化脚本。
@@ -28,15 +28,15 @@ pub trait Task {
 
     /// 执行任务主逻辑。
     ///
-    /// 运行过程中的临时导航（如进入 / 返回某个界面）委托 `scenes` 完成；具体窗口
+    /// 运行过程中的临时导航（如进入 / 返回某个界面）委托 `navigator` 完成；具体窗口
     /// 实现隐藏在 `cx` 的细粒度自动化能力之后。
-    fn run<C>(&self, cx: &mut C, scenes: &SceneManager) -> Result<()>
+    fn run<C>(&self, cx: &mut C, navigator: &Navigator) -> Result<()>
     where
         C: ScreenCapture + Input + TemplateMatching + Ocr + Clock;
 }
 
 /// 运行任务：满足任务的前置场景 → 执行任务。
-pub fn run_task<T, C>(task: &T, cx: &mut C, scenes: &SceneManager) -> Result<()>
+pub fn run_task<T, C>(task: &T, cx: &mut C, navigator: &Navigator) -> Result<()>
 where
     T: Task,
     C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
@@ -48,10 +48,10 @@ where
     cx.move_mouse_to_safe_position()?;
 
     // 1. 满足任务的前置场景
-    scenes.ensure_scene(task.precondition_scene(), cx)?;
+    navigator.ensure_scene(task.precondition_scene(), cx)?;
 
     // 2. 执行任务
-    task.run(cx, scenes)?;
+    task.run(cx, navigator)?;
 
     tracing::info!("========== 任务 {} 执行完毕 ==========", task.name());
     Ok(())
