@@ -11,11 +11,11 @@
 //!
 //! 会话贯穿一次游戏操作（扫描档案库任务），由调用方以 `&mut` 串行使用。
 
-mod automation;
+mod capability_impls;
 mod resolution;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result, bail};
@@ -23,20 +23,17 @@ use tracing::{info, warn};
 
 use crate::{
     app_paths::AppPaths,
+    automation::{AutomationStopped, StopToken},
     ocr::OcrEngine,
     platform::{
         self, WindowHandle,
         capture::{PrintWindowScreencap, ScreencapBase},
         input::{InputBase, SeizeInput},
     },
-    task::TaskStopped,
     template_matching::LazyTemplateLoader,
 };
 
 use self::resolution::{Resolution, ResolutionTransform};
-
-/// 停止令牌：热键 / 命令通过它请求中断，Session 每次操作前轮询。
-pub type StopToken = Arc<AtomicBool>;
 
 /// # Send 安全性
 /// `Session` 持有非拥有型窗口句柄，不自动 `Send`。
@@ -143,12 +140,12 @@ impl Session {
 
     // ========== 停止 ==========
 
-    /// 检查是否收到停止信号，收到则返回 [`TaskStopped`] 中断执行。
+    /// 检查是否收到停止信号，收到则返回 [`AutomationStopped`] 中断执行。
     ///
-    /// 停止不是"任务出错"：上层用 `downcast_ref::<TaskStopped>()` 区分。
+    /// 停止不是"任务出错"：上层用 `downcast_ref::<AutomationStopped>()` 区分。
     fn check_stop(&self) -> Result<()> {
         if self.stop.load(Ordering::Relaxed) {
-            Err(TaskStopped.into())
+            Err(AutomationStopped.into())
         } else {
             Ok(())
         }

@@ -14,14 +14,13 @@ use tracing::{error, info, warn};
 
 use crate::{
     app_paths::AppPaths,
+    automation::{AutomationStopped, session::Session},
     config::OeaConfig,
     data::AppData,
     ocr::OcrEngine,
     platform,
     scene::SceneManager,
-    session::Session,
     task::{
-        TaskStopped,
         archive_scan::{ArchiveScanTask, ScanReporter},
         run_task,
     },
@@ -99,8 +98,8 @@ pub(crate) struct ScanRuntime {
     /// 停止请求标志：`true` 表示当前扫描应尽快停止。
     ///
     /// [`Self::stop`] 和 [`Self::request_stop_for_shutdown`] 写入 `true`；工作线程在
-    /// 成功连接游戏后通过 [`crate::session::Session::reset_stop`] 写回 `false`。
-    /// 一次扫描的 [`crate::session::Session`] 在每个游戏操作前读取。
+    /// 成功连接游戏后通过 [`Session::reset_stop`] 写回 `false`。一次扫描的
+    /// [`Session`] 在每个游戏操作前读取。
     stop: Arc<AtomicBool>,
     /// 运行标志：`true` 表示一个扫描已获准启动，直至其工作线程到达终态。
     ///
@@ -194,7 +193,9 @@ impl ScanRuntime {
 
         match result {
             Ok(()) => ScanOutcome::Completed,
-            Err(error) if error.downcast_ref::<TaskStopped>().is_some() => ScanOutcome::Stopped,
+            Err(error) if error.downcast_ref::<AutomationStopped>().is_some() => {
+                ScanOutcome::Stopped
+            }
             Err(error) => ScanOutcome::Failed(format!("扫描档案库任务执行失败: {error:#}")),
         }
     }

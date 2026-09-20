@@ -16,8 +16,9 @@ use tauri::Manager;
 use tracing::{error, info, warn};
 
 use crate::{
-    app_paths::AppPaths, config::ConfigStore, controller::Controller, data::AppData, logger,
-    ocr::OcrEngine, platform, scan_runtime::ScanRuntime, scene, scene::SceneManager, update,
+    app_paths::AppPaths, automation::scan_runtime::ScanRuntime, config::ConfigStore,
+    controller::Controller, data::AppData, logger, ocr::OcrEngine, platform, scene,
+    scene::SceneManager, update,
 };
 
 use self::hooks::{crash, portable};
