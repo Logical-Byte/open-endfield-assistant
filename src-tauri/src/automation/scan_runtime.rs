@@ -179,7 +179,7 @@ impl ScanRuntime {
 
     fn run(&self, context: &ScanRunContext, stop: StopToken) -> ScanOutcome {
         // 任务开始时才连接游戏
-        let mut session = match Session::connect(&context.ocr, stop.clone()) {
+        let mut session = match Session::connect(&context.ocr, Arc::clone(&stop)) {
             Ok(session) => session,
             Err(_error) if is_stop_requested(&stop) => return ScanOutcome::Stopped,
             Err(error) => {
