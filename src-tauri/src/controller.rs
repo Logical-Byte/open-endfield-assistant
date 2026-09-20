@@ -14,8 +14,8 @@ use crate::{
     automation::scan_runtime::{ScanRunContext, ScanRuntime},
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
+    navigation::Navigator,
     ocr::OcrEngine,
-    scene::SceneManager,
     task::archive_scan::{ScanReporter, ScanResult},
 };
 
@@ -28,8 +28,8 @@ pub struct Controller {
     config_store: Arc<ConfigStore>,
     /// 共享 OCR 引擎（跨会话复用模型）
     ocr: Arc<Mutex<OcrEngine>>,
-    /// 场景管理器（本游戏全部场景，跨线程共享只读）
-    scenes: Arc<SceneManager>,
+    /// 导航器（本游戏全部场景，跨线程共享只读）
+    navigator: Arc<Navigator>,
     /// 扫描档案库任务运行时
     scan_runtime: Arc<ScanRuntime>,
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
@@ -44,7 +44,7 @@ impl Controller {
     pub(crate) fn new(
         config_store: Arc<ConfigStore>,
         ocr: Arc<Mutex<OcrEngine>>,
-        scenes: Arc<SceneManager>,
+        navigator: Arc<Navigator>,
         scan_runtime: Arc<ScanRuntime>,
         scan_tx: mpsc::Sender<ScanResult>,
         app_data: AppData,
@@ -52,7 +52,7 @@ impl Controller {
         Self {
             config_store,
             ocr,
-            scenes,
+            navigator,
             scan_runtime,
             scan_tx: Mutex::new(scan_tx),
             app_data: Arc::new(app_data),
@@ -126,7 +126,7 @@ impl Controller {
         ScanRunContext::new(
             self.config_store.snapshot(),
             Arc::clone(&self.ocr),
-            Arc::clone(&self.scenes),
+            Arc::clone(&self.navigator),
             Arc::clone(&self.app_data),
             self.reporter(),
             app_handle.clone(),

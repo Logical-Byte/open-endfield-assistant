@@ -19,9 +19,9 @@ use crate::{
     },
     config::OeaConfig,
     data::AppData,
+    navigation::Navigator,
     ocr::OcrEngine,
     platform,
-    scene::SceneManager,
     task::{
         archive_scan::{ArchiveScanTask, ScanReporter},
         run_task,
@@ -46,7 +46,7 @@ pub(crate) struct ScanRunContext {
     /// 任务被接受时的完整配置快照；本次运行期间保持不变。
     oea_config: OeaConfig,
     ocr: Arc<Mutex<OcrEngine>>,
-    scenes: Arc<SceneManager>,
+    navigator: Arc<Navigator>,
     app_data: Arc<AppData>,
     reporter: ScanReporter,
     handle: AppHandle,
@@ -56,7 +56,7 @@ impl ScanRunContext {
     pub(crate) fn new(
         oea_config: OeaConfig,
         ocr: Arc<Mutex<OcrEngine>>,
-        scenes: Arc<SceneManager>,
+        navigator: Arc<Navigator>,
         app_data: Arc<AppData>,
         reporter: ScanReporter,
         handle: AppHandle,
@@ -64,7 +64,7 @@ impl ScanRunContext {
         Self {
             oea_config,
             ocr,
-            scenes,
+            navigator,
             app_data,
             reporter,
             handle,
@@ -204,7 +204,7 @@ impl ScanRuntime {
         // 执行扫描档案库任务（阻塞，期间任务内部轮询停止标志）
         let task =
             ArchiveScanTask::new(context.reporter.clone(), context.app_data.archive_titles());
-        let result = run_task(&task, &mut session, &context.scenes);
+        let result = run_task(&task, &mut session, &context.navigator);
 
         match result {
             Ok(()) => ScanOutcome::Completed,

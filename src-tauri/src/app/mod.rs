@@ -16,9 +16,15 @@ use tauri::Manager;
 use tracing::{error, info, warn};
 
 use crate::{
-    app_paths::AppPaths, automation::scan_runtime::ScanRuntime, config::ConfigStore,
-    controller::Controller, data::AppData, logger, ocr::OcrEngine, platform, scene,
-    scene::SceneManager, update,
+    app_paths::AppPaths,
+    automation::scan_runtime::ScanRuntime,
+    config::ConfigStore,
+    controller::Controller,
+    data::AppData,
+    logger,
+    navigation::{self, Navigator},
+    ocr::OcrEngine,
+    platform, update,
 };
 
 use self::hooks::{crash, portable};
@@ -208,20 +214,27 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     // 加载静态数据文件
     let app_data = AppData::load(&app_paths)?;
 
-    // 场景管理器（本游戏全部场景，注册顺序即识别优先级）
-    let scenes = Arc::new(SceneManager::new(vec![
-        Box::new(scene::archive::Scene档案详情页面),
-        Box::new(scene::archive::Scene档案库子界面),
-        Box::new(scene::archive::Scene档案库主界面),
-        Box::new(scene::terminal::Scene协议终端),
-        Box::new(scene::overworld::Scene大世界),
-        Box::new(scene::Scene未知),
+    // 导航器（本游戏全部场景，注册顺序即识别优先级）
+    let navigator = Arc::new(Navigator::new(vec![
+        Box::new(navigation::scenes::archive::Scene档案详情页面),
+        Box::new(navigation::scenes::archive::Scene档案库子界面),
+        Box::new(navigation::scenes::archive::Scene档案库主界面),
+        Box::new(navigation::scenes::terminal::Scene协议终端),
+        Box::new(navigation::scenes::overworld::Scene大世界),
+        Box::new(navigation::scenes::Scene未知),
     ]));
 
     let scan_runtime = Arc::new(ScanRuntime::new());
 
     // 组装扫描业务控制器并托管为 `State`。
-    let controller = Controller::new(config_store, ocr, scenes, scan_runtime, scan_tx, app_data);
+    let controller = Controller::new(
+        config_store,
+        ocr,
+        navigator,
+        scan_runtime,
+        scan_tx,
+        app_data,
+    );
     app.manage(controller);
 
     // 初始化系统托盘（依赖已托管的 `Controller`，托盘菜单事件直接驱动它）

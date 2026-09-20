@@ -1,16 +1,13 @@
 //! 档案库相关场景：主界面 / 子界面 / 详情页面。
 //!
-//! 识别优先级（具体 → 笼统）由 `SceneManager::new` 的注册顺序决定，
+//! 识别优先级（具体 → 笼统）由 `Navigator::new` 的注册顺序决定，
 //! 本模块内部三个场景的相对顺序：档案详情页面 > 档案库子界面 > 档案库主界面。
 
 use anyhow::Result;
 use image::{RgbaImage, imageops};
 
-use super::super::{
-    model::{Scene, SceneId, 档案库SubSceneId},
-    transition::{Op, Transition},
-};
-use super::TEMPLATE_MATCH_THRESHOLD;
+use super::{Scene, SceneId, TEMPLATE_MATCH_THRESHOLD, 档案库SubSceneId};
+use crate::navigation::transition::{Op, Transition};
 use crate::{
     automation::{Point720p, TemplateMatching, TemplateTarget},
     utils::region::{Region2D, ltrb, ltwh},

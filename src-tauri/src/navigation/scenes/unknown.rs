@@ -3,11 +3,9 @@
 use anyhow::Result;
 use image::RgbaImage;
 
-use super::super::{
-    model::{Scene, SceneId},
-    transition::Transition,
-};
+use super::{Scene, SceneId};
 use crate::automation::TemplateMatching;
+use crate::navigation::transition::Transition;
 
 /// 未知界面（兜底）：所有场景都无法识别时使用；不允许从此场景导航。
 pub struct Scene未知;

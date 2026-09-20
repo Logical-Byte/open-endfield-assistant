@@ -3,11 +3,8 @@
 use anyhow::Result;
 use image::RgbaImage;
 
-use super::super::{
-    model::{Scene, SceneId},
-    transition::{Op, Transition},
-};
-use super::TEMPLATE_MATCH_THRESHOLD;
+use super::{Scene, SceneId, TEMPLATE_MATCH_THRESHOLD};
+use crate::navigation::transition::{Op, Transition};
 use crate::{
     automation::{Key, TemplateMatching, TemplateTarget},
     utils::region::{Region2D, ltrb},
