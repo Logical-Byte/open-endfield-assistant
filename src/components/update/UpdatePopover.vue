@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { oeaVersion } from '@/main';
 import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
 import { DownloadProgress } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
@@ -14,6 +13,7 @@ import {
 } from '@/utils/app/update';
 import { renderMarkdown } from '@/utils/markdown';
 import { updatePopoverOpen } from '@/utils/uiState';
+import { oeaVersion } from '@/version';
 import { computed, ref } from 'vue';
 
 const settingsOpen = ref(false);

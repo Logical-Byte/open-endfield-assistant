@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { oeaVersion } from '@/main';
+import { oeaVersion } from '@/version';
 import { NavigationMenuItem } from '@nuxt/ui';
 
 const navigationMenuItems: NavigationMenuItem[] = [

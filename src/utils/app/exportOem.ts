@@ -7,6 +7,7 @@ import type { UploadData } from '@/types/upload';
 import { prtsData } from '@/utils/app/prtsData';
 import { scanResults } from '@/utils/app/scanResults';
 import { logDebug, logError, logInfo } from '@/utils/tauri';
+import { oeaVersion } from '@/version';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { gzipSync, strToU8 } from 'fflate';
 
@@ -52,7 +53,7 @@ export function buildUploadData(): UploadData {
     majorVersion: 0,
     minorVersion: 0,
     data: {
-      oeaVersion: __OEA_VERSION__,
+      oeaVersion,
       prtsAllItems: {
         collected: allIds.filter((id) => collected.has(id)),
         notCollected,

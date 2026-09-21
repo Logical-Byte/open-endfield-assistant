@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { oeaVersion } from '@/main';
 import { startDownload, updateCheckState } from '@/utils/app/update';
+import { oeaVersion } from '@/version';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
