@@ -5,7 +5,7 @@ import { useDevicePixelRatio, useMagicKeys } from '@vueuse/core';
 import type { CSSProperties, MaybeRefOrGetter, Ref } from 'vue';
 import { computed, nextTick, ref, shallowRef, toValue, watch } from 'vue';
 
-export type Point2D = {
+type Point2D = {
   x: number;
   y: number;
 };

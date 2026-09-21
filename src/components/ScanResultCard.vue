@@ -2,7 +2,7 @@
 import type { ArchiveAcquisitionMethod } from '@/types/archiveContract';
 import type { ScanResultCardProps } from '@/types/scanResult';
 import { CollectType } from '@/types/scanResult';
-import { openImagePreview } from '@/composables/image-preview/useImagePreview';
+import { openImagePreview } from '@/composables/image-preview';
 import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { getCategoryName, getCategoryTitles, getPageName } from '@/utils/prts';
 import { computed } from 'vue';
