@@ -1,196 +1,263 @@
-//! 导航门面。
-//!
-//! 提供：
-//! 1. 场景检测：自动判断当前处于哪个游戏界面
-//! 2. 场景导航：从任意受支持场景自动跳转到目标场景（BFS 最短路径）
+//! 具体 UI 状态导航的 crate 内门面。
 
-use std::{collections::HashMap, time::Duration};
+use anyhow::Result;
+use tracing::debug;
 
-use anyhow::{Result, bail};
-use tracing::{debug, info, warn};
-
-use super::{
-    route_executor::{RouteExecutionOutcome, RouteExecutor},
-    route_planner::RoutePlanner,
-    scene_detector::SceneDetector,
-    scenes::{Scene, SceneId},
-};
 use crate::automation::{Clock, Input, ScreenCapture, TemplateMatching};
 
-/// 导航器：负责场景检测和导航。
-///
-/// 注册所有已知场景后，可以自动检测当前场景并从任意受支持场景导航到目标场景。
-pub struct Navigator {
-    scene_detector: SceneDetector,
-    route_planner: RoutePlanner,
+use super::{
+    executor::PolicyExecutor, graph::NavigationGraph, policy::NavigationPolicy, state::UiState,
+};
+
+/// 识别当前具体 UI 状态并执行强策略的导航器。
+pub(crate) struct Navigator {
+    graph: NavigationGraph,
 }
 
 impl Navigator {
-    /// 注册所有场景，并根据其跳转关系构建不可变的路由规划器。
-    ///
-    /// 场景按注册顺序排列识别优先级——应先注册更具体的场景（如"档案详情页面"），
-    /// 再注册更笼统的场景（如"大世界"、"未知"）。
-    ///
-    /// # Panics
-    ///
-    /// 同一个 `SceneId` 变体只能注册一个场景识别器。带负载的变体应由同一个
-    /// 识别器返回具体 ID，例如 `档案库子界面`。
-    pub fn new(scenes: Vec<Box<dyn Scene>>) -> Self {
-        let mut navigation_graph = HashMap::new();
-
-        for scene in &scenes {
-            let id = scene.id();
-            navigation_graph.insert(
-                id,
-                scene
-                    .transitions()
-                    .iter()
-                    .map(|transition| transition.target)
-                    .collect(),
-            );
-        }
-
+    /// 使用游戏当前版本的静态 `transition` 声明构造导航器。
+    pub(crate) fn new() -> Self {
         Self {
-            scene_detector: SceneDetector::new(scenes),
-            route_planner: RoutePlanner::new(navigation_graph),
+            graph: NavigationGraph::production(),
         }
     }
 
-    // ========== 场景检测 ==========
-
-    /// 检测当前处于哪个场景。
-    ///
-    /// 按注册顺序遍历所有场景的 `try_recognize()`，返回第一个成功识别的场景 ID。
-    /// 如果所有场景都无法识别，返回 `SceneId::未知`。
-    pub fn detect_current_scene<C>(&self, cx: &mut C) -> Result<SceneId>
+    /// 从当前可识别状态导航到一个具体 UI 状态。
+    pub(crate) fn navigate_to<C>(&self, target: UiState, cx: &mut C) -> Result<()>
     where
-        C: ScreenCapture + TemplateMatching,
+        C: ScreenCapture + Input + TemplateMatching + Clock,
     {
-        self.scene_detector.detect_current_scene(cx)
+        let policy = NavigationPolicy::build(&self.graph, std::iter::once(target))?;
+        debug!(target = ?target, "开始导航到具体 UI 状态");
+        PolicyExecutor::new(&policy, cx).run()?;
+        debug!(target = ?target, "导航完成");
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use anyhow::Result;
+    use image::RgbaImage;
+
+    use crate::{
+        automation::{
+            Clock, Input, Key, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
+            TemplateTarget,
+        },
+        navigation::{
+            Navigator,
+            state::{ArchiveSubscene, RecordsPage, UiState},
+        },
+    };
+
+    #[derive(Clone, Copy)]
+    enum VisibleUi {
+        /// 测试边界当前显示大世界。
+        Overworld,
+        /// 测试边界当前显示协议终端。
+        Terminal,
     }
 
-    /// 持续检测直到场景变为指定场景或超时。
-    ///
-    /// # 参数
-    /// - `expected`: 期望的目标场景
-    /// - `cx`: 工作流自动化能力
-    /// - `max_retries`: 最大重试次数
-    ///
-    /// 每次重试之间会短暂等待（约 200ms），给游戏界面切换留出时间。
-    pub fn wait_for_scene<C>(&self, expected: SceneId, cx: &mut C, max_retries: u32) -> Result<bool>
-    where
-        C: ScreenCapture + TemplateMatching + Clock,
-    {
-        for i in 0..max_retries {
-            let current = self.detect_current_scene(cx)?;
-            if current == expected {
-                debug!("等待场景: 已到达目标 {:?} (第 {i} 次检测)", expected);
-                return Ok(true);
-            }
-            debug!(
-                "等待场景: 当前 {:?}, 期望 {:?} (第{i}/{max_retries})",
-                current, expected
-            );
-            cx.sleep(Duration::from_millis(200));
+    struct GameBoundary {
+        visible: VisibleUi,
+        escape_changes_ui: bool,
+        escape_presses: u8,
+        unrecognized_frames_after_escape: u8,
+        unrecognized_frames_remaining: u8,
+        frame_recognizable: bool,
+    }
+
+    impl ScreenCapture for GameBoundary {
+        fn screenshot(&mut self) -> Result<RgbaImage> {
+            self.frame_recognizable = self.unrecognized_frames_remaining == 0;
+            self.unrecognized_frames_remaining =
+                self.unrecognized_frames_remaining.saturating_sub(1);
+            Ok(RgbaImage::new(1280, 720))
         }
-        Ok(false)
     }
 
-    /// 检查当前是否为指定场景，不执行导航。
-    ///
-    /// 仅调用期望场景对应的识别器，避免遍历所有已注册场景。
-    /// 对于档案库子界面，识别结果必须与期望的具体子界面完全一致。
-    pub fn require_scene<C>(&self, expected: SceneId, cx: &mut C) -> Result<()>
-    where
-        C: ScreenCapture + TemplateMatching,
-    {
-        if self.scene_detector.recognizes_scene(expected, cx)? {
+    impl Input for GameBoundary {
+        fn click(&mut self, _point: Point720p) -> Result<()> {
             Ok(())
-        } else {
-            bail!("当前场景不符合预期: {:?}", expected)
+        }
+
+        fn press_key(&mut self, key: Key) -> Result<()> {
+            assert_eq!(key, Key::Escape);
+            self.escape_presses += 1;
+            if self.escape_changes_ui {
+                self.visible = VisibleUi::Terminal;
+                self.unrecognized_frames_remaining = self.unrecognized_frames_after_escape;
+            }
+            Ok(())
+        }
+
+        fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+            Ok(())
         }
     }
 
-    // ========== 场景导航 ==========
-
-    /// 从当前场景导航到目标场景（BFS 最短路径）。
-    ///
-    /// 自动计算并执行最短跳转路径。
-    ///
-    /// # 参数
-    /// - `target`: 目标场景
-    /// - `cx`: 工作流自动化能力
-    ///
-    /// # 工作流程
-    /// 1. 检测当前场景
-    /// 2. 如果已在目标场景，直接返回
-    /// 3. BFS 搜索最短路径
-    /// 4. 依次执行路径上的跳转动作，每步执行后重新检测场景。
-    ///    如果某一步未到达预期场景，则重试该步骤；连续失败 3 次则从当前场景重新规划路径。
-    pub fn navigate_to<C>(&self, target: SceneId, cx: &mut C) -> Result<()>
-    where
-        C: ScreenCapture + Input + TemplateMatching + Clock,
-    {
-        const MAX_REPLANS: u32 = 5;
-
-        let mut current = self.detect_current_scene(cx)?;
-        if current == target {
-            debug!("导航: 已在目标场景 {:?}，无需跳转", target);
-            return Ok(());
-        }
-        if current == SceneId::未知 {
-            bail!("当前场景无法识别，无法导航到 {:?}", target);
-        }
-
-        let mut replan_count = 0;
-        loop {
-            let route = self.route_planner.find_route(current, target)?;
-            if replan_count == 0 {
-                info!(
-                    "导航: {:?} → {:?}, 路径: {:?}",
-                    current, target, route.steps
+    impl TemplateMatching for GameBoundary {
+        fn find_template(
+            &mut self,
+            _screenshot: &RgbaImage,
+            target: &TemplateTarget,
+        ) -> Result<Option<TemplateMatch>> {
+            let matches = self.frame_recognizable
+                && matches!(
+                    (self.visible, target.template_name),
+                    (VisibleUi::Overworld, "协议终端.png") | (VisibleUi::Terminal, "档案库.png")
                 );
-            } else {
-                info!("重新规划路径: {:?}", route.steps);
-            }
-
-            let outcome = RouteExecutor::new(&self.scene_detector, cx, route).run()?;
-            current = outcome.observed_scene();
-            if outcome.observed_scene() == target {
-                info!("导航完成: 已到达 {:?}", target);
-                return Ok(());
-            }
-
-            if replan_count == MAX_REPLANS {
-                bail!(
-                    "导航失败: 已重新规划 {MAX_REPLANS} 次，仍无法到达 {:?}",
-                    target
-                );
-            }
-            replan_count += 1;
-            match outcome {
-                RouteExecutionOutcome::RouteFinished { .. } => warn!(
-                    "路由执行完成但未到达预期场景 {:?}，当前为 {:?}，重新规划 ({}/{})",
-                    target, current, replan_count, MAX_REPLANS
-                ),
-                RouteExecutionOutcome::NeedsReplan { .. } => warn!(
-                    "路由执行中断，当前场景 {:?}，重新规划到 {:?} ({}/{})",
-                    current, target, replan_count, MAX_REPLANS
-                ),
-            }
+            Ok(matches.then_some(TemplateMatch {
+                region: target.roi,
+                score: 1.0,
+            }))
         }
     }
 
-    /// 确保当前处于目标场景，如果不在则自动导航过去。
-    ///
-    /// 先仅调用目标场景的识别器；识别不匹配时再执行完整导航。
-    pub fn ensure_scene<C>(&self, target: SceneId, cx: &mut C) -> Result<()>
-    where
-        C: ScreenCapture + Input + TemplateMatching + Clock,
-    {
-        if self.scene_detector.recognizes_scene(target, cx)? {
-            return Ok(());
+    impl Clock for GameBoundary {
+        fn sleep(&mut self, _duration: Duration) {}
+    }
+
+    #[derive(Clone, Copy)]
+    enum ArchiveVisibleUi {
+        /// 测试边界当前显示档案详情页面。
+        Detail,
+        /// 测试边界当前显示“见闻辑录 - 纸质记录”。
+        Paper,
+    }
+
+    struct DetailFallbackBoundary {
+        visible: ArchiveVisibleUi,
+        detail_close_matches: u8,
+        clicks: Vec<Point720p>,
+    }
+
+    impl ScreenCapture for DetailFallbackBoundary {
+        fn screenshot(&mut self) -> Result<RgbaImage> {
+            Ok(RgbaImage::new(1280, 720))
         }
-        self.navigate_to(target, cx)
+    }
+
+    impl Input for DetailFallbackBoundary {
+        fn click(&mut self, point: Point720p) -> Result<()> {
+            self.clicks.push(point);
+            if point == (Point720p { x: 1240, y: 50 }) {
+                self.visible = ArchiveVisibleUi::Paper;
+            }
+            Ok(())
+        }
+
+        fn press_key(&mut self, _key: Key) -> Result<()> {
+            Ok(())
+        }
+
+        fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    impl TemplateMatching for DetailFallbackBoundary {
+        fn find_template(
+            &mut self,
+            _screenshot: &RgbaImage,
+            target: &TemplateTarget,
+        ) -> Result<Option<TemplateMatch>> {
+            let matches = match (self.visible, target.template_name) {
+                (ArchiveVisibleUi::Detail, "情报档案库/档案详情装饰.png") => true,
+                (ArchiveVisibleUi::Detail, "情报档案库/档案详情关闭.png") => {
+                    let matches = self.detail_close_matches == 0;
+                    self.detail_close_matches += 1;
+                    matches
+                }
+                (ArchiveVisibleUi::Paper, "情报档案库/情报档案库标题.png")
+                | (ArchiveVisibleUi::Paper, "情报档案库/档案库子界面关闭.png")
+                | (ArchiveVisibleUi::Paper, "情报档案库/见闻辑录水印.png") => true,
+                _ => false,
+            };
+            Ok(matches.then_some(TemplateMatch {
+                region: target.roi,
+                score: 1.0,
+            }))
+        }
+    }
+
+    impl Clock for DetailFallbackBoundary {
+        fn sleep(&mut self, _duration: Duration) {}
+    }
+
+    #[test]
+    fn navigates_from_overworld_to_terminal() {
+        let navigator = Navigator::new();
+        let mut game = GameBoundary {
+            visible: VisibleUi::Overworld,
+            escape_changes_ui: true,
+            escape_presses: 0,
+            unrecognized_frames_after_escape: 0,
+            unrecognized_frames_remaining: 0,
+            frame_recognizable: true,
+        };
+
+        navigator.navigate_to(UiState::Terminal, &mut game).unwrap();
+
+        assert_eq!(game.escape_presses, 1);
+    }
+
+    #[test]
+    fn stops_after_the_same_state_drives_three_actions() {
+        let navigator = Navigator::new();
+        let mut game = GameBoundary {
+            visible: VisibleUi::Overworld,
+            escape_changes_ui: false,
+            escape_presses: 0,
+            unrecognized_frames_after_escape: 0,
+            unrecognized_frames_remaining: 0,
+            frame_recognizable: true,
+        };
+
+        let error = navigator
+            .navigate_to(UiState::Terminal, &mut game)
+            .unwrap_err();
+
+        assert_eq!(game.escape_presses, 3);
+        assert!(error.to_string().contains("已执行策略动作 3 次"));
+    }
+
+    #[test]
+    fn retries_unrecognized_frames_without_repeating_the_action() {
+        let navigator = Navigator::new();
+        let mut game = GameBoundary {
+            visible: VisibleUi::Overworld,
+            escape_changes_ui: true,
+            escape_presses: 0,
+            unrecognized_frames_after_escape: 2,
+            unrecognized_frames_remaining: 0,
+            frame_recognizable: true,
+        };
+
+        navigator.navigate_to(UiState::Terminal, &mut game).unwrap();
+
+        assert_eq!(game.escape_presses, 1);
+    }
+
+    #[test]
+    fn archive_detail_close_uses_the_coordinate_fallback() {
+        let navigator = Navigator::new();
+        let mut game = DetailFallbackBoundary {
+            visible: ArchiveVisibleUi::Detail,
+            detail_close_matches: 0,
+            clicks: Vec::new(),
+        };
+
+        navigator
+            .navigate_to(
+                UiState::archive_subscene(ArchiveSubscene::Records(RecordsPage::Paper)),
+                &mut game,
+            )
+            .unwrap();
+
+        assert_eq!(game.clicks, [Point720p { x: 1240, y: 50 }]);
     }
 }
