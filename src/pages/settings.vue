@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
-import { oeaVersion } from '@/main';
 import { UpdateProxyMode } from '@/types/oeaConfig';
 import {
   CURRENT_SCAN_TIPS_VERSION,
@@ -12,6 +11,7 @@ import {
 } from '@/utils/app/config';
 import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
+import { oeaVersion } from '@/version';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const toast = useToast();
