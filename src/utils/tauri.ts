@@ -1,6 +1,7 @@
 //! Tauri 后端接口封装：类型安全地调用 Rust 命令、监听后端事件。
 
 import type { AppStatus } from '@/types/appStatus';
+import type { AutomationRunFinished } from '@/types/automationStats';
 import type { ArchiveContract } from '@/types/archiveContract';
 import type { LogEntry } from '@/types/log';
 import type { OeaConfig } from '@/types/oeaConfig';
@@ -86,6 +87,15 @@ export async function getWebviewZoom(): Promise<number> {
  */
 export async function onAppStatus(cb: (status: AppStatus) => void): Promise<() => void> {
   return await listen<AppStatus>('app-status', (event) => cb(event.payload));
+}
+
+/** 监听自动化运行结束事件；成功、停止和失败都会触发。 */
+export async function onAutomationRunFinished(
+  cb: (event: AutomationRunFinished) => void,
+): Promise<() => void> {
+  return await listen<AutomationRunFinished>('automation-run-finished', (event) =>
+    cb(event.payload),
+  );
 }
 
 /**

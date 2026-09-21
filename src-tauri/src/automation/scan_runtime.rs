@@ -9,13 +9,14 @@ use std::thread;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     app_paths::AppPaths,
     automation::{
         AutomationStopped, StopToken, is_stop_requested, new_stop_token, request_stop,
         session::Session,
+        stats::counts::{CapabilityCallCounts, Capture, CaptureSummary},
     },
     config::OeaConfig,
     data::AppData,
@@ -37,6 +38,95 @@ pub struct AppStatus {
     /// 扫描档案库任务结束时的失败原因（仅失败时随结束状态推送一次；成功 / 被停止 / 查询状态时为 `None`）
     #[serde(default)]
     pub scan_error: Option<String>,
+}
+
+/// 前端可区分的自动化任务。
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AutomationTask {
+    ArchiveScan,
+}
+
+/// 一次自动化运行的终态。
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AutomationOutcome {
+    Completed,
+    Stopped,
+    Failed,
+}
+
+impl AutomationOutcome {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Completed => "completed",
+            Self::Stopped => "stopped",
+            Self::Failed => "failed",
+        }
+    }
+}
+
+/// 推送给前端的一次自动化运行结束事件。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomationRunFinished {
+    task: AutomationTask,
+    outcome: AutomationOutcome,
+    capture: Option<CaptureSummaryPayload>,
+}
+
+impl AutomationRunFinished {
+    fn archive_scan(outcome: AutomationOutcome, capture: Option<CaptureSummary>) -> Self {
+        Self {
+            task: AutomationTask::ArchiveScan,
+            outcome,
+            capture: capture.map(CaptureSummaryPayload::from),
+        }
+    }
+}
+
+/// [`CaptureSummary`] 在 Tauri 事件中的稳定序列化格式。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CaptureSummaryPayload {
+    elapsed_micros: u64,
+    calls: CapabilityCallCountsPayload,
+}
+
+impl From<CaptureSummary> for CaptureSummaryPayload {
+    fn from(summary: CaptureSummary) -> Self {
+        Self {
+            elapsed_micros: u64::try_from(summary.elapsed.as_micros()).unwrap_or(u64::MAX),
+            calls: summary.calls.into(),
+        }
+    }
+}
+
+/// [`CapabilityCallCounts`] 在 Tauri 事件中的稳定序列化格式。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CapabilityCallCountsPayload {
+    screenshot: u64,
+    click: u64,
+    press_key: u64,
+    move_mouse_to_safe_position: u64,
+    find_template: u64,
+    recognize_text: u64,
+    sleep: u64,
+}
+
+impl From<CapabilityCallCounts> for CapabilityCallCountsPayload {
+    fn from(counts: CapabilityCallCounts) -> Self {
+        Self {
+            screenshot: counts.screenshot,
+            click: counts.click,
+            press_key: counts.press_key,
+            move_mouse_to_safe_position: counts.move_mouse_to_safe_position,
+            find_template: counts.find_template,
+            recognize_text: counts.recognize_text,
+            sleep: counts.sleep,
+        }
+    }
 }
 
 /// 一次扫描运行所需的应用协作者。
@@ -77,6 +167,31 @@ enum ScanOutcome {
     Completed,
     Stopped,
     Failed(String),
+}
+
+impl ScanOutcome {
+    const fn public_outcome(&self) -> AutomationOutcome {
+        match self {
+            Self::Completed => AutomationOutcome::Completed,
+            Self::Stopped => AutomationOutcome::Stopped,
+            Self::Failed(_) => AutomationOutcome::Failed,
+        }
+    }
+}
+
+/// scan 工作线程的完整返回值。
+struct ScanRunResult {
+    outcome: ScanOutcome,
+    capture: Option<CaptureSummary>,
+}
+
+impl ScanRunResult {
+    fn without_capture(outcome: ScanOutcome) -> Self {
+        Self {
+            outcome,
+            capture: None,
+        }
+    }
 }
 
 /// 扫描生命周期使用的提示音。
@@ -132,8 +247,8 @@ impl ScanRuntime {
         thread::Builder::new()
             .name("oea-scan".to_string())
             .spawn(move || {
-                let outcome = runtime.run(&context, stop);
-                runtime.handle_run_exit(&context, outcome);
+                let result = runtime.run(&context, stop);
+                runtime.handle_run_exit(&context, result);
             })
             .expect("启动扫描档案库任务线程失败");
     }
@@ -177,19 +292,23 @@ impl ScanRuntime {
         Some(stop)
     }
 
-    fn run(&self, context: &ScanRunContext, stop: StopToken) -> ScanOutcome {
+    fn run(&self, context: &ScanRunContext, stop: StopToken) -> ScanRunResult {
         // 任务开始时才连接游戏
         let mut session = match Session::connect(&context.ocr, Arc::clone(&stop)) {
             Ok(session) => session,
-            Err(_error) if is_stop_requested(&stop) => return ScanOutcome::Stopped,
+            Err(_error) if is_stop_requested(&stop) => {
+                return ScanRunResult::without_capture(ScanOutcome::Stopped);
+            }
             Err(error) => {
-                return ScanOutcome::Failed(format!("连接游戏失败: {error:#}"));
+                return ScanRunResult::without_capture(ScanOutcome::Failed(format!(
+                    "连接游戏失败: {error:#}"
+                )));
             }
         };
 
         // 停止请求可能发生在连接过程中，不能让它被清除或跳过。
         if is_stop_requested(&stop) {
-            return ScanOutcome::Stopped;
+            return ScanRunResult::without_capture(ScanOutcome::Stopped);
         }
 
         // 扫描档案库任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）
@@ -204,19 +323,27 @@ impl ScanRuntime {
         // 执行扫描档案库任务（阻塞，期间任务内部轮询停止标志）
         let task =
             ArchiveScanTask::new(context.reporter.clone(), context.app_data.archive_titles());
-        let result = run_task(&task, &mut session, &context.navigator);
+        let mut captured = Capture::new(&mut session);
+        let result = run_task(&task, &mut captured, &context.navigator);
+        let capture = captured.finish();
 
-        match result {
+        let outcome = match result {
             Ok(()) => ScanOutcome::Completed,
             Err(error) if error.downcast_ref::<AutomationStopped>().is_some() => {
                 ScanOutcome::Stopped
             }
             Err(error) => ScanOutcome::Failed(format!("扫描档案库任务执行失败: {error:#}")),
+        };
+        ScanRunResult {
+            outcome,
+            capture: Some(capture),
         }
     }
 
-    /// 处理扫描终态：记录结果、播放提示音、释放运行标志并推送空闲状态。
-    fn handle_run_exit(&self, context: &ScanRunContext, outcome: ScanOutcome) {
+    /// 处理扫描终态：记录结果、播放提示音、释放运行标志并推送结束事件与空闲状态。
+    fn handle_run_exit(&self, context: &ScanRunContext, result: ScanRunResult) {
+        let ScanRunResult { outcome, capture } = result;
+        let public_outcome = outcome.public_outcome();
         let scan_error = match outcome {
             ScanOutcome::Completed => {
                 info!("========== 扫描档案库任务执行完毕 ==========");
@@ -235,8 +362,37 @@ impl ScanRuntime {
             }
         };
 
+        self.log_capture_summary(public_outcome, capture.as_ref());
         self.finish_run();
+        self.emit_run_finished(
+            &context.handle,
+            AutomationRunFinished::archive_scan(public_outcome, capture),
+        );
         self.emit_status(&context.handle, scan_error);
+    }
+
+    fn log_capture_summary(&self, outcome: AutomationOutcome, capture: Option<&CaptureSummary>) {
+        let Some(capture) = capture else {
+            return;
+        };
+        let calls = capture.calls;
+        info!(
+            "自动化统计捕获完成，耗时 {:.1} 秒",
+            capture.elapsed.as_secs_f64()
+        );
+        debug!(
+            task = "archiveScan",
+            outcome = outcome.as_str(),
+            elapsed_micros = capture.elapsed.as_micros(),
+            screenshot_count = calls.screenshot,
+            click_count = calls.click,
+            press_key_count = calls.press_key,
+            move_mouse_to_safe_position_count = calls.move_mouse_to_safe_position,
+            find_template_count = calls.find_template,
+            recognize_text_count = calls.recognize_text,
+            sleep_count = calls.sleep,
+            "自动化统计捕获明细"
+        );
     }
 
     fn finish_run(&self) {
@@ -275,15 +431,24 @@ impl ScanRuntime {
             error!("向前端推送状态失败: {error}");
         }
     }
+
+    fn emit_run_finished(&self, handle: &AppHandle, event: AutomationRunFinished) {
+        if let Err(error) = handle.emit("automation-run-finished", &event) {
+            error!("向前端推送自动化结束事件失败: {error}");
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{sync::Arc, time::Duration};
 
-    use crate::automation::is_stop_requested;
+    use crate::automation::{
+        is_stop_requested,
+        stats::counts::{CapabilityCallCounts, CaptureSummary},
+    };
 
-    use super::ScanRuntime;
+    use super::{AutomationOutcome, AutomationRunFinished, ScanRuntime};
 
     #[test]
     fn new_runtime_is_idle() {
@@ -328,5 +493,58 @@ mod tests {
         let second_stop = runtime.claim_start().unwrap();
         assert!(!is_stop_requested(&second_stop));
         assert!(!Arc::ptr_eq(&first_stop, &second_stop));
+    }
+
+    #[test]
+    fn automation_run_finished_uses_the_frontend_wire_format() {
+        let event = AutomationRunFinished::archive_scan(
+            AutomationOutcome::Stopped,
+            Some(CaptureSummary {
+                elapsed: Duration::from_micros(1_234_567),
+                calls: CapabilityCallCounts {
+                    screenshot: 2,
+                    click: 3,
+                    press_key: 5,
+                    move_mouse_to_safe_position: 7,
+                    find_template: 11,
+                    recognize_text: 13,
+                    sleep: 17,
+                },
+            }),
+        );
+
+        assert_eq!(
+            serde_json::to_value(event).unwrap(),
+            serde_json::json!({
+                "task": "archiveScan",
+                "outcome": "stopped",
+                "capture": {
+                    "elapsedMicros": 1_234_567,
+                    "calls": {
+                        "screenshot": 2,
+                        "click": 3,
+                        "pressKey": 5,
+                        "moveMouseToSafePosition": 7,
+                        "findTemplate": 11,
+                        "recognizeText": 13,
+                        "sleep": 17,
+                    },
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn automation_run_finished_has_no_capture_when_the_interval_never_started() {
+        let event = AutomationRunFinished::archive_scan(AutomationOutcome::Failed, None);
+
+        assert_eq!(
+            serde_json::to_value(event).unwrap(),
+            serde_json::json!({
+                "task": "archiveScan",
+                "outcome": "failed",
+                "capture": null,
+            })
+        );
     }
 }

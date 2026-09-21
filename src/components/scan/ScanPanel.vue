@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import AutomationStatsSummary from '@/components/automation/AutomationStatsSummary.vue';
 import { CollectType, ScanResult, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
 import { appStatus } from '@/utils/app/appStatus';
+import { latestAutomationCapture } from '@/utils/app/automationStats';
 import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { applyCorrection } from '@/utils/app/correction';
 import { exportToOem } from '@/utils/app/exportOem';
@@ -9,6 +11,15 @@ import { clearScanResults, scanResults } from '@/utils/app/scanResults';
 import { deriveArchiveCollection } from '@/utils/archiveCollection';
 import { startScan, stopScan } from '@/utils/tauri';
 import { computed, ref, watch } from 'vue';
+
+const automationStatsDismissed = ref(false);
+const visibleAutomationCapture = computed(() =>
+  automationStatsDismissed.value ? null : latestAutomationCapture.value,
+);
+
+watch(latestAutomationCapture, () => {
+  automationStatsDismissed.value = false;
+});
 
 function toggleScan() {
   return appStatus.value.running ? stopScan() : startScan();
@@ -137,6 +148,12 @@ const summary = computed(() => {
         />
         <UButton class="ms-auto" icon="i-lucide-map" label="导出到地图集" @click="exportToOem" />
       </div>
+
+      <AutomationStatsSummary
+        v-if="visibleAutomationCapture !== null"
+        :summary="visibleAutomationCapture"
+        @close="automationStatsDismissed = true"
+      />
 
       <UAlert
         v-if="showScanError"
