@@ -40,6 +40,6 @@ pnpm check
 ### 配置的事实来源与生效时机
 
 - `Controller` 持有的后端内存配置是已生效配置的事实来源。
-- `settingsDraft` 是 UI 展示投影，也可以暂存尚未保存成功的编辑值；`effectiveSettings` 是最近一次成功保存后的前端只读投影。
+- `settingsDraft` 仅供设置编辑 UI 读写和暂存未保存的编辑；前端业务逻辑只读取最近一次成功保存的 `effectiveSettings`，不得依赖 draft 做决策。
 - 编辑值仅在 `save_oea_config` 成功后生效。保存完成前调用后端命令时，命令可以使用上一次成功保存的配置。
 - 后端命令自行读取所需配置，并在入口克隆一份调用期间不变的快照。
