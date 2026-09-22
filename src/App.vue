@@ -43,6 +43,7 @@ void initApp();
   <Suspense>
     <UApp>
       <div class="flex h-full flex-col">
+        <SettingsSaveFailureNotifier />
         <TitleBar />
         <AppHeader class="static z-auto backdrop-blur-none" />
 

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import {
+  discardSettingsDraft,
   proxyModeItems,
+  retrySettingsSave,
   settingsDraft,
+  settingsStatus,
   UpdateProxyMode,
   updateSourceItems,
 } from '@/modules/settings';
@@ -145,6 +148,69 @@ onBeforeUnmount(() => {
       </template>
 
       <UPageBody>
+        <UAlert
+          v-if="settingsStatus.kind === 'loading'"
+          color="neutral"
+          description="正在读取最近一次保存的设置。"
+          icon="i-lucide-loader-circle"
+          title="正在加载设置"
+          variant="subtle"
+        />
+
+        <UAlert
+          v-else-if="settingsStatus.kind === 'idle'"
+          color="success"
+          description="当前显示的是最近一次成功保存且已经生效的设置。"
+          icon="i-lucide-circle-check"
+          title="设置已保存"
+          variant="subtle"
+        />
+
+        <UAlert
+          v-else-if="settingsStatus.kind === 'saving'"
+          color="primary"
+          description="你可以继续编辑，应用会保存最新修改。"
+          icon="i-lucide-loader-circle"
+          title="正在保存设置"
+          variant="subtle"
+        />
+
+        <UAlert
+          v-else-if="settingsStatus.kind === 'save-error'"
+          color="error"
+          description="已保留当前编辑；应用仍使用最近一次成功保存的设置。恢复会放弃全部当前编辑。"
+          icon="i-lucide-circle-alert"
+          title="未能保存设置"
+          variant="subtle"
+        >
+          <template #actions>
+            <UButton
+              color="error"
+              icon="i-lucide-rotate-cw"
+              label="重试保存"
+              size="sm"
+              @click="retrySettingsSave"
+            />
+            <UButton
+              color="neutral"
+              icon="i-lucide-undo-2"
+              label="放弃全部当前编辑"
+              size="sm"
+              variant="outline"
+              @click="discardSettingsDraft"
+            />
+          </template>
+        </UAlert>
+
+        <UAlert
+          v-else
+          color="error"
+          description="正在使用默认设置。请检查应用日志，并在问题解决后重新打开应用。"
+          icon="i-lucide-circle-alert"
+          title="设置加载失败"
+          variant="subtle"
+        />
+
         <SettingsCard
           id="interface"
           class="scroll-mt-8"

@@ -92,6 +92,7 @@ describe('settings single writer', () => {
 
     settings.settingsDraft.autoDownloadUpdates = false;
     await flushMicrotasks();
+    expect(settings.settingsStatus.kind).toBe('saving');
     persistence.saveDeferreds[0]?.reject(new Error('写入失败'));
     await flushMicrotasks();
 
@@ -103,6 +104,7 @@ describe('settings single writer', () => {
     settings.retrySettingsSave();
     await flushMicrotasks();
     expect(persistence.saves).toHaveLength(2);
+    expect(settings.settingsStatus.kind).toBe('saving');
     persistence.saveDeferreds[1]?.resolve();
     await flushMicrotasks();
 
