@@ -44,10 +44,12 @@ export async function openLogDir(): Promise<void> {
   await invoke('open_log_dir');
 }
 
+/** 通过 Tauri 加载完整配置；具体 DTO 类型由所属领域模块提供。 */
 export async function loadOeaConfig<Value>(): Promise<Value> {
   return await invoke<Value>('load_oea_config');
 }
 
+/** 通过 Tauri 保存所属领域模块构造的完整配置 DTO。 */
 export async function saveOeaConfig(oeaConfig: unknown): Promise<void> {
   return await invoke('save_oea_config', { oeaConfig });
 }

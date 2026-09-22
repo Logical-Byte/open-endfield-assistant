@@ -4,6 +4,7 @@ import type { SettingsDraft } from './model';
 
 type UpdateSettingsDraft = Pick<SettingsDraft, 'mirrorchyanCdk' | 'updateProxyUrl'>;
 
+/** 更新设置文本框的局部值及其显式提交操作。 */
 export interface UpdateSettingsBuffers {
   mirrorchyanCdk: Ref<string>;
   updateProxyUrl: Ref<string>;

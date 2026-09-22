@@ -16,12 +16,19 @@ import {
   type SettingsPersistence,
 } from './persistence';
 
+/** 一个隔离的 settings 事务实例及其公开操作。 */
 export interface SettingsModule {
+  /** 用户当前编辑意图；写入会启动或唤醒 single writer。 */
   settingsDraft: SettingsDraft;
+  /** 最近一次成功保存的只读逻辑设置。 */
   effectiveSettings: DeepReadonly<SettingsSnapshot>;
+  /** 当前初始化、保存或错误状态。 */
   settingsStatus: DeepReadonly<SettingsStatus>;
+  /** 加载持久化配置并启动待处理编辑的保存。 */
   initializeSettings(): Promise<void>;
+  /** 重新提交当前失败的 draft。 */
   retrySettingsSave(): void;
+  /** 将完整 draft 恢复为最近的 effective 设置。 */
   discardSettingsDraft(): void;
 }
 

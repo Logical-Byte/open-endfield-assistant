@@ -21,6 +21,7 @@ pnpm check
 
 - 定义有名字的函数用 `function` 关键字，回调/匿名函数用箭头函数。
 - 本项目启用 TypeScript：所有函数参数与返回值都要有类型注解（返回 `void` 的除外）。
+- 跨文件导出的类型、函数和模块级状态必须用 JSDoc 说明其用途与关键契约，以便 LSP/IDE 在调用处展示。
 - 拒绝写 `anotherFunction(args)` 的简单包装函数。
 
 ## Vue 与 Nuxt UI 编码风格

@@ -1,11 +1,13 @@
 import type { DeepReadonly } from 'vue';
 
+/** 应用更新包使用的下载源。 */
 export enum UpdateSource {
   Mirrorchyan = 'mirrorchyan',
   Oem = 'oem',
   Github = 'github',
 }
 
+/** 下载更新包时使用的代理模式。 */
 export enum UpdateProxyMode {
   None = 'none',
   System = 'system',
@@ -42,6 +44,7 @@ export interface SettingsDraft {
 /** 最近一次成功保存且已生效的逻辑设置快照。 */
 export type SettingsSnapshot = DeepReadonly<SettingsDraft>;
 
+/** Settings 模块对外发布的初始化、保存和错误状态。 */
 export type SettingsStatus =
   | { kind: 'loading' }
   | { kind: 'idle' }

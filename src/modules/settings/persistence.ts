@@ -27,6 +27,7 @@ export interface PersistedOeaConfig {
   scanTipsDismissedVersion: number;
 }
 
+/** 前端在配置加载失败时使用的完整持久化默认值。 */
 export const DEFAULT_OEA_CONFIG: PersistedOeaConfig = {
   majorVersion: CURRENT_MAJOR_VERSION,
   minorVersion: CURRENT_MINOR_VERSION,
@@ -49,6 +50,7 @@ export interface SettingsPersistence {
   decryptCdk(encrypted: string): Promise<string>;
 }
 
+/** 创建调用现有 Tauri 配置与 CDK command 的生产 persistence adapter。 */
 export function createTauriSettingsPersistence(): SettingsPersistence {
   return {
     load: loadOeaConfig<PersistedOeaConfig>,
@@ -58,10 +60,12 @@ export function createTauriSettingsPersistence(): SettingsPersistence {
   };
 }
 
+/** 创建与默认持久化配置对应的逻辑设置草稿。 */
 export function createDefaultSettingsDraft(): SettingsDraft {
   return settingsDraftFromPersisted(DEFAULT_OEA_CONFIG, '');
 }
 
+/** 将完整持久化 DTO 和已解密 CDK 投影为逻辑设置草稿。 */
 export function settingsDraftFromPersisted(
   config: PersistedOeaConfig,
   mirrorchyanCdk: string,
@@ -79,6 +83,7 @@ export function settingsDraftFromPersisted(
   };
 }
 
+/** 用逻辑候选更新持久化基线，同时保留版本等内部字段。 */
 export function persistedFromSettingsDraft(
   candidate: Readonly<SettingsDraft>,
   baseline: Readonly<PersistedOeaConfig>,
