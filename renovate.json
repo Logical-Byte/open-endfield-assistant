@@ -38,6 +38,12 @@
       "minimumReleaseAge": "3 days"
     },
     {
+      "description": "Trial automerge for npm patch updates",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    },
+    {
       "description": "Review pre-1.0 Cargo minor updates before opening a PR",
       "matchManagers": ["cargo"],
       "matchCurrentVersion": "/^0\\./",
