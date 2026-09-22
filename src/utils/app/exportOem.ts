@@ -6,6 +6,7 @@
 import type { UploadData } from '@/types/upload';
 import { prtsData } from '@/utils/app/prtsData';
 import { scanResults } from '@/utils/app/scanResults';
+import { deriveArchiveCollection } from '@/utils/archiveCollection';
 import { logDebug, logError, logInfo } from '@/utils/tauri';
 import { oeaVersion } from '@/version';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -24,39 +25,15 @@ const OEM_IMPORT_URL_PREFIX = 'https://oem.re/i/';
  */
 export function buildUploadData(): UploadData {
   const allItems = prtsData.value?.allItems ?? {};
-  const allIds = Object.keys(allItems);
-
-  const collected = new Set<string>();
-  for (const result of scanResults.value) {
-    if (result.status === 'success') {
-      for (const id of result.itemIds) {
-        collected.add(id);
-      }
-    }
-  }
-
-  // 重名档案：只要有一个已收集，所有同名档案都视为已收集
-  const idsByTitle = new Map<string, string[]>();
-  for (const item of Object.values(allItems)) {
-    const ids = idsByTitle.get(item.title) ?? [];
-    ids.push(item.id);
-    idsByTitle.set(item.title, ids);
-  }
-  for (const ids of idsByTitle.values()) {
-    if (ids.some((id) => collected.has(id))) {
-      for (const id of ids) collected.add(id);
-    }
-  }
-
-  const notCollected = allIds.filter((id) => !collected.has(id));
+  const collection = deriveArchiveCollection(allItems, scanResults.value);
   return {
     majorVersion: 0,
     minorVersion: 0,
     data: {
       oeaVersion,
       prtsAllItems: {
-        collected: allIds.filter((id) => collected.has(id)),
-        notCollected,
+        collected: collection.collectedIds,
+        notCollected: collection.notCollectedIds,
       },
     },
   };
