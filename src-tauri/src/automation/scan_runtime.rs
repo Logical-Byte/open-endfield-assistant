@@ -115,14 +115,14 @@ impl From<CapabilityCallCounts> for CapabilityCallCountsPayload {
     }
 }
 
-/// 一次扫描运行的终态。
-pub(crate) enum ScanOutcome {
+/// 工作者结束的原因；失败时保留供运行时记录和展示的错误信息。
+pub(crate) enum ScanWorkerOutcome {
     Completed,
     Stopped,
     Failed(String),
 }
 
-impl ScanOutcome {
+impl ScanWorkerOutcome {
     const fn public_outcome(&self) -> AutomationOutcome {
         match self {
             Self::Completed => AutomationOutcome::Completed,
@@ -132,14 +132,14 @@ impl ScanOutcome {
     }
 }
 
-/// scan 工作线程的完整返回值。
-pub(crate) struct ScanRunResult {
-    pub(crate) outcome: ScanOutcome,
+/// `ScanWorker` 交给 `ScanRuntime` 的终态数据，与逐条上报的 `ScanResult` 不同。
+pub(crate) struct ScanWorkerExit {
+    pub(crate) outcome: ScanWorkerOutcome,
     pub(crate) capture: Option<CaptureSummary>,
 }
 
-impl ScanRunResult {
-    pub(crate) fn without_capture(outcome: ScanOutcome) -> Self {
+impl ScanWorkerExit {
+    pub(crate) fn without_capture(outcome: ScanWorkerOutcome) -> Self {
         Self {
             outcome,
             capture: None,
@@ -149,7 +149,7 @@ impl ScanRunResult {
 
 /// 一次扫描工作线程的执行内容。消费工作者，保证每次获准启动只执行一次。
 pub(crate) trait ScanWorker: Send + 'static {
-    fn run(self, stop: StopToken) -> ScanRunResult;
+    fn run(self, stop: StopToken) -> ScanWorkerExit;
 }
 
 /// 扫描档案库任务的生命周期状态。
@@ -194,7 +194,7 @@ impl ScanRuntime {
             .name("oea-scan".to_string())
             .spawn(move || {
                 let result = worker.run(stop);
-                runtime.handle_run_exit(&handle, result);
+                runtime.handle_worker_exit(&handle, result);
             })
             .expect("启动扫描档案库任务线程失败");
     }
@@ -239,19 +239,19 @@ impl ScanRuntime {
     }
 
     /// 处理扫描终态：记录结果、释放运行标志并推送结束事件与空闲状态。
-    fn handle_run_exit(&self, handle: &AppHandle, result: ScanRunResult) {
-        let ScanRunResult { outcome, capture } = result;
+    fn handle_worker_exit(&self, handle: &AppHandle, result: ScanWorkerExit) {
+        let ScanWorkerExit { outcome, capture } = result;
         let public_outcome = outcome.public_outcome();
         let scan_error = match outcome {
-            ScanOutcome::Completed => {
+            ScanWorkerOutcome::Completed => {
                 info!("========== 扫描档案库任务执行完毕 ==========");
                 None
             }
-            ScanOutcome::Stopped => {
+            ScanWorkerOutcome::Stopped => {
                 info!("扫描档案库任务已被用户停止");
                 None
             }
-            ScanOutcome::Failed(message) => {
+            ScanWorkerOutcome::Failed(message) => {
                 error!("{message}");
                 Some(message)
             }
