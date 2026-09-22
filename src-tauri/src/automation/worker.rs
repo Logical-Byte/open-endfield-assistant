@@ -57,9 +57,11 @@ impl LiveScanWorker {
         let mut session = match Session::connect(&self.ocr, Arc::clone(&stop)) {
             Ok(session) => session,
             Err(_error) if is_stop_requested(&stop) => {
+                self.play_scan_sound(ScanSound::Disable);
                 return ScanRunResult::without_capture(ScanOutcome::Stopped);
             }
             Err(error) => {
+                self.play_scan_sound(ScanSound::Disable);
                 return ScanRunResult::without_capture(ScanOutcome::Failed(format!(
                     "连接游戏失败: {error:#}"
                 )));
@@ -68,6 +70,7 @@ impl LiveScanWorker {
 
         // 停止请求可能发生在连接过程中，不能让它被清除或跳过。
         if is_stop_requested(&stop) {
+            self.play_scan_sound(ScanSound::Disable);
             return ScanRunResult::without_capture(ScanOutcome::Stopped);
         }
 
@@ -91,6 +94,10 @@ impl LiveScanWorker {
             }
             Err(error) => ScanOutcome::Failed(format!("扫描档案库任务执行失败: {error:#}")),
         };
+        self.play_scan_sound(match &outcome {
+            ScanOutcome::Completed => ScanSound::Enable,
+            ScanOutcome::Stopped | ScanOutcome::Failed(_) => ScanSound::Disable,
+        });
         ScanRunResult {
             outcome,
             capture: Some(capture),
@@ -119,13 +126,7 @@ impl LiveScanWorker {
 
 impl ScanWorker for LiveScanWorker {
     fn run(self, stop: StopToken) -> ScanRunResult {
-        let result = self.run_task(stop);
-        let final_sound = match &result.outcome {
-            ScanOutcome::Completed => ScanSound::Enable,
-            ScanOutcome::Stopped | ScanOutcome::Failed(_) => ScanSound::Disable,
-        };
-        self.play_scan_sound(final_sound);
-        result
+        self.run_task(stop)
     }
 }
 
