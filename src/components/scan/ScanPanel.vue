@@ -3,9 +3,10 @@ import { CollectType, ScanResult, ScanResultCardProps, ScanResultStatus } from '
 import { appStatus } from '@/utils/app/appStatus';
 import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { applyCorrection } from '@/utils/app/correction';
-import { buildUploadData, exportToOem } from '@/utils/app/exportOem';
+import { exportToOem } from '@/utils/app/exportOem';
 import { prtsData } from '@/utils/app/prtsData';
 import { clearScanResults, scanResults } from '@/utils/app/scanResults';
+import { deriveArchiveCollection } from '@/utils/archiveCollection';
 import { startScan, stopScan } from '@/utils/tauri';
 import { computed, ref, watch } from 'vue';
 
@@ -114,12 +115,12 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
  * 已收集 / 未收集为档案数，识别错误为扫描失败（failed / unrecognized）条数。
  */
 const summary = computed(() => {
-  const { data } = buildUploadData();
+  const collection = deriveArchiveCollection(prtsData.value?.allItems ?? {}, scanResults.value);
   const error = scanResults.value.filter((result) => result.status !== 'success').length;
   return {
     error,
-    notCollected: data.prtsAllItems.notCollected.length,
-    collected: data.prtsAllItems.collected.length,
+    notCollected: collection.notCollectedIds.length,
+    collected: collection.collectedIds.length,
   };
 });
 </script>
