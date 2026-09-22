@@ -3,7 +3,7 @@ import { cdkDecrypt, cdkEncrypt, loadOeaConfig, saveOeaConfig } from '@/utils/ta
 import { UpdateProxyMode, UpdateSource, type SettingsDraft } from './model';
 
 /** 与 ScanGuide 内容同步的持久化提示版本。修改提示文案时在这里决定是否递增。 */
-const CURRENT_SCAN_TIPS_VERSION: number = 1;
+export const CURRENT_SCAN_TIPS_VERSION: number = 1;
 const CURRENT_MAJOR_VERSION: number = 0;
 const CURRENT_MINOR_VERSION: number = 0;
 
