@@ -58,7 +58,7 @@ impl LiveScanWorker {
             Ok(session) => session,
             Err(_error) if is_stop_requested(&stop) => {
                 self.play_scan_sound(ScanSound::Disable);
-                return ScanWorkerExit::without_capture(FinishReason::Stopped);
+                return ScanWorkerExit::without_capture(FinishReason::Interrupted);
             }
             Err(error) => {
                 self.play_scan_sound(ScanSound::Disable);
@@ -71,7 +71,7 @@ impl LiveScanWorker {
         // 停止请求可能发生在连接过程中，不能让它被清除或跳过。
         if is_stop_requested(&stop) {
             self.play_scan_sound(ScanSound::Disable);
-            return ScanWorkerExit::without_capture(FinishReason::Stopped);
+            return ScanWorkerExit::without_capture(FinishReason::Interrupted);
         }
 
         // 扫描任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）。
@@ -90,13 +90,13 @@ impl LiveScanWorker {
         let reason = match result {
             Ok(()) => FinishReason::Completed,
             Err(error) if error.downcast_ref::<AutomationStopped>().is_some() => {
-                FinishReason::Stopped
+                FinishReason::Interrupted
             }
             Err(error) => FinishReason::Failed(format!("扫描档案库任务执行失败: {error:#}")),
         };
         self.play_scan_sound(match &reason {
             FinishReason::Completed => ScanSound::Enable,
-            FinishReason::Stopped | FinishReason::Failed(_) => ScanSound::Disable,
+            FinishReason::Interrupted | FinishReason::Failed(_) => ScanSound::Disable,
         });
         ScanWorkerExit {
             reason,

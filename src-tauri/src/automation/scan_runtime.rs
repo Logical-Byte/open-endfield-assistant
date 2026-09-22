@@ -118,7 +118,7 @@ impl From<CapabilityCallCounts> for CapabilityCallCountsPayload {
 /// 工作者结束的原因；失败时保留供运行时记录和展示的错误信息。
 pub(crate) enum FinishReason {
     Completed,
-    Stopped,
+    Interrupted,
     Failed(String),
 }
 
@@ -126,7 +126,7 @@ impl FinishReason {
     const fn public_outcome(&self) -> AutomationOutcome {
         match self {
             Self::Completed => AutomationOutcome::Completed,
-            Self::Stopped => AutomationOutcome::Stopped,
+            Self::Interrupted => AutomationOutcome::Stopped,
             Self::Failed(_) => AutomationOutcome::Failed,
         }
     }
@@ -247,7 +247,7 @@ impl ScanRuntime {
                 info!("========== 扫描档案库任务执行完毕 ==========");
                 None
             }
-            FinishReason::Stopped => {
+            FinishReason::Interrupted => {
                 info!("扫描档案库任务已被用户停止");
                 None
             }
