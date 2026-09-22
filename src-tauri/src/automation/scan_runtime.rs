@@ -67,6 +67,7 @@ impl ScanRuntime {
     }
 
     /// 启动扫描档案库任务：占用运行状态并创建本次令牌 → 推送状态 → 后台线程执行。
+    /// `worker_factory` 在当前线程同步构造工作者；连接游戏等耗时操作属于工作者的 `run`。
     pub(crate) fn start<W>(self: &Arc<Self>, handle: &AppHandle, worker_factory: impl FnOnce() -> W)
     where
         W: ScanWorker,
