@@ -34,10 +34,10 @@ UI 缩放仍使用 WebView 自己的状态和持久化机制，不加入 OEA 配
 2. 作为 OEA 用户，我希望快速连续修改最终落在我的最后选择上，从而避免滑块或输入框的中间值覆盖最终结果。
 3. 作为 OEA 用户，我希望保存进行中仍可继续修改其他设置，从而不让磁盘延迟阻塞设置页。
 4. 作为 OEA 用户，我希望保存失败时应用保留我的最新草稿，从而不因临时持久化错误丢失输入。
-5. 作为 OEA 用户，我希望能重试失败的设置保存，从而无需重新填写所有设置即可恢复。
-6. 作为 OEA 用户，我希望保存失败后能恢复最近一次已保存的设置，从而可以主动放弃无效或不想保留的草稿。
-7. 作为 OEA 用户，我希望设置页显示正在保存、已保存或保存失败，从而理解后台持久化状态。
-8. 作为 OEA 用户，我希望在设置页外触发保存失败时也收到可见通知，从而避免错误静默发生。
+5. 作为前端维护者，我希望模块保留显式重试失败 revision 的操作，从而能独立验证和复用恢复能力。
+6. 作为前端维护者，我希望模块保留恢复最近 effective 的操作，从而能完整表达放弃全局 draft 的领域语义。
+7. 作为 OEA 用户，我希望设置页不为加载、保存中或已保存状态占用额外版面，从而专注于设置本身。
+8. 作为 OEA 用户，我希望保存失败时收到全局通知，从而避免错误静默发生。
 9. 作为 OEA 用户，我希望自动更新行为只在对应设置保存成功后改变，从而避免未提交编辑启动下载操作或安装。
 10. 作为 OEA 用户，我希望更新弹窗聚焦于可用更新和下载操作，从而保持其主要用途清晰。
 11. 作为 OEA 用户，我希望更新弹窗的设置按钮带我前往唯一的更新设置表单，从而避免遇到两份逐渐漂移的表单。
@@ -181,7 +181,7 @@ UI 缩放仍使用 WebView 自己的状态和持久化机制，不加入 OEA 配
 
 - Model settings status as structured state sufficient for presentation without importing Nuxt UI into the module. The exact discriminated-union spelling may vary, but it must distinguish loading, idle/saved, saving, load failure and save failure where those states remain observable.
 
-- The settings page displays one global save indicator instead of applying a global `saving` spinner to every individual control. Controls remain interactive while the writer is busy. A save error displays retry and restore actions. The application presentation layer may emit one toast for a newly observed failure, including failures triggered outside the settings page.
+- The settings page does not render loading, idle, saving or error status panels. Controls remain interactive while the writer is busy. The application presentation layer emits one global toast when a new save failure occurs, including failures triggered outside the settings page. Retry and discard remain domain operations and test seams rather than page controls.
 
 - The settings module must not call `useToast()` or render presentation directly. It publishes status and operations; the UI owns wording, placement and toast behavior.
 
