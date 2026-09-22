@@ -147,6 +147,11 @@ impl ScanRunResult {
     }
 }
 
+/// 一次扫描工作线程的执行内容。消费工作者，保证每次获准启动只执行一次。
+pub(crate) trait ScanWorker: Send + 'static {
+    fn run(self, stop: StopToken) -> ScanRunResult;
+}
+
 /// 扫描档案库任务的生命周期状态。
 pub(crate) struct ScanRuntime {
     /// 运行状态与当前运行的停止令牌由同一把锁保护，避免停止请求落到错误的运行上。
@@ -173,7 +178,7 @@ impl ScanRuntime {
     /// 启动扫描档案库任务：占用运行状态并创建本次令牌 → 推送状态 → 后台线程执行。
     pub(crate) fn start<W>(self: &Arc<Self>, handle: &AppHandle, worker_factory: impl FnOnce() -> W)
     where
-        W: FnOnce(StopToken) -> ScanRunResult + Send + 'static,
+        W: ScanWorker,
     {
         let Some(stop) = self.claim_start() else {
             warn!("扫描档案库任务正在运行中，忽略重复的启动请求");
@@ -188,7 +193,7 @@ impl ScanRuntime {
         thread::Builder::new()
             .name("oea-scan".to_string())
             .spawn(move || {
-                let result = worker(stop);
+                let result = worker.run(stop);
                 runtime.handle_run_exit(&handle, result);
             })
             .expect("启动扫描档案库任务线程失败");

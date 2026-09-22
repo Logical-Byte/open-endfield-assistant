@@ -11,7 +11,7 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    automation::{scan_runtime::ScanRuntime, scan_worker::LiveScanWorker},
+    automation::{scan_runtime::ScanRuntime, worker::LiveScanWorker},
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
@@ -92,10 +92,7 @@ impl Controller {
 
     /// 启动扫描档案库任务：占用运行状态并创建本次停止令牌 → 推送状态 → 后台线程执行。
     pub fn start_scan(&self, app_handle: &AppHandle) {
-        self.scan_runtime.start(app_handle, || {
-            let worker = self.scan_worker();
-            move |stop| worker.run(stop)
-        });
+        self.scan_runtime.start(app_handle, || self.scan_worker());
     }
 
     /// 请求停止扫描档案库任务（原子置位，由任务内部轮询实现优雅停止）。

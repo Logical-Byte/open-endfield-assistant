@@ -11,7 +11,7 @@ use crate::{
     app_paths::AppPaths,
     automation::{
         AutomationStopped, StopToken, is_stop_requested,
-        scan_runtime::{ScanOutcome, ScanRunResult},
+        scan_runtime::{ScanOutcome, ScanRunResult, ScanWorker},
         session::Session,
         stats::counts::Capture,
     },
@@ -50,16 +50,6 @@ impl LiveScanWorker {
             app_data,
             reporter,
         }
-    }
-
-    pub(crate) fn run(self, stop: StopToken) -> ScanRunResult {
-        let result = self.run_task(stop);
-        let final_sound = match &result.outcome {
-            ScanOutcome::Completed => ScanSound::Enable,
-            ScanOutcome::Stopped | ScanOutcome::Failed(_) => ScanSound::Disable,
-        };
-        self.play_scan_sound(final_sound);
-        result
     }
 
     fn run_task(&self, stop: StopToken) -> ScanRunResult {
@@ -124,6 +114,18 @@ impl LiveScanWorker {
             }
         };
         platform::sound::play_wav(&path, self.oea_config.sound_volume);
+    }
+}
+
+impl ScanWorker for LiveScanWorker {
+    fn run(self, stop: StopToken) -> ScanRunResult {
+        let result = self.run_task(stop);
+        let final_sound = match &result.outcome {
+            ScanOutcome::Completed => ScanSound::Enable,
+            ScanOutcome::Stopped | ScanOutcome::Failed(_) => ScanSound::Disable,
+        };
+        self.play_scan_sound(final_sound);
+        result
     }
 }
 
