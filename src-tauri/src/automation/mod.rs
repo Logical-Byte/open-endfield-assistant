@@ -8,6 +8,7 @@
 pub(crate) mod cancellation;
 mod capabilities;
 pub(crate) mod scan_runtime;
+pub(crate) mod scan_worker;
 pub(crate) mod session;
 pub mod stats;
 
