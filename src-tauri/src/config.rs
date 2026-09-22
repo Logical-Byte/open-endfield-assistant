@@ -60,9 +60,9 @@ pub struct OeaConfig {
     pub auto_install_updates: bool,
     /// 档案扫描启动提示已确认的版本号，默认 `0`。
     ///
-    /// 与前端 `ScanGuide.vue` 的常量 `CURRENT_SCAN_TIPS_VERSION` 配合：
-    /// 前端在 `scan_tips_dismissed_version < 当前提示版本` 时展示启动提示；
-    /// 用户勾选「下次更新前不再提示」并确认后，前端把本字段更新为当前提示版本并持久化。
+    /// 前端 settings 持久化实现中的 `CURRENT_SCAN_TIPS_VERSION` 将本字段投影为逻辑
+    /// `scanGuideEnabled`；`ScanGuide.vue` 只读取该逻辑设置。用户勾选「下次更新前不再提示」
+    /// 并确认后，settings 单写者把本字段更新为当前提示版本并持久化。
     ///
     /// 更新提示文案时，想让所有用户（含已确认过的）重新看一次，只需递增前端
     /// `CURRENT_SCAN_TIPS_VERSION`，本字段无需改动；只改文案不递增版本号则老用户不重看。
