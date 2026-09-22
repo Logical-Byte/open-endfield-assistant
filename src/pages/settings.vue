@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
-import { UpdateProxyMode } from '@/types/oeaConfig';
 import {
-  CURRENT_SCAN_TIPS_VERSION,
-  mirrorchyanCdk,
-  oeaConfig,
   proxyModeItems,
-  saving,
+  settingsDraft,
+  UpdateProxyMode,
   updateSourceItems,
-} from '@/utils/app/config';
+} from '@/modules/settings';
 import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
 import { oeaVersion } from '@/version';
@@ -32,32 +29,29 @@ const uiScaleNumber = computed<number>({
  * 音量（本地数字中转）。
  *
  * Nuxt UI 的 USlider 内部把 v-model 当数组处理，拖动时可能先回写 `[v]`（数组）再回写 `v`（数字），
- * 直接绑到 oeaConfig.soundVolume 会让数组短暂进入配置，触发 save_oea_config 反序列化失败
- * （"invalid type: sequence, expected f32"）。这里只允许 number 写入配置，数组一律忽略。
+ * USlider 会短暂回写数组；settingsDraft 会拒绝数组、非有限数值，并钳制合法数字范围。
  */
 const soundVolume = computed<number>({
   get() {
-    return oeaConfig.value.soundVolume;
+    return settingsDraft.soundVolume;
   },
   set(value: number) {
-    // 只在 value 是数字时写入配置，数组一律忽略
+    // 先避免数组写入，数值归一化由 settingsDraft 统一完成。
     if (typeof value === 'number') {
-      oeaConfig.value.soundVolume = value;
+      settingsDraft.soundVolume = value;
     }
   },
 });
 
 /**
- * 档案扫描页是否展示操作提示（开关）。
- * 底层映射到已确认提示版本 `scanTipsDismissedVersion`：
- * 关闭时写为当前版本（本版本内不再提示），打开时重置为 `0`（重新展示最新版提示）。
+ * 档案扫描页是否展示操作提示。持久化版本映射由 settings 内部负责。
  */
 const scanGuideEnabled = computed<boolean>({
   get() {
-    return oeaConfig.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION;
+    return settingsDraft.scanGuideEnabled;
   },
   set(value: boolean) {
-    oeaConfig.value.scanTipsDismissedVersion = value ? 0 : CURRENT_SCAN_TIPS_VERSION;
+    settingsDraft.scanGuideEnabled = value;
   },
 });
 
@@ -182,14 +176,14 @@ onBeforeUnmount(() => {
             icon="i-lucide-panel-bottom-close"
             title="关闭时最小化到托盘"
           >
-            <USwitch v-model="oeaConfig.minimizeToTray" :loading="saving" />
+            <USwitch v-model="settingsDraft.minimizeToTray" />
           </SettingsItem>
           <SettingsItem
             description="进入档案扫描页时显示操作指引，关闭后若无更新则不再提示，可随时重新开启"
             icon="i-lucide-circle-help"
             title="显示新手操作提示"
           >
-            <USwitch v-model="scanGuideEnabled" :loading="saving" />
+            <USwitch v-model="scanGuideEnabled" />
           </SettingsItem>
         </SettingsCard>
 
@@ -214,7 +208,7 @@ onBeforeUnmount(() => {
             icon="i-lucide-cloud-download"
             title="更新源"
           >
-            <USelect v-model="oeaConfig.updateSource" class="w-56" :items="updateSourceItems" />
+            <USelect v-model="settingsDraft.updateSource" class="w-56" :items="updateSourceItems" />
           </SettingsItem>
 
           <SettingsItem
@@ -222,7 +216,7 @@ onBeforeUnmount(() => {
             icon="i-lucide-cloud-download"
             title="自动下载更新"
           >
-            <USwitch v-model="oeaConfig.autoDownloadUpdates" :loading="saving" />
+            <USwitch v-model="settingsDraft.autoDownloadUpdates" />
           </SettingsItem>
 
           <SettingsItem
@@ -230,7 +224,7 @@ onBeforeUnmount(() => {
             icon="i-lucide-rocket"
             title="自动安装更新"
           >
-            <USwitch v-model="oeaConfig.autoInstallUpdates" :loading="saving" />
+            <USwitch v-model="settingsDraft.autoInstallUpdates" />
           </SettingsItem>
 
           <SettingsItem icon="i-lucide-key-round" title="Mirror酱 CDK">
@@ -254,7 +248,7 @@ onBeforeUnmount(() => {
             </template>
             <div class="flex flex-col items-center gap-1">
               <UInput
-                v-model="mirrorchyanCdk"
+                v-model="settingsDraft.mirrorchyanCdk"
                 class="w-56"
                 placeholder="未填写时使用 OEM 下载"
                 type="password"
@@ -277,17 +271,17 @@ onBeforeUnmount(() => {
             icon="i-lucide-network"
             title="网络代理"
           >
-            <USelect v-model="oeaConfig.updateProxyMode" class="w-56" :items="proxyModeItems" />
+            <USelect v-model="settingsDraft.updateProxyMode" class="w-56" :items="proxyModeItems" />
           </SettingsItem>
 
           <SettingsItem
-            v-if="oeaConfig.updateProxyMode === UpdateProxyMode.Custom"
+            v-if="settingsDraft.updateProxyMode === UpdateProxyMode.Custom"
             description="自定义代理服务器地址，例如 http://127.0.0.1:7890"
             icon="i-lucide-link"
             title="代理地址"
           >
             <UInput
-              v-model="oeaConfig.updateProxyUrl"
+              v-model="settingsDraft.updateProxyUrl"
               class="w-56"
               placeholder="http://127.0.0.1:7890"
             />

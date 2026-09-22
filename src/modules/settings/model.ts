@@ -1,6 +1,30 @@
 import type { DeepReadonly } from 'vue';
 
-import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
+export enum UpdateSource {
+  Mirrorchyan = 'mirrorchyan',
+  Oem = 'oem',
+  Github = 'github',
+}
+
+export enum UpdateProxyMode {
+  None = 'none',
+  System = 'system',
+  Custom = 'custom',
+}
+
+/** 设置页和更新弹窗共用的更新源展示项。 */
+export const updateSourceItems = [
+  { label: 'Mirror酱', value: UpdateSource.Mirrorchyan },
+  { label: 'OEM', value: UpdateSource.Oem },
+  { label: 'GitHub', value: UpdateSource.Github },
+];
+
+/** 设置页和更新弹窗共用的下载代理展示项。 */
+export const proxyModeItems = [
+  { label: '不使用代理', value: UpdateProxyMode.None },
+  { label: '系统代理', value: UpdateProxyMode.System },
+  { label: '自定义代理', value: UpdateProxyMode.Custom },
+];
 
 /** 用户可读写的逻辑设置，不包含持久化格式字段。 */
 export interface SettingsDraft {

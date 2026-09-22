@@ -1,13 +1,35 @@
-import { UpdateProxyMode, UpdateSource, type OeaConfig } from '@/types/oeaConfig';
 import { cdkDecrypt, cdkEncrypt, loadOeaConfig, saveOeaConfig } from '@/utils/tauri';
 
-import type { SettingsDraft } from './model';
+import { UpdateProxyMode, UpdateSource, type SettingsDraft } from './model';
 
+/** 与 ScanGuide 内容同步的持久化提示版本。修改提示文案时在这里决定是否递增。 */
 export const CURRENT_SCAN_TIPS_VERSION: number = 1;
+const CURRENT_MAJOR_VERSION: number = 0;
+const CURRENT_MINOR_VERSION: number = 0;
 
-export const DEFAULT_OEA_CONFIG: OeaConfig = {
-  majorVersion: 0,
-  minorVersion: 0,
+/**
+ * `load_oea_config` / `save_oea_config` 的完整持久化格式。
+ *
+ * 它是 settings persistence adapter 的内部实现细节，逻辑设置调用者不会接触版本、
+ * CDK 密文或扫描提示版本字段。
+ */
+export interface PersistedOeaConfig {
+  majorVersion: number;
+  minorVersion: number;
+  minimizeToTray: boolean;
+  soundVolume: number;
+  updateSource: UpdateSource;
+  mirrorchyanCdkEncrypted: string;
+  updateProxyMode: UpdateProxyMode;
+  updateProxyUrl: string;
+  autoDownloadUpdates: boolean;
+  autoInstallUpdates: boolean;
+  scanTipsDismissedVersion: number;
+}
+
+export const DEFAULT_OEA_CONFIG: PersistedOeaConfig = {
+  majorVersion: CURRENT_MAJOR_VERSION,
+  minorVersion: CURRENT_MINOR_VERSION,
   minimizeToTray: false,
   soundVolume: 0.5,
   updateSource: UpdateSource.Mirrorchyan,
@@ -21,15 +43,15 @@ export const DEFAULT_OEA_CONFIG: OeaConfig = {
 
 /** Settings 内核与实际存储之间的最小接口。 */
 export interface SettingsPersistence {
-  load(): Promise<OeaConfig>;
-  save(candidate: Readonly<OeaConfig>): Promise<void>;
+  load(): Promise<PersistedOeaConfig>;
+  save(candidate: Readonly<PersistedOeaConfig>): Promise<void>;
   encryptCdk(plain: string): Promise<string>;
   decryptCdk(encrypted: string): Promise<string>;
 }
 
 export function createTauriSettingsPersistence(): SettingsPersistence {
   return {
-    load: loadOeaConfig,
+    load: loadOeaConfig<PersistedOeaConfig>,
     save: saveOeaConfig,
     encryptCdk: cdkEncrypt,
     decryptCdk: cdkDecrypt,
@@ -41,7 +63,7 @@ export function createDefaultSettingsDraft(): SettingsDraft {
 }
 
 export function settingsDraftFromPersisted(
-  config: OeaConfig,
+  config: PersistedOeaConfig,
   mirrorchyanCdk: string,
 ): SettingsDraft {
   return {
@@ -59,9 +81,9 @@ export function settingsDraftFromPersisted(
 
 export function persistedFromSettingsDraft(
   candidate: Readonly<SettingsDraft>,
-  baseline: Readonly<OeaConfig>,
+  baseline: Readonly<PersistedOeaConfig>,
   encryptedCdk: string,
-): OeaConfig {
+): PersistedOeaConfig {
   return {
     ...baseline,
     minimizeToTray: candidate.minimizeToTray,

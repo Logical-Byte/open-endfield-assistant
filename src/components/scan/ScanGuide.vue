@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { configLoaded, CURRENT_SCAN_TIPS_VERSION, oeaConfig } from '@/utils/app/config';
+import { effectiveSettings, settingsDraft, settingsStatus } from '@/modules/settings';
 import { computed, ref } from 'vue';
 
 /** 本次启动内已手动关闭（未勾选持久化时仅隐藏本次启动）。 */
@@ -7,13 +7,13 @@ const dismissedThisSession = ref(false);
 
 /**
  * 是否显示启动扫描提示。
- * 配置加载完成前不渲染（避免启动时用默认配置短暂闪现提示）；
- * 加载完成后，用户确认过的提示版本低于当前版本、且本次启动内未手动关闭时显示。
+ * Settings 初始化完成前不渲染（避免启动时用默认值短暂闪现提示）；
+ * 之后只依据逻辑启用状态和本次启动内的临时关闭状态决定展示。
  */
 const showScanGuide = computed(
   () =>
-    configLoaded.value &&
-    oeaConfig.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION &&
+    settingsStatus.kind !== 'loading' &&
+    effectiveSettings.scanGuideEnabled &&
     !dismissedThisSession.value,
 );
 
@@ -23,13 +23,12 @@ const dismissGuide = ref(false);
 /**
  * 关闭提示。
  *
- * 已勾选「下次更新前不再提示」：把确认版本写入当前 `CURRENT_SCAN_TIPS_VERSION`，
- * 由 `config.ts` 的配置深监听自动落盘持久化，之后本版本内不再展示（版本升级后重新展示）。
+ * 已勾选「下次更新前不再提示」：关闭逻辑设置，由 settings 的单写者持久化当前提示版本。
  * 未勾选：仅本次启动内隐藏，不写配置，下次启动仍会展示。
  */
 function dismissScanGuide(): void {
   if (dismissGuide.value) {
-    oeaConfig.value.scanTipsDismissedVersion = CURRENT_SCAN_TIPS_VERSION;
+    settingsDraft.scanGuideEnabled = false;
   } else {
     dismissedThisSession.value = true;
   }

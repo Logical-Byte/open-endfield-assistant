@@ -1,13 +1,18 @@
 import { reactive, readonly, type DeepReadonly } from 'vue';
 
-import { UpdateProxyMode, UpdateSource, type OeaConfig } from '@/types/oeaConfig';
-
-import type { SettingsDraft, SettingsSnapshot, SettingsStatus } from './model';
+import {
+  UpdateProxyMode,
+  UpdateSource,
+  type SettingsDraft,
+  type SettingsSnapshot,
+  type SettingsStatus,
+} from './model';
 import {
   createDefaultSettingsDraft,
   DEFAULT_OEA_CONFIG,
   persistedFromSettingsDraft,
   settingsDraftFromPersisted,
+  type PersistedOeaConfig,
   type SettingsPersistence,
 } from './persistence';
 
@@ -41,7 +46,7 @@ export function createSettingsModule(persistence: SettingsPersistence): Settings
   let draftRevision = 0;
   let savedRevision = 0;
   let failedRevision: number | undefined;
-  let lastPersisted: OeaConfig = clonePersisted(DEFAULT_OEA_CONFIG);
+  let lastPersisted: PersistedOeaConfig = clonePersisted(DEFAULT_OEA_CONFIG);
 
   const settingsDraft = createDraftProxy(rawDraft, edit);
 
@@ -260,6 +265,6 @@ function replaceStatus(target: MutableSettingsStatus, source: SettingsStatus): v
   Object.assign(target, source);
 }
 
-function clonePersisted(config: Readonly<OeaConfig>): OeaConfig {
+function clonePersisted(config: Readonly<PersistedOeaConfig>): PersistedOeaConfig {
   return { ...config };
 }

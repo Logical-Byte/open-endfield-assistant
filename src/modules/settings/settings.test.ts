@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { UpdateSource, type OeaConfig } from '@/types/oeaConfig';
-
-import { DEFAULT_OEA_CONFIG, type SettingsPersistence } from './persistence';
+import { UpdateSource } from './model';
+import {
+  CURRENT_SCAN_TIPS_VERSION,
+  DEFAULT_OEA_CONFIG,
+  type PersistedOeaConfig,
+  type SettingsPersistence,
+} from './persistence';
 import { createSettingsModule } from './settings';
 
 interface Deferred<Value> {
@@ -12,23 +16,24 @@ interface Deferred<Value> {
 }
 
 class ControlledPersistence implements SettingsPersistence {
-  readonly saves: Array<Readonly<OeaConfig>> = [];
+  readonly saves: Array<Readonly<PersistedOeaConfig>> = [];
   readonly saveDeferreds: Array<Deferred<void>> = [];
   readonly encryptInputs: string[] = [];
   readonly encryptDeferreds: Array<Deferred<string>> = [];
   maxConcurrentSaves = 0;
   concurrentSaves = 0;
   loadError: unknown | undefined;
-  loadedConfig: OeaConfig = cloneConfig(DEFAULT_OEA_CONFIG);
+  loadedConfig: PersistedOeaConfig = cloneConfig(DEFAULT_OEA_CONFIG);
+  decryptedCdk = 'loaded-value';
 
-  async load(): Promise<OeaConfig> {
+  async load(): Promise<PersistedOeaConfig> {
     if (this.loadError !== undefined) {
       throw this.loadError;
     }
     return cloneConfig(this.loadedConfig);
   }
 
-  save(candidate: Readonly<OeaConfig>): Promise<void> {
+  save(candidate: Readonly<PersistedOeaConfig>): Promise<void> {
     this.saves.push(candidate);
     this.concurrentSaves += 1;
     this.maxConcurrentSaves = Math.max(this.maxConcurrentSaves, this.concurrentSaves);
@@ -47,7 +52,7 @@ class ControlledPersistence implements SettingsPersistence {
   }
 
   async decryptCdk(encrypted: string): Promise<string> {
-    return encrypted === '' ? '' : 'loaded-value';
+    return encrypted === '' ? '' : this.decryptedCdk;
   }
 }
 
@@ -191,6 +196,84 @@ describe('settings single writer', () => {
     expect(settings.effectiveSettings.mirrorchyanCdk).toBe('beta');
   });
 
+  it('CDK 在候选内裁剪、复用已存密文并在清空后保存空密文', async () => {
+    const persistence = new ControlledPersistence();
+    persistence.loadedConfig = {
+      ...DEFAULT_OEA_CONFIG,
+      mirrorchyanCdkEncrypted: 'stored-ciphertext',
+    };
+    persistence.decryptedCdk = 'existing-key';
+    const settings = createSettingsModule(persistence);
+    await settings.initializeSettings();
+
+    settings.settingsDraft.autoDownloadUpdates = false;
+    await flushMicrotasks();
+    expect(persistence.encryptInputs).toEqual([]);
+    expect(persistence.saves[0]?.mirrorchyanCdkEncrypted).toBe('stored-ciphertext');
+    persistence.saveDeferreds[0]?.resolve();
+    await flushMicrotasks();
+
+    settings.settingsDraft.mirrorchyanCdk = '  new-key  ';
+    await flushMicrotasks();
+    expect(persistence.encryptInputs).toEqual(['new-key']);
+    persistence.encryptDeferreds[0]?.resolve('new-ciphertext');
+    await flushMicrotasks();
+    expect(persistence.saves[1]?.mirrorchyanCdkEncrypted).toBe('new-ciphertext');
+    persistence.saveDeferreds[1]?.resolve();
+    await flushMicrotasks();
+
+    settings.settingsDraft.mirrorchyanCdk = '   ';
+    await flushMicrotasks();
+    expect(persistence.saves[2]?.mirrorchyanCdkEncrypted).toBe('');
+    persistence.saveDeferreds[2]?.resolve();
+    await flushMicrotasks();
+
+    expect(settings.effectiveSettings.mirrorchyanCdk).toBe('');
+  });
+
+  it('保留 DTO 版本字段，并将扫描提示逻辑状态映射为持久化版本', async () => {
+    const persistence = new ControlledPersistence();
+    persistence.loadedConfig = {
+      ...DEFAULT_OEA_CONFIG,
+      majorVersion: 12,
+      minorVersion: 34,
+      scanTipsDismissedVersion: CURRENT_SCAN_TIPS_VERSION,
+    };
+    const settings = createSettingsModule(persistence);
+    await settings.initializeSettings();
+
+    expect(settings.effectiveSettings.scanGuideEnabled).toBe(false);
+    settings.settingsDraft.scanGuideEnabled = true;
+    await flushMicrotasks();
+    expect(persistence.saves[0]).toMatchObject({
+      majorVersion: 12,
+      minorVersion: 34,
+      scanTipsDismissedVersion: 0,
+    });
+    expect(settings.effectiveSettings.scanGuideEnabled).toBe(false);
+    persistence.saveDeferreds[0]?.resolve();
+    await flushMicrotasks();
+
+    expect(settings.effectiveSettings.scanGuideEnabled).toBe(true);
+    settings.settingsDraft.scanGuideEnabled = false;
+    await flushMicrotasks();
+    expect(persistence.saves[1]?.scanTipsDismissedVersion).toBe(CURRENT_SCAN_TIPS_VERSION);
+    persistence.saveDeferreds[1]?.resolve();
+    await flushMicrotasks();
+
+    expect(settings.effectiveSettings.scanGuideEnabled).toBe(false);
+
+    const newGuideVersionPersistence = new ControlledPersistence();
+    newGuideVersionPersistence.loadedConfig = {
+      ...DEFAULT_OEA_CONFIG,
+      scanTipsDismissedVersion: 0,
+    };
+    const settingsWithNewGuideVersion = createSettingsModule(newGuideVersionPersistence);
+    await settingsWithNewGuideVersion.initializeSettings();
+
+    expect(settingsWithNewGuideVersion.effectiveSettings.scanGuideEnabled).toBe(true);
+  });
+
   it('音量拒绝非有限值，并将有限数字限制在合法范围', async () => {
     const persistence = new ControlledPersistence();
     const settings = createSettingsModule(persistence);
@@ -219,7 +302,7 @@ describe('settings single writer', () => {
   });
 });
 
-function cloneConfig(config: OeaConfig): OeaConfig {
+function cloneConfig(config: PersistedOeaConfig): PersistedOeaConfig {
   return { ...config };
 }
 

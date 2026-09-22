@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
+import {
+  proxyModeItems,
+  settingsDraft,
+  updateSourceItems,
+  UpdateProxyMode,
+  UpdateSource,
+} from '@/modules/settings';
 import { DownloadProgress } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
-import { mirrorchyanCdk, oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
 import {
   cancelDownload,
   checkUpdate,
@@ -234,14 +239,14 @@ function formatSpeed(bytesPerSecond: number): string {
               <div class="w-64 space-y-4 p-4">
                 <UFormField label="下载源">
                   <USelect
-                    v-model="oeaConfig.updateSource"
+                    v-model="settingsDraft.updateSource"
                     class="w-full"
                     :items="updateSourceItems"
                   />
                 </UFormField>
 
                 <UFormField
-                  v-if="oeaConfig.updateSource === UpdateSource.Mirrorchyan"
+                  v-if="settingsDraft.updateSource === UpdateSource.Mirrorchyan"
                   label="Mirror酱 CDK"
                 >
                   <template #help>
@@ -280,7 +285,7 @@ function formatSpeed(bytesPerSecond: number): string {
                       >获取 CDK<UIcon name="i-lucide-external-link" /></ULink
                   ></template>
                   <UInput
-                    v-model="mirrorchyanCdk"
+                    v-model="settingsDraft.mirrorchyanCdk"
                     class="w-full"
                     placeholder="未填写时使用 OEM 下载"
                     type="password"
@@ -289,18 +294,18 @@ function formatSpeed(bytesPerSecond: number): string {
 
                 <UFormField label="下载代理">
                   <USelect
-                    v-model="oeaConfig.updateProxyMode"
+                    v-model="settingsDraft.updateProxyMode"
                     class="w-full"
                     :items="proxyModeItems"
                   />
                 </UFormField>
 
                 <UFormField
-                  v-if="oeaConfig.updateProxyMode === UpdateProxyMode.Custom"
+                  v-if="settingsDraft.updateProxyMode === UpdateProxyMode.Custom"
                   label="自定义代理"
                 >
                   <UInput
-                    v-model="oeaConfig.updateProxyUrl"
+                    v-model="settingsDraft.updateProxyUrl"
                     class="w-full"
                     placeholder="http://127.0.0.1:7890"
                   />

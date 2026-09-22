@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useTheme } from '@/composables/useTheme';
+import { initializeSettings } from '@/modules/settings';
 import { initAppStatus } from '@/utils/app/appStatus';
 import { initArchiveContract } from '@/utils/app/archiveContract';
-import { initOeaConfig } from '@/utils/app/config';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
@@ -25,11 +25,11 @@ useHead({
 
 async function initApp(): Promise<void> {
   if (isTauri()) {
+    await initializeSettings();
     await initAppStatus();
     await initPrtsData();
     await initArchiveContract();
     await initLogState();
-    await initOeaConfig();
     await initScanResults();
     await initUiScale();
     await initUpdateState();

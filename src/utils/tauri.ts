@@ -3,7 +3,6 @@
 import type { AppStatus } from '@/types/appStatus';
 import type { ArchiveContract } from '@/types/archiveContract';
 import type { LogEntry } from '@/types/log';
-import type { OeaConfig } from '@/types/oeaConfig';
 import type { PrtsData } from '@/types/prts';
 import type { ScanResult } from '@/types/scanResult';
 import type { ScreenshotFormat } from '@/types/screenshot';
@@ -45,11 +44,11 @@ export async function openLogDir(): Promise<void> {
   await invoke('open_log_dir');
 }
 
-export async function loadOeaConfig(): Promise<OeaConfig> {
-  return await invoke('load_oea_config');
+export async function loadOeaConfig<Value>(): Promise<Value> {
+  return await invoke<Value>('load_oea_config');
 }
 
-export async function saveOeaConfig(oeaConfig: OeaConfig): Promise<void> {
+export async function saveOeaConfig(oeaConfig: unknown): Promise<void> {
   return await invoke('save_oea_config', { oeaConfig });
 }
 

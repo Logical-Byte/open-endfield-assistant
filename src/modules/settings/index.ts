@@ -4,6 +4,16 @@ import type { SettingsDraft, SettingsSnapshot, SettingsStatus } from './model';
 import { createTauriSettingsPersistence } from './persistence';
 import { createSettingsModule } from './settings';
 
+export {
+  proxyModeItems,
+  updateSourceItems,
+  UpdateProxyMode,
+  UpdateSource,
+  type SettingsDraft,
+  type SettingsSnapshot,
+  type SettingsStatus,
+} from './model';
+
 const settings = createSettingsModule(createTauriSettingsPersistence());
 
 export const settingsDraft: SettingsDraft = settings.settingsDraft;
