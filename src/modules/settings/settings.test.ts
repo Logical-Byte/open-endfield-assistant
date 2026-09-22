@@ -22,12 +22,17 @@ class ControlledPersistence implements SettingsPersistence {
   maxConcurrentSaves = 0;
   concurrentSaves = 0;
   loadError: unknown | undefined;
+  loadDeferred: Deferred<PersistedOeaConfig> | undefined;
   loadedConfig: PersistedOeaConfig = cloneConfig(DEFAULT_OEA_CONFIG);
   decryptedCdk = 'loaded-value';
+  decryptError: unknown | undefined;
 
   async load(): Promise<PersistedOeaConfig> {
     if (this.loadError !== undefined) {
       throw this.loadError;
+    }
+    if (this.loadDeferred !== undefined) {
+      return cloneConfig(await this.loadDeferred.promise);
     }
     return cloneConfig(this.loadedConfig);
   }
@@ -51,11 +56,50 @@ class ControlledPersistence implements SettingsPersistence {
   }
 
   async decryptCdk(encrypted: string): Promise<string> {
+    if (this.decryptError !== undefined) {
+      throw this.decryptError;
+    }
     return encrypted === '' ? '' : this.decryptedCdk;
   }
 }
 
 describe('settings single writer', () => {
+  it('初始化期间保留每个字段的最终编辑，并在加载配置生效后保存', async () => {
+    const persistence = new ControlledPersistence();
+    const deferredLoad = createDeferred<PersistedOeaConfig>();
+    persistence.loadDeferred = deferredLoad;
+    const settings = createSettingsModule(persistence);
+
+    const initialization = settings.initializeSettings();
+    settings.settingsDraft.minimizeToTray = true;
+    settings.settingsDraft.minimizeToTray = false;
+    settings.settingsDraft.updateSource = UpdateSource.Github;
+
+    deferredLoad.resolve({
+      ...DEFAULT_OEA_CONFIG,
+      minimizeToTray: true,
+      updateSource: UpdateSource.Oem,
+    });
+    await initialization;
+    await flushMicrotasks();
+
+    expect(settings.effectiveSettings.minimizeToTray).toBe(true);
+    expect(settings.effectiveSettings.updateSource).toBe(UpdateSource.Oem);
+    expect(settings.settingsDraft.minimizeToTray).toBe(false);
+    expect(settings.settingsDraft.updateSource).toBe(UpdateSource.Github);
+    expect(persistence.saves).toHaveLength(1);
+    expect(persistence.saves[0]).toMatchObject({
+      minimizeToTray: false,
+      updateSource: UpdateSource.Github,
+    });
+
+    persistence.saveDeferreds[0]?.resolve();
+    await flushMicrotasks();
+
+    expect(settings.effectiveSettings.minimizeToTray).toBe(false);
+    expect(settings.effectiveSettings.updateSource).toBe(UpdateSource.Github);
+  });
+
   it('保存不可变 candidate，并合并保存期间的中间编辑', async () => {
     const persistence = new ControlledPersistence();
     const settings = createSettingsModule(persistence);
@@ -230,6 +274,91 @@ describe('settings single writer', () => {
     await flushMicrotasks();
 
     expect(settings.effectiveSettings.mirrorchyanCdk).toBe('');
+  });
+
+  it('CDK 解密失败后保留加载配置，并在无关编辑中复用原密文', async () => {
+    const persistence = new ControlledPersistence();
+    persistence.loadedConfig = {
+      ...DEFAULT_OEA_CONFIG,
+      majorVersion: 12,
+      minorVersion: 34,
+      minimizeToTray: true,
+      updateSource: UpdateSource.Oem,
+      updateProxyUrl: 'http://127.0.0.1:7890',
+      mirrorchyanCdkEncrypted: 'unavailable-ciphertext',
+    };
+    persistence.decryptError = new Error('无法解密');
+    const settings = createSettingsModule(persistence);
+    await settings.initializeSettings();
+
+    expect(settings.effectiveSettings.minimizeToTray).toBe(true);
+    expect(settings.effectiveSettings.updateSource).toBe(UpdateSource.Oem);
+    expect(settings.effectiveSettings.updateProxyUrl).toBe('http://127.0.0.1:7890');
+    expect(settings.effectiveSettings.mirrorchyanCdk).toBe('');
+    expect(settings.settingsStatus.kind).toBe('decrypt-error');
+
+    settings.settingsDraft.autoDownloadUpdates = false;
+    await flushMicrotasks();
+
+    expect(persistence.saves[0]).toMatchObject({
+      majorVersion: 12,
+      minorVersion: 34,
+      autoDownloadUpdates: false,
+      mirrorchyanCdkEncrypted: 'unavailable-ciphertext',
+    });
+    persistence.saveDeferreds[0]?.resolve();
+    await flushMicrotasks();
+
+    expect(settings.effectiveSettings.autoDownloadUpdates).toBe(false);
+    expect(settings.settingsStatus.kind).toBe('decrypt-error');
+  });
+
+  it('CDK 解密失败后可明确替换或清除原密文', async () => {
+    const persistence = new ControlledPersistence();
+    persistence.loadedConfig = {
+      ...DEFAULT_OEA_CONFIG,
+      mirrorchyanCdkEncrypted: 'unavailable-ciphertext',
+    };
+    persistence.decryptError = new Error('无法解密');
+    const settings = createSettingsModule(persistence);
+    await settings.initializeSettings();
+
+    settings.settingsDraft.mirrorchyanCdk = 'replacement-value';
+    await flushMicrotasks();
+    expect(persistence.encryptInputs).toEqual(['replacement-value']);
+    persistence.encryptDeferreds[0]?.resolve('replacement-ciphertext');
+    await flushMicrotasks();
+    expect(persistence.saves[0]?.mirrorchyanCdkEncrypted).toBe('replacement-ciphertext');
+    persistence.saveDeferreds[0]?.resolve();
+    await flushMicrotasks();
+
+    expect(settings.settingsStatus.kind).toBe('idle');
+    settings.settingsDraft.mirrorchyanCdk = '';
+    await flushMicrotasks();
+    expect(persistence.saves[1]?.mirrorchyanCdkEncrypted).toBe('');
+    persistence.saveDeferreds[1]?.resolve();
+    await flushMicrotasks();
+
+    expect(settings.effectiveSettings.mirrorchyanCdk).toBe('');
+  });
+
+  it('CDK 明文未知时将显式空值视为清除意图', async () => {
+    const persistence = new ControlledPersistence();
+    persistence.loadedConfig = {
+      ...DEFAULT_OEA_CONFIG,
+      mirrorchyanCdkEncrypted: 'unavailable-ciphertext',
+    };
+    persistence.decryptError = new Error('无法解密');
+    const settings = createSettingsModule(persistence);
+    await settings.initializeSettings();
+
+    settings.settingsDraft.mirrorchyanCdk = '';
+    await flushMicrotasks();
+
+    expect(persistence.saves[0]?.mirrorchyanCdkEncrypted).toBe('');
+    persistence.saveDeferreds[0]?.resolve();
+    await flushMicrotasks();
+    expect(settings.settingsStatus.kind).toBe('idle');
   });
 
   it('保留 DTO 版本字段，并将扫描提示逻辑状态映射为持久化版本', async () => {

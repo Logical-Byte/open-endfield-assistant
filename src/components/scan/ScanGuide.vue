@@ -2,7 +2,7 @@
 import { effectiveSettings, settingsDraft, settingsStatus } from '@/modules/settings';
 import { computed, ref } from 'vue';
 
-/** 本次启动内已手动关闭（未勾选持久化时仅隐藏本次启动）。 */
+/** 本次启动内已关闭扫描提示；即使持久化失败，本次启动也保持隐藏。 */
 const dismissedThisSession = ref(false);
 
 /**
@@ -10,8 +10,8 @@ const dismissedThisSession = ref(false);
  * Settings 初始化完成前不渲染（避免启动时用默认值短暂闪现提示）；
  * 之后只依据逻辑启用状态和本次启动内的临时关闭状态决定展示。
  */
-const showScanGuide = computed(
-  () =>
+const showScanGuide = computed<boolean>(
+  (): boolean =>
     settingsStatus.kind !== 'loading' &&
     effectiveSettings.scanGuideEnabled &&
     !dismissedThisSession.value,
@@ -27,10 +27,9 @@ const dismissGuide = ref(false);
  * 未勾选：仅本次启动内隐藏，不写配置，下次启动仍会展示。
  */
 function dismissScanGuide(): void {
+  dismissedThisSession.value = true;
   if (dismissGuide.value) {
     settingsDraft.scanGuideEnabled = false;
-  } else {
-    dismissedThisSession.value = true;
   }
 }
 </script>

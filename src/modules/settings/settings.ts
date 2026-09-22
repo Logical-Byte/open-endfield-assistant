@@ -30,6 +30,11 @@ type MutableSettingsStatus = {
   error?: unknown;
 };
 
+interface SettingsCandidate {
+  settings: Readonly<SettingsDraft>;
+  hasCdkIntentWhileUnknown: boolean;
+}
+
 /**
  * 建立独立的 settings 事务实例。
  *
@@ -47,16 +52,33 @@ export function createSettingsModule(persistence: SettingsPersistence): Settings
   let savedRevision = 0;
   let failedRevision: number | undefined;
   let lastPersisted: PersistedOeaConfig = clonePersisted(DEFAULT_OEA_CONFIG);
+  let cdkPlaintextKnown = false;
+  let cdkDecryptionError: unknown | undefined;
+  // 明文未知时，空 draft 只是安全展示；只有显式 CDK 编辑才能修改加载的密文。
+  let hasCdkIntentWhileUnknown = false;
+  const initializationEdits: Partial<SettingsDraft> = {};
 
   const settingsDraft = createDraftProxy(rawDraft, edit);
 
   function edit<Key extends keyof SettingsDraft>(key: Key, value: SettingsDraft[Key]): void {
     const normalized = normalizeSetting(key, value);
-    if (normalized === undefined || rawDraft[key] === normalized) {
+    if (normalized === undefined) {
+      return;
+    }
+
+    const isInitializationEdit = !initialized;
+    const needsCdkIntent = key === 'mirrorchyanCdk' && !cdkPlaintextKnown;
+    if (!isInitializationEdit && !needsCdkIntent && rawDraft[key] === normalized) {
       return;
     }
 
     rawDraft[key] = normalized as SettingsDraft[Key];
+    if (isInitializationEdit) {
+      initializationEdits[key] = normalized;
+    }
+    if (key === 'mirrorchyanCdk' && !cdkPlaintextKnown) {
+      hasCdkIntentWhileUnknown = true;
+    }
     draftRevision += 1;
     failedRevision = undefined;
     ensureWriter();
@@ -75,22 +97,34 @@ export function createSettingsModule(persistence: SettingsPersistence): Settings
     return draftRevision > savedRevision && failedRevision !== draftRevision;
   }
 
+  function readyStatus(): SettingsStatus {
+    if (!cdkPlaintextKnown) {
+      return { kind: 'decrypt-error', error: cdkDecryptionError };
+    }
+    return { kind: 'idle' };
+  }
+
   async function runWriter(): Promise<void> {
     try {
       while (hasPendingWork()) {
         const targetRevision = draftRevision;
-        const candidate = createCandidate(rawDraft);
+        const candidate = createCandidate(rawDraft, hasCdkIntentWhileUnknown);
         replaceStatus(rawStatus, { kind: 'saving' });
 
         try {
           const encryptedCdk = await encryptCandidateCdk(candidate);
           const persistedCandidate = Object.freeze(
-            persistedFromSettingsDraft(candidate, lastPersisted, encryptedCdk),
+            persistedFromSettingsDraft(candidate.settings, lastPersisted, encryptedCdk),
           );
           await persistence.save(persistedCandidate);
 
           lastPersisted = clonePersisted(persistedCandidate);
-          replaceSettings(rawEffective, candidate);
+          replaceSettings(rawEffective, candidate.settings);
+          if (!cdkPlaintextKnown && candidate.hasCdkIntentWhileUnknown) {
+            cdkPlaintextKnown = true;
+            cdkDecryptionError = undefined;
+            hasCdkIntentWhileUnknown = false;
+          }
           savedRevision = targetRevision;
           failedRevision = undefined;
         } catch (error) {
@@ -102,7 +136,7 @@ export function createSettingsModule(persistence: SettingsPersistence): Settings
         }
       }
 
-      replaceStatus(rawStatus, { kind: 'idle' });
+      replaceStatus(rawStatus, readyStatus());
     } finally {
       writerRunning = false;
       // edit 与 finally 之间可以交错；重新检查避免遗漏最后一次唤醒。
@@ -110,14 +144,24 @@ export function createSettingsModule(persistence: SettingsPersistence): Settings
     }
   }
 
-  async function encryptCandidateCdk(candidate: Readonly<SettingsDraft>): Promise<string> {
-    if (!candidate.mirrorchyanCdk) {
+  async function encryptCandidateCdk(candidate: Readonly<SettingsCandidate>): Promise<string> {
+    if (!cdkPlaintextKnown) {
+      if (!candidate.hasCdkIntentWhileUnknown) {
+        return lastPersisted.mirrorchyanCdkEncrypted;
+      }
+      if (!candidate.settings.mirrorchyanCdk) {
+        return '';
+      }
+      return await persistence.encryptCdk(candidate.settings.mirrorchyanCdk);
+    }
+
+    if (!candidate.settings.mirrorchyanCdk) {
       return '';
     }
-    if (candidate.mirrorchyanCdk === rawEffective.mirrorchyanCdk) {
+    if (candidate.settings.mirrorchyanCdk === rawEffective.mirrorchyanCdk) {
       return lastPersisted.mirrorchyanCdkEncrypted;
     }
-    return await persistence.encryptCdk(candidate.mirrorchyanCdk);
+    return await persistence.encryptCdk(candidate.settings.mirrorchyanCdk);
   }
 
   async function initializeSettings(): Promise<void> {
@@ -133,24 +177,39 @@ export function createSettingsModule(persistence: SettingsPersistence): Settings
     replaceStatus(rawStatus, { kind: 'loading' });
     try {
       const loaded = await persistence.load();
-      const mirrorchyanCdk = loaded.mirrorchyanCdkEncrypted
-        ? await persistence.decryptCdk(loaded.mirrorchyanCdkEncrypted)
-        : '';
+      let mirrorchyanCdk = '';
+      if (loaded.mirrorchyanCdkEncrypted) {
+        try {
+          mirrorchyanCdk = await persistence.decryptCdk(loaded.mirrorchyanCdkEncrypted);
+          cdkPlaintextKnown = true;
+          cdkDecryptionError = undefined;
+          hasCdkIntentWhileUnknown = false;
+        } catch (error) {
+          cdkPlaintextKnown = false;
+          cdkDecryptionError = error;
+        }
+      } else {
+        cdkPlaintextKnown = true;
+        cdkDecryptionError = undefined;
+        hasCdkIntentWhileUnknown = false;
+      }
       const loadedDraft = settingsDraftFromPersisted(loaded, mirrorchyanCdk);
       replaceSettings(rawDraft, loadedDraft);
+      replaceSettings(rawDraft, initializationEdits);
       replaceSettings(rawEffective, loadedDraft);
       lastPersisted = clonePersisted(loaded);
-      savedRevision = draftRevision;
       failedRevision = undefined;
       initialized = true;
-      replaceStatus(rawStatus, { kind: 'idle' });
+      replaceStatus(rawStatus, readyStatus());
       ensureWriter();
     } catch (error) {
       const fallback = createDefaultSettingsDraft();
       replaceSettings(rawDraft, fallback);
+      replaceSettings(rawDraft, initializationEdits);
       replaceSettings(rawEffective, fallback);
       lastPersisted = clonePersisted(DEFAULT_OEA_CONFIG);
-      savedRevision = draftRevision;
+      cdkPlaintextKnown = true;
+      cdkDecryptionError = undefined;
       initialized = true;
       failedRevision = undefined;
       replaceStatus(rawStatus, { kind: 'load-error', error });
@@ -173,9 +232,12 @@ export function createSettingsModule(persistence: SettingsPersistence): Settings
     replaceSettings(rawDraft, rawEffective);
     draftRevision += 1;
     failedRevision = undefined;
+    if (!cdkPlaintextKnown) {
+      hasCdkIntentWhileUnknown = false;
+    }
     if (!writerRunning) {
       savedRevision = draftRevision;
-      replaceStatus(rawStatus, { kind: 'idle' });
+      replaceStatus(rawStatus, readyStatus());
       return;
     }
     ensureWriter();
@@ -247,14 +309,20 @@ function normalizeSetting<Key extends keyof SettingsDraft>(
   }
 }
 
-function createCandidate(rawDraft: SettingsDraft): Readonly<SettingsDraft> {
+function createCandidate(
+  rawDraft: SettingsDraft,
+  hasCdkIntentWhileUnknown: boolean,
+): Readonly<SettingsCandidate> {
   return Object.freeze({
-    ...rawDraft,
-    mirrorchyanCdk: rawDraft.mirrorchyanCdk.trim(),
+    settings: Object.freeze({
+      ...rawDraft,
+      mirrorchyanCdk: rawDraft.mirrorchyanCdk.trim(),
+    }),
+    hasCdkIntentWhileUnknown,
   });
 }
 
-function replaceSettings(target: SettingsDraft, source: Readonly<SettingsDraft>): void {
+function replaceSettings(target: SettingsDraft, source: Readonly<Partial<SettingsDraft>>): void {
   Object.assign(target, source);
 }
 

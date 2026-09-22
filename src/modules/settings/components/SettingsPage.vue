@@ -26,7 +26,7 @@ const updateSettingsBuffers = createUpdateSettingsBuffers(settingsDraft);
 
 /** UI 缩放（本地数字中转）。`USlider` 会短暂回写 `[v]` 数组，这里只允许 number 进入 `uiScale`。 */
 const uiScaleNumber = computed<number>({
-  get() {
+  get(): number {
     return uiScale.value;
   },
   set(value: number) {
@@ -43,7 +43,7 @@ const uiScaleNumber = computed<number>({
  * USlider 会短暂回写数组；settingsDraft 会拒绝数组、非有限数值，并钳制合法数字范围。
  */
 const soundVolume = computed<number>({
-  get() {
+  get(): number {
     return settingsDraft.soundVolume;
   },
   set(value: number) {
@@ -58,7 +58,7 @@ const soundVolume = computed<number>({
  * 档案扫描页是否展示操作提示。持久化版本映射由 settings 内部负责。
  */
 const scanGuideEnabled = computed<boolean>({
-  get() {
+  get(): boolean {
     return settingsDraft.scanGuideEnabled;
   },
   set(value: boolean) {
@@ -225,6 +225,15 @@ watch(
             />
           </template>
         </UAlert>
+
+        <UAlert
+          v-else-if="settingsStatus.kind === 'decrypt-error'"
+          color="warning"
+          description="已加载其他设置，但无法读取已保存的 Mirror酱 CDK。保存其他设置时会保留原密文；如需替换或清除，请明确提交 CDK 输入框。"
+          icon="i-lucide-shield-alert"
+          title="无法读取已保存的 Mirror酱 CDK"
+          variant="subtle"
+        />
 
         <UAlert
           v-else

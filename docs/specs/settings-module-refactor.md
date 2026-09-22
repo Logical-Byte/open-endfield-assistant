@@ -1,6 +1,6 @@
 # 前端 Settings 事务模块重构
 
-## Problem Statement
+## 问题说明
 
 OEA 前端当前直接导出全局可写的 `ref<OeaConfig>`。设置页、更新弹窗、扫描提示和更新编排因此能够读取或修改完整持久化 DTO，并共同依赖其内部编码、deep watch 自动保存、CDK 明密文转换和失败回滚行为。
 
@@ -12,7 +12,7 @@ Mirror 酱 CDK 的明文变化、异步加密和完整配置保存目前分成�
 
 设置相关代码同时散落在 `src/utils/app/config.ts`、`src/types/oeaConfig.ts`、`src/utils/uiScale.ts`、设置页面组件、更新弹窗和扫描提示中。展示选项、持久化 DTO、设置领域投影、保存编排、错误呈现和 UI 控件适配缺少清晰的归属。
 
-## Solution
+## 解决方案
 
 建立 `src/modules/settings/`，集中组织 OEA 的设置领域代码。模块内部维护一份全局 settings 单例，以统一、扁平的逻辑 `settingsDraft` 作为用户最新编辑意图，以只读 `effectiveSettings` 表示最近一次成功保存并已生效的设置。
 
@@ -28,7 +28,7 @@ writer 忙碌期间，UI 可以继续编辑同一份全局 draft。中间 revisi
 
 UI 缩放仍使用 WebView 自己的状态和持久化机制，不加入 OEA 配置事务。其代码与数值归一化逻辑移动到 settings 目录，以统一用户设置代码的文件归属。
 
-## User Stories
+## 用户故事
 
 1. 作为 OEA 用户，我希望设置修改立即反映在刚刚操作的控件中，从而获得流畅的交互反馈。
 2. 作为 OEA 用户，我希望快速连续修改最终落在我的最后选择上，从而避免滑块或输入框的中间值覆盖最终结果。
@@ -79,7 +79,7 @@ UI 缩放仍使用 WebView 自己的状态和持久化机制，不加入 OEA 配
 47. 作为审查者，我希望配置文件格式和 Rust command 合同保持不变，从而不把前端正确性修改与迁移风险混在一起。
 48. 作为审查者，我希望重复的更新设置表单在同一 PR 中删除，从而让调用者立即使用新的唯一 settings 接口。
 
-## Implementation Decisions
+## 实现决策
 
 - Add a top-level frontend module at `src/modules/settings/`. Use the plural `settings` because it owns a collection of application preferences and matches the repository's existing user-facing terminology.
 
@@ -227,7 +227,7 @@ UI 缩放仍使用 WebView 自己的状态和持久化机制，不加入 OEA 配
 
 - Internally define `createSettingsModule(persistence)` or an equivalent factory. Production instantiates it once with the Tauri adapter. Tests instantiate fresh modules with an in-memory adapter and controlled promises. The factory is an internal seam and is not re-exported from `index.ts`.
 
-## Testing Decisions
+## 测试决策
 
 - Test through the highest settings module interface available from a created settings instance: draft edits, effective projection, status, retry/discard operations, and persistence adapter observations. This is the primary test seam.
 
@@ -285,7 +285,7 @@ UI 缩放仍使用 WebView 自己的状态和持久化机制，不加入 OEA 配
 
 - Because persisted DTO construction and Tauri command bindings remain type-coupled to Rust configuration, run the repository-appropriate Windows backend checks if implementation changes any Rust or Tauri command code. Pure frontend relocation with unchanged Rust command contracts does not require new Windows runtime claims.
 
-## Out of Scope
+## 范围之外
 
 - Eliminating the duplicate configuration defaults maintained by Rust and TypeScript. This remains #137.
 - Changing the JSON configuration format, field names, major version or minor version solely for this refactor.
@@ -306,7 +306,7 @@ UI 缩放仍使用 WebView 自己的状态和持久化机制，不加入 OEA 配
 - Adding a global ESLint rule for all future `src/modules/*` imports.
 - Publishing, updating, labelling or closing GitHub Issues as part of writing this local spec.
 
-## Further Notes
+## 补充说明
 
 - This spec consolidates the accepted decisions associated with Issues #130, #131, #132, #133, #134, #135, #136 and #138. A complete implementation is expected to satisfy and close those issues. Issue #137 remains open.
 

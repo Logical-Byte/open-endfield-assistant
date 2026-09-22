@@ -47,4 +47,5 @@ export type SettingsStatus =
   | { kind: 'idle' }
   | { kind: 'saving' }
   | { kind: 'load-error'; error: unknown }
+  | { kind: 'decrypt-error'; error: unknown }
   | { kind: 'save-error'; error: unknown };
