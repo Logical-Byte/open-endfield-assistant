@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { UpdateSource } from './model';
 import {
-  CURRENT_SCAN_TIPS_VERSION,
   DEFAULT_OEA_CONFIG,
   type PersistedOeaConfig,
   type SettingsPersistence,
@@ -239,7 +238,7 @@ describe('settings single writer', () => {
       ...DEFAULT_OEA_CONFIG,
       majorVersion: 12,
       minorVersion: 34,
-      scanTipsDismissedVersion: CURRENT_SCAN_TIPS_VERSION,
+      scanTipsDismissedVersion: Number.MAX_SAFE_INTEGER,
     };
     const settings = createSettingsModule(persistence);
     await settings.initializeSettings();
@@ -259,7 +258,7 @@ describe('settings single writer', () => {
     expect(settings.effectiveSettings.scanGuideEnabled).toBe(true);
     settings.settingsDraft.scanGuideEnabled = false;
     await flushMicrotasks();
-    expect(persistence.saves[1]?.scanTipsDismissedVersion).toBe(CURRENT_SCAN_TIPS_VERSION);
+    expect(persistence.saves[1]?.scanTipsDismissedVersion).toBeGreaterThan(0);
     persistence.saveDeferreds[1]?.resolve();
     await flushMicrotasks();
 

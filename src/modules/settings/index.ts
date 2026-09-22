@@ -24,4 +24,4 @@ export const initializeSettings: () => Promise<void> = settings.initializeSettin
 export const retrySettingsSave: () => void = settings.retrySettingsSave;
 export const discardSettingsDraft: () => void = settings.discardSettingsDraft;
 
-export { createUpdateSettingsBuffers } from './updateSettingsEditor';
+export { initUiScale, uiScale } from './uiScale';

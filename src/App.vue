@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { useTheme } from '@/composables/useTheme';
-import { initializeSettings } from '@/modules/settings';
+import { initializeSettings, initUiScale } from '@/modules/settings';
 import { initAppStatus } from '@/utils/app/appStatus';
 import { initArchiveContract } from '@/utils/app/archiveContract';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
 import { initUpdateState } from '@/utils/app/update';
-import { initUiScale } from '@/utils/uiScale';
 import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';

@@ -5,6 +5,9 @@ import {
   developerInstallUnavailable,
   developerInstallUpdatePackage,
 } from '@/utils/app/developerUpdate';
+
+import SettingsCard from './SettingsCard.vue';
+import SettingsItem from './SettingsItem.vue';
 </script>
 
 <template>
