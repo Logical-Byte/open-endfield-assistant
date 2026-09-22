@@ -11,7 +11,7 @@ use crate::{
     app_paths::AppPaths,
     automation::{
         AutomationStopped, StopToken, is_stop_requested,
-        scan_runtime::{ScanWorker, ScanWorkerExit, ScanWorkerOutcome},
+        scan_runtime::{FinishReason, ScanWorker, ScanWorkerExit},
         session::Session,
         stats::counts::Capture,
     },
@@ -58,11 +58,11 @@ impl LiveScanWorker {
             Ok(session) => session,
             Err(_error) if is_stop_requested(&stop) => {
                 self.play_scan_sound(ScanSound::Disable);
-                return ScanWorkerExit::without_capture(ScanWorkerOutcome::Stopped);
+                return ScanWorkerExit::without_capture(FinishReason::Stopped);
             }
             Err(error) => {
                 self.play_scan_sound(ScanSound::Disable);
-                return ScanWorkerExit::without_capture(ScanWorkerOutcome::Failed(format!(
+                return ScanWorkerExit::without_capture(FinishReason::Failed(format!(
                     "连接游戏失败: {error:#}"
                 )));
             }
@@ -71,7 +71,7 @@ impl LiveScanWorker {
         // 停止请求可能发生在连接过程中，不能让它被清除或跳过。
         if is_stop_requested(&stop) {
             self.play_scan_sound(ScanSound::Disable);
-            return ScanWorkerExit::without_capture(ScanWorkerOutcome::Stopped);
+            return ScanWorkerExit::without_capture(FinishReason::Stopped);
         }
 
         // 扫描任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）。
@@ -87,19 +87,19 @@ impl LiveScanWorker {
         let result = run_task(&task, &mut captured, &self.navigator);
         let capture = captured.finish();
 
-        let outcome = match result {
-            Ok(()) => ScanWorkerOutcome::Completed,
+        let reason = match result {
+            Ok(()) => FinishReason::Completed,
             Err(error) if error.downcast_ref::<AutomationStopped>().is_some() => {
-                ScanWorkerOutcome::Stopped
+                FinishReason::Stopped
             }
-            Err(error) => ScanWorkerOutcome::Failed(format!("扫描档案库任务执行失败: {error:#}")),
+            Err(error) => FinishReason::Failed(format!("扫描档案库任务执行失败: {error:#}")),
         };
-        self.play_scan_sound(match &outcome {
-            ScanWorkerOutcome::Completed => ScanSound::Enable,
-            ScanWorkerOutcome::Stopped | ScanWorkerOutcome::Failed(_) => ScanSound::Disable,
+        self.play_scan_sound(match &reason {
+            FinishReason::Completed => ScanSound::Enable,
+            FinishReason::Stopped | FinishReason::Failed(_) => ScanSound::Disable,
         });
         ScanWorkerExit {
-            outcome,
+            reason,
             capture: Some(capture),
         }
     }

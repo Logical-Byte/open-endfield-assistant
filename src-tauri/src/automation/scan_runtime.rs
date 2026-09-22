@@ -116,13 +116,13 @@ impl From<CapabilityCallCounts> for CapabilityCallCountsPayload {
 }
 
 /// 工作者结束的原因；失败时保留供运行时记录和展示的错误信息。
-pub(crate) enum ScanWorkerOutcome {
+pub(crate) enum FinishReason {
     Completed,
     Stopped,
     Failed(String),
 }
 
-impl ScanWorkerOutcome {
+impl FinishReason {
     const fn public_outcome(&self) -> AutomationOutcome {
         match self {
             Self::Completed => AutomationOutcome::Completed,
@@ -134,14 +134,14 @@ impl ScanWorkerOutcome {
 
 /// `ScanWorker` 交给 `ScanRuntime` 的终态数据，与逐条上报的 `ScanResult` 不同。
 pub(crate) struct ScanWorkerExit {
-    pub(crate) outcome: ScanWorkerOutcome,
+    pub(crate) reason: FinishReason,
     pub(crate) capture: Option<CaptureSummary>,
 }
 
 impl ScanWorkerExit {
-    pub(crate) fn without_capture(outcome: ScanWorkerOutcome) -> Self {
+    pub(crate) fn without_capture(reason: FinishReason) -> Self {
         Self {
-            outcome,
+            reason,
             capture: None,
         }
     }
@@ -240,18 +240,18 @@ impl ScanRuntime {
 
     /// 处理扫描终态：记录结果、释放运行标志并推送结束事件与空闲状态。
     fn handle_worker_exit(&self, handle: &AppHandle, result: ScanWorkerExit) {
-        let ScanWorkerExit { outcome, capture } = result;
-        let public_outcome = outcome.public_outcome();
-        let scan_error = match outcome {
-            ScanWorkerOutcome::Completed => {
+        let ScanWorkerExit { reason, capture } = result;
+        let public_outcome = reason.public_outcome();
+        let scan_error = match reason {
+            FinishReason::Completed => {
                 info!("========== 扫描档案库任务执行完毕 ==========");
                 None
             }
-            ScanWorkerOutcome::Stopped => {
+            FinishReason::Stopped => {
                 info!("扫描档案库任务已被用户停止");
                 None
             }
-            ScanWorkerOutcome::Failed(message) => {
+            FinishReason::Failed(message) => {
                 error!("{message}");
                 Some(message)
             }
