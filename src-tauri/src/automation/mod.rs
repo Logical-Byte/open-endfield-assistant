@@ -7,6 +7,7 @@
 
 pub(crate) mod cancellation;
 mod capabilities;
+pub(crate) mod events;
 pub(crate) mod scan_runtime;
 pub(crate) mod session;
 pub mod stats;

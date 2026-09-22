@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// 推送给前端的应用状态。
-pub use crate::automation::scan_runtime::AppStatus;
+pub use crate::automation::events::AppStatus;
 
 /// 扫描业务控制器（Tauri 托管状态）。
 pub struct Controller {
