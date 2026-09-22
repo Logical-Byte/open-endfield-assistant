@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import {
+  createUpdateSettingsBuffers,
   discardSettingsDraft,
   proxyModeItems,
   retrySettingsSave,
@@ -12,9 +13,12 @@ import {
 import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
 import { oeaVersion } from '@/version';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 const toast = useToast();
+const route = useRoute();
+const updateSettingsBuffers = createUpdateSettingsBuffers(settingsDraft);
 
 /** UI 缩放（本地数字中转）。`USlider` 会短暂回写 `[v]` 数组，这里只允许 number 进入 `uiScale`。 */
 const uiScaleNumber = computed<number>({
@@ -111,16 +115,32 @@ function scrollToSection(id: string): void {
   }, 700);
 }
 
+/** 处理设置页锚点，使弹窗的设置按钮能直达更新设置区域。 */
+function scrollToHashSection(): void {
+  const sectionId = route.hash.slice(1);
+  if (sections.some((section) => section.id === sectionId)) {
+    scrollToSection(sectionId);
+  }
+}
+
 onMounted(() => {
   // `UMain` 渲染为 <main>，是实际滚动容器。
   document
     .querySelector('main')
     ?.addEventListener('scroll', updateActiveSection, { passive: true });
+  void nextTick().then(scrollToHashSection);
 });
 
 onBeforeUnmount(() => {
   document.querySelector('main')?.removeEventListener('scroll', updateActiveSection);
 });
+
+watch(
+  () => route.hash,
+  () => {
+    void nextTick().then(scrollToHashSection);
+  },
+);
 </script>
 
 <template>
@@ -314,10 +334,12 @@ onBeforeUnmount(() => {
             </template>
             <div class="flex flex-col items-center gap-1">
               <UInput
-                v-model="settingsDraft.mirrorchyanCdk"
+                v-model="updateSettingsBuffers.mirrorchyanCdk.value"
                 class="w-56"
                 placeholder="未填写时使用 OEM 下载"
                 type="password"
+                @blur="updateSettingsBuffers.commitMirrorchyanCdk"
+                @keydown="updateSettingsBuffers.handleMirrorchyanCdkKeydown"
               />
               <ULink
                 class="text-sm text-primary hover:text-primary/75"
@@ -347,9 +369,11 @@ onBeforeUnmount(() => {
             title="代理地址"
           >
             <UInput
-              v-model="settingsDraft.updateProxyUrl"
+              v-model="updateSettingsBuffers.updateProxyUrl.value"
               class="w-56"
               placeholder="http://127.0.0.1:7890"
+              @blur="updateSettingsBuffers.commitUpdateProxyUrl"
+              @keydown="updateSettingsBuffers.handleUpdateProxyUrlKeydown"
             />
           </SettingsItem>
           <div>

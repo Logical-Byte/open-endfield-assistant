@@ -23,3 +23,5 @@ export const settingsStatus: DeepReadonly<SettingsStatus> = settings.settingsSta
 export const initializeSettings: () => Promise<void> = settings.initializeSettings;
 export const retrySettingsSave: () => void = settings.retrySettingsSave;
 export const discardSettingsDraft: () => void = settings.discardSettingsDraft;
+
+export { createUpdateSettingsBuffers } from './updateSettingsEditor';

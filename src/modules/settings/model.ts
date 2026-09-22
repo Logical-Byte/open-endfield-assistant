@@ -12,14 +12,14 @@ export enum UpdateProxyMode {
   Custom = 'custom',
 }
 
-/** 设置页和更新弹窗共用的更新源展示项。 */
+/** 更新设置页唯一维护的更新源展示项。 */
 export const updateSourceItems = [
   { label: 'Mirror酱', value: UpdateSource.Mirrorchyan },
   { label: 'OEM', value: UpdateSource.Oem },
   { label: 'GitHub', value: UpdateSource.Github },
 ];
 
-/** 设置页和更新弹窗共用的下载代理展示项。 */
+/** 更新设置页唯一维护的下载代理展示项。 */
 export const proxyModeItems = [
   { label: '不使用代理', value: UpdateProxyMode.None },
   { label: '系统代理', value: UpdateProxyMode.System },

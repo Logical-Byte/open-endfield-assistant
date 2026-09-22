@@ -1,11 +1,4 @@
 <script setup lang="ts">
-import {
-  proxyModeItems,
-  settingsDraft,
-  updateSourceItems,
-  UpdateProxyMode,
-  UpdateSource,
-} from '@/modules/settings';
 import { DownloadProgress } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
 import {
@@ -19,9 +12,15 @@ import {
 import { renderMarkdown } from '@/utils/markdown';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { oeaVersion } from '@/version';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { openUpdateSettings } from './updatePopoverNavigation';
 
-const settingsOpen = ref(false);
+const router = useRouter();
+
+function navigateToUpdateSettings(): void {
+  openUpdateSettings(updatePopoverOpen, router);
+}
 
 const maybeStatusChipColor = computed<string | null>(() => {
   switch (updateCheckState.value.status) {
@@ -230,89 +229,15 @@ function formatSpeed(bytesPerSecond: number): string {
           <UButton color="error" label="重试" size="xs" variant="soft" @click="startDownload" />
         </div>
 
-        <!-- 仅下载前（Idle）显示「立即更新」与下载设置；下载中/已下载/失败均不显示 -->
+        <!-- 仅下载前（Idle）显示「立即更新」与前往唯一编辑入口的设置按钮。 -->
         <div v-if="downloadState.status === 'idle'" class="flex w-full gap-2">
           <UButton block icon="i-lucide-download" label="立即更新" @click="startDownload" />
-          <UPopover v-model:open="settingsOpen">
-            <UButton aria-label="下载设置" icon="i-lucide-settings-2" variant="subtle" />
-            <template #content>
-              <div class="w-64 space-y-4 p-4">
-                <UFormField label="下载源">
-                  <USelect
-                    v-model="settingsDraft.updateSource"
-                    class="w-full"
-                    :items="updateSourceItems"
-                  />
-                </UFormField>
-
-                <UFormField
-                  v-if="settingsDraft.updateSource === UpdateSource.Mirrorchyan"
-                  label="Mirror酱 CDK"
-                >
-                  <template #help>
-                    <span class="text-xs leading-none text-dimmed"
-                      ><ULink
-                        class="text-primary hover:text-primary/75"
-                        to="https://mirrorchyan.com/"
-                        >Mirror酱</ULink
-                      >
-                      是独立的第三方加速下载服务，需要付费使用。
-                      <br />
-                      <ULink
-                        class="text-primary hover:text-primary/75"
-                        rel="noopener noreferrer"
-                        target="_blank"
-                        to="https://ef.yituliu.cn/resources/oea"
-                        >OEA</ULink
-                      >
-                      本身不收取任何费用，也提供免费的下载渠道。您可以前往
-                      <ULink
-                        class="text-primary hover:text-primary/75"
-                        rel="noopener noreferrer"
-                        target="_blank"
-                        to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
-                        >GitHub Release</ULink
-                      >
-                      免费下载和使用。</span
-                    ></template
-                  >
-                  <template #hint
-                    ><ULink
-                      class="flex items-center gap-1 text-xs text-primary hover:text-primary/75"
-                      rel="noopener noreferrer"
-                      target="_blank"
-                      to="https://mirrorchyan.com/?source=oea"
-                      >获取 CDK<UIcon name="i-lucide-external-link" /></ULink
-                  ></template>
-                  <UInput
-                    v-model="settingsDraft.mirrorchyanCdk"
-                    class="w-full"
-                    placeholder="未填写时使用 OEM 下载"
-                    type="password"
-                  />
-                </UFormField>
-
-                <UFormField label="下载代理">
-                  <USelect
-                    v-model="settingsDraft.updateProxyMode"
-                    class="w-full"
-                    :items="proxyModeItems"
-                  />
-                </UFormField>
-
-                <UFormField
-                  v-if="settingsDraft.updateProxyMode === UpdateProxyMode.Custom"
-                  label="自定义代理"
-                >
-                  <UInput
-                    v-model="settingsDraft.updateProxyUrl"
-                    class="w-full"
-                    placeholder="http://127.0.0.1:7890"
-                  />
-                </UFormField>
-              </div>
-            </template>
-          </UPopover>
+          <UButton
+            aria-label="更新设置"
+            icon="i-lucide-settings-2"
+            variant="subtle"
+            @click="navigateToUpdateSettings"
+          />
         </div>
       </template>
     </template>
