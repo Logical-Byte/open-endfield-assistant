@@ -245,8 +245,6 @@ UI 缩放仍使用 WebView 自己的状态和持久化机制，不加入 OEA 配
 
 - Verify that successful persistence publishes the exact saved candidate as effective and advances the internal persistence baseline.
 
-- Verify that update orchestration observes the old effective automatic-download and automatic-install values until save success, then observes the new values.
-
 - Verify that save failure keeps the latest draft, preserves the previous effective snapshot and publishes an error status.
 
 - Verify that the same failed revision does not automatically retry forever.

@@ -14,12 +14,12 @@ import { updatePopoverOpen } from '@/utils/uiState';
 import { oeaVersion } from '@/version';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { openUpdateSettings } from './updatePopoverNavigation';
 
 const router = useRouter();
 
 function navigateToUpdateSettings(): void {
-  openUpdateSettings(updatePopoverOpen, router);
+  updatePopoverOpen.value = false;
+  void router.push('/settings#update');
 }
 
 const maybeStatusChipColor = computed<string | null>(() => {

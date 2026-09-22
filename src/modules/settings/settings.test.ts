@@ -314,7 +314,7 @@ describe('settings single writer', () => {
     expect(settings.settingsStatus.kind).toBe('decrypt-error');
   });
 
-  it('CDK 解密失败后可明确替换或清除原密文', async () => {
+  it('CDK 解密失败后可明确替换原密文', async () => {
     const persistence = new ControlledPersistence();
     persistence.loadedConfig = {
       ...DEFAULT_OEA_CONFIG,
@@ -334,13 +334,7 @@ describe('settings single writer', () => {
     await flushMicrotasks();
 
     expect(settings.settingsStatus.kind).toBe('idle');
-    settings.settingsDraft.mirrorchyanCdk = '';
-    await flushMicrotasks();
-    expect(persistence.saves[1]?.mirrorchyanCdkEncrypted).toBe('');
-    persistence.saveDeferreds[1]?.resolve();
-    await flushMicrotasks();
-
-    expect(settings.effectiveSettings.mirrorchyanCdk).toBe('');
+    expect(settings.effectiveSettings.mirrorchyanCdk).toBe('replacement-value');
   });
 
   it('CDK 明文未知时将显式空值视为清除意图', async () => {

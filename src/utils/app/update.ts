@@ -12,7 +12,6 @@ import {
   UpdateStatus,
 } from '@/types/update';
 import { effectiveSettings } from '@/modules/settings';
-import { decideAutomaticUpdateAction } from '@/utils/app/autoUpdatePolicy';
 import { appStatus } from '@/utils/app/appStatus';
 import { logDebug, logError, logWarn, onAppStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
@@ -162,8 +161,7 @@ export async function checkUpdate(): Promise<void> {
         `更新前端：检测到可用更新，打开更新提示（autoDownload=${effectiveSettings.autoDownloadUpdates}）`,
       );
       updatePopoverOpen.value = true;
-      shouldAutoDownload =
-        decideAutomaticUpdateAction(effectiveSettings, 'available') === 'download';
+      shouldAutoDownload = effectiveSettings.autoDownloadUpdates;
     }
   } catch (error) {
     checkError.value = error instanceof Error ? error : new Error(String(error));
@@ -277,7 +275,7 @@ export async function initUpdateState(): Promise<void> {
   });
 
   if (pendingUpdate.value) {
-    if (decideAutomaticUpdateAction(effectiveSettings, 'pending') === 'install') {
+    if (effectiveSettings.autoInstallUpdates) {
       void tryAutoInstall();
     } else {
       updatePopoverOpen.value = true;
@@ -306,7 +304,7 @@ export async function tryAutoInstall(): Promise<void> {
     pendingUpdate.value === null ||
     effectiveOperation.value !== 'idle' ||
     installStatus.value !== UpdateInstallStatus.Idle ||
-    decideAutomaticUpdateAction(effectiveSettings, 'pending') !== 'install' ||
+    !effectiveSettings.autoInstallUpdates ||
     appStatus.value.running
   ) {
     writeUpdateLog(
