@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useImagePreview } from '@/composables/image-preview/useImagePreview';
+import { useImagePreview } from '@/composables/image-preview';
 import { useTemplateRef } from 'vue';
 
 const overlayRef = useTemplateRef('overlayRef');

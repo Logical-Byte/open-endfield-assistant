@@ -1,2 +1,2 @@
-export type { ImagePreviewTarget } from '@/composables/image-preview/useImagePreview';
-export { openImagePreview } from '@/composables/image-preview/useImagePreview';
+export type { ImagePreviewTarget } from './useImagePreview';
+export { openImagePreview, useImagePreview } from './useImagePreview';

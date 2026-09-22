@@ -25,6 +25,10 @@ export function openImagePreview(target: ImagePreviewTarget): void {
   preview.value = { ...target };
 }
 
+/**
+ * 创建应用级图片预览器的交互控制器。
+ * 共享的预览状态由应用中唯一的 `AppImagePreview` 实例消费。
+ */
 export function useImagePreview(
   overlayRef: Ref<HTMLElement | null>,
   imgRef: Ref<HTMLImageElement | null>,
