@@ -1,6 +1,6 @@
 name: 功能建议
 description: 提议新功能或现有功能的改进
-labels: ['enhancement']
+labels: ['type:enhancement']
 body:
   - type: checkboxes
     id: checks
