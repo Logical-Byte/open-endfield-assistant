@@ -1,6 +1,6 @@
 name: Bug 反馈
 description: 反馈识别错误、操作异常、程序崩溃等问题
-labels: ['bug']
+labels: ['type:bug']
 body:
   - type: checkboxes
     id: checks
