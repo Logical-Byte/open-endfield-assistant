@@ -7,6 +7,7 @@ import SettingsCard from './SettingsCard.vue';
 const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
 
 const enabled = ref<boolean>(false);
+const toggleBusy = ref<boolean>(false);
 const rootElement = ref<HTMLElement>();
 const anchorSpacerHeight = ref<number>(0);
 let compensatedScrollContainer: HTMLElement | undefined;
@@ -33,6 +34,10 @@ function reclaimAnchorSpacer(): void {
 }
 
 async function toggleKeepingScrollAnchor(): Promise<void> {
+  if (toggleBusy.value) {
+    return;
+  }
+
   if (!enabled.value) {
     stopScrollCompensation();
     anchorSpacerHeight.value = 0;
@@ -51,22 +56,27 @@ async function toggleKeepingScrollAnchor(): Promise<void> {
   }
 
   const buttonTopBefore = toggleButton.getBoundingClientRect().top;
-  enabled.value = false;
-  await nextTick();
+  toggleBusy.value = true;
+  try {
+    enabled.value = false;
+    await nextTick();
 
-  const buttonTopAfter = toggleButton.getBoundingClientRect().top;
-  const clippedDistance = Math.max(0, buttonTopAfter - buttonTopBefore);
-  if (clippedDistance === 0) {
-    return;
+    const buttonTopAfter = toggleButton.getBoundingClientRect().top;
+    const clippedDistance = Math.max(0, buttonTopAfter - buttonTopBefore);
+    if (clippedDistance === 0) {
+      return;
+    }
+
+    anchorSpacerHeight.value = clippedDistance;
+    await nextTick();
+    scrollContainer.scrollTop += clippedDistance;
+    compensatedScrollContainer = scrollContainer;
+    compensatedScrollTop = scrollContainer.scrollTop;
+    initialSpacerHeight = clippedDistance;
+    scrollContainer.addEventListener('scroll', reclaimAnchorSpacer, { passive: true });
+  } finally {
+    toggleBusy.value = false;
   }
-
-  anchorSpacerHeight.value = clippedDistance;
-  await nextTick();
-  scrollContainer.scrollTop += clippedDistance;
-  compensatedScrollContainer = scrollContainer;
-  compensatedScrollTop = scrollContainer.scrollTop;
-  initialSpacerHeight = clippedDistance;
-  scrollContainer.addEventListener('scroll', reclaimAnchorSpacer, { passive: true });
 }
 
 onBeforeUnmount(stopScrollCompensation);
@@ -87,6 +97,7 @@ onBeforeUnmount(stopScrollCompensation);
           <UButton
             color="neutral"
             data-developer-toggle
+            :disabled="toggleBusy"
             :icon="enabled ? 'i-lucide-eye-off' : 'i-lucide-lock-keyhole-open'"
             :label="enabled ? '关闭开发者选项' : '开启开发者选项'"
             size="sm"
