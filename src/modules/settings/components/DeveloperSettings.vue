@@ -1,45 +1,111 @@
 <script setup lang="ts">
-import {
-  developerInstallBusy,
-  developerInstallTrace,
-  developerInstallUnavailable,
-  developerInstallUpdatePackage,
-} from '@/utils/app/developerUpdate';
+import { nextTick, onBeforeUnmount, ref } from 'vue';
 
+import DeveloperSettingsBody from './DeveloperSettingsBody.vue';
 import SettingsCard from './SettingsCard.vue';
-import SettingsItem from './SettingsItem.vue';
+
+const enabled = ref<boolean>(false);
+const toggleBusy = ref<boolean>(false);
+const rootElement = ref<HTMLElement>();
+const anchorSpacerHeight = ref<number>(0);
+let compensatedScrollContainer: HTMLElement | undefined;
+let compensatedScrollTop = 0;
+let initialSpacerHeight = 0;
+
+function stopScrollCompensation(): void {
+  compensatedScrollContainer?.removeEventListener('scroll', reclaimAnchorSpacer);
+  compensatedScrollContainer = undefined;
+}
+
+function reclaimAnchorSpacer(): void {
+  if (compensatedScrollContainer === undefined) {
+    return;
+  }
+  const upwardDistance = compensatedScrollTop - compensatedScrollContainer.scrollTop;
+  if (upwardDistance <= 0) {
+    return;
+  }
+  anchorSpacerHeight.value = Math.max(0, initialSpacerHeight - upwardDistance);
+  if (anchorSpacerHeight.value === 0) {
+    stopScrollCompensation();
+  }
+}
+
+async function toggleKeepingScrollAnchor(): Promise<void> {
+  if (toggleBusy.value) {
+    return;
+  }
+
+  if (!enabled.value) {
+    stopScrollCompensation();
+    anchorSpacerHeight.value = 0;
+    enabled.value = true;
+    return;
+  }
+
+  const scrollContainer = document.querySelector<HTMLElement>('main');
+  const toggleButton = rootElement.value?.querySelector<HTMLElement>('[data-developer-toggle]');
+
+  if (scrollContainer === null || toggleButton === null || toggleButton === undefined) {
+    stopScrollCompensation();
+    anchorSpacerHeight.value = 0;
+    enabled.value = false;
+    return;
+  }
+
+  const buttonTopBefore = toggleButton.getBoundingClientRect().top;
+  toggleBusy.value = true;
+  try {
+    enabled.value = false;
+    await nextTick();
+
+    const buttonTopAfter = toggleButton.getBoundingClientRect().top;
+    const clippedDistance = Math.max(0, buttonTopAfter - buttonTopBefore);
+    if (clippedDistance === 0) {
+      return;
+    }
+
+    anchorSpacerHeight.value = clippedDistance;
+    await nextTick();
+    scrollContainer.scrollTop += clippedDistance;
+    compensatedScrollContainer = scrollContainer;
+    compensatedScrollTop = scrollContainer.scrollTop;
+    initialSpacerHeight = clippedDistance;
+    scrollContainer.addEventListener('scroll', reclaimAnchorSpacer, { passive: true });
+  } finally {
+    toggleBusy.value = false;
+  }
+}
+
+onBeforeUnmount(stopScrollCompensation);
 </script>
 
 <template>
-  <SettingsCard id="developer" class="scroll-mt-8" icon="i-lucide-code-2" title="开发者选项">
-    <div>
-      <UAlert
-        color="warning"
-        icon="i-lucide-triangle-alert"
-        title="如果你不知道自己在做什么，请不要使用下面的选项"
-        variant="subtle"
-      />
-    </div>
-    <SettingsItem
-      description="从给定的 .zip 更新包运行一次原地更新流程。支持增量包和全量包。"
-      icon="i-lucide-flask-conical"
-      title="安装更新包"
-    >
-      <div class="flex w-96 flex-col items-end gap-2">
-        <UButton
-          color="warning"
-          :disabled="developerInstallUnavailable"
-          icon="i-lucide-package-open"
-          label="选择 .zip 文件安装包（开发者）"
-          :loading="developerInstallBusy"
-          @click="developerInstallUpdatePackage"
-        />
-        <pre
-          class="max-h-52 w-full overflow-auto rounded-md bg-muted p-2 text-xs whitespace-pre-wrap text-toned"
-          >{{
-            developerInstallTrace.length > 0 ? developerInstallTrace.join('\n') : '相关日志'
-          }}</pre>
-      </div>
-    </SettingsItem>
-  </SettingsCard>
+  <div ref="rootElement">
+    <SettingsCard id="developer" class="scroll-mt-8">
+      <template #header>
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex flex-1 items-center gap-3">
+            <UIcon class="text-2xl text-primary" name="i-lucide-code-2" />
+            <div class="flex-1">
+              <p class="font-medium">开发者选项</p>
+              <p class="text-sm text-dimmed">显示仅用于开发和故障排查的高级工具</p>
+            </div>
+          </div>
+          <UButton
+            color="neutral"
+            data-developer-toggle
+            :disabled="toggleBusy"
+            :icon="enabled ? 'i-lucide-eye-off' : 'i-lucide-lock-keyhole-open'"
+            :label="enabled ? '关闭开发者选项' : '开启开发者选项'"
+            size="sm"
+            variant="soft"
+            @click="toggleKeepingScrollAnchor"
+          />
+        </div>
+      </template>
+      <DeveloperSettingsBody v-if="enabled" />
+    </SettingsCard>
+    <div aria-hidden="true" :style="{ height: `${anchorSpacerHeight}px` }" />
+  </div>
 </template>
