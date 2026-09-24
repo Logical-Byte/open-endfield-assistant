@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** 设置页中承载单个控件与说明的展示行。 */
 const {
   icon = undefined,
   title = undefined,

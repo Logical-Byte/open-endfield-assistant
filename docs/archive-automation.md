@@ -8,13 +8,13 @@
 
 两个版本号配合决定是否展示：
 
-- **当前提示版本**：前端常量 `CURRENT_SCAN_TIPS_VERSION`（`src/components/scan/ScanGuide.vue`），与提示文案写在同一个文件里，保证改文案时不会漏改版本。
-- **用户已确认版本**：后端配置字段 `scanTipsDismissedVersion`（`config/oea_config.json`，默认 `0`）。用户勾选「下次更新前不再提示」并点击「我知道了」时写入。
+- **当前提示版本**：前端 settings 持久化实现中的 `CURRENT_SCAN_TIPS_VERSION`（`src/modules/settings/persistence.ts`）。该常量的注释指向 `ScanGuide.vue` 的提示文案，修改文案时在同一处决定是否递增版本。
+- **用户已确认版本**：后端配置字段 `scanTipsDismissedVersion`（`config/oea_config.json`，默认 `0`）。它是 settings 模块的内部持久化表示，UI 只读写逻辑开关 `scanGuideEnabled`。
 
-**展示规则**：`scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION` 时展示提示，否则不展示。
+**展示规则**：settings 模块将 `scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION` 投影为 `scanGuideEnabled`；`ScanGuide.vue` 读取最近成功保存的逻辑状态来决定是否展示。
 
 - 不勾选、直接点「我知道了」：仅本次启动隐藏（内存标志），不写配置，下次启动仍展示。
-- 勾选后点「我知道了」：把 `scanTipsDismissedVersion` 写入当前 `CURRENT_SCAN_TIPS_VERSION`，由 `src/utils/app/config.ts` 的配置深监听自动落盘，本版本内不再展示。
+- 勾选后点「我知道了」：将 `settingsDraft.scanGuideEnabled` 设为 `false`。settings 的单写者把它映射为当前 `CURRENT_SCAN_TIPS_VERSION` 并随完整配置有序保存，本版本内不再展示。
 
 ### 更新提示文案，让所有用户重新看一次
 

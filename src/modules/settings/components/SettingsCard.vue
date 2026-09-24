@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** 设置页中承载一个设置类别的展示卡片。 */
 const { icon = undefined, title = undefined } = defineProps<{
   icon?: string;
   title?: string;
