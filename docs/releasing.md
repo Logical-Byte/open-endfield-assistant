@@ -25,37 +25,19 @@ tauri build --no-bundle && jiti scripts/package.ts
 
 产物：`releases/OEA-windows-x86_64-v0.1.0.zip`。实际文件名中的版本号和架构取决于当前配置与构建环境；`releases/` 目录已 git 忽略。
 
-### 冒烟测试
-
-把 zip 解压到**干净目录**，双击 `OEA.exe`：
-
-- 应用能正常启动；
-- `logs/`、`cache/` 在 exe 旁自动生成（`cache/webview-data/` 为 WebView2 用户数据）；
-- 扫描任务能正常加载 OCR 模型（`resources/ocr-models/`）与 `resources/data/prts.json`。
-
 ## 发版流程
+
+1. 拉取 `main` 分支。
+2. 更新解包库。
+3. 运行 `pnpm makedata`，然后提交。
+   resource 库提交消息：`2026-09-24 更新档案数据`；
+   主库提交消息：`feat: 更新档案数据`。
+4. 更新版本号：`pnpm bump:version`。
+5. （可选）打包：`pnpm package`，然后测一下能不能用。
+6. 推送：`git push && git push --tags`。
 
 > **自动化发版**：推送 `v*` tag（如 `v0.1.0`）后，release workflow（`.github/workflows/release.yml`）只构建一次 zip，并独立发布到 GitHub Releases、Cloudflare R2 与 MirrorChyan。R2 的稳定下载入口为 `https://oea.oem.re/` 和 `https://oea.oem.re/latest`。
 > **tag 必须与 `src-tauri/tauri.conf.json` 中的 `version` 一致**（例如版本为 `0.1.0` 时打 `v0.1.0`）。workflow 会在构建前校验二者一致，不一致则构建失败。
-
-1. **更新版本号**（唯一来源 `src-tauri/tauri.conf.json`；前端编译期注入、打包命名与 release tag 校验均以此文件为准，无需维护 `package.json` / `Cargo.toml` 的版本号）：
-
-   用 `pnpm bump:version <version>` 一键完成：更新 `tauri.conf.json` 的 `version`、按 Conventional Commits 提交（`chore: release vX.Y.Z`）并打 tag（`vX.Y.Z`）。`v` 前缀可省略（`0.2.0` 与 `v0.2.0` 均可）；无参数时交互式输入新版本。
-
-2. **确认资源完整**：检查 `resources/` 子模块内容（尤其未跟踪的 `data/`、`icons/`），必要时先提交到 `oea-resource` 仓库并更新子模块引用。
-3. **本地全量检查**：按[前端规范](rule-frontend.md#编译检查与测试)和[后端规范](rule-backend.md#编译检查与测试)完成检查。
-4. **打包**：`pnpm package`，得到 `releases/OEA-windows-x86_64-v0.1.0.zip`。
-5. **冒烟测试**：见上文「冒烟测试」。
-6. **打 tag 并推送**：
-
-   ```bash
-   git tag v0.1.0
-   git push origin main --tags
-   ```
-
-   推送后 release workflow 会自动完成构建、生成 SHA-256 sidecar，并独立执行 GitHub Release、R2 与 MirrorChyan 发布。R2 失败会使对应 job 失败，但不会撤销或阻塞其他分发渠道。
-
-7. **（可选）手动发布**：若 workflow 未自动创建 Release，可在 [Releases](https://github.com/Logical-Byte/open-endfield-assistant/releases) 页面以 `v0.1.0` 手动创建 release，上传 `releases/OEA-windows-x86_64-v0.1.0.zip`，填写变更说明。
 
 ## R2 发布与回滚
 
