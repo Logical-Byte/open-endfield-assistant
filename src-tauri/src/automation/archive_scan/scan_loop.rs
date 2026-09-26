@@ -16,7 +16,7 @@ use crate::{
 use super::constants::{ARROW_RIGHT_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
 use super::correction::{CorrectionOverride, correct};
 use super::plan::{category_id_of, page_type_of};
-use super::result::{ScanReporter, encode_png_data_url};
+use super::reporting::{ScanReporter, encode_png_data_url};
 use crate::data::ArchiveTitleIndex;
 
 /// 扫描当前子界面中的所有档案。

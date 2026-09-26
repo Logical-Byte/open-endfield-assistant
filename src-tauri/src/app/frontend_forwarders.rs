@@ -13,7 +13,7 @@ use std::{
 use tauri::{AppHandle, Emitter};
 use tracing::error;
 
-use crate::{logger::LogEntry, task::archive_scan::ScanResult};
+use crate::{automation::archive_scan::ScanResult, logger::LogEntry};
 
 const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
 

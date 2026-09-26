@@ -1,9 +1,9 @@
 //! 真实游戏扫描的工作线程内容。
 //!
-//! 游戏会话、窗口操作、档案任务和提示音集中在这里；
+//! 游戏会话、窗口操作、档案扫描工作流和提示音集中在这里；
 //! [`crate::automation::scan_runtime::ScanRuntime`] 只管理运行生命周期。
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 
 use tracing::warn;
 
@@ -19,10 +19,11 @@ use crate::{
     navigation::Navigator,
     ocr::OcrEngine,
     platform,
-    task::{
-        archive_scan::{ArchiveScanTask, ScanReporter},
-        run_task,
-    },
+};
+
+use super::{
+    reporting::{ScanReporter, ScanResult},
+    workflow::ArchiveScanner,
 };
 
 /// 一次真实扫描所需的协作者，由控制器在任务获准启动后创建。
@@ -40,18 +41,18 @@ impl LiveScanWorker {
         ocr: Arc<Mutex<OcrEngine>>,
         navigator: Arc<Navigator>,
         app_data: Arc<AppData>,
-        reporter: ScanReporter,
+        scan_tx: mpsc::Sender<ScanResult>,
     ) -> Self {
         Self {
             oea_config,
             ocr,
             navigator,
             app_data,
-            reporter,
+            reporter: ScanReporter::new(scan_tx),
         }
     }
 
-    fn run_task(&self, stop: StopToken) -> ScanOutcome {
+    fn run_scan(&self, stop: StopToken) -> ScanOutcome {
         // 连接游戏可能耗时，所以留在工作线程中。
         let mut session = match Session::connect(&self.ocr, Arc::clone(&stop)) {
             Ok(session) => session,
@@ -72,8 +73,8 @@ impl LiveScanWorker {
         // 启动检查通过、任务真正开始执行前播放 enable 提示音。
         self.play_scan_sound(ScanSound::Enable);
 
-        let task = ArchiveScanTask::new(self.reporter.clone(), self.app_data.archive_titles());
-        let result = run_task(&task, &mut session, &self.navigator);
+        let scanner = ArchiveScanner::new(self.reporter.clone(), self.app_data.archive_titles());
+        let result = scanner.run(&mut session, &self.navigator);
 
         match result {
             Ok(()) => ScanOutcome::Completed,
@@ -106,7 +107,7 @@ impl LiveScanWorker {
 
 impl ScanWorker for LiveScanWorker {
     fn run(self, stop: StopToken) -> ScanOutcome {
-        let outcome = self.run_task(stop);
+        let outcome = self.run_scan(stop);
         self.play_scan_sound(match &outcome {
             ScanOutcome::Completed => ScanSound::Enable,
             ScanOutcome::Stopped | ScanOutcome::Failed(_) => ScanSound::Disable,

@@ -5,11 +5,11 @@
 //! 生产环境由 [`Session`](session::Session) 实现这些能力；测试可以直接实现
 //! 相同的能力接口。
 
+pub(crate) mod archive_scan;
 pub(crate) mod cancellation;
 mod capabilities;
 pub(crate) mod scan_runtime;
 pub(crate) mod session;
-pub(crate) mod worker;
 
 pub(crate) use cancellation::{
     AutomationStopped, StopToken, is_stop_requested, new_stop_token, request_stop,
