@@ -9,14 +9,11 @@ use anyhow::Result;
 use tracing::{debug, info};
 
 use crate::{
-    automation::{Clock, Input, Ocr, Point720p, ScreenCapture, TemplateMatching, TemplateTarget},
-    navigation::{
-        Navigator,
-        scenes::{SceneId, 档案库SubSceneId},
-    },
+    automation::{Clock, Input, Ocr, ScreenCapture, TemplateMatching, TemplateTarget},
+    navigation::{ArchiveState, ArchiveSubscene, Navigator, UiState},
 };
 
-use super::constants::{ARROW_RIGHT_ROI, CLOSE_BUTTON_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
+use super::constants::{ARROW_RIGHT_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
 use super::correction::{CorrectionOverride, correct};
 use super::plan::{category_id_of, page_type_of};
 use super::result::{ScanReporter, encode_png_data_url};
@@ -26,7 +23,7 @@ use crate::data::ArchiveTitleIndex;
 ///
 /// # 前置条件
 /// - `cx` 当前处于档案库子界面
-/// - `sub_scene` 为该子界面（用于确定所属大类 / 小类，进而纠错）
+/// - `subscene` 为该子界面（用于确定所属大类 / 小类，进而纠错）
 ///
 /// # 工作流程
 /// 1. 点击第 1 份档案 (401, 182) 进入档案详情页面
@@ -35,7 +32,7 @@ use crate::data::ArchiveTitleIndex;
 pub fn scan_current_sub_scene<C>(
     cx: &mut C,
     navigator: &Navigator,
-    sub_scene: 档案库SubSceneId,
+    subscene: ArchiveSubscene,
     archive_titles: &ArchiveTitleIndex,
     correction_overrides: Option<&[CorrectionOverride<'_>]>,
     reporter: &ScanReporter,
@@ -43,18 +40,7 @@ pub fn scan_current_sub_scene<C>(
 where
     C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
 {
-    // 1. 点击第 1 份档案进入档案详情页面
-    debug!("点击第 1 份档案 (401, 182)");
-    cx.click(Point720p { x: 401, y: 182 })?;
-
-    // 等待详情页面加载
-    cx.sleep(std::time::Duration::from_millis(800));
-
-    // 验证是否进入了详情页面
-    let arrived = navigator.wait_for_scene(SceneId::档案详情页面, cx, 15)?;
-    if !arrived {
-        anyhow::bail!("未能进入档案详情页面，可能该子分类没有档案");
-    }
+    navigator.navigate_to(UiState::Archive(ArchiveState::Detail), cx)?;
 
     // 2. 循环扫描所有档案
     let mut archive_count = 0u32;
@@ -81,7 +67,7 @@ where
         };
 
         // 2b. 纠错：在本子分类的候选标题中找最可能的档案
-        let category_id = category_id_of(sub_scene);
+        let category_id = category_id_of(subscene);
         let corrected = correct(archive_titles, category_id, &ocr_text, correction_overrides);
         match &corrected {
             Some(c) => info!(
@@ -106,7 +92,7 @@ where
         };
         reporter.report(
             status,
-            page_type_of(sub_scene),
+            page_type_of(subscene),
             category_id,
             encode_png_data_url(&screenshot),
             ocr_text,
@@ -152,24 +138,7 @@ where
         break;
     }
 
-    // 3. 点击关闭按钮返回子界面
-    debug!("点击档案详情关闭按钮返回子界面");
-    let screenshot = cx.screenshot()?;
-    let close_target = TemplateTarget {
-        template_name: "情报档案库/档案详情关闭.png",
-        roi: CLOSE_BUTTON_ROI,
-        threshold: THRESHOLD,
-    };
-    if let Some(matched) = cx.find_template(&screenshot, &close_target)? {
-        cx.click(matched.region.center().into())?;
-    } else {
-        // 如果模板匹配失败，直接点击右上角固定位置
-        debug!("模板匹配关闭按钮失败，尝试固定坐标点击");
-        cx.click(Point720p { x: 1240, y: 50 })?;
-    }
-
-    // 等待返回子界面
-    cx.sleep(std::time::Duration::from_millis(800));
+    navigator.navigate_to(UiState::archive_subscene(subscene), cx)?;
 
     Ok(())
 }

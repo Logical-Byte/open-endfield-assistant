@@ -16,15 +16,9 @@ use tauri::Manager;
 use tracing::{error, info, warn};
 
 use crate::{
-    app_paths::AppPaths,
-    automation::scan_runtime::ScanRuntime,
-    config::ConfigStore,
-    controller::Controller,
-    data::AppData,
-    logger,
-    navigation::{self, Navigator},
-    ocr::OcrEngine,
-    platform, update,
+    app_paths::AppPaths, automation::scan_runtime::ScanRuntime, config::ConfigStore,
+    controller::Controller, data::AppData, logger, navigation::Navigator, ocr::OcrEngine, platform,
+    update,
 };
 
 use self::hooks::{crash, portable};
@@ -214,15 +208,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     // 加载静态数据文件
     let app_data = AppData::load(&app_paths)?;
 
-    // 导航器（本游戏全部场景，注册顺序即识别优先级）
-    let navigator = Arc::new(Navigator::new(vec![
-        Box::new(navigation::scenes::archive::Scene档案详情页面),
-        Box::new(navigation::scenes::archive::Scene档案库子界面),
-        Box::new(navigation::scenes::archive::Scene档案库主界面),
-        Box::new(navigation::scenes::terminal::Scene协议终端),
-        Box::new(navigation::scenes::overworld::Scene大世界),
-        Box::new(navigation::scenes::Scene未知),
-    ]));
+    let navigator = Arc::new(Navigator::new());
 
     let scan_runtime = Arc::new(ScanRuntime::new());
 

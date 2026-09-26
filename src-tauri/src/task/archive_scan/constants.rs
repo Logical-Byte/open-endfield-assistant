@@ -15,6 +15,3 @@ pub const NEXT_BUTTON_ROI: Region2D<u32> = ltrb!(762, 654, 925, 711);
 
 /// "档案详情右箭头" 搜索区域（720p 基准 ltrb）
 pub const ARROW_RIGHT_ROI: Region2D<u32> = ltrb!(1206, 313, 1276, 423);
-
-/// "档案详情关闭" 按钮搜索区域（720p 基准 ltrb）
-pub const CLOSE_BUTTON_ROI: Region2D<u32> = ltrb!(1180, 0, 1280, 100);

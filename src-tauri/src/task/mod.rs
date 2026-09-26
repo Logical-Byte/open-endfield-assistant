@@ -1,7 +1,7 @@
 //! 任务系统模块。
 //!
 //! `Task` trait 是脚本的扩展点：每个自动化脚本实现一个 Task。
-//! [`run_task`] 提供通用启动流程：满足任务的前置场景 → 执行任务。
+//! [`run_task`] 提供通用启动流程：满足任务的前置具体 UI 状态 → 执行任务。
 //!
 //! 任务运行中的导航一律委托 [`crate::navigation::Navigator`]，Task 只写业务节奏。
 
@@ -11,20 +11,20 @@ use anyhow::Result;
 
 use crate::{
     automation::{Clock, Input, Ocr, ScreenCapture, TemplateMatching},
-    navigation::{Navigator, scenes::SceneId},
+    navigation::{Navigator, UiState},
 };
 
 /// 任务 trait：一个完整的自动化脚本。
 ///
 /// 任务对象在扫描线程内本地构造使用（无需 Send/Sync 约束）。
-pub trait Task {
+pub(crate) trait Task {
     /// 任务名称（用于日志）。
     fn name(&self) -> &str;
 
-    /// 任务执行所需的前置场景。
+    /// 任务执行所需的前置具体 UI 状态。
     ///
-    /// [`run_task`] 会在调用 [`Task::run`] 前导航到该场景。
-    fn precondition_scene(&self) -> SceneId;
+    /// [`run_task`] 会在调用 [`Task::run`] 前导航到该具体 UI 状态。
+    fn precondition_state(&self) -> UiState;
 
     /// 执行任务主逻辑。
     ///
@@ -35,8 +35,8 @@ pub trait Task {
         C: ScreenCapture + Input + TemplateMatching + Ocr + Clock;
 }
 
-/// 运行任务：满足任务的前置场景 → 执行任务。
-pub fn run_task<T, C>(task: &T, cx: &mut C, navigator: &Navigator) -> Result<()>
+/// 运行任务：满足任务的前置具体 UI 状态 → 执行任务。
+pub(crate) fn run_task<T, C>(task: &T, cx: &mut C, navigator: &Navigator) -> Result<()>
 where
     T: Task,
     C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
@@ -44,11 +44,11 @@ where
     tracing::info!("========== 开始执行任务: {} ==========", task.name());
 
     // 0. 任务开始前先把鼠标移到窗口中心，避免鼠标恰好 hover 在按钮上，
-    //    按钮 hover 样式变化干扰首次场景识别 / 导航。
+    //    按钮 hover 样式变化干扰首次 UI 状态识别 / 导航。
     cx.move_mouse_to_safe_position()?;
 
-    // 1. 满足任务的前置场景
-    navigator.ensure_scene(task.precondition_scene(), cx)?;
+    // 1. 满足任务的前置具体 UI 状态
+    navigator.navigate_to(task.precondition_state(), cx)?;
 
     // 2. 执行任务
     task.run(cx, navigator)?;
