@@ -1,7 +1,7 @@
 //! 扫描业务控制器（Tauri 托管状态）。
 //!
 //! 职责边界：
-//! - **应用编排**：为扫描任务创建运行上下文；
+//! - **应用编排**：为扫描任务创建真实游戏工作者；
 //!
 //! 扫描任务的状态机与执行线程由 [`ScanRuntime`] 拥有。
 
@@ -11,7 +11,7 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    automation::scan_runtime::{ScanRunContext, ScanRuntime},
+    automation::{scan_runtime::ScanRuntime, worker::LiveScanWorker},
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
@@ -92,7 +92,7 @@ impl Controller {
 
     /// 启动扫描档案库任务：占用运行状态并创建本次停止令牌 → 推送状态 → 后台线程执行。
     pub fn start_scan(&self, app_handle: &AppHandle) {
-        self.scan_runtime.start(|| self.scan_context(app_handle));
+        self.scan_runtime.start(app_handle, || self.scan_worker());
     }
 
     /// 请求停止扫描档案库任务（原子置位，由任务内部轮询实现优雅停止）。
@@ -122,14 +122,13 @@ impl Controller {
         app_handle.exit(0);
     }
 
-    fn scan_context(&self, app_handle: &AppHandle) -> ScanRunContext {
-        ScanRunContext::new(
+    fn scan_worker(&self) -> LiveScanWorker {
+        LiveScanWorker::new(
             self.config_store.snapshot(),
             Arc::clone(&self.ocr),
             Arc::clone(&self.navigator),
             Arc::clone(&self.app_data),
             self.reporter(),
-            app_handle.clone(),
         )
     }
 }
