@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use tracing::{error, info, warn};
 
-use crate::automation::{StopToken, new_stop_token, request_stop};
+use crate::automation::{StopToken, new_stop_token, request_stop, stats::counts::CaptureSummary};
 
 /// 推送给前端的应用状态。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,16 +23,38 @@ pub struct AppStatus {
     pub scan_error: Option<String>,
 }
 
-/// 一次扫描运行的终态。
-pub(crate) enum ScanOutcome {
+/// 工作者结束的原因；失败时保留供运行时记录和展示的错误信息。
+pub(crate) enum FinishReason {
     Completed,
     Stopped,
     Failed(String),
 }
 
+/// `ScanWorker` 交给 `ScanRuntime` 的完整终态，与逐条上报的 `ScanResult` 不同。
+pub(crate) struct ScanWorkerExit {
+    pub(crate) reason: FinishReason,
+    pub(crate) capture: Option<CaptureSummary>,
+}
+
+impl ScanWorkerExit {
+    pub(crate) fn without_capture(reason: FinishReason) -> Self {
+        Self {
+            reason,
+            capture: None,
+        }
+    }
+
+    pub(crate) fn with_capture(reason: FinishReason, capture: CaptureSummary) -> Self {
+        Self {
+            reason,
+            capture: Some(capture),
+        }
+    }
+}
+
 /// 一次扫描工作线程的执行内容。按值接收工作者，避免同一次运行重复执行。
 pub(crate) trait ScanWorker: Send + 'static {
-    fn run(self, stop: StopToken) -> ScanOutcome;
+    fn run(self, stop: StopToken) -> ScanWorkerExit;
 }
 
 /// 扫描档案库任务的生命周期状态。
@@ -76,8 +98,8 @@ impl ScanRuntime {
         thread::Builder::new()
             .name("oea-scan".to_string())
             .spawn(move || {
-                let outcome = worker.run(stop);
-                runtime.handle_run_exit(&handle, outcome);
+                let result = worker.run(stop);
+                runtime.handle_worker_exit(&handle, result);
             })
             .expect("启动扫描档案库任务线程失败");
     }
@@ -122,17 +144,34 @@ impl ScanRuntime {
     }
 
     /// 处理扫描终态：记录结果、释放运行标志并推送空闲状态。
-    fn handle_run_exit(&self, handle: &AppHandle, outcome: ScanOutcome) {
-        let scan_error = match outcome {
-            ScanOutcome::Completed => {
+    fn handle_worker_exit(&self, handle: &AppHandle, result: ScanWorkerExit) {
+        let ScanWorkerExit { reason, capture } = result;
+        if let Some(summary) = capture {
+            let calls = summary.calls;
+            info!(
+                "扫描档案库工作流统计：耗时 {:.1} 秒，截图 {} 次，点击 {} 次，按键 {} 次，\
+                 显式鼠标归位 {} 次，模板匹配 {} 次，OCR {} 次，等待 {} 次",
+                summary.elapsed.as_secs_f64(),
+                calls.screenshot,
+                calls.click,
+                calls.press_key,
+                calls.move_mouse_to_safe_position,
+                calls.find_template,
+                calls.recognize_text,
+                calls.sleep,
+            );
+        }
+
+        let scan_error = match reason {
+            FinishReason::Completed => {
                 info!("========== 扫描档案库任务执行完毕 ==========");
                 None
             }
-            ScanOutcome::Stopped => {
+            FinishReason::Stopped => {
                 info!("扫描档案库任务已被用户停止");
                 None
             }
-            ScanOutcome::Failed(message) => {
+            FinishReason::Failed(message) => {
                 error!("{message}");
                 Some(message)
             }
