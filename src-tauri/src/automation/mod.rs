@@ -9,6 +9,7 @@ pub(crate) mod cancellation;
 mod capabilities;
 pub(crate) mod scan_runtime;
 pub(crate) mod session;
+pub(crate) mod worker;
 
 pub(crate) use cancellation::{
     AutomationStopped, StopToken, is_stop_requested, new_stop_token, request_stop,
