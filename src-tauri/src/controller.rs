@@ -11,12 +11,14 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    automation::{scan_runtime::ScanRuntime, worker::LiveScanWorker},
+    automation::{
+        archive_scan::{ScanResult, worker::LiveScanWorker},
+        scan_runtime::ScanRuntime,
+    },
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
     ocr::OcrEngine,
-    task::archive_scan::{ScanReporter, ScanResult},
 };
 
 /// 推送给前端的应用状态。
@@ -73,11 +75,6 @@ impl Controller {
         self.scan_runtime.status()
     }
 
-    /// 创建扫描结果上报器（每次游戏操作一个，只负责转发结果）。
-    fn reporter(&self) -> ScanReporter {
-        ScanReporter::new(self.scan_tx.lock().unwrap().clone())
-    }
-
     /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
     pub fn prts_data(&self) -> &PrtsData {
         self.app_data.prts()
@@ -128,7 +125,7 @@ impl Controller {
             Arc::clone(&self.ocr),
             Arc::clone(&self.navigator),
             Arc::clone(&self.app_data),
-            self.reporter(),
+            self.scan_tx.lock().unwrap().clone(),
         )
     }
 }

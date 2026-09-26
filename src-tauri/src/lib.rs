@@ -12,7 +12,6 @@ pub mod navigation;
 pub mod ocr;
 pub mod platform;
 pub(crate) mod storage;
-pub mod task;
 pub mod template_matching;
 pub mod update;
 pub mod utils;

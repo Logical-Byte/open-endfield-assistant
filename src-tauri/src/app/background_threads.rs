@@ -14,7 +14,7 @@ use tauri::AppHandle;
 use tracing::{error, info};
 use tracing_appender::non_blocking::WorkerGuard;
 
-use crate::{logger::LogEntry, platform, task::archive_scan::ScanResult};
+use crate::{automation::archive_scan::ScanResult, logger::LogEntry, platform};
 
 use super::{frontend_forwarders, hotkeys};
 

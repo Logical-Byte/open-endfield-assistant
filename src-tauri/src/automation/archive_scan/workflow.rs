@@ -1,54 +1,51 @@
-//! 档案库扫描任务定义。
+//! 档案库扫描工作流。
 
 use anyhow::Result;
 use tracing::info;
 
 use crate::{
     automation::{Clock, Input, Ocr, ScreenCapture, TemplateMatching},
+    data::ArchiveTitleIndex,
     navigation::{ArchiveState, Navigator, UiState},
-    task::Task,
 };
 
-use super::correction::{CorrectionOverride, DEFAULT_CORRECTION_OVERRIDES};
-use super::plan::SCAN_PLAN;
-use super::result::ScanReporter;
-use super::scan_loop::scan_current_sub_scene;
-use crate::data::ArchiveTitleIndex;
+use super::{
+    correction::{CorrectionOverride, DEFAULT_CORRECTION_OVERRIDES},
+    plan::SCAN_PLAN,
+    reporting::ScanReporter,
+    scan_loop::scan_current_sub_scene,
+};
 
-/// 扫描档案库任务：扫描全部 6 个子分类的档案。
+/// 档案库扫描工作流：扫描全部 6 个子分类的档案。
 ///
-/// 扫描结果上报器与档案标题索引在构造时由调用方（[`crate::controller::Controller`]）注入，
-/// 使 `Task` trait 保持通用、不耦合档案上报。
-pub struct ArchiveScanTask<'a> {
+/// 扫描结果上报器与档案标题索引由工作者注入。
+pub(super) struct ArchiveScanner<'a> {
     reporter: ScanReporter,
     archive_titles: &'a ArchiveTitleIndex,
     correction_overrides: Option<&'a [CorrectionOverride<'a>]>,
 }
 
-impl<'a> ArchiveScanTask<'a> {
-    /// 创建任务。
-    pub fn new(reporter: ScanReporter, archive_titles: &'a ArchiveTitleIndex) -> Self {
+impl<'a> ArchiveScanner<'a> {
+    /// 创建扫描工作流。
+    pub(super) fn new(reporter: ScanReporter, archive_titles: &'a ArchiveTitleIndex) -> Self {
         Self {
             reporter,
             archive_titles,
             correction_overrides: Some(DEFAULT_CORRECTION_OVERRIDES),
         }
     }
-}
 
-impl Task for ArchiveScanTask<'_> {
-    fn name(&self) -> &str {
-        "扫描档案库"
-    }
-
-    fn precondition_state(&self) -> UiState {
-        UiState::Archive(ArchiveState::Main)
-    }
-
-    fn run<C>(&self, cx: &mut C, navigator: &Navigator) -> Result<()>
+    /// 移动鼠标、进入档案库主界面，然后扫描全部子分类。
+    pub(super) fn run<C>(&self, cx: &mut C, navigator: &Navigator) -> Result<()>
     where
         C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
     {
+        info!("========== 开始执行任务: 扫描档案库 ==========");
+
+        // 避免鼠标 hover 样式变化干扰首次 UI 状态识别和导航。
+        cx.move_mouse_to_safe_position()?;
+        navigator.navigate_to(UiState::Archive(ArchiveState::Main), cx)?;
+
         for (index, &subscene) in SCAN_PLAN.iter().enumerate() {
             info!(
                 "===== 扫描子分类 {}/{}: {} =====",
@@ -69,6 +66,7 @@ impl Task for ArchiveScanTask<'_> {
         }
 
         info!("全部 6 个子分类扫描完毕！");
+        info!("========== 任务 扫描档案库 执行完毕 ==========");
         Ok(())
     }
 }
