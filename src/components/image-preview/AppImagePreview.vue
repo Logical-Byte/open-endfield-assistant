@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { useImagePreview } from '@/composables/image-preview/useImagePreview';
-import { app } from '@/main';
-import { openImagePreviewKey } from '@/utils/provideInject';
+import { useImagePreview } from '@/composables/image-preview';
 import { useTemplateRef } from 'vue';
 
 const overlayRef = useTemplateRef('overlayRef');
@@ -15,7 +13,6 @@ const {
   naturalHeight,
   imgStyle,
   onImageLoad,
-  open,
   close,
   download,
   zoomIn,
@@ -28,8 +25,6 @@ const {
   onMouseup,
   onKeydown,
 } = useImagePreview(overlayRef, imgRef);
-
-app.provide(openImagePreviewKey, open);
 </script>
 
 <template>

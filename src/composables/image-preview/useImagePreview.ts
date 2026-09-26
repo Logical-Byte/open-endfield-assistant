@@ -3,19 +3,32 @@ import { useImagePreviewScale } from '@/composables/image-preview/useImagePrevie
 import { downloadFile } from '@/utils/file';
 import { useDevicePixelRatio, useMagicKeys } from '@vueuse/core';
 import type { CSSProperties, MaybeRefOrGetter, Ref } from 'vue';
-import { computed, nextTick, ref, toValue, watch } from 'vue';
+import { computed, nextTick, ref, shallowRef, toValue, watch } from 'vue';
 
-export type Point2D = {
+type Point2D = {
   x: number;
   y: number;
 };
 
-export type PreviewTarget = {
+export type ImagePreviewTarget = {
   url: string;
   name: string;
   downloadName: MaybeRefOrGetter<string>;
 };
 
+/** 当前应用唯一的图片预览目标。 */
+const preview = shallowRef<ImagePreviewTarget | null>(null);
+
+/** 在应用级图片预览器中打开图片。 */
+export function openImagePreview(target: ImagePreviewTarget): void {
+  // 总是创建新对象，重复打开同一个目标时也会重置视图。
+  preview.value = { ...target };
+}
+
+/**
+ * 创建应用级图片预览器的交互控制器。
+ * 共享的预览状态由应用中唯一的 `AppImagePreview` 实例消费。
+ */
 export function useImagePreview(
   overlayRef: Ref<HTMLElement | null>,
   imgRef: Ref<HTMLImageElement | null>,
@@ -43,8 +56,6 @@ export function useImagePreview(
   /** 按住 Shift 键时的缩放速度倍数 */
   const ZOOM_FAST_MULTIPLIER = 4;
 
-  /** 当前预览图像 */
-  const preview = ref<PreviewTarget | null>(null);
   /** 图像平移量，单位为 CSS 像素 */
   const offset = ref<Point2D>({ x: 0, y: 0 });
   /** 图像旋转角度，单位为度 */
@@ -244,17 +255,6 @@ export function useImagePreview(
     };
   });
 
-  /** 打开图像预览 */
-  function open(target: PreviewTarget): void {
-    preview.value = target;
-    isAutoFitting.value = true;
-    scale.value = 1;
-    rotation.value = 0;
-    offset.value = { x: 0, y: 0 };
-    naturalWidth.value = 0;
-    naturalHeight.value = 0;
-  }
-
   /** 关闭图像预览 */
   function close(): void {
     preview.value = null;
@@ -415,9 +415,16 @@ export function useImagePreview(
     }
   }
 
-  // 当开启预览时自动聚焦容器以便接收键盘事件，关闭预览时不需要特别处理，因为组件会被卸载
+  // 打开预览时重置视图并自动聚焦容器，以便接收键盘事件。
   watch(preview, async (value) => {
     if (value) {
+      isAutoFitting.value = true;
+      scale.value = 1;
+      rotation.value = 0;
+      offset.value = { x: 0, y: 0 };
+      naturalWidth.value = 0;
+      naturalHeight.value = 0;
+
       await nextTick();
       overlayRef.value?.focus();
     }
@@ -443,7 +450,6 @@ export function useImagePreview(
     naturalHeight,
     imgStyle,
     onImageLoad,
-    open,
     close,
     download,
     zoomIn,
