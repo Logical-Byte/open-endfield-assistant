@@ -1,2 +1,2 @@
-export type { ImagePreviewTarget } from './useImagePreview';
-export { openImagePreview, useImagePreview } from './useImagePreview';
+export type { ImagePreviewTarget } from './imagePreviewState';
+export { openImagePreview } from './imagePreviewState';

@@ -1,38 +1,55 @@
 import { useAnimateWhenever } from '@/composables/image-preview/useAnimateWhenever';
+import {
+  closeImagePreview,
+  currentImagePreviewTarget,
+} from '@/composables/image-preview/imagePreviewState';
 import { useImagePreviewScale } from '@/composables/image-preview/useImagePreviewScale';
 import { downloadFile } from '@/utils/file';
 import { useDevicePixelRatio, useMagicKeys } from '@vueuse/core';
-import type { CSSProperties, MaybeRefOrGetter, Ref } from 'vue';
-import { computed, nextTick, ref, shallowRef, toValue, watch } from 'vue';
+import type { ComputedRef, CSSProperties, Ref } from 'vue';
+import { computed, nextTick, ref, toValue, watch } from 'vue';
 
+/** 图片预览视图中的二维 CSS 像素坐标。 */
 type Point2D = {
   x: number;
   y: number;
 };
 
-export type ImagePreviewTarget = {
-  url: string;
-  name: string;
-  downloadName: MaybeRefOrGetter<string>;
+/** `AppImagePreview` 模板使用的内部状态和交互操作。 */
+type ImagePreviewHostController = {
+  preview: typeof currentImagePreviewTarget;
+  scale: Ref<number>;
+  backgroundColor: Ref<string>;
+  naturalWidth: Ref<number>;
+  naturalHeight: Ref<number>;
+  imgStyle: ComputedRef<CSSProperties>;
+  onImageLoad: (e: Event) => void;
+  close: () => void;
+  download: () => Promise<void>;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  rotateClockwise: () => void;
+  resetView: (key?: string) => void;
+  onWheel: (e: WheelEvent) => void;
+  onMousedown: (e: MouseEvent) => void;
+  onMousemove: (e: MouseEvent) => void;
+  onMouseup: () => void;
+  onKeydown: (e: KeyboardEvent) => void;
 };
 
-/** 当前应用唯一的图片预览目标。 */
-const preview = shallowRef<ImagePreviewTarget | null>(null);
-
-/** 在应用级图片预览器中打开图片。 */
-export function openImagePreview(target: ImagePreviewTarget): void {
-  // 总是创建新对象，重复打开同一个目标时也会重置视图。
-  preview.value = { ...target };
-}
-
 /**
- * 创建应用级图片预览器的交互控制器。
- * 共享的预览状态由应用中唯一的 `AppImagePreview` 实例消费。
+ * 创建唯一图片预览宿主的交互控制器。
+ * 应用级预览目标由宿主消费，视图和 DOM 状态随宿主生命周期存活。
+ *
+ * 应用中应当只有一个常驻宿主调用此函数。多个宿主会共享预览目标，却各自持有
+ * 视图状态，并竞争焦点和全局键盘操作，因此不属于受支持的使用方式。
  */
-export function useImagePreview(
+export function useImagePreviewHost(
   overlayRef: Ref<HTMLElement | null>,
   imgRef: Ref<HTMLImageElement | null>,
-) {
+): ImagePreviewHostController {
+  const preview = currentImagePreviewTarget;
+
   const {
     clampScale,
     getNextScale,
@@ -255,11 +272,6 @@ export function useImagePreview(
     };
   });
 
-  /** 关闭图像预览 */
-  function close(): void {
-    preview.value = null;
-  }
-
   /** 下载图像 */
   async function download(): Promise<void> {
     if (!preview.value) return;
@@ -373,7 +385,7 @@ export function useImagePreview(
     if (!e.ctrlKey && !e.metaKey) {
       switch (lowerKey) {
         case 'escape': // Escape 键关闭预览
-          close();
+          closeImagePreview();
           break;
         case '+':
         case '=': // 放大
@@ -450,7 +462,7 @@ export function useImagePreview(
     naturalHeight,
     imgStyle,
     onImageLoad,
-    close,
+    close: closeImagePreview,
     download,
     zoomIn,
     zoomOut,

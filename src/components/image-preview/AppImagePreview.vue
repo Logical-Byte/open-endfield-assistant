@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useImagePreview } from '@/composables/image-preview';
+import { useImagePreviewHost } from '@/composables/image-preview/useImagePreviewHost';
 import { useTemplateRef } from 'vue';
 
 const overlayRef = useTemplateRef('overlayRef');
@@ -24,7 +24,7 @@ const {
   onMousemove,
   onMouseup,
   onKeydown,
-} = useImagePreview(overlayRef, imgRef);
+} = useImagePreviewHost(overlayRef, imgRef);
 </script>
 
 <template>
