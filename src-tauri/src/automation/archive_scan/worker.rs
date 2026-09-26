@@ -11,7 +11,7 @@ use crate::{
     app_paths::AppPaths,
     automation::{
         AutomationStopped, StopToken, is_stop_requested,
-        scan_runtime::{ScanOutcome, ScanWorker, ScanWorkerResult},
+        scan_runtime::{FinishReason, ScanWorker, ScanWorkerExit},
         session::Session,
         stats::counts::Capture,
     },
@@ -53,15 +53,15 @@ impl LiveScanWorker {
         }
     }
 
-    fn run_scan(&self, stop: StopToken) -> ScanWorkerResult {
+    fn run_scan(&self, stop: StopToken) -> ScanWorkerExit {
         // 连接游戏可能耗时，所以留在工作线程中。
         let mut session = match Session::connect(&self.ocr, Arc::clone(&stop)) {
             Ok(session) => session,
             Err(_error) if is_stop_requested(&stop) => {
-                return ScanWorkerResult::without_capture(ScanOutcome::Stopped);
+                return ScanWorkerExit::without_capture(FinishReason::Stopped);
             }
             Err(error) => {
-                return ScanWorkerResult::without_capture(ScanOutcome::Failed(format!(
+                return ScanWorkerExit::without_capture(FinishReason::Failed(format!(
                     "连接游戏失败: {error:#}"
                 )));
             }
@@ -69,7 +69,7 @@ impl LiveScanWorker {
 
         // 停止请求可能发生在连接过程中，不能让它被清除或跳过。
         if is_stop_requested(&stop) {
-            return ScanWorkerResult::without_capture(ScanOutcome::Stopped);
+            return ScanWorkerExit::without_capture(FinishReason::Stopped);
         }
 
         // 扫描档案库任务需要点击游戏窗口，先确保窗口在前台（失败不阻断）。
@@ -85,14 +85,14 @@ impl LiveScanWorker {
         let result = scanner.run(&mut captured, &self.navigator);
         let capture = captured.finish();
 
-        let outcome = match result {
-            Ok(()) => ScanOutcome::Completed,
+        let reason = match result {
+            Ok(()) => FinishReason::Completed,
             Err(error) if error.downcast_ref::<AutomationStopped>().is_some() => {
-                ScanOutcome::Stopped
+                FinishReason::Stopped
             }
-            Err(error) => ScanOutcome::Failed(format!("扫描档案库任务执行失败: {error:#}")),
+            Err(error) => FinishReason::Failed(format!("扫描档案库任务执行失败: {error:#}")),
         };
-        ScanWorkerResult::with_capture(outcome, capture)
+        ScanWorkerExit::with_capture(reason, capture)
     }
 
     /// 播放扫描提示音（音量取本次配置快照）。
@@ -116,11 +116,11 @@ impl LiveScanWorker {
 }
 
 impl ScanWorker for LiveScanWorker {
-    fn run(self, stop: StopToken) -> ScanWorkerResult {
+    fn run(self, stop: StopToken) -> ScanWorkerExit {
         let result = self.run_scan(stop);
-        self.play_scan_sound(match &result.outcome {
-            ScanOutcome::Completed => ScanSound::Enable,
-            ScanOutcome::Stopped | ScanOutcome::Failed(_) => ScanSound::Disable,
+        self.play_scan_sound(match &result.reason {
+            FinishReason::Completed => ScanSound::Enable,
+            FinishReason::Stopped | FinishReason::Failed(_) => ScanSound::Disable,
         });
         result
     }
