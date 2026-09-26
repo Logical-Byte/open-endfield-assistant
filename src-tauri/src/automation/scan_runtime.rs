@@ -150,7 +150,7 @@ impl ScanRuntime {
             let calls = summary.calls;
             info!(
                 "扫描档案库工作流统计：耗时 {:.1} 秒，截图 {} 次，点击 {} 次，按键 {} 次，\
-                 鼠标归位 {} 次，模板匹配 {} 次，OCR {} 次，等待 {} 次",
+                 显式鼠标归位 {} 次，模板匹配 {} 次，OCR {} 次，等待 {} 次",
                 summary.elapsed.as_secs_f64(),
                 calls.screenshot,
                 calls.click,
