@@ -1,6 +1,6 @@
 import { OeaConfig, UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
-import { cdkDecrypt, cdkEncrypt, loadOeaConfig, logError, saveOeaConfig } from '@/utils/tauri';
-import { ref, watch } from 'vue';
+import { cdkDecrypt, cdkEncrypt, loadOeaConfig, saveOeaConfig } from '@/utils/tauri';
+import { createConfigStore } from './configStore';
 
 /** 更新源选项 */
 export const updateSourceItems = [
@@ -52,107 +52,27 @@ export const DEFAULT_OEA_CONFIG: OeaConfig = {
   scanTipsDismissedVersion: 0,
 } as const;
 
-export const oeaConfig = ref<OeaConfig>(DEFAULT_OEA_CONFIG);
-/** 配置是否已从磁盘加载完成。加载完成前 UI 不应依据默认值渲染（如扫描提示），避免启动时短暂闪烁。 */
-export const configLoaded = ref(false);
-/** Mirror酱 CDK 明文（仅内存共享，不落盘；磁盘只存 `oeaConfig.mirrorchyanCdkEncrypted` 密文）。 */
-export const mirrorchyanCdk = ref('');
-export const saving = ref(false);
+const settings = createConfigStore(DEFAULT_OEA_CONFIG, {
+  load: loadOeaConfig,
+  save: saveOeaConfig,
+  encrypt: cdkEncrypt,
+  decrypt: cdkDecrypt,
+});
 
-/**
- * 深拷贝配置。
- *
- * ref 会把对象值包装为响应式代理（Proxy），structuredClone 无法克隆 Proxy；
- * 配置为纯 JSON 数据，故用 JSON 序列化实现深拷贝。
- */
-function deepClone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value));
-}
+/** UI 读取 draft，业务流程读取 effective；修改统一经过 editSettings。 */
+export const settingsDraft = settings.draft;
+export const effectiveSettings = settings.effective;
+export const configLoaded = settings.loaded;
+export const configLoading = settings.loading;
+export const configLoadError = settings.loadError;
+export const configSaveError = settings.saveError;
+export const initOeaConfig = settings.initialize;
+export const editSettings = settings.edit;
+export const retrySettingsSave = settings.retry;
 
-/** 明文变化后加密并写入配置密文（由配置深监听统一落盘）。 */
-async function saveMirrorchyanCdk(plain: string): Promise<void> {
-  if (!plain) {
-    oeaConfig.value.mirrorchyanCdkEncrypted = '';
-    return;
+/** Nuxt UI 滑块可能发出数组中间值，只接收合法音量。 */
+export function setSoundVolume(value: number | number[] | undefined): void {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    settings.edit({ soundVolume: Math.min(1, Math.max(0, value)) });
   }
-  try {
-    oeaConfig.value.mirrorchyanCdkEncrypted = await cdkEncrypt(plain);
-  } catch (error) {
-    useToast().add({
-      title: '保存 CDK 失败',
-      description: error instanceof Error ? error.message : String(error),
-      icon: 'i-lucide-triangle-alert',
-      color: 'error',
-    });
-  }
-}
-
-/** 最近一次成功保存到磁盘的配置快照（保存失败时回滚到此值）。 */
-let lastSaved: OeaConfig = deepClone(DEFAULT_OEA_CONFIG);
-/** 回滚进行中标志：拦截回滚赋值触发的重复保存。 */
-let restoring = false;
-
-export async function initOeaConfig() {
-  const toast = useToast();
-
-  // 加载配置，失败时使用默认配置。
-  try {
-    oeaConfig.value = await loadOeaConfig();
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logError(`加载配置失败，使用默认配置: ${errorMessage}`);
-    oeaConfig.value = deepClone(DEFAULT_OEA_CONFIG);
-  }
-  // 保存快照，回滚时使用。
-  lastSaved = deepClone(oeaConfig.value);
-  // 标记配置已就绪：此后 UI 才可依据真实配置渲染（如扫描提示），避免用默认值短暂闪现。
-  configLoaded.value = true;
-
-  // 解密密文填充内存明文（必须在注册明文 watch 之前，避免初始化即触发一次加密写回）。
-  if (oeaConfig.value.mirrorchyanCdkEncrypted) {
-    try {
-      mirrorchyanCdk.value = await cdkDecrypt(oeaConfig.value.mirrorchyanCdkEncrypted);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logError(`解密 CDK 失败，视为未设置: ${errorMessage}`);
-    }
-  }
-
-  // 明文变化 → 加密 → 写入配置密文（配置深监听负责落盘）。
-  watch(mirrorchyanCdk, async (value: string) => {
-    await saveMirrorchyanCdk(value.trim());
-  });
-
-  // 注意：deep watch 下新/旧值都是同一对象引用（深层修改不改变引用），
-  // 无法用旧值回滚，因此单独维护 lastSaved 快照。
-  // flush: 'sync' 保证回滚赋值立即命中 restoring 标志，避免回滚再次触发保存。
-  watch(
-    oeaConfig,
-    async () => {
-      if (restoring) {
-        return;
-      }
-
-      saving.value = true;
-      try {
-        await saveOeaConfig(oeaConfig.value);
-        lastSaved = deepClone(oeaConfig.value);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logError(`保存配置失败，已回滚: ${errorMessage}`);
-        restoring = true;
-        oeaConfig.value = deepClone(lastSaved);
-        restoring = false;
-        toast.add({
-          title: '保存配置失败',
-          description: error instanceof Error ? error.message : String(error),
-          icon: 'i-lucide-triangle-alert',
-          color: 'error',
-        });
-      } finally {
-        saving.value = false;
-      }
-    },
-    { deep: true, flush: 'sync' },
-  );
 }

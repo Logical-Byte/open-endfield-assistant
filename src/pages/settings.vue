@@ -3,10 +3,16 @@ import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import { UpdateProxyMode } from '@/types/oeaConfig';
 import {
   CURRENT_SCAN_TIPS_VERSION,
-  mirrorchyanCdk,
-  oeaConfig,
+  configLoaded,
+  configLoading,
+  configLoadError,
+  configSaveError,
+  editSettings,
+  initOeaConfig,
+  retrySettingsSave,
+  setSoundVolume,
+  settingsDraft,
   proxyModeItems,
-  saving,
   updateSourceItems,
 } from '@/utils/app/config';
 import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
@@ -31,23 +37,14 @@ const uiScaleNumber = computed<number>({
   },
 });
 
-/**
- * 音量（本地数字中转）。
- *
- * Nuxt UI 的 USlider 内部把 v-model 当数组处理，拖动时可能先回写 `[v]`（数组）再回写 `v`（数字），
- * 直接绑到 oeaConfig.soundVolume 会让数组短暂进入配置，触发 save_oea_config 反序列化失败
- * （"invalid type: sequence, expected f32"）。这里只允许 number 写入配置，数组一律忽略。
- */
-const soundVolume = computed<number>({
-  get() {
-    return oeaConfig.value.soundVolume;
-  },
-  set(value: number) {
-    // 只在 value 是数字时写入配置，数组一律忽略
-    if (typeof value === 'number') {
-      oeaConfig.value.soundVolume = value;
-    }
-  },
+// UInput 自带 lazy 提交，输入中间值留在控件内；普通失焦不会产生修改。
+const mirrorchyanCdk = computed<string>({
+  get: () => settingsDraft.value.mirrorchyanCdk ?? '',
+  set: (value: string) => editSettings({ mirrorchyanCdk: value }),
+});
+const updateProxyUrl = computed<string>({
+  get: () => settingsDraft.value.updateProxyUrl,
+  set: (value: string) => editSettings({ updateProxyUrl: value }),
 });
 
 /**
@@ -57,10 +54,10 @@ const soundVolume = computed<number>({
  */
 const scanGuideEnabled = computed<boolean>({
   get() {
-    return oeaConfig.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION;
+    return settingsDraft.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION;
   },
   set(value: boolean) {
-    oeaConfig.value.scanTipsDismissedVersion = value ? 0 : CURRENT_SCAN_TIPS_VERSION;
+    editSettings({ scanTipsDismissedVersion: value ? 0 : CURRENT_SCAN_TIPS_VERSION });
   },
 });
 
@@ -171,6 +168,20 @@ const stopScrollToHash = router.afterEach((to) => {
       </template>
 
       <UPageBody>
+        <UAlert
+          v-if="configLoadError"
+          :actions="[{ label: '重新加载', loading: configLoading, onClick: initOeaConfig }]"
+          color="error"
+          description="加载成功后才能修改设置。"
+          title="设置加载失败"
+        />
+        <UAlert
+          v-if="configSaveError"
+          :actions="[{ label: '重试保存', onClick: retrySettingsSave }]"
+          color="error"
+          description="已保留当前编辑，应用仍使用最近一次成功保存的设置。"
+          title="设置未保存"
+        />
         <SettingsCard
           id="interface"
           class="scroll-mt-8"
@@ -202,14 +213,18 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-panel-bottom-close"
             title="关闭时最小化到托盘"
           >
-            <USwitch v-model="oeaConfig.minimizeToTray" :loading="saving" />
+            <USwitch
+              :disabled="!configLoaded"
+              :model-value="settingsDraft.minimizeToTray"
+              @update:model-value="editSettings({ minimizeToTray: $event })"
+            />
           </SettingsItem>
           <SettingsItem
             description="进入档案扫描页时显示操作指引，关闭后若无更新则不再提示，可随时重新开启"
             icon="i-lucide-circle-help"
             title="显示新手操作提示"
           >
-            <USwitch v-model="scanGuideEnabled" :loading="saving" />
+            <USwitch v-model="scanGuideEnabled" :disabled="!configLoaded" />
           </SettingsItem>
         </SettingsCard>
 
@@ -220,9 +235,17 @@ const stopScrollToHash = router.afterEach((to) => {
             title="扫描提示音音量"
           >
             <div class="flex w-56 items-center gap-2">
-              <USlider v-model="soundVolume" class="flex-1" :max="1" :min="0" :step="0.05" />
+              <USlider
+                class="flex-1"
+                :disabled="!configLoaded"
+                :max="1"
+                :min="0"
+                :model-value="settingsDraft.soundVolume"
+                :step="0.05"
+                @update:model-value="setSoundVolume"
+              />
               <span class="w-10 text-end text-sm tabular-nums">
-                {{ Math.round(soundVolume * 100) }}%
+                {{ Math.round(settingsDraft.soundVolume * 100) }}%
               </span>
             </div>
           </SettingsItem>
@@ -234,7 +257,13 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-cloud-download"
             title="更新源"
           >
-            <USelect v-model="oeaConfig.updateSource" class="w-56" :items="updateSourceItems" />
+            <USelect
+              class="w-56"
+              :disabled="!configLoaded"
+              :items="updateSourceItems"
+              :model-value="settingsDraft.updateSource"
+              @update:model-value="editSettings({ updateSource: $event })"
+            />
           </SettingsItem>
 
           <SettingsItem
@@ -242,7 +271,11 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-cloud-download"
             title="自动下载更新"
           >
-            <USwitch v-model="oeaConfig.autoDownloadUpdates" :loading="saving" />
+            <USwitch
+              :disabled="!configLoaded"
+              :model-value="settingsDraft.autoDownloadUpdates"
+              @update:model-value="editSettings({ autoDownloadUpdates: $event })"
+            />
           </SettingsItem>
 
           <SettingsItem
@@ -250,7 +283,11 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-rocket"
             title="自动安装更新"
           >
-            <USwitch v-model="oeaConfig.autoInstallUpdates" :loading="saving" />
+            <USwitch
+              :disabled="!configLoaded"
+              :model-value="settingsDraft.autoInstallUpdates"
+              @update:model-value="editSettings({ autoInstallUpdates: $event })"
+            />
           </SettingsItem>
 
           <SettingsItem icon="i-lucide-key-round" title="Mirror酱 CDK">
@@ -274,11 +311,24 @@ const stopScrollToHash = router.afterEach((to) => {
             </template>
             <div class="flex flex-col items-center gap-1">
               <UInput
-                v-model="mirrorchyanCdk"
+                v-model.lazy="mirrorchyanCdk"
                 class="w-56"
+                :disabled="!configLoaded"
                 placeholder="未填写时使用 OEM 下载"
                 type="password"
+                @keydown.enter="($event.target as HTMLInputElement).blur()"
               />
+              <template v-if="settingsDraft.mirrorchyanCdk === null">
+                <p class="max-w-56 text-sm text-warning">
+                  已保存的 CDK 无法解密，可重新输入或清除。
+                </p>
+                <UButton
+                  color="neutral"
+                  label="清除已保存 CDK"
+                  variant="link"
+                  @click="editSettings({ mirrorchyanCdk: '' })"
+                />
+              </template>
               <ULink
                 class="text-sm text-primary hover:text-primary/75"
                 rel="noopener noreferrer"
@@ -297,25 +347,33 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-network"
             title="网络代理"
           >
-            <USelect v-model="oeaConfig.updateProxyMode" class="w-56" :items="proxyModeItems" />
+            <USelect
+              class="w-56"
+              :disabled="!configLoaded"
+              :items="proxyModeItems"
+              :model-value="settingsDraft.updateProxyMode"
+              @update:model-value="editSettings({ updateProxyMode: $event })"
+            />
           </SettingsItem>
 
           <SettingsItem
-            v-if="oeaConfig.updateProxyMode === UpdateProxyMode.Custom"
+            v-if="settingsDraft.updateProxyMode === UpdateProxyMode.Custom"
             description="自定义代理服务器地址，例如 http://127.0.0.1:7890"
             icon="i-lucide-link"
             title="代理地址"
           >
             <UInput
-              v-model="oeaConfig.updateProxyUrl"
+              v-model.lazy="updateProxyUrl"
               class="w-56"
+              :disabled="!configLoaded"
               placeholder="http://127.0.0.1:7890"
+              @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
           </SettingsItem>
           <div>
             <UButton
               block
-              :disabled="updateOperationBusy"
+              :disabled="!configLoaded || updateOperationBusy"
               icon="i-lucide-refresh-cw"
               label="检查更新"
               :loading="updateCheckState.status === 'checking'"

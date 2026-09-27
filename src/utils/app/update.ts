@@ -12,7 +12,7 @@ import {
   UpdateStatus,
 } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
-import { oeaConfig } from '@/utils/app/config';
+import { configLoaded, effectiveSettings } from '@/utils/app/config';
 import { logDebug, logError, logWarn, onAppStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { Channel, invoke } from '@tauri-apps/api/core';
@@ -158,10 +158,10 @@ export async function checkUpdate(): Promise<void> {
     if (availability.status === 'available') {
       writeUpdateLog(
         logDebug,
-        `更新前端：检测到可用更新，打开更新提示（autoDownload=${oeaConfig.value.autoDownloadUpdates}）`,
+        `更新前端：检测到可用更新，打开更新提示（autoDownload=${effectiveSettings.value.autoDownloadUpdates}）`,
       );
       updatePopoverOpen.value = true;
-      shouldAutoDownload = oeaConfig.value.autoDownloadUpdates;
+      shouldAutoDownload = configLoaded.value && effectiveSettings.value.autoDownloadUpdates;
     }
   } catch (error) {
     checkError.value = error instanceof Error ? error : new Error(String(error));
@@ -275,7 +275,7 @@ export async function initUpdateState(): Promise<void> {
   });
 
   if (pendingUpdate.value) {
-    if (oeaConfig.value.autoInstallUpdates) {
+    if (configLoaded.value && effectiveSettings.value.autoInstallUpdates) {
       void tryAutoInstall();
     } else {
       updatePopoverOpen.value = true;
@@ -304,12 +304,13 @@ export async function tryAutoInstall(): Promise<void> {
     pendingUpdate.value === null ||
     effectiveOperation.value !== 'idle' ||
     installStatus.value !== UpdateInstallStatus.Idle ||
-    !oeaConfig.value.autoInstallUpdates ||
+    !configLoaded.value ||
+    !effectiveSettings.value.autoInstallUpdates ||
     appStatus.value.running
   ) {
     writeUpdateLog(
       logDebug,
-      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${oeaConfig.value.autoInstallUpdates}, scanning=${appStatus.value.running}）`,
+      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${effectiveSettings.value.autoInstallUpdates}, scanning=${appStatus.value.running}）`,
     );
     return;
   }

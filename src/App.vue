@@ -2,7 +2,7 @@
 import { useTheme } from '@/composables/useTheme';
 import { initAppStatus } from '@/utils/app/appStatus';
 import { initArchiveContract } from '@/utils/app/archiveContract';
-import { initOeaConfig } from '@/utils/app/config';
+import { configSaveError, initOeaConfig, retrySettingsSave } from '@/utils/app/config';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
@@ -11,7 +11,20 @@ import { initUiScale } from '@/utils/uiScale';
 import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
+
+const toast = useToast();
+// 扫描提示也能触发设置保存，失败通知放在应用层以覆盖设置页以外的操作。
+watch(configSaveError, (error) => {
+  if (error) {
+    toast.add({
+      title: '设置未保存',
+      description: '已保留当前编辑，应用仍使用最近一次成功保存的设置。',
+      color: 'error',
+      actions: [{ label: '重试保存', onClick: retrySettingsSave }],
+    });
+  }
+});
 
 const colorMode = useColorMode();
 const themeColor = computed(() => (colorMode.value === 'dark' ? '#18181b' : '#ffffff'));
