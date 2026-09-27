@@ -37,6 +37,29 @@ function setup(config: OeaConfig = { ...DEFAULT_OEA_CONFIG }): {
 }
 
 describe('设置提交', () => {
+  it('扫描提示按版本展示，无关编辑保留旧版本号，重新开启后可再次确认', async () => {
+    const { store, io } = setup({ ...DEFAULT_OEA_CONFIG, scanTipsDismissedVersion: 7 });
+    await store.initialize();
+    expect(store.draft.value.scanGuideEnabled).toBe(false);
+    store.edit({ soundVolume: 0.8 });
+    await Promise.resolve();
+    expect(io.save.mock.calls[0]?.[0].scanTipsDismissedVersion).toBe(7);
+    store.edit({ scanGuideEnabled: true });
+    await Promise.resolve();
+    expect(io.save.mock.calls[1]?.[0].scanTipsDismissedVersion).toBe(0);
+    expect(store.effective.value.scanGuideEnabled).toBe(true);
+    store.edit({ scanGuideEnabled: false });
+    await Promise.resolve();
+    const saved = io.save.mock.calls[2]![0];
+    expect(saved.scanTipsDismissedVersion).toBeGreaterThan(0);
+    const restarted = setup(saved).store;
+    await restarted.initialize();
+    expect(restarted.effective.value.scanGuideEnabled).toBe(false);
+    const firstRun = setup().store;
+    await firstRun.initialize();
+    expect(firstRun.effective.value.scanGuideEnabled).toBe(true);
+  });
+
   it('加载期间不接受编辑，加载失败也不会用占位默认值覆盖已有配置', async () => {
     const { store, io } = setup();
     const load = deferred<OeaConfig>();

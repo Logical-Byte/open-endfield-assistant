@@ -2,7 +2,6 @@
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import { UpdateProxyMode } from '@/types/oeaConfig';
 import {
-  CURRENT_SCAN_TIPS_VERSION,
   configInitialized,
   configInitializing,
   configInitializeError,
@@ -45,20 +44,6 @@ const mirrorchyanCdk = computed<string>({
 const updateProxyUrl = computed<string>({
   get: () => draftSettings.value.updateProxyUrl,
   set: (value: string) => editSettings({ updateProxyUrl: value }),
-});
-
-/**
- * 档案扫描页是否展示操作提示（开关）。
- * 底层映射到已确认提示版本 `scanTipsDismissedVersion`：
- * 关闭时写为当前版本（本版本内不再提示），打开时重置为 `0`（重新展示最新版提示）。
- */
-const scanGuideEnabled = computed<boolean>({
-  get() {
-    return draftSettings.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION;
-  },
-  set(value: boolean) {
-    editSettings({ scanTipsDismissedVersion: value ? 0 : CURRENT_SCAN_TIPS_VERSION });
-  },
 });
 
 /** 手动检查更新。 */
@@ -224,7 +209,11 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-circle-help"
             title="显示新手操作提示"
           >
-            <USwitch v-model="scanGuideEnabled" :disabled="!configInitialized" />
+            <USwitch
+              :disabled="!configInitialized"
+              :model-value="draftSettings.scanGuideEnabled"
+              @update:model-value="editSettings({ scanGuideEnabled: $event })"
+            />
           </SettingsItem>
         </SettingsCard>
 

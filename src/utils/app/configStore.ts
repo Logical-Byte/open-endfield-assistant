@@ -4,8 +4,11 @@ import { readonly, ref, shallowRef, type Ref } from 'vue';
 /** 可编辑设置。`mirrorchyanCdk === null` 表示解密失败，保存其他字段时保留原密文。 */
 export type DraftSettings = Omit<
   OeaConfig,
-  'majorVersion' | 'minorVersion' | 'mirrorchyanCdkEncrypted'
-> & { mirrorchyanCdk: string | null };
+  'majorVersion' | 'minorVersion' | 'mirrorchyanCdkEncrypted' | 'scanTipsDismissedVersion'
+> & { mirrorchyanCdk: string | null; scanGuideEnabled: boolean };
+
+// 修改 ScanGuide 文案且需要所有用户重新确认时递增；无需改变配置文件版本。
+const CURRENT_SCAN_TIPS_VERSION = 1;
 
 /** 配置 store 使用的持久化边界，生产环境连接 Tauri IPC，测试中可替换为受控 Promise。 */
 interface ConfigPersistence {
@@ -123,15 +126,25 @@ export function createConfigStore(defaults: OeaConfig, io: ConfigPersistence): C
         pending = false;
         // `edit()` 替换 `draft.value`，因此 `await` 期间再次调用 `edit()` 不会修改本轮的 `candidate`。
         const candidate = draft.value;
-        const { mirrorchyanCdk, ...values } = candidate;
+        const { mirrorchyanCdk, scanGuideEnabled, ...values } = candidate;
         try {
           // 默认复用最近一次成功保存的密文，只有已知明文发生变化时才重新加密。
           let encrypted = persisted.mirrorchyanCdkEncrypted;
           if (mirrorchyanCdk !== null && mirrorchyanCdk !== effective.value.mirrorchyanCdk) {
             encrypted = mirrorchyanCdk ? await io.encrypt(mirrorchyanCdk) : '';
           }
-          // 从 `persisted` 保留版本字段，再用本轮 `candidate` 和对应密文构造完整 DTO。
-          const config = { ...persisted, ...values, mirrorchyanCdkEncrypted: encrypted };
+          const config = {
+            ...persisted,
+            ...values,
+            mirrorchyanCdkEncrypted: encrypted,
+            // 仅显式切换提示时编码版本，其他编辑保留磁盘中的历史或更高版本号。
+            scanTipsDismissedVersion:
+              scanGuideEnabled === effective.value.scanGuideEnabled
+                ? persisted.scanTipsDismissedVersion
+                : scanGuideEnabled
+                  ? 0
+                  : CURRENT_SCAN_TIPS_VERSION,
+          };
           await io.save(config);
           persisted = config;
           effective.value = candidate;
@@ -168,7 +181,7 @@ function toDraft(config: OeaConfig, mirrorchyanCdk: string | null): DraftSetting
     updateProxyUrl: config.updateProxyUrl,
     autoDownloadUpdates: config.autoDownloadUpdates,
     autoInstallUpdates: config.autoInstallUpdates,
-    scanTipsDismissedVersion: config.scanTipsDismissedVersion,
+    scanGuideEnabled: config.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION,
     mirrorchyanCdk,
   };
 }

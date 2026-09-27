@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  configInitialized,
-  CURRENT_SCAN_TIPS_VERSION,
-  editSettings,
-  effectiveSettings,
-} from '@/utils/app/config';
+import { configInitialized, editSettings, effectiveSettings } from '@/utils/app/config';
 import { computed, ref } from 'vue';
 
 /** 本次启动内已手动关闭（未勾选持久化时仅隐藏本次启动）。 */
@@ -18,7 +13,7 @@ const dismissedThisSession = ref(false);
 const showScanGuide = computed(
   () =>
     configInitialized.value &&
-    effectiveSettings.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION &&
+    effectiveSettings.value.scanGuideEnabled &&
     !dismissedThisSession.value,
 );
 
@@ -28,13 +23,13 @@ const dismissGuide = ref(false);
 /**
  * 关闭提示。
  *
- * 已勾选「下次更新前不再提示」：把确认版本写入当前 `CURRENT_SCAN_TIPS_VERSION`，
- * 由 `config.ts` 串行保存，之后本版本内不再展示（版本升级后重新展示）。
+ * 勾选时提交关闭提示，版本编码和保存由设置模块负责。
+ * 保存成功后隐藏；保存失败则保留提示，让用户可以重试。
  * 未勾选：仅本次启动内隐藏，不写配置，下次启动仍会展示。
  */
 function dismissScanGuide(): void {
   if (dismissGuide.value) {
-    editSettings({ scanTipsDismissedVersion: CURRENT_SCAN_TIPS_VERSION });
+    editSettings({ scanGuideEnabled: false });
   } else {
     dismissedThisSession.value = true;
   }
