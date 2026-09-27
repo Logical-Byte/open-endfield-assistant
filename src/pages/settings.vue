@@ -12,9 +12,11 @@ import {
 import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
 import { oeaVersion } from '@/version';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 const toast = useToast();
+const route = useRoute();
 
 /** UI 缩放（本地数字中转）。`USlider` 会短暂回写 `[v]` 数组，这里只允许 number 进入 `uiScale`。 */
 const uiScaleNumber = computed<number>({
@@ -114,16 +116,32 @@ function scrollToSection(id: string): void {
   }, 700);
 }
 
+/** 支持从更新弹窗直接定位到更新设置，也支持在本页再次点击该入口。 */
+function scrollToHashSection(): void {
+  const sectionId = route.hash.slice(1);
+  if (sections.some((section) => section.id === sectionId)) {
+    scrollToSection(sectionId);
+  }
+}
+
 onMounted(() => {
   // `UMain` 渲染为 <main>，是实际滚动容器。
   document
     .querySelector('main')
     ?.addEventListener('scroll', updateActiveSection, { passive: true });
+  void nextTick().then(scrollToHashSection);
 });
 
 onBeforeUnmount(() => {
   document.querySelector('main')?.removeEventListener('scroll', updateActiveSection);
 });
+
+watch(
+  () => route.hash,
+  () => {
+    void nextTick().then(scrollToHashSection);
+  },
+);
 </script>
 
 <template>
