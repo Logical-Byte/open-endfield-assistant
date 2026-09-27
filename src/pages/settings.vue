@@ -12,11 +12,12 @@ import {
 import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
 import { oeaVersion } from '@/version';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 const toast = useToast();
 const route = useRoute();
+const router = useRouter();
 
 /** UI 缩放（本地数字中转）。`USlider` 会短暂回写 `[v]` 数组，这里只允许 number 进入 `uiScale`。 */
 const uiScaleNumber = computed<number>({
@@ -134,14 +135,15 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.querySelector('main')?.removeEventListener('scroll', updateActiveSection);
+  stopScrollToHash();
 });
 
-watch(
-  () => route.hash,
-  () => {
+// 相同 hash 的重复导航也会经过 afterEach，滚离更新区域后仍可用齿轮重新定位。
+const stopScrollToHash = router.afterEach((to) => {
+  if (to.path === '/settings') {
     void nextTick().then(scrollToHashSection);
-  },
-);
+  }
+});
 </script>
 
 <template>
