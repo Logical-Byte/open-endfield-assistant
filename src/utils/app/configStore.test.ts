@@ -141,12 +141,18 @@ describe('设置提交', () => {
 
   it('加密失败保留有效 CDK，后续编辑可以重新提交；未修改 CDK 时复用密文', async () => {
     const { store, io } = setup({ ...DEFAULT_OEA_CONFIG, mirrorchyanCdkEncrypted: 'old-cipher' });
+    io.decrypt.mockResolvedValueOnce('  test-plain  ');
     await store.initialize();
+    store.edit({ soundVolume: 0.6 });
+    await Promise.resolve();
+    expect(io.encrypt).not.toHaveBeenCalled();
+    expect(io.save.mock.calls[0]?.[0].mirrorchyanCdkEncrypted).toBe('old-cipher');
+    io.save.mockClear();
     io.encrypt.mockRejectedValueOnce(new Error('加密失败'));
     store.edit({ mirrorchyanCdk: 'new-plain' });
     await Promise.resolve();
     expect(io.save).not.toHaveBeenCalled();
-    expect(store.effective.value.mirrorchyanCdk).toBe('test-plain');
+    expect(store.effective.value.mirrorchyanCdk).toBe('  test-plain  ');
     expect(store.saveError.value?.message).toBe('加密失败');
     store.edit({ soundVolume: 0.7 });
     await Promise.resolve();

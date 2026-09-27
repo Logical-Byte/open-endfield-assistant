@@ -68,7 +68,9 @@ export function createConfigStore(defaults: OeaConfig, io: ConfigPersistence): C
   function edit(patch: Partial<SettingsDraft>): void {
     if (!loaded.value) return;
     const next = { ...draft.value, ...patch };
-    if (next.mirrorchyanCdk !== null) next.mirrorchyanCdk = next.mirrorchyanCdk.trim();
+    if (typeof patch.mirrorchyanCdk === 'string') {
+      next.mirrorchyanCdk = patch.mirrorchyanCdk.trim();
+    }
     if (
       !saveError.value &&
       Object.keys(next).every(
