@@ -12,8 +12,9 @@ const dismissedThisSession = ref(false);
 
 /**
  * 是否显示启动扫描提示。
- * 配置加载完成前不渲染（避免启动时用默认配置短暂闪现提示）；
- * 加载完成后，用户确认过的提示版本低于当前版本、且本次启动内未手动关闭时显示。
+ * 配置加载完成前不渲染，避免启动时用默认配置短暂闪现提示。
+ * 加载完成后，`effectiveSettings.value.scanGuideEnabled` 为 `true`
+ * 且本次启动内未手动关闭时显示。提示版本的比较和编码由 `configStore.ts` 负责。
  */
 const showScanGuide = computed(
   () =>
