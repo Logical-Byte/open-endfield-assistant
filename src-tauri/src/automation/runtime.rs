@@ -94,8 +94,15 @@ pub(crate) struct Runtime {
 
 struct RuntimeState {
     status: Status,
-    /// 当前运行的停止令牌。每次成功 claim 都创建一个新的令牌。
+    /// 当前运行的停止令牌。每次成功 `claim` 都创建一个新的令牌。
     stop: Option<StopToken>,
+}
+
+impl RuntimeState {
+    fn finish(&mut self) {
+        self.status = Status::Idle;
+        self.stop = None;
+    }
 }
 
 impl Runtime {
@@ -212,16 +219,14 @@ impl Runtime {
 
     fn finish_run(&self) {
         let mut state = self.state.lock().unwrap();
-        state.status = Status::Idle;
-        state.stop = None;
+        state.finish();
     }
 
     fn finish_run_and_emit(&self, handle: &AppHandle, event: RunFinished) {
         let mut state = self.state.lock().unwrap();
-        state.status = Status::Idle;
-        state.stop = None;
+        state.finish();
 
-        // 在两个有序事件发出前继续占用 claim 锁，防止新任务的 `Running` 插入旧任务终态。
+        // 在两个有序事件发出前继续占用 `claim` 锁，防止新任务的 `Running` 插入旧任务终态。
         Self::emit_status_value(handle, Status::Idle);
         Self::emit_run_finished(handle, event);
     }
