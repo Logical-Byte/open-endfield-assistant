@@ -43,19 +43,19 @@ describe('设置提交', () => {
     io.load.mockReturnValueOnce(load.promise);
     const initialization = store.initialize();
     store.edit({ soundVolume: 0.1 });
-    expect(store.loading.value).toBe(true);
+    expect(store.initializing.value).toBe(true);
     expect(io.save).not.toHaveBeenCalled();
     load.reject(new Error('IPC 失败'));
     await initialization;
     store.edit({ minimizeToTray: true });
-    expect(store.loaded.value).toBe(false);
-    expect(store.loadError.value?.message).toBe('IPC 失败');
+    expect(store.initialized.value).toBe(false);
+    expect(store.initializeError.value?.message).toBe('IPC 失败');
     expect(io.save).not.toHaveBeenCalled();
 
     io.load.mockResolvedValueOnce({ ...DEFAULT_OEA_CONFIG, soundVolume: 0.8 });
     await store.initialize();
-    expect(store.loaded.value).toBe(true);
-    expect(store.loadError.value).toBeNull();
+    expect(store.initialized.value).toBe(true);
+    expect(store.initializeError.value).toBeNull();
     expect(store.draft.value.soundVolume).toBe(0.8);
     expect(store.effective.value.soundVolume).toBe(0.8);
   });

@@ -3,15 +3,15 @@ import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import { UpdateProxyMode } from '@/types/oeaConfig';
 import {
   CURRENT_SCAN_TIPS_VERSION,
-  configLoaded,
-  configLoading,
-  configLoadError,
+  configInitialized,
+  configInitializing,
+  configInitializeError,
   configSaveError,
   editSettings,
   initOeaConfig,
   retrySettingsSave,
   setSoundVolume,
-  settingsDraft,
+  draftSettings,
   proxyModeItems,
   updateSourceItems,
 } from '@/utils/app/config';
@@ -39,11 +39,11 @@ const uiScaleNumber = computed<number>({
 
 // UInput 自带 lazy 提交，输入中间值留在控件内；普通失焦不会产生修改。
 const mirrorchyanCdk = computed<string>({
-  get: () => settingsDraft.value.mirrorchyanCdk ?? '',
+  get: () => draftSettings.value.mirrorchyanCdk ?? '',
   set: (value: string) => editSettings({ mirrorchyanCdk: value }),
 });
 const updateProxyUrl = computed<string>({
-  get: () => settingsDraft.value.updateProxyUrl,
+  get: () => draftSettings.value.updateProxyUrl,
   set: (value: string) => editSettings({ updateProxyUrl: value }),
 });
 
@@ -54,7 +54,7 @@ const updateProxyUrl = computed<string>({
  */
 const scanGuideEnabled = computed<boolean>({
   get() {
-    return settingsDraft.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION;
+    return draftSettings.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION;
   },
   set(value: boolean) {
     editSettings({ scanTipsDismissedVersion: value ? 0 : CURRENT_SCAN_TIPS_VERSION });
@@ -169,8 +169,8 @@ const stopScrollToHash = router.afterEach((to) => {
 
       <UPageBody>
         <UAlert
-          v-if="configLoadError"
-          :actions="[{ label: '重新加载', loading: configLoading, onClick: initOeaConfig }]"
+          v-if="configInitializeError"
+          :actions="[{ label: '重新加载', loading: configInitializing, onClick: initOeaConfig }]"
           color="error"
           description="加载成功后才能修改设置。"
           title="设置加载失败"
@@ -214,8 +214,8 @@ const stopScrollToHash = router.afterEach((to) => {
             title="关闭时最小化到托盘"
           >
             <USwitch
-              :disabled="!configLoaded"
-              :model-value="settingsDraft.minimizeToTray"
+              :disabled="!configInitialized"
+              :model-value="draftSettings.minimizeToTray"
               @update:model-value="editSettings({ minimizeToTray: $event })"
             />
           </SettingsItem>
@@ -224,7 +224,7 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-circle-help"
             title="显示新手操作提示"
           >
-            <USwitch v-model="scanGuideEnabled" :disabled="!configLoaded" />
+            <USwitch v-model="scanGuideEnabled" :disabled="!configInitialized" />
           </SettingsItem>
         </SettingsCard>
 
@@ -237,15 +237,15 @@ const stopScrollToHash = router.afterEach((to) => {
             <div class="flex w-56 items-center gap-2">
               <USlider
                 class="flex-1"
-                :disabled="!configLoaded"
+                :disabled="!configInitialized"
                 :max="1"
                 :min="0"
-                :model-value="settingsDraft.soundVolume"
+                :model-value="draftSettings.soundVolume"
                 :step="0.05"
                 @update:model-value="setSoundVolume"
               />
               <span class="w-10 text-end text-sm tabular-nums">
-                {{ Math.round(settingsDraft.soundVolume * 100) }}%
+                {{ Math.round(draftSettings.soundVolume * 100) }}%
               </span>
             </div>
           </SettingsItem>
@@ -259,9 +259,9 @@ const stopScrollToHash = router.afterEach((to) => {
           >
             <USelect
               class="w-56"
-              :disabled="!configLoaded"
+              :disabled="!configInitialized"
               :items="updateSourceItems"
-              :model-value="settingsDraft.updateSource"
+              :model-value="draftSettings.updateSource"
               @update:model-value="editSettings({ updateSource: $event })"
             />
           </SettingsItem>
@@ -272,8 +272,8 @@ const stopScrollToHash = router.afterEach((to) => {
             title="自动下载更新"
           >
             <USwitch
-              :disabled="!configLoaded"
-              :model-value="settingsDraft.autoDownloadUpdates"
+              :disabled="!configInitialized"
+              :model-value="draftSettings.autoDownloadUpdates"
               @update:model-value="editSettings({ autoDownloadUpdates: $event })"
             />
           </SettingsItem>
@@ -284,8 +284,8 @@ const stopScrollToHash = router.afterEach((to) => {
             title="自动安装更新"
           >
             <USwitch
-              :disabled="!configLoaded"
-              :model-value="settingsDraft.autoInstallUpdates"
+              :disabled="!configInitialized"
+              :model-value="draftSettings.autoInstallUpdates"
               @update:model-value="editSettings({ autoInstallUpdates: $event })"
             />
           </SettingsItem>
@@ -313,12 +313,12 @@ const stopScrollToHash = router.afterEach((to) => {
               <UInput
                 v-model.lazy="mirrorchyanCdk"
                 class="w-56"
-                :disabled="!configLoaded"
+                :disabled="!configInitialized"
                 placeholder="未填写时使用 OEM 下载"
                 type="password"
                 @keydown.enter="($event.target as HTMLInputElement).blur()"
               />
-              <template v-if="settingsDraft.mirrorchyanCdk === null">
+              <template v-if="draftSettings.mirrorchyanCdk === null">
                 <p class="max-w-56 text-sm text-warning">
                   已保存的 CDK 无法解密，可重新输入或清除。
                 </p>
@@ -349,15 +349,15 @@ const stopScrollToHash = router.afterEach((to) => {
           >
             <USelect
               class="w-56"
-              :disabled="!configLoaded"
+              :disabled="!configInitialized"
               :items="proxyModeItems"
-              :model-value="settingsDraft.updateProxyMode"
+              :model-value="draftSettings.updateProxyMode"
               @update:model-value="editSettings({ updateProxyMode: $event })"
             />
           </SettingsItem>
 
           <SettingsItem
-            v-if="settingsDraft.updateProxyMode === UpdateProxyMode.Custom"
+            v-if="draftSettings.updateProxyMode === UpdateProxyMode.Custom"
             description="自定义代理服务器地址，例如 http://127.0.0.1:7890"
             icon="i-lucide-link"
             title="代理地址"
@@ -365,7 +365,7 @@ const stopScrollToHash = router.afterEach((to) => {
             <UInput
               v-model.lazy="updateProxyUrl"
               class="w-56"
-              :disabled="!configLoaded"
+              :disabled="!configInitialized"
               placeholder="http://127.0.0.1:7890"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
@@ -373,7 +373,7 @@ const stopScrollToHash = router.afterEach((to) => {
           <div>
             <UButton
               block
-              :disabled="!configLoaded || updateOperationBusy"
+              :disabled="!configInitialized || updateOperationBusy"
               icon="i-lucide-refresh-cw"
               label="检查更新"
               :loading="updateCheckState.status === 'checking'"

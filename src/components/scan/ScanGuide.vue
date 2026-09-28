@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  configLoaded,
+  configInitialized,
   CURRENT_SCAN_TIPS_VERSION,
   editSettings,
   effectiveSettings,
@@ -17,7 +17,7 @@ const dismissedThisSession = ref(false);
  */
 const showScanGuide = computed(
   () =>
-    configLoaded.value &&
+    configInitialized.value &&
     effectiveSettings.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION &&
     !dismissedThisSession.value,
 );

@@ -12,7 +12,7 @@ import {
   UpdateStatus,
 } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
-import { configLoaded, effectiveSettings } from '@/utils/app/config';
+import { configInitialized, effectiveSettings } from '@/utils/app/config';
 import { logDebug, logError, logWarn, onAppStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { Channel, invoke } from '@tauri-apps/api/core';
@@ -161,7 +161,7 @@ export async function checkUpdate(): Promise<void> {
         `更新前端：检测到可用更新，打开更新提示（autoDownload=${effectiveSettings.value.autoDownloadUpdates}）`,
       );
       updatePopoverOpen.value = true;
-      shouldAutoDownload = configLoaded.value && effectiveSettings.value.autoDownloadUpdates;
+      shouldAutoDownload = configInitialized.value && effectiveSettings.value.autoDownloadUpdates;
     }
   } catch (error) {
     checkError.value = error instanceof Error ? error : new Error(String(error));
@@ -275,7 +275,7 @@ export async function initUpdateState(): Promise<void> {
   });
 
   if (pendingUpdate.value) {
-    if (configLoaded.value && effectiveSettings.value.autoInstallUpdates) {
+    if (configInitialized.value && effectiveSettings.value.autoInstallUpdates) {
       void tryAutoInstall();
     } else {
       updatePopoverOpen.value = true;
@@ -304,7 +304,7 @@ export async function tryAutoInstall(): Promise<void> {
     pendingUpdate.value === null ||
     effectiveOperation.value !== 'idle' ||
     installStatus.value !== UpdateInstallStatus.Idle ||
-    !configLoaded.value ||
+    !configInitialized.value ||
     !effectiveSettings.value.autoInstallUpdates ||
     appStatus.value.running
   ) {
