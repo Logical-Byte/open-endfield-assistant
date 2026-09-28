@@ -10,8 +10,9 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::{
     app_paths::AppPaths,
+    automation::TaskKind,
     config::OeaConfig,
-    controller::{AppStatus, Controller},
+    controller::{Controller, Status},
     data::{ArchiveContract, PrtsData},
     platform,
 };
@@ -36,24 +37,28 @@ impl ScreenshotFormat {
     }
 }
 
-/// 启动扫描档案库任务（在后台线程执行，立即返回当前状态）。
+/// 启动指定种类的自动化任务（在后台线程执行，立即返回当前状态）。
 #[tauri::command]
-pub fn start_scan(state: tauri::State<Controller>, app_handle: tauri::AppHandle) -> AppStatus {
-    state.start_scan(&app_handle);
-    state.get_status()
+pub fn start_automation(
+    state: tauri::State<Controller>,
+    app_handle: tauri::AppHandle,
+    task_kind: TaskKind,
+) -> Status {
+    state.start_automation(&app_handle, task_kind);
+    state.automation_status()
 }
 
-/// 请求停止扫描档案库任务。
+/// 请求停止当前自动化任务。
 #[tauri::command]
-pub fn stop_scan(state: tauri::State<Controller>) -> AppStatus {
-    state.stop_scan();
-    state.get_status()
+pub fn stop_automation(state: tauri::State<Controller>) -> Status {
+    state.stop_automation();
+    state.automation_status()
 }
 
-/// 查询当前应用状态。
+/// 查询当前自动化状态。
 #[tauri::command]
-pub fn get_status(state: tauri::State<Controller>) -> AppStatus {
-    state.get_status()
+pub fn get_automation_status(state: tauri::State<Controller>) -> Status {
+    state.automation_status()
 }
 
 /// 返回 `prts.json` 完整数据（前端用于分类中文名映射与自动补全候选）。

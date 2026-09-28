@@ -1,6 +1,6 @@
 //! Tauri 后端接口封装：类型安全地调用 Rust 命令、监听后端事件。
 
-import type { AppStatus } from '@/types/appStatus';
+import type * as Automation from '@/types/automation';
 import type { ArchiveContract } from '@/types/archiveContract';
 import type { LogEntry } from '@/types/log';
 import type { OeaConfig } from '@/types/oeaConfig';
@@ -10,19 +10,19 @@ import type { ScreenshotFormat } from '@/types/screenshot';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-/** 启动扫描档案库任务（后端在后台线程执行，立即返回当前状态）。 */
-export async function startScan(): Promise<AppStatus> {
-  return await invoke('start_scan');
+/** 启动指定种类的自动化任务（后端在后台线程执行，立即返回当前状态）。 */
+export async function startAutomation(taskKind: Automation.TaskKind): Promise<Automation.Status> {
+  return await invoke('start_automation', { taskKind });
 }
 
-/** 请求停止扫描档案库任务（优雅停止）。 */
-export async function stopScan(): Promise<AppStatus> {
-  return await invoke('stop_scan');
+/** 请求停止当前自动化任务（优雅停止）。 */
+export async function stopAutomation(): Promise<Automation.Status> {
+  return await invoke('stop_automation');
 }
 
-/** 查询当前应用状态。 */
-export async function getStatus(): Promise<AppStatus> {
-  return await invoke('get_status');
+/** 查询当前自动化状态。 */
+export async function getAutomationStatus(): Promise<Automation.Status> {
+  return await invoke('get_automation_status');
 }
 
 /** 获取 prts.json 完整数据（分类中文名映射 / 自动补全候选）。 */
@@ -81,11 +81,22 @@ export async function getWebviewZoom(): Promise<number> {
 }
 
 /**
- * 监听应用状态变更事件（启动 / 结束均触发，payload 为最新 AppStatus）。
+ * 监听自动化状态变更事件（启动 / 结束均触发）。
  * 返回取消监听函数，组件卸载时应调用。
  */
-export async function onAppStatus(cb: (status: AppStatus) => void): Promise<() => void> {
-  return await listen<AppStatus>('app-status', (event) => cb(event.payload));
+export async function onAutomationStatus(
+  cb: (status: Automation.Status) => void,
+): Promise<() => void> {
+  return await listen<Automation.Status>('automation-status', (event) => cb(event.payload));
+}
+
+/** 监听每次自动化运行的一次性终态通知。 */
+export async function onAutomationRunFinished(
+  cb: (finished: Automation.RunFinished) => void,
+): Promise<() => void> {
+  return await listen<Automation.RunFinished>('automation-run-finished', (event) =>
+    cb(event.payload),
+  );
 }
 
 /**

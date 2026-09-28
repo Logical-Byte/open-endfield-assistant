@@ -8,7 +8,7 @@
 pub(crate) mod archive_scan;
 pub(crate) mod cancellation;
 mod capabilities;
-pub(crate) mod scan_runtime;
+pub(crate) mod runtime;
 pub(crate) mod session;
 pub mod stats;
 
@@ -19,3 +19,10 @@ pub use capabilities::{
     Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
     TemplateTarget,
 };
+
+/// 用户可以启动的自动化任务种类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TaskKind {
+    ArchiveScan,
+}

@@ -16,9 +16,8 @@ use tauri::Manager;
 use tracing::{error, info, warn};
 
 use crate::{
-    app_paths::AppPaths, automation::scan_runtime::ScanRuntime, config::ConfigStore,
-    controller::Controller, data::AppData, logger, navigation::Navigator, ocr::OcrEngine, platform,
-    update,
+    app_paths::AppPaths, automation::runtime::Runtime, config::ConfigStore, controller::Controller,
+    data::AppData, logger, navigation::Navigator, ocr::OcrEngine, platform, update,
 };
 
 use self::hooks::{crash, portable};
@@ -65,9 +64,9 @@ pub fn run() {
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            commands::start_scan,
-            commands::stop_scan,
-            commands::get_status,
+            commands::start_automation,
+            commands::stop_automation,
+            commands::get_automation_status,
             commands::get_prts_data,
             commands::get_archive_contract,
             commands::quit,
@@ -210,14 +209,14 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     let navigator = Arc::new(Navigator::new());
 
-    let scan_runtime = Arc::new(ScanRuntime::new());
+    let automation_runtime = Arc::new(Runtime::new());
 
-    // 组装扫描业务控制器并托管为 `State`。
+    // 组装应用控制器并托管为 `State`。
     let controller = Controller::new(
         config_store,
         ocr,
         navigator,
-        scan_runtime,
+        automation_runtime,
         scan_tx,
         app_data,
     );
