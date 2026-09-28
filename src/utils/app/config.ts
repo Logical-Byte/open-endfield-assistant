@@ -56,6 +56,7 @@ export const DEFAULT_OEA_CONFIG: OeaConfig = {
   scanTipsDismissedVersion: 0,
 } as const;
 
+/** 应用内唯一的设置 store，以下导出将其内部状态收窄为各调用方需要的接口。 */
 const settings = createConfigStore(DEFAULT_OEA_CONFIG, {
   load: loadOeaConfig,
   save: saveOeaConfig,

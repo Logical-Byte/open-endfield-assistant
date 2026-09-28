@@ -7,6 +7,7 @@ export type DraftSettings = Omit<
   'majorVersion' | 'minorVersion' | 'mirrorchyanCdkEncrypted'
 > & { mirrorchyanCdk: string | null };
 
+/** 配置 store 使用的持久化边界，生产环境连接 Tauri IPC，测试中可替换为受控 Promise。 */
 interface ConfigPersistence {
   load(): Promise<OeaConfig>;
   save(config: OeaConfig): Promise<void>;
@@ -14,6 +15,7 @@ interface ConfigPersistence {
   decrypt(encrypted: string): Promise<string>;
 }
 
+/** 配置 store 对调用方公开的只读状态和写入操作。 */
 interface ConfigStore {
   draft: Readonly<Ref<Readonly<DraftSettings>>>;
   effective: Readonly<Ref<Readonly<DraftSettings>>>;
@@ -27,15 +29,23 @@ interface ConfigStore {
   retry(): void;
 }
 
-/** 设置保存的唯一写入入口。依赖可替换，测试能直接控制加密和保存的完成时机。 */
+/** 创建设置 store。`io` 可替换，使测试能直接控制加载、加密和保存的完成时机。 */
 export function createConfigStore(defaults: OeaConfig, io: ConfigPersistence): ConfigStore {
+  // `draft.value` 始终通过替换整个对象更新，使 `write()` 捕获的对象在 `await` 期间保持不变。
   const draft = shallowRef(toDraft(defaults, ''));
+  // 最近一次成功加载或保存的 `draft` 快照，业务流程只能依据这份设置作出决定。
   const effective = shallowRef(draft.value);
+  // 成功加载配置并完成 CDK 解密尝试后设为 `true`，控制持久化设置是否可以编辑。
   const initialized = ref(false);
+  // 阻止多个 `initialize()` 同时读取配置，初始化失败后会恢复为 `false` 以允许重试。
   const initializing = ref(false);
+  // 防止多个 `write()` 并发执行，使 `io.encrypt()` 和 `io.save()` 严格串行。
   const saving = ref(false);
+  // 只记录加载配置的错误，CDK 解密失败由 `draft.mirrorchyanCdk === null` 表示。
   const initializeError = shallowRef<Error | null>(null);
+  // 记录最新 `draft` 对应候选的加密或保存错误，再次开始 `write()` 时清除。
   const saveError = shallowRef<Error | null>(null);
+  // 最近一次成功加载或保存的完整 DTO，用来保留版本字段和可复用的 CDK 密文。
   let persisted = { ...defaults };
   /** pending 为 true 表示 draft 内的数据等待保存，write() 应当处理。*/
   let pending = false;
@@ -87,6 +97,7 @@ export function createConfigStore(defaults: OeaConfig, io: ConfigPersistence): C
       )
     )
       return;
+    // `saveError.value` 存在时，相同值也会重新提交，使失败后的下一次编辑可以恢复保存。
     draft.value = next;
     pending = true;
     void write();
@@ -114,10 +125,12 @@ export function createConfigStore(defaults: OeaConfig, io: ConfigPersistence): C
         const candidate = draft.value;
         const { mirrorchyanCdk, ...values } = candidate;
         try {
+          // 默认复用最近一次成功保存的密文，只有已知明文发生变化时才重新加密。
           let encrypted = persisted.mirrorchyanCdkEncrypted;
           if (mirrorchyanCdk !== null && mirrorchyanCdk !== effective.value.mirrorchyanCdk) {
             encrypted = mirrorchyanCdk ? await io.encrypt(mirrorchyanCdk) : '';
           }
+          // 从 `persisted` 保留版本字段，再用本轮 `candidate` 和对应密文构造完整 DTO。
           const config = { ...persisted, ...values, mirrorchyanCdkEncrypted: encrypted };
           await io.save(config);
           persisted = config;
