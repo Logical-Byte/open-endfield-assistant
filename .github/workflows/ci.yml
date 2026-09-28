@@ -66,6 +66,9 @@ jobs:
       - name: Frontend build
         run: pnpm run build
 
+      - name: Frontend test
+        run: pnpm run test
+
       - name: Frontend typecheck
         run: pnpm run typecheck
 
