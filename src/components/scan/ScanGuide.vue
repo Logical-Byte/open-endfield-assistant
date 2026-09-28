@@ -2,6 +2,11 @@
 import { configInitialized, editSettings, effectiveSettings } from '@/utils/app/config';
 import { computed, ref } from 'vue';
 
+/**
+ * 修改下方扫描指引文案时，如果要求所有用户重新查看，应递增 `configStore.ts` 的
+ * `CURRENT_SCAN_TIPS_VERSION`。
+ */
+
 /** 本次启动内已手动关闭（未勾选持久化时仅隐藏本次启动）。 */
 const dismissedThisSession = ref(false);
 
