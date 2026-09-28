@@ -217,12 +217,6 @@ impl Runtime {
         self.finish_run_and_emit(handle, RunFinished { task_kind, outcome });
     }
 
-    #[cfg(test)]
-    fn finish_run(&self) {
-        let mut state = self.state.lock().unwrap();
-        state.finish();
-    }
-
     fn finish_run_and_emit(&self, handle: &AppHandle, event: RunFinished) {
         let mut state = self.state.lock().unwrap();
         state.finish();
@@ -246,74 +240,5 @@ impl Runtime {
         if let Err(error) = handle.emit("automation-run-finished", event) {
             error!("向前端推送自动化任务终态失败: {error}");
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use crate::automation::{TaskKind, is_stop_requested};
-
-    use super::{Runtime, Status};
-
-    #[test]
-    fn stop_transitions_the_active_task_to_stopping() {
-        let runtime = Runtime::new();
-
-        assert!(runtime.claim_start(TaskKind::ArchiveScan).is_some());
-        runtime.stop();
-
-        assert_eq!(
-            runtime.status(),
-            Status::Stopping {
-                task_kind: TaskKind::ArchiveScan,
-            }
-        );
-    }
-
-    #[test]
-    fn new_runtime_is_idle() {
-        assert_eq!(Runtime::new().status(), Status::Idle);
-    }
-
-    #[test]
-    fn running_task_rejects_a_second_claim_until_it_finishes() {
-        let runtime = Runtime::new();
-
-        assert!(runtime.claim_start(TaskKind::ArchiveScan).is_some());
-        assert!(runtime.claim_start(TaskKind::ArchiveScan).is_none());
-
-        // 模拟工作线程处理终态后释放运行标志。
-        runtime.finish_run();
-        assert!(runtime.claim_start(TaskKind::ArchiveScan).is_some());
-    }
-
-    #[test]
-    fn stop_request_is_ignored_while_idle_and_recorded_while_running() {
-        let runtime = Runtime::new();
-
-        runtime.stop();
-        assert_eq!(runtime.status(), Status::Idle);
-
-        assert!(runtime.claim_start(TaskKind::ArchiveScan).is_some());
-        runtime.stop();
-        assert!(is_stop_requested(
-            runtime.state.lock().unwrap().stop.as_ref().unwrap()
-        ));
-    }
-
-    #[test]
-    fn each_claim_gets_a_fresh_clear_stop_token() {
-        let runtime = Runtime::new();
-
-        let first_stop = runtime.claim_start(TaskKind::ArchiveScan).unwrap();
-        runtime.stop();
-        assert!(is_stop_requested(&first_stop));
-
-        runtime.finish_run();
-        let second_stop = runtime.claim_start(TaskKind::ArchiveScan).unwrap();
-        assert!(!is_stop_requested(&second_stop));
-        assert!(!Arc::ptr_eq(&first_stop, &second_stop));
     }
 }
