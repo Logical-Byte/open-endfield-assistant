@@ -1,11 +1,15 @@
 import type { OeaConfig } from '@/types/oeaConfig';
 import { readonly, ref, shallowRef, type Ref } from 'vue';
 
-/** 可编辑设置。`mirrorchyanCdk === null` 表示解密失败，保存其他字段时保留原密文。 */
 export type DraftSettings = Omit<
   OeaConfig,
   'majorVersion' | 'minorVersion' | 'mirrorchyanCdkEncrypted' | 'scanTipsDismissedVersion'
-> & { mirrorchyanCdk: string | null; scanGuideEnabled: boolean };
+> & {
+  /** 可编辑的 Mirror 酱 CDK 明文。`null` 表示解密失败。 */
+  mirrorchyanCdk: string | null;
+  /** 是否展示档案扫描启动提示。 */
+  scanGuideEnabled: boolean;
+};
 
 // 修改 ScanGuide 文案且需要所有用户重新确认时递增；无需改变配置文件版本。
 const CURRENT_SCAN_TIPS_VERSION = 1;
