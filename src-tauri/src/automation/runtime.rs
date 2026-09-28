@@ -217,6 +217,7 @@ impl Runtime {
         self.finish_run_and_emit(handle, RunFinished { task_kind, outcome });
     }
 
+    #[cfg(test)]
     fn finish_run(&self) {
         let mut state = self.state.lock().unwrap();
         state.finish();
