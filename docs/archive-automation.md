@@ -8,13 +8,13 @@
 
 两个版本号配合决定是否展示：
 
-- **当前提示版本**：前端常量 `CURRENT_SCAN_TIPS_VERSION`（`src/components/scan/ScanGuide.vue`），与提示文案写在同一个文件里，保证改文案时不会漏改版本。
+- **当前提示版本**：设置模块内部常量 `CURRENT_SCAN_TIPS_VERSION`（`src/utils/app/configStore.ts`）。修改 `ScanGuide.vue` 文案时，在这里决定是否递增版本。
 - **用户已确认版本**：后端配置字段 `scanTipsDismissedVersion`（`config/oea_config.json`，默认 `0`）。用户勾选「下次更新前不再提示」并点击「我知道了」时写入。
 
-展示规则：`scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION` 时展示提示，否则不展示。
+设置模块将 `scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION` 投影为 `scanGuideEnabled`，页面只读写这个布尔设置。加载完成后，扫描页依据已生效值决定是否展示。
 
 - 不勾选、直接点「我知道了」：仅本次启动隐藏（内存标志），不写配置，下次启动仍展示。
-- 勾选后点「我知道了」：把 `scanTipsDismissedVersion` 写入当前 `CURRENT_SCAN_TIPS_VERSION`，由 `src/utils/app/config.ts` 的配置深监听自动落盘，本版本内不再展示。
+- 勾选后点「我知道了」：通过 `editSettings({ scanGuideEnabled: false })` 提交，由设置模块编码为当前版本并串行保存。成功后本版本内不再展示，失败时保留提示并允许重试。
 
 ### 更新提示文案，让所有用户重新看一次
 

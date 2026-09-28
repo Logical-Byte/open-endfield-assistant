@@ -1,19 +1,25 @@
 <script setup lang="ts">
-import { configLoaded, CURRENT_SCAN_TIPS_VERSION, oeaConfig } from '@/utils/app/config';
+import { configInitialized, editSettings, effectiveSettings } from '@/utils/app/config';
 import { computed, ref } from 'vue';
+
+/**
+ * 修改下方扫描指引文案时，如果要求所有用户重新查看，应递增 `configStore.ts` 的
+ * `CURRENT_SCAN_TIPS_VERSION`。
+ */
 
 /** 本次启动内已手动关闭（未勾选持久化时仅隐藏本次启动）。 */
 const dismissedThisSession = ref(false);
 
 /**
  * 是否显示启动扫描提示。
- * 配置加载完成前不渲染（避免启动时用默认配置短暂闪现提示）；
- * 加载完成后，用户确认过的提示版本低于当前版本、且本次启动内未手动关闭时显示。
+ * 配置加载完成前不渲染，避免启动时用默认配置短暂闪现提示。
+ * 加载完成后，`effectiveSettings.value.scanGuideEnabled` 为 `true`
+ * 且本次启动内未手动关闭时显示。提示版本的比较和编码由 `configStore.ts` 负责。
  */
 const showScanGuide = computed(
   () =>
-    configLoaded.value &&
-    oeaConfig.value.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION &&
+    configInitialized.value &&
+    effectiveSettings.value.scanGuideEnabled &&
     !dismissedThisSession.value,
 );
 
@@ -23,13 +29,13 @@ const dismissGuide = ref(false);
 /**
  * 关闭提示。
  *
- * 已勾选「下次更新前不再提示」：把确认版本写入当前 `CURRENT_SCAN_TIPS_VERSION`，
- * 由 `config.ts` 的配置深监听自动落盘持久化，之后本版本内不再展示（版本升级后重新展示）。
+ * 勾选时提交关闭提示，版本编码和保存由设置模块负责。
+ * 保存成功后隐藏；保存失败则保留提示，让用户可以重试。
  * 未勾选：仅本次启动内隐藏，不写配置，下次启动仍会展示。
  */
 function dismissScanGuide(): void {
   if (dismissGuide.value) {
-    oeaConfig.value.scanTipsDismissedVersion = CURRENT_SCAN_TIPS_VERSION;
+    editSettings({ scanGuideEnabled: false });
   } else {
     dismissedThisSession.value = true;
   }
