@@ -207,9 +207,7 @@ impl Runtime {
             }
         };
 
-        self.finish_run();
-        self.emit_status(handle);
-        self.emit_run_finished(handle, RunFinished { task_kind, outcome });
+        self.finish_run_and_emit(handle, RunFinished { task_kind, outcome });
     }
 
     fn finish_run(&self) {
@@ -218,13 +216,27 @@ impl Runtime {
         state.stop = None;
     }
 
+    fn finish_run_and_emit(&self, handle: &AppHandle, event: RunFinished) {
+        let mut state = self.state.lock().unwrap();
+        state.status = Status::Idle;
+        state.stop = None;
+
+        // 在两个有序事件发出前继续占用 claim 锁，防止新任务的 `Running` 插入旧任务终态。
+        Self::emit_status_value(handle, Status::Idle);
+        Self::emit_run_finished(handle, event);
+    }
+
     fn emit_status(&self, handle: &AppHandle) {
-        if let Err(error) = handle.emit("automation-status", self.status()) {
+        Self::emit_status_value(handle, self.status());
+    }
+
+    fn emit_status_value(handle: &AppHandle, status: Status) {
+        if let Err(error) = handle.emit("automation-status", status) {
             error!("向前端推送自动化状态失败: {error}");
         }
     }
 
-    fn emit_run_finished(&self, handle: &AppHandle, event: RunFinished) {
+    fn emit_run_finished(handle: &AppHandle, event: RunFinished) {
         if let Err(error) = handle.emit("automation-run-finished", event) {
             error!("向前端推送自动化任务终态失败: {error}");
         }

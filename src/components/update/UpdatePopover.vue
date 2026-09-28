@@ -217,7 +217,7 @@ function formatSpeed(bytesPerSecond: number): string {
             @click="startInstall"
           />
           <p v-if="appStatus.state !== 'idle'" class="text-xs text-dimmed">
-            自动化任务运行中，任务结束后将自动安装
+            扫描任务运行中，扫描结束后将自动安装
           </p>
         </div>
 

@@ -332,8 +332,8 @@ export async function startInstall(): Promise<InstallStartResult> {
   if (appStatus.value.state !== 'idle') {
     writeUpdateLog(logDebug, '更新前端：自动化任务运行中，安装请求留待任务结束后重试');
     useToast().add({
-      title: '自动化任务运行中',
-      description: '任务结束后将自动安装更新',
+      title: '扫描任务运行中',
+      description: '扫描结束后将自动安装更新',
       icon: 'i-lucide-info',
       color: 'info',
     });
