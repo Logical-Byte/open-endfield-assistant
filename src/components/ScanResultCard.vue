@@ -2,10 +2,10 @@
 import type { ArchiveAcquisitionMethod } from '@/types/archiveContract';
 import type { ScanResultCardProps } from '@/types/scanResult';
 import { CollectType } from '@/types/scanResult';
+import { openImagePreview } from '@/composables/image-preview';
 import { getAcquisitionMethod } from '@/utils/app/archiveContract';
-import { openImagePreviewKey } from '@/utils/provideInject';
 import { getCategoryName, getCategoryTitles, getPageName } from '@/utils/prts';
-import { computed, inject } from 'vue';
+import { computed } from 'vue';
 
 const { collectType, category, subCategory, imageUrl, title, archiveId } =
   defineProps<ScanResultCardProps>();
@@ -85,10 +85,6 @@ const cropImageStyle = computed(() => ({
   left: `calc(100% * -${CROP_LEFT} / ${CROP_WIDTH})`,
   top: `calc(100% * -${CROP_TOP} / ${CROP_HEIGHT})`,
 }));
-
-const openImagePreview = inject(openImagePreviewKey, () => {
-  console.warn('未提供 `openImagePreview` 方法');
-});
 </script>
 
 <template>

@@ -1,25 +1,55 @@
 import { useAnimateWhenever } from '@/composables/image-preview/useAnimateWhenever';
+import {
+  closeImagePreview,
+  currentImagePreviewTarget,
+} from '@/composables/image-preview/imagePreviewState';
 import { useImagePreviewScale } from '@/composables/image-preview/useImagePreviewScale';
 import { downloadFile } from '@/utils/file';
 import { useDevicePixelRatio, useMagicKeys } from '@vueuse/core';
-import type { CSSProperties, MaybeRefOrGetter, Ref } from 'vue';
+import type { ComputedRef, CSSProperties, Ref } from 'vue';
 import { computed, nextTick, ref, toValue, watch } from 'vue';
 
-export type Point2D = {
+/** 图片预览视图中的二维 CSS 像素坐标。 */
+type Point2D = {
   x: number;
   y: number;
 };
 
-export type PreviewTarget = {
-  url: string;
-  name: string;
-  downloadName: MaybeRefOrGetter<string>;
+/** `AppImagePreview` 模板使用的内部状态和交互操作。 */
+type ImagePreviewHostController = {
+  preview: typeof currentImagePreviewTarget;
+  scale: Ref<number>;
+  backgroundColor: Ref<string>;
+  naturalWidth: Ref<number>;
+  naturalHeight: Ref<number>;
+  imgStyle: ComputedRef<CSSProperties>;
+  onImageLoad: (e: Event) => void;
+  close: () => void;
+  download: () => Promise<void>;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  rotateClockwise: () => void;
+  resetView: (key?: string) => void;
+  onWheel: (e: WheelEvent) => void;
+  onMousedown: (e: MouseEvent) => void;
+  onMousemove: (e: MouseEvent) => void;
+  onMouseup: () => void;
+  onKeydown: (e: KeyboardEvent) => void;
 };
 
-export function useImagePreview(
+/**
+ * 创建唯一图片预览宿主的交互控制器。
+ * 应用级预览目标由宿主消费，视图和 DOM 状态随宿主生命周期存活。
+ *
+ * 应用中应当只有一个常驻宿主调用此函数。多个宿主会共享预览目标，却各自持有
+ * 视图状态，并竞争焦点和全局键盘操作，因此不属于受支持的使用方式。
+ */
+export function useImagePreviewHost(
   overlayRef: Ref<HTMLElement | null>,
   imgRef: Ref<HTMLImageElement | null>,
-) {
+): ImagePreviewHostController {
+  const preview = currentImagePreviewTarget;
+
   const {
     clampScale,
     getNextScale,
@@ -43,8 +73,6 @@ export function useImagePreview(
   /** 按住 Shift 键时的缩放速度倍数 */
   const ZOOM_FAST_MULTIPLIER = 4;
 
-  /** 当前预览图像 */
-  const preview = ref<PreviewTarget | null>(null);
   /** 图像平移量，单位为 CSS 像素 */
   const offset = ref<Point2D>({ x: 0, y: 0 });
   /** 图像旋转角度，单位为度 */
@@ -244,22 +272,6 @@ export function useImagePreview(
     };
   });
 
-  /** 打开图像预览 */
-  function open(target: PreviewTarget): void {
-    preview.value = target;
-    isAutoFitting.value = true;
-    scale.value = 1;
-    rotation.value = 0;
-    offset.value = { x: 0, y: 0 };
-    naturalWidth.value = 0;
-    naturalHeight.value = 0;
-  }
-
-  /** 关闭图像预览 */
-  function close(): void {
-    preview.value = null;
-  }
-
   /** 下载图像 */
   async function download(): Promise<void> {
     if (!preview.value) return;
@@ -373,7 +385,7 @@ export function useImagePreview(
     if (!e.ctrlKey && !e.metaKey) {
       switch (lowerKey) {
         case 'escape': // Escape 键关闭预览
-          close();
+          closeImagePreview();
           break;
         case '+':
         case '=': // 放大
@@ -415,9 +427,16 @@ export function useImagePreview(
     }
   }
 
-  // 当开启预览时自动聚焦容器以便接收键盘事件，关闭预览时不需要特别处理，因为组件会被卸载
+  // 打开预览时重置视图并自动聚焦容器，以便接收键盘事件。
   watch(preview, async (value) => {
     if (value) {
+      isAutoFitting.value = true;
+      scale.value = 1;
+      rotation.value = 0;
+      offset.value = { x: 0, y: 0 };
+      naturalWidth.value = 0;
+      naturalHeight.value = 0;
+
       await nextTick();
       overlayRef.value?.focus();
     }
@@ -443,8 +462,7 @@ export function useImagePreview(
     naturalHeight,
     imgStyle,
     onImageLoad,
-    open,
-    close,
+    close: closeImagePreview,
     download,
     zoomIn,
     zoomOut,
