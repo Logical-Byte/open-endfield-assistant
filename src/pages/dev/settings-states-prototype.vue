@@ -6,7 +6,8 @@ import SettingsStateVariantC from '@/components/prototype/settings/SettingsState
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
-// Three variants of unavailable settings states, switchable via ?variant= on this throwaway route.
+// 临时视觉原型：通过 ?variant= 比较三种 Settings 生命周期界面。
+// 结论：采用 A 的行内状态。加载失败的全局提示仅在 Settings 页面以外显示。
 const route = useRoute();
 const variant = computed(() =>
   ['a', 'b', 'c'].includes(String(route.query.variant)) ? String(route.query.variant) : 'a',
