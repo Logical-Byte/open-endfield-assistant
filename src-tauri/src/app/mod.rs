@@ -209,17 +209,10 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     let automation_events: Arc<dyn automation::EventSink> =
         Arc::new(frontend_events::TauriEventSink::new(app.handle().clone()));
-    let automation_runtime = Arc::new(automation::Runtime::new(Arc::clone(&automation_events)));
+    let automation_runtime = Arc::new(automation::Runtime::new(automation_events));
 
     // 组装应用控制器并托管为 `State`。
-    let controller = Controller::new(
-        config_store,
-        ocr,
-        navigator,
-        automation_runtime,
-        automation_events,
-        app_data,
-    );
+    let controller = Controller::new(config_store, ocr, navigator, automation_runtime, app_data);
     app.manage(controller);
 
     // 初始化系统托盘（依赖已托管的 `Controller`，托盘菜单事件直接驱动它）

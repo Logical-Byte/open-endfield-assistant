@@ -80,9 +80,9 @@ impl WorkerExit {
     }
 }
 
-/// 一次自动化运行的执行内容。按值接收工作者，避免同一个工作者重复执行。
+/// 一次自动化运行的执行内容。`Runtime` 注入 `StopToken` 和 `EventSink`，每个 `Worker` 只能执行一次。
 pub(crate) trait Worker: Send + 'static {
-    fn run(self: Box<Self>, stop: StopToken) -> WorkerExit;
+    fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> WorkerExit;
 }
 
 /// 全局唯一自动化运行的生命周期状态。
@@ -131,10 +131,11 @@ impl Runtime {
         self.emit_status();
 
         let runtime = Arc::clone(self);
+        let events = Arc::clone(&self.events);
         if let Err(error) = thread::Builder::new()
             .name("oea-automation".to_string())
             .spawn(move || {
-                let result = worker.run(stop);
+                let result = worker.run(stop, events);
                 runtime.handle_worker_exit(task_kind, result);
             })
         {
@@ -264,7 +265,11 @@ mod tests {
     struct CompletingWorker;
 
     impl Worker for CompletingWorker {
-        fn run(self: Box<Self>, _stop: crate::automation::StopToken) -> WorkerExit {
+        fn run(
+            self: Box<Self>,
+            _stop: crate::automation::StopToken,
+            _events: Arc<dyn EventSink>,
+        ) -> WorkerExit {
             WorkerExit::without_capture(FinishReason::Completed)
         }
     }

@@ -30,7 +30,6 @@ pub(crate) struct ArchiveScanWorker {
     ocr: Arc<Mutex<OcrEngine>>,
     navigator: Arc<Navigator>,
     app_data: Arc<AppData>,
-    reporter: ScanReporter,
 }
 
 impl ArchiveScanWorker {
@@ -39,18 +38,16 @@ impl ArchiveScanWorker {
         ocr: Arc<Mutex<OcrEngine>>,
         navigator: Arc<Navigator>,
         app_data: Arc<AppData>,
-        events: Arc<dyn EventSink>,
     ) -> Self {
         Self {
             oea_config,
             ocr,
             navigator,
             app_data,
-            reporter: ScanReporter::new(events),
         }
     }
 
-    fn run_scan(&self, stop: StopToken) -> WorkerExit {
+    fn run_scan(&self, stop: StopToken, reporter: ScanReporter) -> WorkerExit {
         // 连接游戏可能耗时，所以留在工作线程中。
         let mut session = match Session::connect(&self.ocr, Arc::clone(&stop)) {
             Ok(session) => session,
@@ -77,7 +74,7 @@ impl ArchiveScanWorker {
         // 启动检查通过、任务真正开始执行前播放 enable 提示音。
         self.play_scan_sound(ScanSound::Enable);
 
-        let scanner = ArchiveScanner::new(self.reporter.clone(), self.app_data.archive_titles());
+        let scanner = ArchiveScanner::new(reporter, self.app_data.archive_titles());
         let mut captured = Capture::new(&mut session);
         let result = scanner.run(&mut captured, &self.navigator);
         let capture = captured.finish();
@@ -113,8 +110,8 @@ impl ArchiveScanWorker {
 }
 
 impl Worker for ArchiveScanWorker {
-    fn run(self: Box<Self>, stop: StopToken) -> WorkerExit {
-        let result = self.run_scan(stop);
+    fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> WorkerExit {
+        let result = self.run_scan(stop, ScanReporter::new(events));
         self.play_scan_sound(match &result.reason {
             FinishReason::Completed => ScanSound::Enable,
             FinishReason::Stopped | FinishReason::Failed(_) => ScanSound::Disable,

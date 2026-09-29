@@ -28,21 +28,17 @@ pub struct Controller {
     navigator: Arc<Navigator>,
     /// 全局唯一自动化任务运行时
     automation_runtime: Arc<automation::Runtime>,
-    /// 自动化任务向外发布事件的观察出口
-    automation_events: Arc<dyn automation::EventSink>,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
     app_data: Arc<AppData>,
 }
 
 impl Controller {
     /// 创建控制器。
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config_store: Arc<ConfigStore>,
         ocr: Arc<Mutex<OcrEngine>>,
         navigator: Arc<Navigator>,
         automation_runtime: Arc<automation::Runtime>,
-        automation_events: Arc<dyn automation::EventSink>,
         app_data: AppData,
     ) -> Self {
         Self {
@@ -50,7 +46,6 @@ impl Controller {
             ocr,
             navigator,
             automation_runtime,
-            automation_events,
             app_data: Arc::new(app_data),
         }
     }
@@ -124,7 +119,6 @@ impl Controller {
             Arc::clone(&self.ocr),
             Arc::clone(&self.navigator),
             Arc::clone(&self.app_data),
-            Arc::clone(&self.automation_events),
         )
     }
 }

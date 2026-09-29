@@ -61,7 +61,6 @@ pub(super) fn encode_png_data_url(img: &RgbaImage) -> String {
 ///
 /// `ArchiveScanWorker` 创建 `ScanReporter` 并注入扫描工作流。
 /// 工作流只负责发布完整的领域结果，不关心观察者如何把事件传递给前端。
-#[derive(Clone)]
 pub(super) struct ScanReporter {
     events: Arc<dyn EventSink>,
 }
