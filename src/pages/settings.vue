@@ -2,15 +2,12 @@
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import { UpdateProxyMode } from '@/types/oeaConfig';
 import {
-  configInitialized,
-  configInitializing,
-  configInitializeError,
   configSaveError,
   editSettings,
   initOeaConfig,
+  settingsState,
   retrySettingsSave,
   setSoundVolume,
-  draftSettings,
   proxyModeItems,
   updateSourceItems,
 } from '@/utils/app/config';
@@ -23,6 +20,28 @@ import { useRoute, useRouter } from 'vue-router';
 const toast = useToast();
 const route = useRoute();
 const router = useRouter();
+
+const readySettings = computed(() =>
+  settingsState.value.status === 'ready' ? settingsState.value : null,
+);
+const draftSettings = computed(() => readySettings.value?.draft ?? null);
+const settingsLoading = computed(() => settingsState.value.status === 'loading');
+const settingsUnsupported = computed(
+  () =>
+    settingsState.value.status === 'unavailable' &&
+    settingsState.value.reason.type === 'unsupported',
+);
+const settingsLoadError = computed(() =>
+  settingsState.value.status === 'unavailable' && settingsState.value.reason.type === 'load-error'
+    ? settingsState.value.reason.error
+    : null,
+);
+const unavailableLabel = computed(() =>
+  settingsUnsupported.value ? '浏览器中不可用' : '设置暂不可用',
+);
+const settingsCanCheckUpdate = computed(
+  () => readySettings.value !== null || settingsLoadError.value !== null,
+);
 
 /** UI 缩放（本地数字中转）。`USlider` 会短暂回写 `[v]` 数组，这里只允许 number 进入 `uiScale`。 */
 const uiScaleNumber = computed<number>({
@@ -38,11 +57,11 @@ const uiScaleNumber = computed<number>({
 
 // UInput 自带 lazy 提交，输入中间值留在控件内；普通失焦不会产生修改。
 const mirrorchyanCdk = computed<string>({
-  get: () => draftSettings.value.mirrorchyanCdk ?? '',
+  get: () => draftSettings.value?.mirrorchyanCdk ?? '',
   set: (value: string) => editSettings({ mirrorchyanCdk: value }),
 });
 const updateProxyUrl = computed<string>({
-  get: () => draftSettings.value.updateProxyUrl,
+  get: () => draftSettings.value?.updateProxyUrl ?? '',
   set: (value: string) => editSettings({ updateProxyUrl: value }),
 });
 
@@ -154,11 +173,21 @@ const stopScrollToHash = router.afterEach((to) => {
 
       <UPageBody>
         <UAlert
-          v-if="configInitializeError"
-          :actions="[{ label: '重新加载', loading: configInitializing, onClick: initOeaConfig }]"
+          v-if="settingsLoadError"
+          :actions="[{ label: '重新加载', onClick: initOeaConfig }]"
           color="error"
-          description="加载成功后才能修改设置。"
+          description="无法从后端读取设置。界面缩放和开发者功能仍可使用。"
+          icon="i-lucide-circle-alert"
           title="设置加载失败"
+          variant="subtle"
+        />
+        <UAlert
+          v-else-if="settingsUnsupported"
+          color="neutral"
+          description="纯浏览器模式只用于预览页面壳。请运行桌面开发模式来读取和修改设置。"
+          icon="i-lucide-monitor-off"
+          title="浏览器模式不支持应用设置"
+          variant="subtle"
         />
         <UAlert
           v-if="configSaveError"
@@ -178,7 +207,7 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-zoom-in"
             title="缩放比例"
           >
-            <div class="flex w-56 items-center gap-2">
+            <div v-if="!settingsUnsupported" class="flex w-56 items-center gap-2">
               <div class="flex-1">
                 <USlider v-model="uiScaleNumber" :max="2" :min="0.5" :step="0.05" tooltip />
                 <div class="mt-1 flex justify-between text-xs text-dimmed tabular-nums">
@@ -192,6 +221,13 @@ const stopScrollToHash = router.afterEach((to) => {
                 >{{ Math.round(uiScaleNumber * 100) }}%</span
               >
             </div>
+            <UBadge
+              v-else
+              color="neutral"
+              icon="i-lucide-monitor-off"
+              label="浏览器中不可用"
+              variant="subtle"
+            />
           </SettingsItem>
           <SettingsItem
             description="点击窗口关闭按钮时隐藏到系统托盘而不是退出，可通过托盘菜单或 Alt+Delete 退出"
@@ -199,10 +235,12 @@ const stopScrollToHash = router.afterEach((to) => {
             title="关闭时最小化到托盘"
           >
             <USwitch
-              :disabled="!configInitialized"
+              v-if="draftSettings"
               :model-value="draftSettings.minimizeToTray"
               @update:model-value="editSettings({ minimizeToTray: $event })"
             />
+            <USkeleton v-else-if="settingsLoading" class="h-5 w-10 rounded-full" />
+            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
           <SettingsItem
             description="进入档案扫描页时显示操作指引，关闭后若无更新则不再提示，可随时重新开启"
@@ -210,10 +248,12 @@ const stopScrollToHash = router.afterEach((to) => {
             title="显示新手操作提示"
           >
             <USwitch
-              :disabled="!configInitialized"
+              v-if="draftSettings"
               :model-value="draftSettings.scanGuideEnabled"
               @update:model-value="editSettings({ scanGuideEnabled: $event })"
             />
+            <USkeleton v-else-if="settingsLoading" class="h-5 w-10 rounded-full" />
+            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
         </SettingsCard>
 
@@ -223,10 +263,9 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-volume-2"
             title="扫描提示音音量"
           >
-            <div class="flex w-56 items-center gap-2">
+            <div v-if="draftSettings" class="flex w-56 items-center gap-2">
               <USlider
                 class="flex-1"
-                :disabled="!configInitialized"
                 :max="1"
                 :min="0"
                 :model-value="draftSettings.soundVolume"
@@ -237,6 +276,8 @@ const stopScrollToHash = router.afterEach((to) => {
                 {{ Math.round(draftSettings.soundVolume * 100) }}%
               </span>
             </div>
+            <USkeleton v-else-if="settingsLoading" class="h-5 w-56" />
+            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
         </SettingsCard>
 
@@ -247,12 +288,14 @@ const stopScrollToHash = router.afterEach((to) => {
             title="更新源"
           >
             <USelect
+              v-if="draftSettings"
               class="w-56"
-              :disabled="!configInitialized"
               :items="updateSourceItems"
               :model-value="draftSettings.updateSource"
               @update:model-value="editSettings({ updateSource: $event })"
             />
+            <USkeleton v-else-if="settingsLoading" class="h-8 w-56" />
+            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
           <SettingsItem
@@ -261,10 +304,12 @@ const stopScrollToHash = router.afterEach((to) => {
             title="自动下载更新"
           >
             <USwitch
-              :disabled="!configInitialized"
+              v-if="draftSettings"
               :model-value="draftSettings.autoDownloadUpdates"
               @update:model-value="editSettings({ autoDownloadUpdates: $event })"
             />
+            <USkeleton v-else-if="settingsLoading" class="h-5 w-10 rounded-full" />
+            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
           <SettingsItem
@@ -273,10 +318,12 @@ const stopScrollToHash = router.afterEach((to) => {
             title="自动安装更新"
           >
             <USwitch
-              :disabled="!configInitialized"
+              v-if="draftSettings"
               :model-value="draftSettings.autoInstallUpdates"
               @update:model-value="editSettings({ autoInstallUpdates: $event })"
             />
+            <USkeleton v-else-if="settingsLoading" class="h-5 w-10 rounded-full" />
+            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
           <SettingsItem icon="i-lucide-key-round" title="Mirror酱 CDK">
@@ -298,11 +345,10 @@ const stopScrollToHash = router.afterEach((to) => {
                 免费下载和使用。</span
               >
             </template>
-            <div class="flex flex-col items-center gap-1">
+            <div v-if="draftSettings" class="flex flex-col items-center gap-1">
               <UInput
                 v-model.lazy="mirrorchyanCdk"
                 class="w-56"
-                :disabled="!configInitialized"
                 placeholder="未填写时使用 OEM 下载"
                 type="password"
                 @keydown.enter="($event.target as HTMLInputElement).blur()"
@@ -329,6 +375,8 @@ const stopScrollToHash = router.afterEach((to) => {
                 /></span>
               </ULink>
             </div>
+            <USkeleton v-else-if="settingsLoading" class="h-8 w-56" />
+            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
           <SettingsItem
@@ -337,16 +385,18 @@ const stopScrollToHash = router.afterEach((to) => {
             title="网络代理"
           >
             <USelect
+              v-if="draftSettings"
               class="w-56"
-              :disabled="!configInitialized"
               :items="proxyModeItems"
               :model-value="draftSettings.updateProxyMode"
               @update:model-value="editSettings({ updateProxyMode: $event })"
             />
+            <USkeleton v-else-if="settingsLoading" class="h-8 w-56" />
+            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
           <SettingsItem
-            v-if="draftSettings.updateProxyMode === UpdateProxyMode.Custom"
+            v-if="draftSettings?.updateProxyMode === UpdateProxyMode.Custom"
             description="自定义代理服务器地址，例如 http://127.0.0.1:7890"
             icon="i-lucide-link"
             title="代理地址"
@@ -354,24 +404,34 @@ const stopScrollToHash = router.afterEach((to) => {
             <UInput
               v-model.lazy="updateProxyUrl"
               class="w-56"
-              :disabled="!configInitialized"
               placeholder="http://127.0.0.1:7890"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
           </SettingsItem>
-          <div>
+          <div v-if="settingsLoading">
+            <USkeleton class="h-8 w-full" />
+          </div>
+          <div v-else-if="settingsCanCheckUpdate">
             <UButton
               block
-              :disabled="!configInitialized || updateOperationBusy"
+              :disabled="updateOperationBusy"
               icon="i-lucide-refresh-cw"
               label="检查更新"
               :loading="updateCheckState.status === 'checking'"
               @click="manualCheckUpdate"
             />
           </div>
+          <SettingsItem
+            v-else
+            description="连接桌面后端后可以手动检查可用更新"
+            icon="i-lucide-refresh-cw"
+            title="手动检查更新"
+          >
+            <UBadge color="neutral" :label="unavailableLabel" variant="soft" />
+          </SettingsItem>
         </SettingsCard>
 
-        <DeveloperSettings />
+        <DeveloperSettings :unsupported="settingsUnsupported" />
       </UPageBody>
     </UPage>
   </UContainer>

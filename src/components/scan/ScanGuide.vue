@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { configInitialized, editSettings, effectiveSettings } from '@/utils/app/config';
+import { editSettings, settingsState } from '@/utils/app/config';
 import { computed, ref } from 'vue';
 
 /**
@@ -12,14 +12,14 @@ const dismissedThisSession = ref(false);
 
 /**
  * 是否显示启动扫描提示。
- * 配置加载完成前不渲染，避免启动时用默认配置短暂闪现提示。
- * 加载完成后，`effectiveSettings.value.scanGuideEnabled` 为 `true`
+ * 配置加载完成前不渲染，避免启动时短暂闪现提示。
+ * 加载完成后，`settingsState.value.effective.scanGuideEnabled` 为 `true`
  * 且本次启动内未手动关闭时显示。提示版本的比较和编码由 `configStore.ts` 负责。
  */
 const showScanGuide = computed(
   () =>
-    configInitialized.value &&
-    effectiveSettings.value.scanGuideEnabled &&
+    settingsState.value.status === 'ready' &&
+    settingsState.value.effective.scanGuideEnabled &&
     !dismissedThisSession.value,
 );
 

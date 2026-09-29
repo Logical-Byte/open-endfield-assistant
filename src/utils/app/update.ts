@@ -12,7 +12,7 @@ import {
   UpdateStatus,
 } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
-import { configInitialized, effectiveSettings } from '@/utils/app/config';
+import { settingsState } from '@/utils/app/config';
 import { logDebug, logError, logWarn, onAutomationStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { Channel, invoke } from '@tauri-apps/api/core';
@@ -33,6 +33,11 @@ const INITIAL_UPDATE_STATUS: UpdateStatus = {
 };
 
 type LogWriter = (message: string) => Promise<void>;
+
+/** Settings 首次加载成功后，返回可供业务决策使用的最近一次持久化快照。 */
+function currentEffectiveSettings() {
+  return settingsState.value.status === 'ready' ? settingsState.value.effective : null;
+}
 
 /** 日志 IPC 失败不能打断更新流程；浏览器控制台保留最后一层诊断信息。 */
 function writeUpdateLog(write: LogWriter, message: string): void {
@@ -156,12 +161,13 @@ export async function checkUpdate(): Promise<void> {
     const availability = await invoke<UpdateAvailability>('check_update');
     lastCheckedAt.value = Date.now();
     if (availability.status === 'available') {
+      const settings = currentEffectiveSettings();
       writeUpdateLog(
         logDebug,
-        `更新前端：检测到可用更新，打开更新提示（autoDownload=${effectiveSettings.value.autoDownloadUpdates}）`,
+        `更新前端：检测到可用更新，打开更新提示（autoDownload=${settings?.autoDownloadUpdates ?? 'n/a'}）`,
       );
       updatePopoverOpen.value = true;
-      shouldAutoDownload = configInitialized.value && effectiveSettings.value.autoDownloadUpdates;
+      shouldAutoDownload = settings?.autoDownloadUpdates === true;
     }
   } catch (error) {
     checkError.value = error instanceof Error ? error : new Error(String(error));
@@ -275,7 +281,7 @@ export async function initUpdateState(): Promise<void> {
   });
 
   if (pendingUpdate.value) {
-    if (configInitialized.value && effectiveSettings.value.autoInstallUpdates) {
+    if (currentEffectiveSettings()?.autoInstallUpdates === true) {
       void tryAutoInstall();
     } else {
       updatePopoverOpen.value = true;
@@ -300,17 +306,17 @@ async function consumeStartupUpdateResult(): Promise<StartupUpdateResult> {
 
 /** 满足条件时自动开始安装：存在待安装更新、开启自动安装且扫描空闲。 */
 export async function tryAutoInstall(): Promise<void> {
+  const autoInstallEnabled = currentEffectiveSettings()?.autoInstallUpdates;
   if (
     pendingUpdate.value === null ||
     effectiveOperation.value !== 'idle' ||
     installStatus.value !== UpdateInstallStatus.Idle ||
-    !configInitialized.value ||
-    !effectiveSettings.value.autoInstallUpdates ||
+    autoInstallEnabled !== true ||
     appStatus.value.state !== 'idle'
   ) {
     writeUpdateLog(
       logDebug,
-      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${effectiveSettings.value.autoInstallUpdates}, automating=${appStatus.value.state !== 'idle'}）`,
+      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${autoInstallEnabled ?? 'n/a'}, automating=${appStatus.value.state !== 'idle'}）`,
     );
     return;
   }
