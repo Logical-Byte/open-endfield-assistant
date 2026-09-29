@@ -1,6 +1,6 @@
 //! 自动化模块向观察者发布的事件。
 //!
-//! 工作流通过 [`EventSink`] 发布已经发生的领域事实，不依赖 Tauri 或其他传输机制。
+//! 工作流通过 [`EventSink`] 发布已经发生的领域事实，隐藏底层的 Tauri 或其他传输机制。
 
 use super::{
     archive_scan::ScanResult,
@@ -15,7 +15,9 @@ pub(crate) enum Event {
     ArchiveScanResult(ScanResult),
 }
 
-/// 自动化事件的观察出口。
+/// 自动化事件 [`Event`] 的观察出口。
+///
+/// 调用者不会观察到发布是否成功。[`EventSink`] 的具体实现应自行处理失败情况。
 pub(crate) trait EventSink: Send + Sync + 'static {
     fn publish(&self, event: Event);
 }
