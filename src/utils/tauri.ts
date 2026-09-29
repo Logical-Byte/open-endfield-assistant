@@ -3,7 +3,7 @@
 import type * as Automation from '@/types/automation';
 import type { ArchiveContract } from '@/types/archiveContract';
 import type { LogEntry } from '@/types/log';
-import type { OeaConfig } from '@/types/oeaConfig';
+import type { OeaSettings } from '@/types/oeaSettings';
 import type { PrtsData } from '@/types/prts';
 import type { ScanResult } from '@/types/scanResult';
 import type { ScreenshotFormat } from '@/types/screenshot';
@@ -45,12 +45,12 @@ export async function openLogDir(): Promise<void> {
   await invoke('open_log_dir');
 }
 
-export async function loadOeaConfig(): Promise<OeaConfig> {
-  return await invoke('load_oea_config');
+export async function loadOeaSettings(): Promise<OeaSettings> {
+  return await invoke('load_oea_settings');
 }
 
-export async function saveOeaConfig(oeaConfig: OeaConfig): Promise<void> {
-  return await invoke('save_oea_config', { oeaConfig });
+export async function saveOeaSettings(oeaSettings: OeaSettings): Promise<void> {
+  return await invoke('save_oea_settings', { oeaSettings });
 }
 
 /** 用 DPAPI（当前用户作用域）加密 CDK，返回 Base64 密文。 */

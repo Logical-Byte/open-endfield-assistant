@@ -12,16 +12,15 @@ use tracing::{info, warn};
 
 use crate::{
     automation::{self, archive_scan},
-    config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
-    vision,
+    settings, vision,
 };
 
 /// 应用控制器（Tauri 托管状态）。
 pub struct Controller {
-    /// 应用配置存储
-    config_store: Arc<ConfigStore>,
+    /// 用户设置存储
+    settings_store: Arc<settings::SettingsStore>,
     /// 共享 OCR 引擎（跨会话复用模型）
     ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     /// 导航器（本游戏全部场景，跨线程共享只读）
@@ -35,14 +34,14 @@ pub struct Controller {
 impl Controller {
     /// 创建控制器。
     pub(crate) fn new(
-        config_store: Arc<ConfigStore>,
+        settings_store: Arc<settings::SettingsStore>,
         ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
         navigator: Arc<Navigator>,
         automation_runtime: Arc<automation::Runtime>,
         app_data: AppData,
     ) -> Self {
         Self {
-            config_store,
+            settings_store,
             ocr,
             navigator,
             automation_runtime,
@@ -50,13 +49,13 @@ impl Controller {
         }
     }
 
-    pub fn config_store(&self) -> &ConfigStore {
-        &self.config_store
+    pub fn settings_store(&self) -> &settings::SettingsStore {
+        &self.settings_store
     }
 
-    /// 获取当前应用配置的独立快照，供无需持锁的异步流程使用。
-    pub fn oea_config_snapshot(&self) -> OeaConfig {
-        self.config_store.snapshot()
+    /// 获取当前用户设置的独立快照，供无需持锁的异步流程使用。
+    pub fn settings_snapshot(&self) -> settings::OeaSettings {
+        self.settings_store.snapshot()
     }
 
     /// 读取当前自动化状态；任务终态由一次性事件单独推送。
@@ -115,7 +114,7 @@ impl Controller {
 
     fn archive_scan_worker(&self) -> archive_scan::ArchiveScanWorker {
         archive_scan::ArchiveScanWorker::new(
-            self.config_store.snapshot(),
+            self.settings_store.snapshot(),
             Arc::clone(&self.ocr),
             Arc::clone(&self.navigator),
             Arc::clone(&self.app_data),

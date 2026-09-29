@@ -11,10 +11,9 @@ use tracing::{debug, error, info, trace, warn};
 use crate::{
     app_paths::AppPaths,
     automation,
-    config::OeaConfig,
     controller::Controller,
     data::{ArchiveContract, PrtsData},
-    platform,
+    platform, settings,
 };
 
 /// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
@@ -114,25 +113,28 @@ pub fn open_log_dir() -> Result<(), String> {
         .map_err(|e| format!("无法打开日志目录: {e}"))
 }
 
-/// 加载 OEA 配置文件。
+/// 加载 OEA 用户设置。
 #[tauri::command]
-pub fn load_oea_config(state: tauri::State<Controller>) -> OeaConfig {
-    state.config_store().snapshot()
+pub fn load_oea_settings(state: tauri::State<Controller>) -> settings::OeaSettings {
+    state.settings_store().snapshot()
 }
 
-/// 保存 OEA 配置文件。
+/// 保存 OEA 用户设置。
 #[tauri::command]
-pub fn save_oea_config(
+pub fn save_oea_settings(
     state: tauri::State<Controller>,
-    oea_config: OeaConfig,
+    oea_settings: settings::OeaSettings,
 ) -> Result<(), String> {
-    let store = state.config_store();
-    debug!("正在保存配置 {oea_config:?} 到 {}", store.path().display());
-    store.save(oea_config).map_err(|e| {
-        error!("保存配置文件失败: {e:#}");
+    let store = state.settings_store();
+    debug!(
+        "正在保存设置 {oea_settings:?} 到 {}",
+        store.path().display()
+    );
+    store.save(oea_settings).map_err(|e| {
+        error!("保存设置文件失败: {e:#}");
         format!("{e:#}")
     })?;
-    info!("已成功保存配置到 {}", store.path().display());
+    info!("已成功保存设置到 {}", store.path().display());
     Ok(())
 }
 

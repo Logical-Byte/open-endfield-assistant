@@ -9,9 +9,9 @@ use tracing::warn;
 
 use crate::storage::CachedJsonFile;
 
-/// 当前配置文件主要版本号
+/// 当前设置文件主要版本号
 pub const CURRENT_MAJOR_VERSION: u32 = 0;
-/// 当前配置文件次要版本号
+/// 当前设置文件次要版本号
 pub const CURRENT_MINOR_VERSION: u32 = 0;
 
 /// 更新源。
@@ -34,13 +34,13 @@ pub enum UpdateProxyMode {
     Custom,
 }
 
-/// 应用配置。
+/// OEA 用户设置。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
-pub struct OeaConfig {
-    /// 配置文件主要版本号，产生不兼容变更（改变字段结构或者删除字段）时，增加 `majorVersion` 的值
+pub struct OeaSettings {
+    /// 设置文件主要版本号，产生不兼容变更（改变字段结构或者删除字段）时，增加 `majorVersion` 的值
     pub major_version: u32,
-    /// 配置文件次要版本号，产生兼容变更（添加新字段但不改变原有字段的结构）时，增加 `minorVersion` 的值
+    /// 设置文件次要版本号，产生兼容变更（添加新字段但不改变原有字段的结构）时，增加 `minorVersion` 的值
     pub minor_version: u32,
     /// 关闭时最小化到托盘而不是退出应用，默认 `false`
     pub minimize_to_tray: bool,
@@ -66,11 +66,11 @@ pub struct OeaConfig {
     ///
     /// 更新提示文案时，想让所有用户（含已确认过的）重新看一次，只需递增前端
     /// `CURRENT_SCAN_TIPS_VERSION`，本字段无需改动；只改文案不递增版本号则老用户不重看。
-    /// 本字段的「值」不属于 config 结构变更，不会因此再次 bump `minorVersion`。
+    /// 本字段的「值」不属于 settings 结构变更，不会因此再次 bump `minorVersion`。
     pub scan_tips_dismissed_version: u32,
 }
 
-impl Default for OeaConfig {
+impl Default for OeaSettings {
     fn default() -> Self {
         Self {
             major_version: CURRENT_MAJOR_VERSION,
@@ -88,38 +88,38 @@ impl Default for OeaConfig {
     }
 }
 
-/// OEA 配置的内存缓存与持久化入口。
+/// OEA 设置的内存缓存与持久化入口。
 ///
-/// 配置默认值和错误回退等领域语义由本模块负责；JSON 格式、并发缓存和文件提交交给
+/// 设置默认值和错误回退等领域语义由本模块负责。JSON 格式、并发缓存和文件提交交给
 /// 通用的 [`CachedJsonFile`]。
-pub struct ConfigStore {
-    file: CachedJsonFile<OeaConfig>,
+pub struct SettingsStore {
+    file: CachedJsonFile<OeaSettings>,
 }
 
-impl ConfigStore {
-    /// 从配置文件创建存储；文件不存在或内容无效时以默认配置初始化内存缓存。
+impl SettingsStore {
+    /// 从设置文件创建存储。文件不存在或内容无效时以默认设置初始化内存缓存。
     ///
     /// 回退默认值不会立即覆盖磁盘上的无效内容。只有显式调用 [`Self::save`] 才会写盘。
     pub fn at(path: PathBuf) -> Self {
         let file = match CachedJsonFile::at(path.clone()) {
             Ok(file) => file,
-            Err(error) if is_not_found(&error) => CachedJsonFile::new(path, OeaConfig::default()),
+            Err(error) if is_not_found(&error) => CachedJsonFile::new(path, OeaSettings::default()),
             Err(error) => {
-                warn!(error = %error, path = %path.display(), "加载配置文件失败，使用默认配置");
-                CachedJsonFile::new(path, OeaConfig::default())
+                warn!(error = %error, path = %path.display(), "加载设置文件失败，使用默认设置");
+                CachedJsonFile::new(path, OeaSettings::default())
             }
         };
         Self { file }
     }
 
-    /// 返回当前配置的独立快照。
-    pub fn snapshot(&self) -> OeaConfig {
+    /// 返回当前设置的独立快照。
+    pub fn snapshot(&self) -> OeaSettings {
         self.file.snapshot().as_ref().clone()
     }
 
-    /// 保存完整配置；文件提交成功后才会发布新的内存快照。
-    pub fn save(&self, config: OeaConfig) -> Result<()> {
-        self.file.replace(config)
+    /// 保存完整设置。文件提交成功后才会发布新的内存快照。
+    pub fn save(&self, settings: OeaSettings) -> Result<()> {
+        self.file.replace(settings)
     }
 
     pub fn path(&self) -> &Path {
@@ -140,18 +140,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_load_nonexistent_config() {
+    fn test_load_nonexistent_settings() {
         let root = tempfile::tempdir().unwrap();
-        let path = root.path().join("nonexistent_config.json");
-        let store = ConfigStore::at(path);
-        assert_eq!(store.snapshot(), OeaConfig::default());
+        let path = root.path().join("nonexistent_settings.json");
+        let store = SettingsStore::at(path);
+        assert_eq!(store.snapshot(), OeaSettings::default());
     }
 
     #[test]
-    fn test_save_and_load_config() {
+    fn test_save_and_load_settings() {
         let root = tempfile::tempdir().unwrap();
-        let path = root.path().join("test_config.json");
-        let original_config = OeaConfig {
+        let path = root.path().join("test_settings.json");
+        let original_settings = OeaSettings {
             major_version: 1,
             minor_version: 0,
             minimize_to_tray: true,
@@ -164,24 +164,24 @@ mod tests {
             auto_install_updates: false,
             scan_tips_dismissed_version: 1,
         };
-        let store = ConfigStore::at(path.clone());
-        store.save(original_config.clone()).unwrap();
+        let store = SettingsStore::at(path.clone());
+        store.save(original_settings.clone()).unwrap();
 
-        assert_eq!(store.snapshot(), original_config);
-        assert_eq!(ConfigStore::at(path).snapshot(), original_config);
+        assert_eq!(store.snapshot(), original_settings);
+        assert_eq!(SettingsStore::at(path).snapshot(), original_settings);
     }
 
     #[test]
-    fn test_load_invalid_config() {
+    fn test_load_invalid_settings() {
         let root = tempfile::tempdir().unwrap();
-        let path = root.path().join("invalid_config.json");
+        let path = root.path().join("invalid_settings.json");
         fs::write(&path, "invalid json").unwrap();
-        let store = ConfigStore::at(path);
-        assert_eq!(store.snapshot(), OeaConfig::default());
+        let store = SettingsStore::at(path);
+        assert_eq!(store.snapshot(), OeaSettings::default());
     }
 
     #[test]
-    fn test_deserialize_config() {
+    fn test_deserialize_settings() {
         let json = r#"
         {
             "majorVersion": 1,
@@ -190,17 +190,17 @@ mod tests {
             "soundVolume": 0.7
         }
         "#;
-        let config: OeaConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(config.major_version, 1);
-        assert_eq!(config.minor_version, 2);
-        assert!(config.minimize_to_tray);
-        assert_eq!(config.sound_volume, 0.7);
-        assert_eq!(config.update_source, UpdateSource::default());
-        assert_eq!(config.mirrorchyan_cdk_encrypted, "".to_string());
-        assert_eq!(config.update_proxy_mode, UpdateProxyMode::default());
-        assert_eq!(config.update_proxy_url, "".to_string());
-        assert!(config.auto_download_updates);
-        assert!(config.auto_install_updates);
-        assert_eq!(config.scan_tips_dismissed_version, 0);
+        let settings: OeaSettings = serde_json::from_str(json).unwrap();
+        assert_eq!(settings.major_version, 1);
+        assert_eq!(settings.minor_version, 2);
+        assert!(settings.minimize_to_tray);
+        assert_eq!(settings.sound_volume, 0.7);
+        assert_eq!(settings.update_source, UpdateSource::default());
+        assert_eq!(settings.mirrorchyan_cdk_encrypted, "".to_string());
+        assert_eq!(settings.update_proxy_mode, UpdateProxyMode::default());
+        assert_eq!(settings.update_proxy_url, "".to_string());
+        assert!(settings.auto_download_updates);
+        assert!(settings.auto_install_updates);
+        assert_eq!(settings.scan_tips_dismissed_version, 0);
     }
 }

@@ -10,10 +10,10 @@ export enum UpdateProxyMode {
   Custom = 'custom',
 }
 
-export interface OeaConfig {
-  /** 配置文件主版本；字段结构发生不兼容变化时递增。 */
+export interface OeaSettings {
+  /** 设置文件主版本；字段结构发生不兼容变化时递增。 */
   majorVersion: number;
-  /** 配置文件次版本；添加兼容字段时递增。 */
+  /** 设置文件次版本；添加兼容字段时递增。 */
   minorVersion: number;
   /** 关闭窗口时是否隐藏到系统托盘，而非退出应用。 */
   minimizeToTray: boolean;

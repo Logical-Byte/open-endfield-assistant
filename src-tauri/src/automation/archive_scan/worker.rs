@@ -15,17 +15,16 @@ use crate::{
         session::Session,
         stats::counts::Capture,
     },
-    config::OeaConfig,
     data::AppData,
     navigation::Navigator,
-    platform, vision,
+    platform, settings, vision,
 };
 
 use super::{reporting::ScanReporter, workflow::ArchiveScanner};
 
 /// 一次真实扫描所需的协作者，由控制器在任务获准启动后创建。
 pub(crate) struct ArchiveScanWorker {
-    oea_config: OeaConfig,
+    settings: settings::OeaSettings,
     ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     navigator: Arc<Navigator>,
     app_data: Arc<AppData>,
@@ -33,13 +32,13 @@ pub(crate) struct ArchiveScanWorker {
 
 impl ArchiveScanWorker {
     pub(crate) fn new(
-        oea_config: OeaConfig,
+        settings: settings::OeaSettings,
         ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
         navigator: Arc<Navigator>,
         app_data: Arc<AppData>,
     ) -> Self {
         Self {
-            oea_config,
+            settings,
             ocr,
             navigator,
             app_data,
@@ -88,7 +87,7 @@ impl ArchiveScanWorker {
         WorkerExit::with_capture(reason, capture)
     }
 
-    /// 播放扫描提示音（音量取本次配置快照）。
+    /// 播放扫描提示音（音量取本次设置快照）。
     fn play_scan_sound(&self, sound: ScanSound) {
         let app_paths = match AppPaths::new() {
             Ok(app_paths) => app_paths,
@@ -104,7 +103,7 @@ impl ArchiveScanWorker {
                 return;
             }
         };
-        platform::sound::play_wav(&path, self.oea_config.sound_volume);
+        platform::sound::play_wav(&path, self.settings.sound_volume);
     }
 }
 

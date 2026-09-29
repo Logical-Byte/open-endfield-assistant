@@ -8,7 +8,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use tracing::{debug, info, warn};
 
-use crate::config::{OeaConfig, UpdateSource};
+use crate::settings::{OeaSettings, UpdateSource};
 
 use progress::ProgressReporter;
 use target::DownloadTarget;
@@ -26,7 +26,7 @@ pub(super) async fn download_update_plan(
     plan: DownloadPlan,
     session_id: u64,
     session: Arc<DownloadSession>,
-    config: &OeaConfig,
+    settings: &OeaSettings,
     user_agent: &str,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
 ) -> Result<PathBuf, String> {
@@ -55,7 +55,9 @@ pub(super) async fn download_update_plan(
     );
     let client = match plan.source {
         UpdateSource::Mirrorchyan => super::http::build_direct_client(user_agent)?,
-        UpdateSource::Oem | UpdateSource::Github => super::http::build_client(config, user_agent)?,
+        UpdateSource::Oem | UpdateSource::Github => {
+            super::http::build_client(settings, user_agent)?
+        }
     };
     let mut request = client.get(download_url);
     if let Some(accept) = plan.accept {

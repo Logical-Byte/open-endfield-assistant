@@ -9,7 +9,7 @@
 两个版本号配合决定是否展示：
 
 - **当前提示版本**：设置模块内部常量 `CURRENT_SCAN_TIPS_VERSION`（`src/utils/app/configStore.ts`）。修改 `ScanGuide.vue` 文案时，在这里决定是否递增版本。
-- **用户已确认版本**：后端配置字段 `scanTipsDismissedVersion`（`config/oea_config.json`，默认 `0`）。用户勾选「下次更新前不再提示」并点击「我知道了」时写入。
+- **用户已确认版本**：后端设置字段 `scanTipsDismissedVersion`（`config/oea_config.json`，默认 `0`）。用户勾选「下次更新前不再提示」并点击「我知道了」时写入。
 
 设置模块将 `scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION` 投影为 `scanGuideEnabled`，页面只读写这个布尔设置。加载完成后，扫描页依据已生效值决定是否展示。
 
@@ -23,7 +23,7 @@
 
 老用户已确认的版本号（`1`）将小于新版本（`2`），下次启动会重新看到新提示；从未确认过的新用户（`0 < 2`）同样会看到。
 
-此操作只改前端常量与文案，不涉及 config 结构，**无需** bump `minorVersion`。
+此操作只改前端常量与文案，不涉及 Settings 结构，**无需** bump `minorVersion`。
 
 ### 更新提示文案，但无需老用户重看
 
