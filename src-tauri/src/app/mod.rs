@@ -2,13 +2,14 @@
 
 mod background_threads;
 mod commands;
+mod frontend_events;
 mod frontend_forwarders;
 mod hooks;
 mod hotkeys;
 mod tray;
 
 use std::fs;
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use rapidocr_core::config::PipelineConfig;
@@ -196,9 +197,6 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let main_window = main_window_builder.build()?;
     platform::webview::register_zoom_changed_listener(&main_window);
 
-    // 扫描结果通道：任务线程产生 → 转发线程 `emit` 给前端
-    let (scan_tx, scan_rx) = mpsc::channel();
-
     // 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
     let pipeline_config = PipelineConfig::recognition_only();
     let ocr_engine = OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
@@ -209,7 +207,8 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     let navigator = Arc::new(Navigator::new());
 
-    let automation_runtime = Arc::new(automation::Runtime::new());
+    let automation_events = Arc::new(frontend_events::TauriEventSink::new(app.handle().clone()));
+    let automation_runtime = Arc::new(automation::Runtime::new(automation_events.clone()));
 
     // 组装应用控制器并托管为 `State`。
     let controller = Controller::new(
@@ -217,7 +216,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
         ocr,
         navigator,
         automation_runtime,
-        scan_tx,
+        automation_events,
         app_data,
     );
     app.manage(controller);
@@ -226,7 +225,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     tray::init_tray(app.handle())?;
 
     // 托管应用常驻线程；此后 `setup` 不再执行可能失败的初始化步骤。
-    let background_threads = BackgroundThreads::start(app.handle(), logger_guard, log_rx, scan_rx)?;
+    let background_threads = BackgroundThreads::start(app.handle(), logger_guard, log_rx)?;
     app.manage(background_threads);
 
     info!("OEA 后端初始化完成");

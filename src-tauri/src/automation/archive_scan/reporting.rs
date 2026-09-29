@@ -1,17 +1,19 @@
 //! 档案库扫描结果的数据结构与上报器。
 //!
-//! `ScanResult` 是档案扫描的逐条产出。应用层创建上报通道，
-//! 扫描工作者将发送端包装为 `ScanReporter`；工作流不依赖 Tauri 句柄。
+//! `ScanResult` 是档案扫描的逐条产出。`ArchiveScanWorker` 把应用层注入的
+//! [`EventSink`] 包装为 `ScanReporter`，工作流不依赖 Tauri 句柄。
 
 use std::io::Cursor;
-use std::sync::mpsc;
+use std::sync::Arc;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use image::{DynamicImage, RgbaImage, imageops};
 use serde::Serialize;
 
+use crate::automation::{Event, EventSink};
+
 /// 单份档案的扫描结果。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ScanResult {
     /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
@@ -55,19 +57,19 @@ pub(super) fn encode_png_data_url(img: &RgbaImage) -> String {
     format!("data:image/png;base64,{}", STANDARD.encode(&buf))
 }
 
-/// 扫描结果上报器：扫描工作流 → 前端事件通道。
+/// 扫描结果上报器：扫描工作流 → 自动化事件观察出口。
 ///
-/// 持有应用层创建的通道发送端；工作者创建上报器并注入扫描工作流。
-/// 工作流只负责上报结果，不关心通道如何到达前端。
+/// `ArchiveScanWorker` 创建 `ScanReporter` 并注入扫描工作流。
+/// 工作流只负责发布完整的领域结果，不关心观察者如何把事件传递给前端。
 #[derive(Clone)]
 pub(super) struct ScanReporter {
-    tx: mpsc::Sender<ScanResult>,
+    events: Arc<dyn EventSink>,
 }
 
 impl ScanReporter {
     /// 创建上报器。
-    pub(super) fn new(tx: mpsc::Sender<ScanResult>) -> Self {
-        Self { tx }
+    pub(super) fn new(events: Arc<dyn EventSink>) -> Self {
+        Self { events }
     }
 
     /// 上报一份扫描结果。
@@ -84,7 +86,7 @@ impl ScanReporter {
             Some(c) => (Some(c.title), c.item_ids),
             None => (None, Vec::new()),
         };
-        let _ = self.tx.send(ScanResult {
+        self.events.publish(Event::ArchiveScanResult(ScanResult {
             status: status.to_string(),
             category: category.to_string(),
             sub_category: sub_category.to_string(),
@@ -92,6 +94,47 @@ impl ScanReporter {
             ocr_result,
             corrected_title,
             item_ids,
-        });
+        }));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::automation::{Event, events::testing::RecordingEventSink};
+
+    use super::{ScanReporter, ScanResult};
+    use crate::automation::archive_scan::correction::Corrected;
+
+    #[test]
+    fn reports_recognized_archive_without_tauri() {
+        let events = Arc::new(RecordingEventSink::default());
+        let reporter = ScanReporter::new(events.clone());
+
+        reporter.report(
+            "success",
+            "text",
+            "records",
+            "data:image/png;base64,aGVsbG8=".to_string(),
+            "观察记录".to_string(),
+            Some(Corrected {
+                title: "观察记录".to_string(),
+                item_ids: vec!["archive-42".to_string()],
+            }),
+        );
+
+        assert_eq!(
+            events.events(),
+            vec![Event::ArchiveScanResult(ScanResult {
+                status: "success".to_string(),
+                category: "text".to_string(),
+                sub_category: "records".to_string(),
+                image: "data:image/png;base64,aGVsbG8=".to_string(),
+                ocr_result: "观察记录".to_string(),
+                corrected_title: Some("观察记录".to_string()),
+                item_ids: vec!["archive-42".to_string()],
+            })]
+        );
     }
 }

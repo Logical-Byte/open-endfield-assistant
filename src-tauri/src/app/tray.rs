@@ -78,7 +78,7 @@ pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
             "show" => show_main_window(app),
             "toggle" => {
                 if let Some(controller) = app.try_state::<Controller>() {
-                    controller.toggle_archive_scan(app);
+                    controller.toggle_archive_scan();
                 }
             }
             "quit" => {

@@ -3,14 +3,14 @@
 //! 游戏会话、窗口操作、档案扫描工作流和提示音集中在这里；
 //! [`crate::automation::runtime::Runtime`] 只管理运行生命周期。
 
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex};
 
 use tracing::warn;
 
 use crate::{
     app_paths::AppPaths,
     automation::{
-        AutomationStopped, StopToken, is_stop_requested,
+        AutomationStopped, EventSink, StopToken, is_stop_requested,
         runtime::{FinishReason, Worker, WorkerExit},
         session::Session,
         stats::counts::Capture,
@@ -22,10 +22,7 @@ use crate::{
     platform,
 };
 
-use super::{
-    reporting::{ScanReporter, ScanResult},
-    workflow::ArchiveScanner,
-};
+use super::{reporting::ScanReporter, workflow::ArchiveScanner};
 
 /// 一次真实扫描所需的协作者，由控制器在任务获准启动后创建。
 pub(crate) struct ArchiveScanWorker {
@@ -42,14 +39,14 @@ impl ArchiveScanWorker {
         ocr: Arc<Mutex<OcrEngine>>,
         navigator: Arc<Navigator>,
         app_data: Arc<AppData>,
-        scan_tx: mpsc::Sender<ScanResult>,
+        events: Arc<dyn EventSink>,
     ) -> Self {
         Self {
             oea_config,
             ocr,
             navigator,
             app_data,
-            reporter: ScanReporter::new(scan_tx),
+            reporter: ScanReporter::new(events),
         }
     }
 
