@@ -18,7 +18,7 @@ pre-commit:
     - name: frontend-oxfmt
       glob:
         - '**/*.{vue,ts,tsx,js,jsx,mjs,cjs,json,css,scss,html,md,yaml,yml}'
-      run: pnpm exec oxfmt --check {staged_files}
+      run: pnpm exec oxfmt --check --no-error-on-unmatched-pattern {staged_files}
 
     - name: backend-rustfmt
       glob: 'src-tauri/**/*.rs'
