@@ -221,13 +221,7 @@ const stopScrollToHash = router.afterEach((to) => {
                 >{{ Math.round(uiScaleNumber * 100) }}%</span
               >
             </div>
-            <UBadge
-              v-else
-              color="neutral"
-              icon="i-lucide-monitor-off"
-              label="浏览器中不可用"
-              variant="subtle"
-            />
+            <UBadge v-else color="neutral" label="浏览器中不可用" variant="subtle" />
           </SettingsItem>
           <SettingsItem
             description="点击窗口关闭按钮时隐藏到系统托盘而不是退出，可通过托盘菜单或 Alt+Delete 退出"
