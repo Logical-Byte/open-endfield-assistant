@@ -35,19 +35,23 @@ watch(configSaveError, (error) => {
   }
 });
 
-watch(settingsState, (state) => {
-  if (
-    state.status === 'unavailable' &&
-    state.reason.type === 'initialize-error' &&
-    route.path !== '/settings'
-  ) {
-    toast.add({
-      title: '设置初始化失败',
-      description: '自动更新和扫描提示暂时不会使用用户设置。',
-      color: 'error',
-      actions: [{ label: '前往设置', onClick: () => router.push('/settings') }],
-    });
+let settingsInitializeErrorNotified = false;
+watch([settingsState, () => route.path], ([state, path]) => {
+  const initializeFailed =
+    state.status === 'unavailable' && state.reason.type === 'initialize-error';
+  if (!initializeFailed) {
+    settingsInitializeErrorNotified = false;
+    return;
   }
+  if (path === '/settings' || settingsInitializeErrorNotified) return;
+
+  settingsInitializeErrorNotified = true;
+  toast.add({
+    title: '设置初始化失败',
+    description: '自动更新和扫描提示暂时不会使用用户设置。',
+    color: 'error',
+    actions: [{ label: '前往设置', onClick: () => router.push('/settings') }],
+  });
 });
 
 const colorMode = useColorMode();
