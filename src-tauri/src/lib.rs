@@ -9,11 +9,10 @@ pub mod controller;
 pub mod data;
 pub mod logger;
 pub mod navigation;
-pub mod ocr;
 pub mod platform;
 pub(crate) mod storage;
-pub mod template_matching;
 pub mod update;
 pub mod utils;
+pub mod vision;
 
 pub use app::run;

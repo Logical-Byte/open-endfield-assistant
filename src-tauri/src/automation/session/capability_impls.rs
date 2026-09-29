@@ -11,10 +11,9 @@ use crate::{
         Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
         TemplateTarget,
     },
-    ocr::text_detection,
     platform::input::Contact,
-    template_matching::{TemplateSource, match_template_in_region},
     utils::region::Region2D,
+    vision::{ocr::text_detection, template_matching},
 };
 
 use super::Session;
@@ -59,8 +58,12 @@ impl TemplateMatching for Session {
         screenshot: &RgbaImage,
         target: &TemplateTarget,
     ) -> Result<Option<TemplateMatch>> {
-        let template = self.templates.get(target.template_name)?;
-        let matched = match_template_in_region(screenshot, template, Some(target.roi))?;
+        let matched = template_matching::find(
+            screenshot,
+            target.template_name,
+            target.roi,
+            &mut self.templates,
+        )?;
         Ok(
             (matched.score >= target.threshold).then_some(TemplateMatch {
                 region: matched.region,

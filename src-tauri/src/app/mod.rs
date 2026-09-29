@@ -18,7 +18,7 @@ use tracing::{error, info, warn};
 
 use crate::{
     app_paths::AppPaths, automation, config::ConfigStore, controller::Controller, data::AppData,
-    logger, navigation::Navigator, ocr::OcrEngine, platform, update,
+    logger, navigation::Navigator, platform, update, vision::ocr::OcrEngine,
 };
 
 use self::hooks::{crash, portable};

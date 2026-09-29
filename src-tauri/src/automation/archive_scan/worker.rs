@@ -18,8 +18,8 @@ use crate::{
     config::OeaConfig,
     data::AppData,
     navigation::Navigator,
-    ocr::OcrEngine,
     platform,
+    vision::ocr::OcrEngine,
 };
 
 use super::{reporting::ScanReporter, workflow::ArchiveScanner};

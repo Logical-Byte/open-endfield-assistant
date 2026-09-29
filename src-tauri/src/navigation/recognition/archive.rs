@@ -4,9 +4,9 @@
 //! 档案的具体子界面。状态组之间的静态引用表达当前采用的固定执行计划。
 
 use anyhow::Result;
-use image::imageops;
 
 use crate::utils::region::{Region2D, ltwh};
+use crate::vision::region::mean_luma;
 
 use super::{RecognitionContext, Refinement, UiStateGroup};
 use crate::navigation::state::{ArchiveState, ArchiveSubscene, CentralPage, RecordsPage, UiState};
@@ -175,12 +175,8 @@ impl UiStateGroup for CentralSubscenes {
 fn tab_darkness(cx: &RecognitionContext<'_>, count: usize) -> [bool; 3] {
     let mut result = [false; 3];
     for (index, roi) in TAB_ROIS.iter().take(count).enumerate() {
-        let cropped =
-            imageops::crop_imm(cx.screenshot, roi.x0(), roi.y0(), roi.width(), roi.height());
-        let gray = imageops::grayscale(&cropped.to_image());
-        let pixel_count = u64::from(roi.width()) * u64::from(roi.height());
-        let total: u64 = gray.pixels().map(|pixel| u64::from(pixel.0[0])).sum();
-        result[index] = pixel_count != 0 && total / pixel_count < u64::from(DARK_THRESHOLD);
+        result[index] =
+            mean_luma(cx.screenshot, *roi).is_some_and(|luma| luma < f32::from(DARK_THRESHOLD));
     }
     result
 }

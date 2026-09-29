@@ -15,7 +15,7 @@ use crate::{
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
-    ocr::OcrEngine,
+    vision::ocr::OcrEngine,
 };
 
 /// 应用控制器（Tauri 托管状态）。

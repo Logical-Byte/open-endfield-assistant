@@ -14,13 +14,12 @@ use tracing::{info, warn};
 use crate::{
     app_paths::AppPaths,
     automation::{AutomationStopped, StopToken, is_stop_requested},
-    ocr::OcrEngine,
     platform::{
         self, WindowHandle,
         capture::{PrintWindowScreencap, ScreencapBase},
         input::{InputBase, SeizeInput},
     },
-    template_matching::LazyTemplateLoader,
+    vision::{ocr::OcrEngine, template_matching::LazyTemplateLoader},
 };
 
 use self::resolution::{Resolution, ResolutionTransform};
