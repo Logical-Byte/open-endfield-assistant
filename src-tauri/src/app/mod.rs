@@ -1,8 +1,8 @@
 //! Tauri 应用外壳与生命周期编排。
 
+mod automation_events;
 mod background_threads;
 mod commands;
-mod frontend_events;
 mod frontend_forwarders;
 mod hooks;
 mod hotkeys;
@@ -125,6 +125,11 @@ pub fn run() {
         .expect("error while running tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
+                if let Some(frontend_event_sink) =
+                    app_handle.try_state::<Arc<automation_events::TauriEventSink>>()
+                {
+                    frontend_event_sink.shutdown();
+                }
                 if let Some(background_threads) = app_handle.try_state::<BackgroundThreads>() {
                     background_threads.shutdown();
                 }
@@ -207,9 +212,14 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     let navigator = Arc::new(Navigator::new());
 
+    let frontend_event_sink = Arc::new(automation_events::TauriEventSink::start(
+        app.handle().clone(),
+    )?);
     let automation_events: Arc<dyn automation::EventSink> =
-        Arc::new(frontend_events::TauriEventSink::new(app.handle().clone()));
+        Arc::<automation_events::TauriEventSink>::clone(&frontend_event_sink);
     let automation_runtime = Arc::new(automation::Runtime::new(automation_events));
+
+    app.manage(frontend_event_sink);
 
     // 组装应用控制器并托管为 `State`。
     let controller = Controller::new(config_store, ocr, navigator, automation_runtime, app_data);
