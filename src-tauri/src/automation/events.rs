@@ -17,7 +17,8 @@ pub(crate) enum Event {
 
 /// 自动化事件 [`Event`] 的观察出口。
 ///
-/// 调用者不会观察到发布是否成功。[`EventSink`] 的具体实现应自行处理失败情况。
+/// 调用者不会观察到发布是否成功。具体实现应自行处理失败、保持同一发送路径上的事件顺序，
+/// 并快速接受事件，避免在 `Worker` thread 上执行较重的序列化或外部派发。
 pub(crate) trait EventSink: Send + Sync + 'static {
     fn publish(&self, event: Event);
 }
