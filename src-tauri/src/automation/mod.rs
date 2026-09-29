@@ -12,15 +12,13 @@
 //! - 具体的自动化任务工作流实现。
 
 pub(crate) mod archive_scan;
-pub(crate) mod cancellation;
+mod cancellation;
 mod capabilities;
-pub(crate) mod runtime;
-pub(crate) mod session;
-pub mod stats;
+mod runtime;
+mod session;
+mod stats;
 
-pub(crate) use cancellation::{
-    AutomationStopped, StopToken, is_stop_requested, new_stop_token, request_stop,
-};
+use cancellation::{AutomationStopped, StopToken, is_stop_requested, new_stop_token, request_stop};
 pub use capabilities::{
     Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
     TemplateTarget,

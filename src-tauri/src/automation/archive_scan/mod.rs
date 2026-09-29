@@ -7,7 +7,8 @@ mod correction;
 mod plan;
 mod reporting;
 mod scan_loop;
-pub(crate) mod worker;
+mod worker;
 mod workflow;
 
 pub(crate) use reporting::ScanResult;
+pub(crate) use worker::ArchiveScanWorker;

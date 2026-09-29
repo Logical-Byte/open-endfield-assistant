@@ -1,9 +1,9 @@
 //! 应用控制器（Tauri 托管状态）。
 //!
 //! 职责边界：
-//! - **应用编排**：根据任务种类创建真实游戏工作者；
+//! - **应用编排**：根据任务种类创建真实游戏工作者。
 //!
-//! 自动化任务的状态机与执行线程由 [`Runtime`] 拥有。
+//! 自动化任务的状态机与执行线程由 [`automation::Runtime`] 拥有。
 
 use std::sync::{Arc, Mutex, mpsc};
 
@@ -11,10 +11,7 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    automation::{
-        self,
-        archive_scan::{ScanResult, worker::ArchiveScanWorker},
-    },
+    automation::{self, archive_scan},
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
@@ -32,7 +29,7 @@ pub struct Controller {
     /// 全局唯一自动化任务运行时
     automation_runtime: Arc<automation::Runtime>,
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
-    scan_tx: Mutex<mpsc::Sender<ScanResult>>,
+    scan_tx: Mutex<mpsc::Sender<archive_scan::ScanResult>>,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
     app_data: Arc<AppData>,
 }
@@ -45,7 +42,7 @@ impl Controller {
         ocr: Arc<Mutex<OcrEngine>>,
         navigator: Arc<Navigator>,
         automation_runtime: Arc<automation::Runtime>,
-        scan_tx: mpsc::Sender<ScanResult>,
+        scan_tx: mpsc::Sender<archive_scan::ScanResult>,
         app_data: AppData,
     ) -> Self {
         Self {
@@ -123,8 +120,8 @@ impl Controller {
         app_handle.exit(0);
     }
 
-    fn archive_scan_worker(&self) -> ArchiveScanWorker {
-        ArchiveScanWorker::new(
+    fn archive_scan_worker(&self) -> archive_scan::ArchiveScanWorker {
+        archive_scan::ArchiveScanWorker::new(
             self.config_store.snapshot(),
             Arc::clone(&self.ocr),
             Arc::clone(&self.navigator),
