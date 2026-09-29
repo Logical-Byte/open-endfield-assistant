@@ -130,14 +130,22 @@ impl Runtime {
         self.emit_status(handle);
 
         let runtime = Arc::clone(self);
-        let handle = handle.clone();
-        thread::Builder::new()
+        let worker_handle = handle.clone();
+        if let Err(error) = thread::Builder::new()
             .name("oea-automation".to_string())
             .spawn(move || {
                 let result = worker.run(stop);
-                runtime.handle_worker_exit(&handle, task_kind, result);
+                runtime.handle_worker_exit(&worker_handle, task_kind, result);
             })
-            .expect("启动自动化任务线程失败");
+        {
+            self.handle_worker_exit(
+                handle,
+                task_kind,
+                WorkerExit::without_capture(FinishReason::Failed(format!(
+                    "启动自动化任务线程失败: {error}"
+                ))),
+            );
+        }
     }
 
     /// 请求停止当前自动化任务。
