@@ -6,7 +6,8 @@ export interface UpdateInfo {
 
 /** `check_update` 命令返回值。 */
 export type UpdateAvailability =
-  { status: 'upToDate' } | { status: 'available'; update: UpdateInfo };
+  | { status: 'upToDate' }
+  | { status: 'available'; update: UpdateInfo };
 
 /** 后端更新操作状态。 */
 export type UpdateOperation = 'idle' | 'checking' | 'downloading' | 'installing';
