@@ -33,14 +33,8 @@ where
         search_region.width(),
         search_region.height(),
     );
-    let mut matched = find_in_region(&*image_region, template_name, templates)?;
-    matched.region = Region2D::from_ltrb(
-        search_region.x0() + matched.region.x0(),
-        search_region.y0() + matched.region.y0(),
-        search_region.x0() + matched.region.x1(),
-        search_region.y0() + matched.region.y1(),
-    );
-    Ok(matched)
+    let matched = find_in_region(&*image_region, template_name, templates)?;
+    Ok(offset_match(matched, search_region))
 }
 
 /// 使用已加载的模板在 `image` 的指定区域内搜索。
@@ -68,14 +62,18 @@ where
         search_region.width(),
         search_region.height(),
     );
-    let mut matched = match_in_region(&*image_region, template)?;
+    let matched = match_in_region(&*image_region, template)?;
+    Ok(offset_match(matched, search_region))
+}
+
+fn offset_match(mut matched: MatchResult, search_region: Region2D<u32>) -> MatchResult {
     matched.region = Region2D::from_ltrb(
         search_region.x0() + matched.region.x0(),
         search_region.y0() + matched.region.y0(),
         search_region.x0() + matched.region.x1(),
         search_region.y0() + matched.region.y1(),
     );
-    Ok(matched)
+    matched
 }
 
 /// 通过模板名称取得模板，并在已经裁剪的图片区域内搜索。
