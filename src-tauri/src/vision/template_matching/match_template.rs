@@ -43,6 +43,41 @@ where
     Ok(matched)
 }
 
+/// 使用已加载的模板在 `image` 的指定区域内搜索。
+///
+/// `search_region` 为空时搜索完整图片。结果区域始终相对于 `image`。
+pub fn match_template_in_region<I, T>(
+    image: &I,
+    template: &T,
+    search_region: Option<Region2D<u32>>,
+) -> Result<MatchResult>
+where
+    I: GenericImageView,
+    I::Pixel: Pixel<Subpixel = u8>,
+    T: GenericImageView,
+    T::Pixel: Pixel<Subpixel = u8>,
+{
+    let Some(search_region) = search_region else {
+        return match_in_region(image, template);
+    };
+
+    let image_region = imageops::crop_imm(
+        image,
+        search_region.x0(),
+        search_region.y0(),
+        search_region.width(),
+        search_region.height(),
+    );
+    let mut matched = match_in_region(&*image_region, template)?;
+    matched.region = Region2D::from_ltrb(
+        search_region.x0() + matched.region.x0(),
+        search_region.y0() + matched.region.y0(),
+        search_region.x0() + matched.region.x1(),
+        search_region.y0() + matched.region.y1(),
+    );
+    Ok(matched)
+}
+
 /// 通过模板名称取得模板，并在已经裁剪的图片区域内搜索。
 pub(crate) fn find_in_region<I, P>(
     image_region: &I,
@@ -102,7 +137,7 @@ mod tests {
 
     use crate::utils::region::Region2D;
 
-    use super::{super::TemplateProvider, find};
+    use super::{super::TemplateProvider, find, match_template_in_region};
 
     struct InMemoryTemplates {
         template: RgbImage,
@@ -139,6 +174,29 @@ mod tests {
             &mut templates,
         )
         .unwrap();
+
+        assert_eq!(matched.region, Region2D::from_ltwh(1, 0, 2, 2));
+        assert_eq!(matched.score, 1.0);
+    }
+
+    #[test]
+    fn matches_loaded_template_in_search_region() {
+        let image = RgbImage::from_fn(4, 2, |x, y| {
+            let value = match (x, y) {
+                (1, 0) | (2, 1) => 0,
+                (2, 0) | (1, 1) => 255,
+                _ => 128,
+            };
+            Rgb([value, value, value])
+        });
+        let template = RgbImage::from_fn(2, 2, |x, y| {
+            let value = if x == y { 0 } else { 255 };
+            Rgb([value, value, value])
+        });
+
+        let matched =
+            match_template_in_region(&image, &template, Some(Region2D::from_ltwh(1, 0, 3, 2)))
+                .unwrap();
 
         assert_eq!(matched.region, Region2D::from_ltwh(1, 0, 2, 2));
         assert_eq!(matched.score, 1.0);
