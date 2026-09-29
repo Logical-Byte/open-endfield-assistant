@@ -13,7 +13,7 @@ use tauri::{
 };
 use tracing::info;
 
-use crate::controller::{AppStatus, Controller};
+use crate::{automation, controller::Controller};
 
 /// 全局托盘图标引用，供后续动态更新图标 / tooltip。
 static TRAY_ICON: OnceLock<Mutex<Option<TrayIcon>>> = OnceLock::new();
@@ -78,7 +78,7 @@ pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
             "show" => show_main_window(app),
             "toggle" => {
                 if let Some(controller) = app.try_state::<Controller>() {
-                    controller.toggle_scan(app);
+                    controller.toggle_archive_scan(app);
                 }
             }
             "quit" => {
@@ -120,14 +120,14 @@ pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
     }
 
     // 订阅运行状态事件：扫描档案库任务启动 / 结束都会推送，据此切换菜单文案
-    app_handle.listen("app-status", |event| {
-        if let Ok(status) = serde_json::from_str::<AppStatus>(event.payload()) {
-            update_toggle_item(status.running);
+    app_handle.listen("automation-status", |event| {
+        if let Ok(status) = serde_json::from_str::<automation::Status>(event.payload()) {
+            update_toggle_item(status.is_active());
         }
     });
     // 同步初始状态（启动时未运行，菜单已显示"开始扫描"）
     if let Some(controller) = app_handle.try_state::<Controller>() {
-        update_toggle_item(controller.get_status().running);
+        update_toggle_item(controller.automation_status().is_active());
     }
 
     info!("系统托盘初始化完成");

@@ -1,14 +1,14 @@
-//! 档案库扫描工作流与真实游戏工作者。
+//! 档案扫描任务。
 //!
-//! [`workflow::ArchiveScanner`] 导航并扫描档案库全部 6 个子分类
-//! （引号键触发）。
+//! 封装档案扫描工作流、逐条结果上报和 [`Worker`](super::runtime::Worker) adapter。
 
 mod constants;
 mod correction;
 mod plan;
 mod reporting;
 mod scan_loop;
-pub(crate) mod worker;
+mod worker;
 mod workflow;
 
 pub(crate) use reporting::ScanResult;
+pub(crate) use worker::ArchiveScanWorker;

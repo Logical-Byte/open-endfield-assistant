@@ -1,9 +1,9 @@
-//! 扫描业务控制器（Tauri 托管状态）。
+//! 应用控制器（Tauri 托管状态）。
 //!
 //! 职责边界：
-//! - **应用编排**：为扫描任务创建真实游戏工作者；
+//! - **应用编排**：根据任务种类创建真实游戏工作者。
 //!
-//! 扫描任务的状态机与执行线程由 [`ScanRuntime`] 拥有。
+//! 自动化任务的状态机与执行线程由 [`automation::Runtime`] 拥有。
 
 use std::sync::{Arc, Mutex, mpsc};
 
@@ -11,20 +11,14 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    automation::{
-        archive_scan::{ScanResult, worker::LiveScanWorker},
-        scan_runtime::ScanRuntime,
-    },
+    automation::{self, archive_scan},
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
     ocr::OcrEngine,
 };
 
-/// 推送给前端的应用状态。
-pub use crate::automation::scan_runtime::AppStatus;
-
-/// 扫描业务控制器（Tauri 托管状态）。
+/// 应用控制器（Tauri 托管状态）。
 pub struct Controller {
     /// 应用配置存储
     config_store: Arc<ConfigStore>,
@@ -32,10 +26,10 @@ pub struct Controller {
     ocr: Arc<Mutex<OcrEngine>>,
     /// 导航器（本游戏全部场景，跨线程共享只读）
     navigator: Arc<Navigator>,
-    /// 扫描档案库任务运行时
-    scan_runtime: Arc<ScanRuntime>,
+    /// 全局唯一自动化任务运行时
+    automation_runtime: Arc<automation::Runtime>,
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
-    scan_tx: Mutex<mpsc::Sender<ScanResult>>,
+    scan_tx: Mutex<mpsc::Sender<archive_scan::ScanResult>>,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
     app_data: Arc<AppData>,
 }
@@ -47,15 +41,15 @@ impl Controller {
         config_store: Arc<ConfigStore>,
         ocr: Arc<Mutex<OcrEngine>>,
         navigator: Arc<Navigator>,
-        scan_runtime: Arc<ScanRuntime>,
-        scan_tx: mpsc::Sender<ScanResult>,
+        automation_runtime: Arc<automation::Runtime>,
+        scan_tx: mpsc::Sender<archive_scan::ScanResult>,
         app_data: AppData,
     ) -> Self {
         Self {
             config_store,
             ocr,
             navigator,
-            scan_runtime,
+            automation_runtime,
             scan_tx: Mutex::new(scan_tx),
             app_data: Arc::new(app_data),
         }
@@ -70,9 +64,9 @@ impl Controller {
         self.config_store.snapshot()
     }
 
-    /// 读取当前状态（只读原子标志；失败原因不存储，由结束事件一次性推送）。
-    pub fn get_status(&self) -> AppStatus {
-        self.scan_runtime.status()
+    /// 读取当前自动化状态；任务终态由一次性事件单独推送。
+    pub fn automation_status(&self) -> automation::Status {
+        self.automation_runtime.status()
     }
 
     /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
@@ -87,21 +81,28 @@ impl Controller {
 
     // ========== 启动 / 停止 / 退出 ==========
 
-    /// 启动扫描档案库任务：占用运行状态并创建本次停止令牌 → 推送状态 → 后台线程执行。
-    pub fn start_scan(&self, app_handle: &AppHandle) {
-        self.scan_runtime.start(app_handle, || self.scan_worker());
+    /// 启动指定种类的自动化任务。
+    pub fn start_automation(&self, app_handle: &AppHandle, task_kind: automation::TaskKind) {
+        match task_kind {
+            automation::TaskKind::ArchiveScan => {
+                self.automation_runtime.start(app_handle, task_kind, || {
+                    Box::new(self.archive_scan_worker())
+                })
+            }
+        }
     }
 
-    /// 请求停止扫描档案库任务（原子置位，由任务内部轮询实现优雅停止）。
-    pub fn stop_scan(&self) {
-        self.scan_runtime.stop();
+    /// 请求停止当前自动化任务（原子置位，由任务内部轮询实现优雅停止）。
+    pub fn stop_automation(&self, app_handle: &AppHandle) {
+        self.automation_runtime.stop(app_handle);
     }
 
-    pub fn toggle_scan(&self, app_handle: &AppHandle) {
-        if self.get_status().running {
-            self.stop_scan();
+    /// 档案扫描专属快捷入口，供托盘和引号热键维持现有切换行为。
+    pub fn toggle_archive_scan(&self, app_handle: &AppHandle) {
+        if self.automation_status().is_active() {
+            self.stop_automation(app_handle);
         } else {
-            self.start_scan(app_handle);
+            self.start_automation(app_handle, automation::TaskKind::ArchiveScan);
         }
     }
 
@@ -114,13 +115,13 @@ impl Controller {
             warn!("正在安装更新，拒绝退出");
             return;
         }
-        self.scan_runtime.request_stop_for_shutdown();
+        self.automation_runtime.request_stop_for_shutdown();
         info!("收到退出请求，正在退出程序...");
         app_handle.exit(0);
     }
 
-    fn scan_worker(&self) -> LiveScanWorker {
-        LiveScanWorker::new(
+    fn archive_scan_worker(&self) -> archive_scan::ArchiveScanWorker {
+        archive_scan::ArchiveScanWorker::new(
             self.config_store.snapshot(),
             Arc::clone(&self.ocr),
             Arc::clone(&self.navigator),

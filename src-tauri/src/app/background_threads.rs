@@ -14,7 +14,7 @@ use tauri::AppHandle;
 use tracing::{error, info};
 use tracing_appender::non_blocking::WorkerGuard;
 
-use crate::{automation::archive_scan::ScanResult, logger::LogEntry, platform};
+use crate::{automation::archive_scan, logger::LogEntry, platform};
 
 use super::{frontend_forwarders, hotkeys};
 
@@ -38,7 +38,7 @@ impl BackgroundThreads {
         app_handle: &AppHandle,
         logger_guard: WorkerGuard,
         log_rx: mpsc::Receiver<LogEntry>,
-        scan_result_rx: mpsc::Receiver<ScanResult>,
+        scan_result_rx: mpsc::Receiver<archive_scan::ScanResult>,
     ) -> Result<Self> {
         let oea_window = platform::window::get_app_window(app_handle)?;
         let foreground = platform::window::ForegroundGuard::new(oea_window);

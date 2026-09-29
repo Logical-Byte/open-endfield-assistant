@@ -1,37 +1,32 @@
 <script setup lang="ts">
 import { CollectType, ScanResult, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
-import { appStatus } from '@/utils/app/appStatus';
+import { appStatus, scanError } from '@/utils/app/appStatus';
 import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { applyCorrection } from '@/utils/app/correction';
 import { exportToOem } from '@/utils/app/exportOem';
 import { prtsData } from '@/utils/app/prtsData';
 import { clearScanResults, scanResults } from '@/utils/app/scanResults';
 import { deriveArchiveCollection } from '@/utils/archiveCollection';
-import { startScan, stopScan } from '@/utils/tauri';
+import { startAutomation, stopAutomation } from '@/utils/tauri';
 import { computed, ref, watch } from 'vue';
 
 function toggleScan() {
-  return appStatus.value.running ? stopScan() : startScan();
+  return appStatus.value.state === 'idle' ? startAutomation('archiveScan') : stopAutomation();
 }
 
 /** 用户是否手动关闭了扫描失败提示（失败原因变化时自动恢复显示） */
 const scanErrorDismissed = ref(false);
 
 /** 是否展示扫描失败提示（存在失败原因且未被手动关闭） */
-const showScanError = computed(
-  () => appStatus.value.scanError !== null && !scanErrorDismissed.value,
-);
+const showScanError = computed(() => scanError.value !== null && !scanErrorDismissed.value);
 
 /** 当前扫描失败原因（无失败时为 undefined，用于提示文案） */
-const scanErrorMessage = computed(() => appStatus.value.scanError ?? undefined);
+const scanErrorMessage = computed(() => scanError.value ?? undefined);
 
 // 失败原因变化（含重新失败）时恢复显示提示
-watch(
-  () => appStatus.value.scanError,
-  () => {
-    scanErrorDismissed.value = false;
-  },
-);
+watch(scanError, () => {
+  scanErrorDismissed.value = false;
+});
 
 function statusToCollectType(status: ScanResultStatus): CollectType {
   switch (status) {
@@ -130,9 +125,9 @@ const summary = computed(() => {
     <div class="flex h-full flex-col gap-4">
       <div class="flex flex-wrap gap-2">
         <UButton
-          :color="appStatus.running ? 'error' : 'success'"
-          :icon="appStatus.running ? 'i-lucide-square' : 'i-lucide-play'"
-          :label="appStatus.running ? '停止扫描（引号键）' : '开始扫描（引号键）'"
+          :color="appStatus.state !== 'idle' ? 'error' : 'success'"
+          :icon="appStatus.state !== 'idle' ? 'i-lucide-square' : 'i-lucide-play'"
+          :label="appStatus.state !== 'idle' ? '停止扫描（引号键）' : '开始扫描（引号键）'"
           @click="toggleScan"
         />
         <UButton class="ms-auto" icon="i-lucide-map" label="导出到地图集" @click="exportToOem" />

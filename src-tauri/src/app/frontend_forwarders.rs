@@ -13,7 +13,7 @@ use std::{
 use tauri::{AppHandle, Emitter};
 use tracing::error;
 
-use crate::{automation::archive_scan::ScanResult, logger::LogEntry};
+use crate::{automation::archive_scan, logger::LogEntry};
 
 const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
 
@@ -48,7 +48,7 @@ pub(super) fn spawn_log_forwarder(
 ///
 /// `stop` 被设置为 `true` 后，线程会在观察到该值后退出。
 pub(super) fn spawn_scan_result_forwarder(
-    rx: Receiver<ScanResult>,
+    rx: Receiver<archive_scan::ScanResult>,
     stop: Arc<AtomicBool>,
     app_handle: AppHandle,
 ) -> JoinHandle<()> {

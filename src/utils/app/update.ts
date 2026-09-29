@@ -13,7 +13,7 @@ import {
 } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
 import { configInitialized, effectiveSettings } from '@/utils/app/config';
-import { logDebug, logError, logWarn, onAppStatus } from '@/utils/tauri';
+import { logDebug, logError, logWarn, onAutomationStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -268,8 +268,8 @@ export async function initUpdateState(): Promise<void> {
     showInstallModal.value = true;
   }
 
-  await onAppStatus((status) => {
-    if (!status.running) {
+  await onAutomationStatus((status) => {
+    if (status.state === 'idle') {
       void tryAutoInstall();
     }
   });
@@ -306,11 +306,11 @@ export async function tryAutoInstall(): Promise<void> {
     installStatus.value !== UpdateInstallStatus.Idle ||
     !configInitialized.value ||
     !effectiveSettings.value.autoInstallUpdates ||
-    appStatus.value.running
+    appStatus.value.state !== 'idle'
   ) {
     writeUpdateLog(
       logDebug,
-      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${effectiveSettings.value.autoInstallUpdates}, scanning=${appStatus.value.running}）`,
+      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${effectiveSettings.value.autoInstallUpdates}, automating=${appStatus.value.state !== 'idle'}）`,
     );
     return;
   }
@@ -329,8 +329,8 @@ export async function startInstall(): Promise<InstallStartResult> {
     );
     return 'skipped';
   }
-  if (appStatus.value.running) {
-    writeUpdateLog(logDebug, '更新前端：扫描任务运行中，安装请求留待扫描结束后重试');
+  if (appStatus.value.state !== 'idle') {
+    writeUpdateLog(logDebug, '更新前端：自动化任务运行中，安装请求留待任务结束后重试');
     useToast().add({
       title: '扫描任务运行中',
       description: '扫描结束后将自动安装更新',
