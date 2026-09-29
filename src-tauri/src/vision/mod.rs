@@ -1,5 +1,5 @@
 //! 通用图片识别与区域统计。
 
-pub mod ocr;
-pub mod region;
-pub mod template_matching;
+pub(crate) mod ocr;
+pub(crate) mod region;
+pub(crate) mod template_matching;

@@ -3,7 +3,7 @@ use image::{GenericImageView, Pixel, imageops};
 use crate::utils::region::Region2D;
 
 /// 返回图片指定区域的平均亮度，空区域没有平均值。
-pub fn mean_luma<I>(image: &I, region: Region2D<u32>) -> Option<f32>
+pub(crate) fn mean_luma<I>(image: &I, region: Region2D<u32>) -> Option<f32>
 where
     I: GenericImageView,
     I::Pixel: Pixel<Subpixel = u8>,

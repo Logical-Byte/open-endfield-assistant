@@ -1,12 +1,12 @@
 use anyhow::Result;
 use image::{GenericImageView, Pixel};
 
-use super::TemplateProvider;
+use super::template_source::TemplateProvider;
 use crate::utils::region::Region2D;
 
 /// 模板匹配结果
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MatchResult {
+pub(crate) struct MatchResult {
     /// 匹配区域（相对于 `image` 的坐标）
     pub region: Region2D<u32>,
     /// 匹配得分（-1 ~ 1，越高越像）
@@ -14,7 +14,7 @@ pub struct MatchResult {
 }
 
 /// 通过模板名称取得模板，并在 `image` 的指定区域内搜索。
-pub fn find<I, P>(
+pub(crate) fn find<I, P>(
     image: &I,
     template_name: &str,
     search_region: Region2D<u32>,
@@ -29,23 +29,8 @@ where
     pure::match_template_in_region(image, template, Some(search_region))
 }
 
-/// 通过模板名称取得模板，并在已经裁剪的图片区域内搜索。
-pub fn find_in_region<I, P>(
-    image_region: &I,
-    template_name: &str,
-    templates: &mut P,
-) -> Result<MatchResult>
-where
-    I: GenericImageView,
-    I::Pixel: Pixel<Subpixel = u8>,
-    P: TemplateProvider + ?Sized,
-{
-    let template = templates.get(template_name)?;
-    pure::match_in_region(image_region, template)
-}
-
 /// 使用已加载模板的纯计算接口。
-pub mod pure {
+mod pure {
     use anyhow::{Result, bail};
     use image::{GenericImageView, Pixel, imageops};
     use imageproc::template_matching;
@@ -55,7 +40,7 @@ pub mod pure {
     /// 使用已加载的模板在 `image` 的指定区域内搜索。
     ///
     /// `search_region` 为空时搜索完整图片。结果区域始终相对于 `image`。
-    pub fn match_template_in_region<I, T>(
+    pub(super) fn match_template_in_region<I, T>(
         image: &I,
         template: &T,
         search_region: Option<Region2D<u32>>,
@@ -93,8 +78,8 @@ pub mod pure {
 
     /// 使用已加载的模板在已经裁剪的图片区域内搜索。
     ///
-    /// 使用 CCOEFF_NORMED（Pearson 相关系数）。结果区域相对于 `image_region`。
-    pub fn match_in_region<I, T>(image_region: &I, template: &T) -> Result<MatchResult>
+    /// 使用 `CCOEFF_NORMED`（Pearson 相关系数）。结果区域相对于 `image_region`。
+    pub(super) fn match_in_region<I, T>(image_region: &I, template: &T) -> Result<MatchResult>
     where
         I: GenericImageView,
         I::Pixel: Pixel<Subpixel = u8>,

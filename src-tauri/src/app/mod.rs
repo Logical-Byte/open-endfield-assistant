@@ -18,7 +18,7 @@ use tracing::{error, info, warn};
 
 use crate::{
     app_paths::AppPaths, automation, config::ConfigStore, controller::Controller, data::AppData,
-    logger, navigation::Navigator, platform, update, vision::ocr::OcrEngine,
+    logger, navigation::Navigator, platform, update, vision,
 };
 
 use self::hooks::{crash, portable};
@@ -204,7 +204,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     // 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
     let pipeline_config = PipelineConfig::recognition_only();
-    let ocr_engine = OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
+    let ocr_engine = vision::ocr::OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
     let ocr = Arc::new(Mutex::new(ocr_engine));
 
     // 加载静态数据文件

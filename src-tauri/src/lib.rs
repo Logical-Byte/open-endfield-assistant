@@ -13,6 +13,6 @@ pub mod platform;
 pub(crate) mod storage;
 pub mod update;
 pub mod utils;
-pub mod vision;
+pub(crate) mod vision;
 
 pub use app::run;

@@ -7,7 +7,7 @@ use image::RgbImage;
 use crate::utils::path::resolve_existing_relative_file;
 
 /// 按逻辑名称提供模板图片，不向调用方暴露存储与缓存策略。
-pub trait TemplateProvider {
+pub(crate) trait TemplateProvider {
     /// 返回由模板源持有的图片。
     fn get(&mut self, template_name: &str) -> Result<&RgbImage>;
 }
