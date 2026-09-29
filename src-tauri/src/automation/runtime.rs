@@ -6,11 +6,11 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
 use tracing::{error, info, warn};
 
 use crate::automation::{
-    StopToken, TaskKind, new_stop_token, request_stop, stats::counts::CaptureSummary,
+    Event, EventSink, StopToken, TaskKind, new_stop_token, request_stop,
+    stats::counts::CaptureSummary,
 };
 
 /// 当前自动化任务的生命周期状态。
@@ -80,15 +80,16 @@ impl WorkerExit {
     }
 }
 
-/// 一次自动化运行的执行内容。按值接收工作者，避免同一个工作者重复执行。
+/// 一次自动化运行的执行内容。`Runtime` 注入 `StopToken` 和 `EventSink`，每个 `Worker` 只能执行一次。
 pub(crate) trait Worker: Send + 'static {
-    fn run(self: Box<Self>, stop: StopToken) -> WorkerExit;
+    fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> WorkerExit;
 }
 
 /// 全局唯一自动化运行的生命周期状态。
 pub(crate) struct Runtime {
     /// 运行状态与当前运行的停止令牌由同一把锁保护，避免停止请求落到错误的运行上。
     state: Mutex<RuntimeState>,
+    events: Arc<dyn EventSink>,
 }
 
 struct RuntimeState {
@@ -105,19 +106,19 @@ impl RuntimeState {
 }
 
 impl Runtime {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(events: Arc<dyn EventSink>) -> Self {
         Self {
             state: Mutex::new(RuntimeState {
                 status: Status::Idle,
                 stop: None,
             }),
+            events,
         }
     }
 
     /// 占用全局运行状态并创建本次令牌，再在后台线程执行任务。
     pub(crate) fn start(
         self: &Arc<Self>,
-        handle: &AppHandle,
         task_kind: TaskKind,
         worker_factory: impl FnOnce() -> Box<dyn Worker>,
     ) {
@@ -127,19 +128,18 @@ impl Runtime {
         };
         info!("收到启动自动化任务请求");
         let worker = worker_factory();
-        self.emit_status(handle);
+        self.emit_status();
 
         let runtime = Arc::clone(self);
-        let worker_handle = handle.clone();
+        let events = Arc::clone(&self.events);
         if let Err(error) = thread::Builder::new()
             .name("oea-automation".to_string())
             .spawn(move || {
-                let result = worker.run(stop);
-                runtime.handle_worker_exit(&worker_handle, task_kind, result);
+                let result = worker.run(stop, events);
+                runtime.handle_worker_exit(task_kind, result);
             })
         {
             self.handle_worker_exit(
-                handle,
                 task_kind,
                 WorkerExit::without_capture(FinishReason::Failed(format!(
                     "启动自动化任务线程失败: {error}"
@@ -149,7 +149,7 @@ impl Runtime {
     }
 
     /// 请求停止当前自动化任务。
-    pub(crate) fn stop(&self, handle: &AppHandle) {
+    pub(crate) fn stop(&self) {
         let mut state = self.state.lock().unwrap();
         let Some(stop) = state.stop.as_ref().map(Arc::clone) else {
             warn!("自动化任务未在运行，忽略停止请求");
@@ -165,7 +165,7 @@ impl Runtime {
         };
         request_stop(&stop);
         if let Some(status) = status {
-            Self::emit_status_value(handle, status);
+            self.emit_status_value(status);
         }
         info!("收到停止请求，正在停止自动化任务...");
     }
@@ -196,7 +196,7 @@ impl Runtime {
     }
 
     /// 处理 worker 退出：记录统计、释放运行状态，再推送状态与一次性终态。
-    fn handle_worker_exit(&self, handle: &AppHandle, task_kind: TaskKind, result: WorkerExit) {
+    fn handle_worker_exit(&self, task_kind: TaskKind, result: WorkerExit) {
         let WorkerExit { reason, capture } = result;
         if let Some(summary) = capture {
             let calls = summary.calls;
@@ -229,31 +229,71 @@ impl Runtime {
             }
         };
 
-        self.finish_run_and_emit(handle, RunFinished { task_kind, outcome });
+        self.finish_run_and_emit(RunFinished { task_kind, outcome });
     }
 
-    fn finish_run_and_emit(&self, handle: &AppHandle, event: RunFinished) {
+    fn finish_run_and_emit(&self, event: RunFinished) {
         let mut state = self.state.lock().unwrap();
         state.finish();
 
         // 在两个有序事件发出前继续占用 `claim` 锁，防止新任务的 `Running` 插入旧任务终态。
-        Self::emit_status_value(handle, Status::Idle);
-        Self::emit_run_finished(handle, event);
+        self.emit_status_value(Status::Idle);
+        self.events.publish(Event::RunFinished(event));
     }
 
-    fn emit_status(&self, handle: &AppHandle) {
-        Self::emit_status_value(handle, self.status());
+    fn emit_status(&self) {
+        self.emit_status_value(self.status());
     }
 
-    fn emit_status_value(handle: &AppHandle, status: Status) {
-        if let Err(error) = handle.emit("automation-status", status) {
-            error!("向前端推送自动化状态失败: {error}");
+    fn emit_status_value(&self, status: Status) {
+        self.events.publish(Event::StatusChanged(status));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::automation::{
+        Event, EventSink, TaskKind,
+        events::testing::RecordingEventSink,
+        runtime::{FinishReason, RunFinished, RunOutcome, Status, Worker, WorkerExit},
+    };
+
+    use super::Runtime;
+
+    struct CompletingWorker;
+
+    impl Worker for CompletingWorker {
+        fn run(
+            self: Box<Self>,
+            _stop: crate::automation::StopToken,
+            _events: Arc<dyn EventSink>,
+        ) -> WorkerExit {
+            WorkerExit::without_capture(FinishReason::Completed)
         }
     }
 
-    fn emit_run_finished(handle: &AppHandle, event: RunFinished) {
-        if let Err(error) = handle.emit("automation-run-finished", event) {
-            error!("向前端推送自动化任务终态失败: {error}");
-        }
+    #[test]
+    fn publishes_lifecycle_events_without_tauri() {
+        let events = Arc::new(RecordingEventSink::default());
+        let event_sink: Arc<dyn EventSink> = Arc::<RecordingEventSink>::clone(&events);
+        let runtime = Arc::new(Runtime::new(event_sink));
+
+        runtime.start(TaskKind::ArchiveScan, || Box::new(CompletingWorker));
+
+        assert_eq!(
+            events.wait_for_events(3),
+            vec![
+                Event::StatusChanged(Status::Running {
+                    task_kind: TaskKind::ArchiveScan,
+                }),
+                Event::StatusChanged(Status::Idle),
+                Event::RunFinished(RunFinished {
+                    task_kind: TaskKind::ArchiveScan,
+                    outcome: RunOutcome::Completed,
+                }),
+            ]
+        );
     }
 }

@@ -56,7 +56,7 @@ pub(super) fn spawn_dispatcher(
                 } else if key_event == TOGGLE_MAIN_TASK_HOTKEY {
                     if foreground.is_foreground_eligible() {
                         let controller = app_handle.state::<Controller>();
-                        controller.toggle_archive_scan(&app_handle);
+                        controller.toggle_archive_scan();
                     } else {
                         debug!("前台窗口不是终末地或者 OEA，忽略热键");
                     }

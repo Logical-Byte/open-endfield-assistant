@@ -3,14 +3,14 @@
 //! 游戏会话、窗口操作、档案扫描工作流和提示音集中在这里；
 //! [`crate::automation::runtime::Runtime`] 只管理运行生命周期。
 
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex};
 
 use tracing::warn;
 
 use crate::{
     app_paths::AppPaths,
     automation::{
-        AutomationStopped, StopToken, is_stop_requested,
+        AutomationStopped, EventSink, StopToken, is_stop_requested,
         runtime::{FinishReason, Worker, WorkerExit},
         session::Session,
         stats::counts::Capture,
@@ -22,10 +22,7 @@ use crate::{
     platform,
 };
 
-use super::{
-    reporting::{ScanReporter, ScanResult},
-    workflow::ArchiveScanner,
-};
+use super::{reporting::ScanReporter, workflow::ArchiveScanner};
 
 /// 一次真实扫描所需的协作者，由控制器在任务获准启动后创建。
 pub(crate) struct ArchiveScanWorker {
@@ -33,7 +30,6 @@ pub(crate) struct ArchiveScanWorker {
     ocr: Arc<Mutex<OcrEngine>>,
     navigator: Arc<Navigator>,
     app_data: Arc<AppData>,
-    reporter: ScanReporter,
 }
 
 impl ArchiveScanWorker {
@@ -42,18 +38,16 @@ impl ArchiveScanWorker {
         ocr: Arc<Mutex<OcrEngine>>,
         navigator: Arc<Navigator>,
         app_data: Arc<AppData>,
-        scan_tx: mpsc::Sender<ScanResult>,
     ) -> Self {
         Self {
             oea_config,
             ocr,
             navigator,
             app_data,
-            reporter: ScanReporter::new(scan_tx),
         }
     }
 
-    fn run_scan(&self, stop: StopToken) -> WorkerExit {
+    fn run_scan(&self, stop: StopToken, reporter: ScanReporter) -> WorkerExit {
         // 连接游戏可能耗时，所以留在工作线程中。
         let mut session = match Session::connect(&self.ocr, Arc::clone(&stop)) {
             Ok(session) => session,
@@ -80,7 +74,7 @@ impl ArchiveScanWorker {
         // 启动检查通过、任务真正开始执行前播放 enable 提示音。
         self.play_scan_sound(ScanSound::Enable);
 
-        let scanner = ArchiveScanner::new(self.reporter.clone(), self.app_data.archive_titles());
+        let scanner = ArchiveScanner::new(reporter, self.app_data.archive_titles());
         let mut captured = Capture::new(&mut session);
         let result = scanner.run(&mut captured, &self.navigator);
         let capture = captured.finish();
@@ -116,8 +110,8 @@ impl ArchiveScanWorker {
 }
 
 impl Worker for ArchiveScanWorker {
-    fn run(self: Box<Self>, stop: StopToken) -> WorkerExit {
-        let result = self.run_scan(stop);
+    fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> WorkerExit {
+        let result = self.run_scan(stop, ScanReporter::new(events));
         self.play_scan_sound(match &result.reason {
             FinishReason::Completed => ScanSound::Enable,
             FinishReason::Stopped | FinishReason::Failed(_) => ScanSound::Disable,

@@ -1,4 +1,4 @@
-//! 后端通道到 Tauri 前端事件的转发线程。
+//! 日志通道到 Tauri 前端事件的转发线程。
 
 use std::{
     sync::{
@@ -11,9 +11,8 @@ use std::{
 };
 
 use tauri::{AppHandle, Emitter};
-use tracing::error;
 
-use crate::{automation::archive_scan, logger::LogEntry};
+use crate::logger::LogEntry;
 
 const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
 
@@ -42,29 +41,4 @@ pub(super) fn spawn_log_forwarder(
             }
         })
         .expect("启动日志前端转发线程失败")
-}
-
-/// 启动扫描结果前端转发线程。
-///
-/// `stop` 被设置为 `true` 后，线程会在观察到该值后退出。
-pub(super) fn spawn_scan_result_forwarder(
-    rx: Receiver<archive_scan::ScanResult>,
-    stop: Arc<AtomicBool>,
-    app_handle: AppHandle,
-) -> JoinHandle<()> {
-    thread::Builder::new()
-        .name("oea-result".to_string())
-        .spawn(move || {
-            while !stop.load(Ordering::Relaxed) {
-                let result = match rx.recv_timeout(RECEIVE_TIMEOUT) {
-                    Ok(result) => result,
-                    Err(RecvTimeoutError::Timeout) => continue,
-                    Err(RecvTimeoutError::Disconnected) => break,
-                };
-                if let Err(error) = app_handle.emit("scan-result", &result) {
-                    error!("向前端推送扫描结果失败: {error}");
-                }
-            }
-        })
-        .expect("启动扫描结果前端转发线程失败")
 }

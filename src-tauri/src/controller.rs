@@ -5,7 +5,7 @@
 //!
 //! 自动化任务的状态机与执行线程由 [`automation::Runtime`] 拥有。
 
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
@@ -28,21 +28,17 @@ pub struct Controller {
     navigator: Arc<Navigator>,
     /// 全局唯一自动化任务运行时
     automation_runtime: Arc<automation::Runtime>,
-    /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
-    scan_tx: Mutex<mpsc::Sender<archive_scan::ScanResult>>,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
     app_data: Arc<AppData>,
 }
 
 impl Controller {
     /// 创建控制器。
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config_store: Arc<ConfigStore>,
         ocr: Arc<Mutex<OcrEngine>>,
         navigator: Arc<Navigator>,
         automation_runtime: Arc<automation::Runtime>,
-        scan_tx: mpsc::Sender<archive_scan::ScanResult>,
         app_data: AppData,
     ) -> Self {
         Self {
@@ -50,7 +46,6 @@ impl Controller {
             ocr,
             navigator,
             automation_runtime,
-            scan_tx: Mutex::new(scan_tx),
             app_data: Arc::new(app_data),
         }
     }
@@ -82,27 +77,25 @@ impl Controller {
     // ========== 启动 / 停止 / 退出 ==========
 
     /// 启动指定种类的自动化任务。
-    pub fn start_automation(&self, app_handle: &AppHandle, task_kind: automation::TaskKind) {
+    pub fn start_automation(&self, task_kind: automation::TaskKind) {
         match task_kind {
-            automation::TaskKind::ArchiveScan => {
-                self.automation_runtime.start(app_handle, task_kind, || {
-                    Box::new(self.archive_scan_worker())
-                })
-            }
+            automation::TaskKind::ArchiveScan => self
+                .automation_runtime
+                .start(task_kind, || Box::new(self.archive_scan_worker())),
         }
     }
 
     /// 请求停止当前自动化任务（原子置位，由任务内部轮询实现优雅停止）。
-    pub fn stop_automation(&self, app_handle: &AppHandle) {
-        self.automation_runtime.stop(app_handle);
+    pub fn stop_automation(&self) {
+        self.automation_runtime.stop();
     }
 
     /// 档案扫描专属快捷入口，供托盘和引号热键维持现有切换行为。
-    pub fn toggle_archive_scan(&self, app_handle: &AppHandle) {
+    pub fn toggle_archive_scan(&self) {
         if self.automation_status().is_active() {
-            self.stop_automation(app_handle);
+            self.stop_automation();
         } else {
-            self.start_automation(app_handle, automation::TaskKind::ArchiveScan);
+            self.start_automation(automation::TaskKind::ArchiveScan);
         }
     }
 
@@ -126,7 +119,6 @@ impl Controller {
             Arc::clone(&self.ocr),
             Arc::clone(&self.navigator),
             Arc::clone(&self.app_data),
-            self.scan_tx.lock().unwrap().clone(),
         )
     }
 }

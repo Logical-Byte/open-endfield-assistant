@@ -14,7 +14,7 @@ use tauri::AppHandle;
 use tracing::{error, info};
 use tracing_appender::non_blocking::WorkerGuard;
 
-use crate::{automation::archive_scan, logger::LogEntry, platform};
+use crate::{logger::LogEntry, platform};
 
 use super::{frontend_forwarders, hotkeys};
 
@@ -28,7 +28,6 @@ struct Inner {
     keyboard_hook: platform::hotkey::KeyboardHookGuard,
     hotkey_thread: JoinHandle<()>,
     log_thread: JoinHandle<()>,
-    scan_result_thread: JoinHandle<()>,
     logger_guard: WorkerGuard,
 }
 
@@ -38,7 +37,6 @@ impl BackgroundThreads {
         app_handle: &AppHandle,
         logger_guard: WorkerGuard,
         log_rx: mpsc::Receiver<LogEntry>,
-        scan_result_rx: mpsc::Receiver<archive_scan::ScanResult>,
     ) -> Result<Self> {
         let oea_window = platform::window::get_app_window(app_handle)?;
         let foreground = platform::window::ForegroundGuard::new(oea_window);
@@ -47,11 +45,6 @@ impl BackgroundThreads {
 
         let hotkey_thread =
             hotkeys::spawn_dispatcher(hotkey_rx, Arc::clone(&stop), foreground, app_handle.clone());
-        let scan_result_thread = frontend_forwarders::spawn_scan_result_forwarder(
-            scan_result_rx,
-            Arc::clone(&stop),
-            app_handle.clone(),
-        );
         let log_thread =
             frontend_forwarders::spawn_log_forwarder(log_rx, Arc::clone(&stop), app_handle.clone());
 
@@ -61,7 +54,6 @@ impl BackgroundThreads {
                 keyboard_hook,
                 hotkey_thread,
                 log_thread,
-                scan_result_thread,
                 logger_guard,
             })),
         })
@@ -84,7 +76,6 @@ impl BackgroundThreads {
             error!(%error, "关闭键盘监听线程失败");
         }
         join_thread("热键动作分发", inner.hotkey_thread);
-        join_thread("扫描结果前端转发", inner.scan_result_thread);
         join_thread("日志前端转发", inner.log_thread);
 
         info!("应用常驻后台线程已全部停止");

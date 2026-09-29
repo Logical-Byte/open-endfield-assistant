@@ -41,20 +41,16 @@ impl ScreenshotFormat {
 #[tauri::command]
 pub fn start_automation(
     state: tauri::State<Controller>,
-    app_handle: tauri::AppHandle,
     task_kind: automation::TaskKind,
 ) -> automation::Status {
-    state.start_automation(&app_handle, task_kind);
+    state.start_automation(task_kind);
     state.automation_status()
 }
 
 /// 请求停止当前自动化任务。
 #[tauri::command]
-pub fn stop_automation(
-    state: tauri::State<Controller>,
-    app_handle: tauri::AppHandle,
-) -> automation::Status {
-    state.stop_automation(&app_handle);
+pub fn stop_automation(state: tauri::State<Controller>) -> automation::Status {
+    state.stop_automation();
     state.automation_status()
 }
 
