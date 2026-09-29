@@ -15,10 +15,10 @@ pre-commit:
       glob: 'src/**/*.{vue,ts,tsx,js,jsx}'
       run: pnpm exec eslint {staged_files}
 
-    - name: frontend-prettier
+    - name: frontend-oxfmt
       glob:
         - '**/*.{vue,ts,tsx,js,jsx,mjs,cjs,json,css,scss,html,md,yaml,yml}'
-      run: pnpm exec prettier --check --ignore-unknown {staged_files}
+      run: pnpm exec oxfmt --check {staged_files}
 
     - name: backend-rustfmt
       glob: 'src-tauri/**/*.rs'
@@ -36,8 +36,7 @@ pre-push:
         - 'tsconfig*.json'
         - 'vite.config.ts'
         - 'eslint.config.ts'
-        - '.prettierrc.json'
-        - '.prettierignore'
+        - '.oxfmtrc.json'
       # The build generates declarations required by `vue-tsc` in a clean checkout.
       run: pnpm build && pnpm check
 

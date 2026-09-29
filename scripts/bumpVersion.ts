@@ -40,7 +40,7 @@ function readVersion(): string {
   return config.version;
 }
 
-// 更新版本号（2 空格缩进写回，补尾部换行，兼容 prettier）
+// 更新版本号（2 空格缩进写回，补尾部换行，保持配置文件格式）
 function writeVersion(version: string): void {
   const config = JSON.parse(readFileSync(configPath, 'utf8')) as TauriConfig;
   config.version = version;
