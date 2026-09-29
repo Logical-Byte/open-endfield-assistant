@@ -37,10 +37,6 @@ pub(crate) mod testing {
     }
 
     impl RecordingEventSink {
-        pub(crate) fn events(&self) -> Vec<Event> {
-            self.events.lock().unwrap().clone()
-        }
-
         pub(crate) fn wait_for_events(&self, count: usize) -> Vec<Event> {
             let events = self.events.lock().unwrap();
             let (events, _) = self
