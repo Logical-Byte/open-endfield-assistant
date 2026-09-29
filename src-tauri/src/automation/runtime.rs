@@ -141,16 +141,24 @@ impl Runtime {
     }
 
     /// 请求停止当前自动化任务。
-    pub(crate) fn stop(&self) {
+    pub(crate) fn stop(&self, handle: &AppHandle) {
         let mut state = self.state.lock().unwrap();
         let Some(stop) = state.stop.as_ref().map(Arc::clone) else {
             warn!("自动化任务未在运行，忽略停止请求");
             return;
         };
-        if let Status::Running { task_kind } = state.status {
-            state.status = Status::Stopping { task_kind };
-        }
+        let status = match state.status {
+            Status::Running { task_kind } => {
+                let status = Status::Stopping { task_kind };
+                state.status = status;
+                Some(status)
+            }
+            Status::Idle | Status::Stopping { .. } => None,
+        };
         request_stop(&stop);
+        if let Some(status) = status {
+            Self::emit_status_value(handle, status);
+        }
         info!("收到停止请求，正在停止自动化任务...");
     }
 

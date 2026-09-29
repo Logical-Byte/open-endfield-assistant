@@ -93,14 +93,14 @@ impl Controller {
     }
 
     /// 请求停止当前自动化任务（原子置位，由任务内部轮询实现优雅停止）。
-    pub fn stop_automation(&self) {
-        self.automation_runtime.stop();
+    pub fn stop_automation(&self, app_handle: &AppHandle) {
+        self.automation_runtime.stop(app_handle);
     }
 
     /// 档案扫描专属快捷入口，供托盘和引号热键维持现有切换行为。
     pub fn toggle_archive_scan(&self, app_handle: &AppHandle) {
         if self.automation_status().is_active() {
-            self.stop_automation();
+            self.stop_automation(app_handle);
         } else {
             self.start_automation(app_handle, automation::TaskKind::ArchiveScan);
         }

@@ -50,8 +50,11 @@ pub fn start_automation(
 
 /// 请求停止当前自动化任务。
 #[tauri::command]
-pub fn stop_automation(state: tauri::State<Controller>) -> automation::Status {
-    state.stop_automation();
+pub fn stop_automation(
+    state: tauri::State<Controller>,
+    app_handle: tauri::AppHandle,
+) -> automation::Status {
+    state.stop_automation(&app_handle);
     state.automation_status()
 }
 
