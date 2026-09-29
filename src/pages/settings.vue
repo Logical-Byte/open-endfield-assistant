@@ -408,26 +408,21 @@ const stopScrollToHash = router.afterEach((to) => {
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
           </SettingsItem>
-          <div v-if="settingsLoading">
-            <USkeleton class="h-8 w-full" />
-          </div>
-          <div v-else-if="settingsCanCheckUpdate">
+          <SettingsItem
+            description="通过更新服务检查是否存在可用更新"
+            icon="i-lucide-refresh-cw"
+            title="手动检查更新"
+          >
+            <USkeleton v-if="settingsLoading" class="h-8 w-32" />
             <UButton
-              block
+              v-else-if="settingsCanCheckUpdate"
               :disabled="updateOperationBusy"
               icon="i-lucide-refresh-cw"
               label="检查更新"
               :loading="updateCheckState.status === 'checking'"
               @click="manualCheckUpdate"
             />
-          </div>
-          <SettingsItem
-            v-else
-            description="连接桌面后端后可以手动检查可用更新"
-            icon="i-lucide-refresh-cw"
-            title="手动检查更新"
-          >
-            <UBadge color="neutral" :label="unavailableLabel" variant="soft" />
+            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
         </SettingsCard>
 

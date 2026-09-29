@@ -13,6 +13,7 @@ import {
 } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
 import { settingsState } from '@/utils/app/config';
+import type { DraftSettings } from '@/utils/app/configStore';
 import { logDebug, logError, logWarn, onAutomationStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { Channel, invoke } from '@tauri-apps/api/core';
@@ -35,7 +36,7 @@ const INITIAL_UPDATE_STATUS: UpdateStatus = {
 type LogWriter = (message: string) => Promise<void>;
 
 /** Settings 首次加载成功后，返回可供业务决策使用的最近一次持久化快照。 */
-function currentEffectiveSettings() {
+function currentEffectiveSettings(): Readonly<DraftSettings> | null {
   return settingsState.value.status === 'ready' ? settingsState.value.effective : null;
 }
 
