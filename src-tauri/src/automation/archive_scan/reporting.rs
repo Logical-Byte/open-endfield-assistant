@@ -102,7 +102,7 @@ impl ScanReporter {
 mod tests {
     use std::sync::Arc;
 
-    use crate::automation::{Event, events::testing::RecordingEventSink};
+    use crate::automation::{Event, EventSink, events::testing::RecordingEventSink};
 
     use super::{ScanReporter, ScanResult};
     use crate::automation::archive_scan::correction::Corrected;
@@ -110,7 +110,8 @@ mod tests {
     #[test]
     fn reports_recognized_archive_without_tauri() {
         let events = Arc::new(RecordingEventSink::default());
-        let reporter = ScanReporter::new(events.clone());
+        let event_sink: Arc<dyn EventSink> = Arc::<RecordingEventSink>::clone(&events);
+        let reporter = ScanReporter::new(event_sink);
 
         reporter.report(
             "success",

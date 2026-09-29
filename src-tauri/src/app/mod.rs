@@ -207,8 +207,9 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     let navigator = Arc::new(Navigator::new());
 
-    let automation_events = Arc::new(frontend_events::TauriEventSink::new(app.handle().clone()));
-    let automation_runtime = Arc::new(automation::Runtime::new(automation_events.clone()));
+    let automation_events: Arc<dyn automation::EventSink> =
+        Arc::new(frontend_events::TauriEventSink::new(app.handle().clone()));
+    let automation_runtime = Arc::new(automation::Runtime::new(Arc::clone(&automation_events)));
 
     // 组装应用控制器并托管为 `State`。
     let controller = Controller::new(

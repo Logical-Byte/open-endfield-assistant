@@ -3,7 +3,7 @@
 use tauri::{AppHandle, Emitter};
 use tracing::error;
 
-use crate::automation::{Event, EventSink};
+use crate::automation;
 
 pub(super) struct TauriEventSink {
     app_handle: AppHandle,
@@ -15,14 +15,18 @@ impl TauriEventSink {
     }
 }
 
-impl EventSink for TauriEventSink {
-    fn publish(&self, event: Event) {
+impl automation::EventSink for TauriEventSink {
+    fn publish(&self, event: automation::Event) {
         let result = match event {
-            Event::StatusChanged(status) => self.app_handle.emit("automation-status", status),
-            Event::RunFinished(finished) => {
+            automation::Event::StatusChanged(status) => {
+                self.app_handle.emit("automation-status", status)
+            }
+            automation::Event::RunFinished(finished) => {
                 self.app_handle.emit("automation-run-finished", finished)
             }
-            Event::ArchiveScanResult(result) => self.app_handle.emit("scan-result", result),
+            automation::Event::ArchiveScanResult(result) => {
+                self.app_handle.emit("scan-result", result)
+            }
         };
 
         if let Err(error) = result {

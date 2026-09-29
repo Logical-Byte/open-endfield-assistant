@@ -254,7 +254,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::automation::{
-        Event, TaskKind,
+        Event, EventSink, TaskKind,
         events::testing::RecordingEventSink,
         runtime::{FinishReason, RunFinished, RunOutcome, Status, Worker, WorkerExit},
     };
@@ -272,7 +272,8 @@ mod tests {
     #[test]
     fn publishes_lifecycle_events_without_tauri() {
         let events = Arc::new(RecordingEventSink::default());
-        let runtime = Arc::new(Runtime::new(events.clone()));
+        let event_sink: Arc<dyn EventSink> = Arc::<RecordingEventSink>::clone(&events);
+        let runtime = Arc::new(Runtime::new(event_sink));
 
         runtime.start(TaskKind::ArchiveScan, || Box::new(CompletingWorker));
 
