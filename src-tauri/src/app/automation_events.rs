@@ -28,9 +28,7 @@ impl TauriEventSink {
     pub(super) fn start(app_handle: AppHandle) -> std::io::Result<Self> {
         // 使用无界通道，让 `EventSink::publish` 只负责快速接受事件。
         let (sender, receiver) = mpsc::channel();
-        let thread = thread::Builder::new()
-            .name("oea-automation-events".to_string())
-            .spawn(move || run_event_thread(app_handle, receiver))?;
+        let thread = run_event_thread(app_handle, receiver)?;
 
         Ok(Self {
             inner: Mutex::new(ThreadState {
@@ -92,17 +90,24 @@ impl Drop for TauriEventSink {
     }
 }
 
-fn run_event_thread(app_handle: AppHandle, receiver: mpsc::Receiver<EventThreadCommand>) {
-    while let Ok(command) = receiver.recv() {
-        match command {
-            EventThreadCommand::Emit(event) => {
-                if let Err(error) = emit_event(&app_handle, event) {
-                    error!("向前端推送自动化事件失败: {error}");
+fn run_event_thread(
+    app_handle: AppHandle,
+    receiver: mpsc::Receiver<EventThreadCommand>,
+) -> std::io::Result<JoinHandle<()>> {
+    thread::Builder::new()
+        .name("oea-automation-events".to_string())
+        .spawn(move || {
+            while let Ok(command) = receiver.recv() {
+                match command {
+                    EventThreadCommand::Emit(event) => {
+                        if let Err(error) = emit_event(&app_handle, event) {
+                            error!("向前端推送自动化事件失败: {error}");
+                        }
+                    }
+                    EventThreadCommand::Shutdown => break,
                 }
             }
-            EventThreadCommand::Shutdown => break,
-        }
-    }
+        })
 }
 
 fn emit_event(app_handle: &AppHandle, event: automation::Event) -> tauri::Result<()> {
