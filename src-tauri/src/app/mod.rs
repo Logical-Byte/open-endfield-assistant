@@ -16,8 +16,8 @@ use tauri::Manager;
 use tracing::{error, info, warn};
 
 use crate::{
-    app_paths::AppPaths, automation::runtime::Runtime, config::ConfigStore, controller::Controller,
-    data::AppData, logger, navigation::Navigator, ocr::OcrEngine, platform, update,
+    app_paths::AppPaths, automation, config::ConfigStore, controller::Controller, data::AppData,
+    logger, navigation::Navigator, ocr::OcrEngine, platform, update,
 };
 
 use self::hooks::{crash, portable};
@@ -209,7 +209,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     let navigator = Arc::new(Navigator::new());
 
-    let automation_runtime = Arc::new(Runtime::new());
+    let automation_runtime = Arc::new(automation::Runtime::new());
 
     // 组装应用控制器并托管为 `State`。
     let controller = Controller::new(

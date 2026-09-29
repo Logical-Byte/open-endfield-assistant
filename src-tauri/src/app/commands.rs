@@ -10,9 +10,9 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::{
     app_paths::AppPaths,
-    automation::TaskKind,
+    automation,
     config::OeaConfig,
-    controller::{Controller, Status},
+    controller::Controller,
     data::{ArchiveContract, PrtsData},
     platform,
 };
@@ -42,22 +42,22 @@ impl ScreenshotFormat {
 pub fn start_automation(
     state: tauri::State<Controller>,
     app_handle: tauri::AppHandle,
-    task_kind: TaskKind,
-) -> Status {
+    task_kind: automation::TaskKind,
+) -> automation::Status {
     state.start_automation(&app_handle, task_kind);
     state.automation_status()
 }
 
 /// 请求停止当前自动化任务。
 #[tauri::command]
-pub fn stop_automation(state: tauri::State<Controller>) -> Status {
+pub fn stop_automation(state: tauri::State<Controller>) -> automation::Status {
     state.stop_automation();
     state.automation_status()
 }
 
 /// 查询当前自动化状态。
 #[tauri::command]
-pub fn get_automation_status(state: tauri::State<Controller>) -> Status {
+pub fn get_automation_status(state: tauri::State<Controller>) -> automation::Status {
     state.automation_status()
 }
 

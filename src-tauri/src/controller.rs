@@ -12,17 +12,14 @@ use tracing::{info, warn};
 
 use crate::{
     automation::{
-        TaskKind,
+        self,
         archive_scan::{ScanResult, worker::ArchiveScanWorker},
-        runtime::Runtime,
     },
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
     ocr::OcrEngine,
 };
-
-pub use crate::automation::runtime::Status;
 
 /// 应用控制器（Tauri 托管状态）。
 pub struct Controller {
@@ -33,7 +30,7 @@ pub struct Controller {
     /// 导航器（本游戏全部场景，跨线程共享只读）
     navigator: Arc<Navigator>,
     /// 全局唯一自动化任务运行时
-    automation_runtime: Arc<Runtime>,
+    automation_runtime: Arc<automation::Runtime>,
     /// 扫描结果通道发送端（`Mutex` 同理：`Sender` 非 Sync）
     scan_tx: Mutex<mpsc::Sender<ScanResult>>,
     /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
@@ -47,7 +44,7 @@ impl Controller {
         config_store: Arc<ConfigStore>,
         ocr: Arc<Mutex<OcrEngine>>,
         navigator: Arc<Navigator>,
-        automation_runtime: Arc<Runtime>,
+        automation_runtime: Arc<automation::Runtime>,
         scan_tx: mpsc::Sender<ScanResult>,
         app_data: AppData,
     ) -> Self {
@@ -71,7 +68,7 @@ impl Controller {
     }
 
     /// 读取当前自动化状态；任务终态由一次性事件单独推送。
-    pub fn automation_status(&self) -> Status {
+    pub fn automation_status(&self) -> automation::Status {
         self.automation_runtime.status()
     }
 
@@ -88,11 +85,13 @@ impl Controller {
     // ========== 启动 / 停止 / 退出 ==========
 
     /// 启动指定种类的自动化任务。
-    pub fn start_automation(&self, app_handle: &AppHandle, task_kind: TaskKind) {
+    pub fn start_automation(&self, app_handle: &AppHandle, task_kind: automation::TaskKind) {
         match task_kind {
-            TaskKind::ArchiveScan => self.automation_runtime.start(app_handle, task_kind, || {
-                Box::new(self.archive_scan_worker())
-            }),
+            automation::TaskKind::ArchiveScan => {
+                self.automation_runtime.start(app_handle, task_kind, || {
+                    Box::new(self.archive_scan_worker())
+                })
+            }
         }
     }
 
@@ -106,7 +105,7 @@ impl Controller {
         if self.automation_status().is_active() {
             self.stop_automation();
         } else {
-            self.start_automation(app_handle, TaskKind::ArchiveScan);
+            self.start_automation(app_handle, automation::TaskKind::ArchiveScan);
         }
     }
 
