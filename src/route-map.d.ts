@@ -38,6 +38,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/dev/settings-states-prototype': RouteRecordInfo<
+      '/dev/settings-states-prototype',
+      '/dev/settings-states-prototype',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/help': RouteRecordInfo<
       '/help',
       '/help',
@@ -82,6 +89,14 @@ declare module 'vue-router/auto-routes' {
     'src/pages/index.vue': {
       routes:
         | '/'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/dev/settings-states-prototype.vue': {
+      routes:
+        | '/dev/settings-states-prototype'
       views:
         | never
       pathParamNames:
