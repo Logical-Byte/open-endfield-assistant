@@ -1,8 +1,33 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { OeaConfig } from '@/types/oeaConfig';
-import { DEFAULT_OEA_CONFIG } from './config';
-import { createConfigStore } from './configStore';
+import { UpdateProxyMode, UpdateSource, type OeaConfig } from '@/types/oeaConfig';
+import { createConfigStore, type SettingsState } from './configStore';
+
+type ReadySettingsState = Extract<SettingsState, { status: 'ready' }>;
+
+function createSettingsFixture(overrides: Partial<OeaConfig> = {}): OeaConfig {
+  return {
+    majorVersion: 0,
+    minorVersion: 0,
+    minimizeToTray: false,
+    soundVolume: 0.5,
+    updateSource: UpdateSource.Mirrorchyan,
+    mirrorchyanCdkEncrypted: '',
+    updateProxyMode: UpdateProxyMode.System,
+    updateProxyUrl: '',
+    autoDownloadUpdates: true,
+    autoInstallUpdates: true,
+    scanTipsDismissedVersion: 0,
+    ...overrides,
+  };
+}
+
+function ready(store: ReturnType<typeof createConfigStore>): ReadySettingsState {
+  const state = store.state.value;
+  expect(state.status).toBe('ready');
+  if (state.status !== 'ready') throw new Error(`预期 ready，实际为 ${state.status}`);
+  return state;
+}
 
 function deferred<T>(): {
   promise: Promise<T>;
@@ -18,7 +43,7 @@ function deferred<T>(): {
   return { promise, resolve, reject };
 }
 
-function setup(config: OeaConfig = { ...DEFAULT_OEA_CONFIG }): {
+function setup(config: OeaConfig = createSettingsFixture()): {
   store: ReturnType<typeof createConfigStore>;
   io: {
     load: ReturnType<typeof vi.fn<() => Promise<OeaConfig>>>;
@@ -33,54 +58,76 @@ function setup(config: OeaConfig = { ...DEFAULT_OEA_CONFIG }): {
     encrypt: vi.fn<(plain: string) => Promise<string>>().mockResolvedValue('test-ciphertext'),
     decrypt: vi.fn<(encrypted: string) => Promise<string>>().mockResolvedValue('test-plain'),
   };
-  return { store: createConfigStore(DEFAULT_OEA_CONFIG, io), io };
+  return { store: createConfigStore(io), io };
 }
 
 describe('设置提交', () => {
+  it('首次从后端初始化完成前不暴露任何设置值', () => {
+    const { store, io } = setup();
+
+    expect(store.state.value).toEqual({ status: 'initializing' });
+    expect(io.load).not.toHaveBeenCalled();
+  });
+
+  it('纯浏览器模式明确标记后端设置不可用', () => {
+    const { store, io } = setup();
+
+    store.markUnsupported();
+
+    expect(store.state.value).toEqual({
+      status: 'unavailable',
+      reason: { type: 'unsupported' },
+    });
+    expect(io.load).not.toHaveBeenCalled();
+  });
+
   it('扫描提示按版本展示，无关编辑保留旧版本号，重新开启后可再次确认', async () => {
-    const { store, io } = setup({ ...DEFAULT_OEA_CONFIG, scanTipsDismissedVersion: 7 });
+    const { store, io } = setup(createSettingsFixture({ scanTipsDismissedVersion: 7 }));
     await store.initialize();
-    expect(store.draft.value.scanGuideEnabled).toBe(false);
+    expect(ready(store).draft.scanGuideEnabled).toBe(false);
     store.edit({ soundVolume: 0.8 });
     await Promise.resolve();
     expect(io.save.mock.calls[0]?.[0].scanTipsDismissedVersion).toBe(7);
     store.edit({ scanGuideEnabled: true });
     await Promise.resolve();
     expect(io.save.mock.calls[1]?.[0].scanTipsDismissedVersion).toBe(0);
-    expect(store.effective.value.scanGuideEnabled).toBe(true);
+    expect(ready(store).effective.scanGuideEnabled).toBe(true);
     store.edit({ scanGuideEnabled: false });
     await Promise.resolve();
     const saved = io.save.mock.calls[2]![0];
     expect(saved.scanTipsDismissedVersion).toBeGreaterThan(0);
     const restarted = setup(saved).store;
     await restarted.initialize();
-    expect(restarted.effective.value.scanGuideEnabled).toBe(false);
+    expect(ready(restarted).effective.scanGuideEnabled).toBe(false);
     const firstRun = setup().store;
     await firstRun.initialize();
-    expect(firstRun.effective.value.scanGuideEnabled).toBe(true);
+    expect(ready(firstRun).effective.scanGuideEnabled).toBe(true);
   });
 
-  it('加载期间不接受编辑，加载失败也不会用占位默认值覆盖已有配置', async () => {
+  it('初始化期间不接受编辑，初始化失败也不会用占位默认值覆盖已有配置', async () => {
     const { store, io } = setup();
     const load = deferred<OeaConfig>();
     io.load.mockReturnValueOnce(load.promise);
     const initialization = store.initialize();
     store.edit({ soundVolume: 0.1 });
-    expect(store.initializing.value).toBe(true);
+    expect(store.state.value).toEqual({ status: 'initializing' });
     expect(io.save).not.toHaveBeenCalled();
     load.reject(new Error('IPC 失败'));
     await initialization;
     store.edit({ minimizeToTray: true });
-    expect(store.initialized.value).toBe(false);
-    expect(store.initializeError.value?.message).toBe('IPC 失败');
+    expect(store.state.value.status).toBe('unavailable');
+    if (store.state.value.status !== 'unavailable') throw new Error('预期 unavailable');
+    expect(store.state.value.reason.type).toBe('initialize-error');
+    if (store.state.value.reason.type !== 'initialize-error') {
+      throw new Error('预期 initialize-error');
+    }
+    expect(store.state.value.reason.error.message).toBe('IPC 失败');
     expect(io.save).not.toHaveBeenCalled();
 
-    io.load.mockResolvedValueOnce({ ...DEFAULT_OEA_CONFIG, soundVolume: 0.8 });
+    io.load.mockResolvedValueOnce(createSettingsFixture({ soundVolume: 0.8 }));
     await store.initialize();
-    expect(store.initialized.value).toBe(true);
-    expect(store.initializeError.value).toBeNull();
-    expect(store.draft.value.soundVolume).toBe(0.8);
-    expect(store.effective.value.soundVolume).toBe(0.8);
+    expect(ready(store).draft.soundVolume).toBe(0.8);
+    expect(ready(store).effective.soundVolume).toBe(0.8);
   });
 
   it('捕获每次候选，合并在途编辑，保存成功后才发布同一候选', async () => {
@@ -94,20 +141,17 @@ describe('设置提交', () => {
     store.edit({ soundVolume: 0.7 });
     expect(io.save).toHaveBeenCalledTimes(1);
     expect(io.save.mock.calls[0]?.[0].soundVolume).toBe(0.2);
-    expect(store.effective.value.autoDownloadUpdates).toBe(true);
-    expect(store.saving.value).toBe(true);
+    expect(ready(store).effective.autoDownloadUpdates).toBe(true);
 
     first.resolve();
     await first.promise;
-    expect(store.effective.value.autoDownloadUpdates).toBe(false);
-    expect(store.effective.value.soundVolume).toBe(0.2);
+    expect(ready(store).effective.autoDownloadUpdates).toBe(false);
+    expect(ready(store).effective.soundVolume).toBe(0.2);
     expect(io.save).toHaveBeenCalledTimes(2);
     expect(io.save.mock.calls[1]?.[0].soundVolume).toBe(0.7);
-    expect(store.saving.value).toBe(true);
     second.resolve();
     await second.promise;
-    expect(store.effective.value.soundVolume).toBe(0.7);
-    expect(store.saving.value).toBe(false);
+    expect(ready(store).effective.soundVolume).toBe(0.7);
   });
 
   it('旧候选失败继续最新编辑，最新失败保留草稿并停止，显式重试后生效', async () => {
@@ -123,19 +167,18 @@ describe('设置提交', () => {
     expect(io.save).toHaveBeenCalledTimes(2);
     second.reject(new Error('磁盘写入失败'));
     await second.promise.catch(() => {});
-    expect(store.draft.value.soundVolume).toBe(0.7);
-    expect(store.effective.value.soundVolume).toBe(0.5);
-    expect(store.effective.value.autoInstallUpdates).toBe(true);
-    expect(store.saveError.value?.message).toBe('磁盘写入失败');
-    expect(store.saving.value).toBe(false);
+    expect(ready(store).draft.soundVolume).toBe(0.7);
+    expect(ready(store).effective.soundVolume).toBe(0.5);
+    expect(ready(store).effective.autoInstallUpdates).toBe(true);
+    expect(ready(store).saveError?.message).toBe('磁盘写入失败');
     expect(io.save).toHaveBeenCalledTimes(2);
 
     store.retry();
     await Promise.resolve();
     expect(io.save).toHaveBeenCalledTimes(3);
-    expect(store.effective.value.soundVolume).toBe(0.7);
-    expect(store.effective.value.autoInstallUpdates).toBe(false);
-    expect(store.saveError.value).toBeNull();
+    expect(ready(store).effective.soundVolume).toBe(0.7);
+    expect(ready(store).effective.autoInstallUpdates).toBe(false);
+    expect(ready(store).saveError).toBeNull();
   });
 
   it('加密与保存处于同一队列，等待期间的新 CDK 不能被旧密文覆盖', async () => {
@@ -159,11 +202,11 @@ describe('设置提交', () => {
     await Promise.resolve();
     expect(io.save.mock.calls[1]?.[0].mirrorchyanCdkEncrypted).toBe('cipher-beta');
     await Promise.resolve();
-    expect(store.effective.value.mirrorchyanCdk).toBe('beta');
+    expect(ready(store).effective.mirrorchyanCdk).toBe('beta');
   });
 
-  it('加密失败保留有效 CDK，后续编辑可以重新提交；未修改 CDK 时复用密文', async () => {
-    const { store, io } = setup({ ...DEFAULT_OEA_CONFIG, mirrorchyanCdkEncrypted: 'old-cipher' });
+  it('加密失败保留有效 CDK，后续编辑可以重新提交，未修改 CDK 时复用密文', async () => {
+    const { store, io } = setup(createSettingsFixture({ mirrorchyanCdkEncrypted: 'old-cipher' }));
     io.decrypt.mockResolvedValueOnce('  test-plain  ');
     await store.initialize();
     store.edit({ soundVolume: 0.6 });
@@ -175,12 +218,12 @@ describe('设置提交', () => {
     store.edit({ mirrorchyanCdk: 'new-plain' });
     await Promise.resolve();
     expect(io.save).not.toHaveBeenCalled();
-    expect(store.effective.value.mirrorchyanCdk).toBe('  test-plain  ');
-    expect(store.saveError.value?.message).toBe('加密失败');
+    expect(ready(store).effective.mirrorchyanCdk).toBe('  test-plain  ');
+    expect(ready(store).saveError?.message).toBe('加密失败');
     store.edit({ soundVolume: 0.7 });
     await Promise.resolve();
     await Promise.resolve();
-    expect(store.effective.value.mirrorchyanCdk).toBe('new-plain');
+    expect(ready(store).effective.mirrorchyanCdk).toBe('new-plain');
     store.edit({ soundVolume: 0.8 });
     await Promise.resolve();
     expect(io.encrypt).toHaveBeenCalledTimes(2);
@@ -190,10 +233,10 @@ describe('设置提交', () => {
   it.each(['', 'replacement'])(
     '解密失败保留原密文，显式写入 %j 才清空或替换',
     async (replacement) => {
-      const { store, io } = setup({ ...DEFAULT_OEA_CONFIG, mirrorchyanCdkEncrypted: 'old-cipher' });
+      const { store, io } = setup(createSettingsFixture({ mirrorchyanCdkEncrypted: 'old-cipher' }));
       io.decrypt.mockRejectedValueOnce(new Error('解密失败'));
       await store.initialize();
-      expect(store.draft.value.mirrorchyanCdk).toBeNull();
+      expect(ready(store).draft.mirrorchyanCdk).toBeNull();
       store.edit({ minimizeToTray: true });
       await Promise.resolve();
       expect(io.save.mock.calls[0]?.[0].mirrorchyanCdkEncrypted).toBe('old-cipher');
@@ -204,7 +247,7 @@ describe('设置提交', () => {
       expect(io.save.mock.calls[1]?.[0].mirrorchyanCdkEncrypted).toBe(
         replacement ? 'test-ciphertext' : '',
       );
-      expect(store.effective.value.mirrorchyanCdk).toBe(replacement);
+      expect(ready(store).effective.mirrorchyanCdk).toBe(replacement);
     },
   );
 });

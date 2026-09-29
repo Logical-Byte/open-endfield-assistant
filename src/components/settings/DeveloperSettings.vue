@@ -5,6 +5,8 @@ import {
   developerInstallUnavailable,
   developerInstallUpdatePackage,
 } from '@/utils/app/developerUpdate';
+
+const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
 </script>
 
 <template>
@@ -22,7 +24,8 @@ import {
       icon="i-lucide-flask-conical"
       title="安装更新包"
     >
-      <div class="flex w-96 flex-col items-end gap-2">
+      <UBadge v-if="unsupported" color="neutral" label="浏览器中不可用" variant="soft" />
+      <div v-else class="flex w-96 flex-col items-end gap-2">
         <UButton
           color="warning"
           :disabled="developerInstallUnavailable"
