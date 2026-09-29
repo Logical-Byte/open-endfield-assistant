@@ -35,12 +35,12 @@ const INITIAL_UPDATE_STATUS: UpdateStatus = {
 
 type LogWriter = (message: string) => Promise<void>;
 
-/** Settings 首次加载成功后，返回可供业务决策使用的最近一次持久化快照。 */
+/** Settings 初始化成功后，返回可供业务决策使用的最近一次持久化快照。 */
 function currentEffectiveSettings(): Readonly<DraftSettings> | null {
   return settingsState.value.status === 'ready' ? settingsState.value.effective : null;
 }
 
-/** 日志 IPC 失败不能打断更新流程；浏览器控制台保留最后一层诊断信息。 */
+/** 日志 IPC 失败不能打断更新流程。浏览器控制台保留最后一层诊断信息。 */
 function writeUpdateLog(write: LogWriter, message: string): void {
   void write(message).catch((error: unknown) => {
     console.error(`更新前端：写入后端日志失败: ${String(error)}`);
@@ -327,7 +327,7 @@ export async function tryAutoInstall(): Promise<void> {
 /** 安装启动结果：命令已接受、流程被条件阻止，或安装失败。 */
 export type InstallStartResult = 'started' | 'skipped' | 'failed';
 
-/** 开始安装（自动触发与手动「立即安装」共用；扫描任务运行中拒绝）。 */
+/** 开始安装（自动触发与手动「立即安装」共用，扫描任务运行中拒绝）。 */
 export async function startInstall(): Promise<InstallStartResult> {
   if (pendingUpdate.value === null || effectiveOperation.value !== 'idle') {
     writeUpdateLog(
@@ -425,7 +425,7 @@ export async function retryInstall(): Promise<void> {
   }
 }
 
-/** 关闭安装弹窗（仅失败 / 完成展示可关闭；安装中不可关闭由弹窗控制）。 */
+/** 关闭安装弹窗（仅失败 / 完成展示可关闭，安装中不可关闭由弹窗控制）。 */
 export function closeInstallModal(): void {
   showInstallModal.value = false;
   if (installStatus.value === UpdateInstallStatus.Failed) {

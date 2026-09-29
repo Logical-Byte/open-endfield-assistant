@@ -25,14 +25,15 @@ const readySettings = computed(() =>
   settingsState.value.status === 'ready' ? settingsState.value : null,
 );
 const draftSettings = computed(() => readySettings.value?.draft ?? null);
-const settingsLoading = computed(() => settingsState.value.status === 'loading');
+const settingsInitializing = computed(() => settingsState.value.status === 'initializing');
 const settingsUnsupported = computed(
   () =>
     settingsState.value.status === 'unavailable' &&
     settingsState.value.reason.type === 'unsupported',
 );
-const settingsLoadError = computed(() =>
-  settingsState.value.status === 'unavailable' && settingsState.value.reason.type === 'load-error'
+const settingsInitializeError = computed(() =>
+  settingsState.value.status === 'unavailable' &&
+  settingsState.value.reason.type === 'initialize-error'
     ? settingsState.value.reason.error
     : null,
 );
@@ -40,7 +41,7 @@ const unavailableLabel = computed(() =>
   settingsUnsupported.value ? '浏览器中不可用' : '设置暂不可用',
 );
 const settingsCanCheckUpdate = computed(
-  () => readySettings.value !== null || settingsLoadError.value !== null,
+  () => readySettings.value !== null || settingsInitializeError.value !== null,
 );
 
 /** UI 缩放（本地数字中转）。`USlider` 会短暂回写 `[v]` 数组，这里只允许 number 进入 `uiScale`。 */
@@ -55,7 +56,7 @@ const uiScaleNumber = computed<number>({
   },
 });
 
-// UInput 自带 lazy 提交，输入中间值留在控件内；普通失焦不会产生修改。
+// UInput 自带 lazy 提交，输入中间值留在控件内。普通失焦不会产生修改。
 const mirrorchyanCdk = computed<string>({
   get: () => draftSettings.value?.mirrorchyanCdk ?? '',
   set: (value: string) => editSettings({ mirrorchyanCdk: value }),
@@ -173,12 +174,12 @@ const stopScrollToHash = router.afterEach((to) => {
 
       <UPageBody>
         <UAlert
-          v-if="settingsLoadError"
-          :actions="[{ label: '重新加载', onClick: initOeaConfig }]"
+          v-if="settingsInitializeError"
+          :actions="[{ label: '重新初始化', onClick: initOeaConfig }]"
           color="error"
-          description="无法从后端读取设置。界面缩放和开发者功能仍可使用。"
+          description="无法从后端初始化设置。界面缩放和开发者功能仍可使用。"
           icon="i-lucide-circle-alert"
-          title="设置加载失败"
+          title="设置初始化失败"
           variant="subtle"
         />
         <UAlert
@@ -233,7 +234,7 @@ const stopScrollToHash = router.afterEach((to) => {
               :model-value="draftSettings.minimizeToTray"
               @update:model-value="editSettings({ minimizeToTray: $event })"
             />
-            <USkeleton v-else-if="settingsLoading" class="h-5 w-10 rounded-full" />
+            <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
           <SettingsItem
@@ -246,7 +247,7 @@ const stopScrollToHash = router.afterEach((to) => {
               :model-value="draftSettings.scanGuideEnabled"
               @update:model-value="editSettings({ scanGuideEnabled: $event })"
             />
-            <USkeleton v-else-if="settingsLoading" class="h-5 w-10 rounded-full" />
+            <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
         </SettingsCard>
@@ -270,7 +271,7 @@ const stopScrollToHash = router.afterEach((to) => {
                 {{ Math.round(draftSettings.soundVolume * 100) }}%
               </span>
             </div>
-            <USkeleton v-else-if="settingsLoading" class="h-5 w-56" />
+            <USkeleton v-else-if="settingsInitializing" class="h-5 w-56" />
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
         </SettingsCard>
@@ -288,7 +289,7 @@ const stopScrollToHash = router.afterEach((to) => {
               :model-value="draftSettings.updateSource"
               @update:model-value="editSettings({ updateSource: $event })"
             />
-            <USkeleton v-else-if="settingsLoading" class="h-8 w-56" />
+            <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
@@ -302,7 +303,7 @@ const stopScrollToHash = router.afterEach((to) => {
               :model-value="draftSettings.autoDownloadUpdates"
               @update:model-value="editSettings({ autoDownloadUpdates: $event })"
             />
-            <USkeleton v-else-if="settingsLoading" class="h-5 w-10 rounded-full" />
+            <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
@@ -316,7 +317,7 @@ const stopScrollToHash = router.afterEach((to) => {
               :model-value="draftSettings.autoInstallUpdates"
               @update:model-value="editSettings({ autoInstallUpdates: $event })"
             />
-            <USkeleton v-else-if="settingsLoading" class="h-5 w-10 rounded-full" />
+            <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
@@ -369,7 +370,7 @@ const stopScrollToHash = router.afterEach((to) => {
                 /></span>
               </ULink>
             </div>
-            <USkeleton v-else-if="settingsLoading" class="h-8 w-56" />
+            <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
@@ -385,7 +386,7 @@ const stopScrollToHash = router.afterEach((to) => {
               :model-value="draftSettings.updateProxyMode"
               @update:model-value="editSettings({ updateProxyMode: $event })"
             />
-            <USkeleton v-else-if="settingsLoading" class="h-8 w-56" />
+            <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
@@ -407,7 +408,7 @@ const stopScrollToHash = router.afterEach((to) => {
             icon="i-lucide-refresh-cw"
             title="手动检查更新"
           >
-            <USkeleton v-if="settingsLoading" class="h-8 w-32" />
+            <USkeleton v-if="settingsInitializing" class="h-8 w-32" />
             <UButton
               v-else-if="settingsCanCheckUpdate"
               :disabled="updateOperationBusy"

@@ -62,10 +62,10 @@ function setup(config: OeaConfig = createSettingsFixture()): {
 }
 
 describe('设置提交', () => {
-  it('首次从后端读取完成前不暴露任何设置值', () => {
+  it('首次从后端初始化完成前不暴露任何设置值', () => {
     const { store, io } = setup();
 
-    expect(store.state.value).toEqual({ status: 'loading' });
+    expect(store.state.value).toEqual({ status: 'initializing' });
     expect(io.load).not.toHaveBeenCalled();
   });
 
@@ -104,21 +104,23 @@ describe('设置提交', () => {
     expect(ready(firstRun).effective.scanGuideEnabled).toBe(true);
   });
 
-  it('加载期间不接受编辑，加载失败也不会用占位默认值覆盖已有配置', async () => {
+  it('初始化期间不接受编辑，初始化失败也不会用占位默认值覆盖已有配置', async () => {
     const { store, io } = setup();
     const load = deferred<OeaConfig>();
     io.load.mockReturnValueOnce(load.promise);
     const initialization = store.initialize();
     store.edit({ soundVolume: 0.1 });
-    expect(store.state.value).toEqual({ status: 'loading' });
+    expect(store.state.value).toEqual({ status: 'initializing' });
     expect(io.save).not.toHaveBeenCalled();
     load.reject(new Error('IPC 失败'));
     await initialization;
     store.edit({ minimizeToTray: true });
     expect(store.state.value.status).toBe('unavailable');
     if (store.state.value.status !== 'unavailable') throw new Error('预期 unavailable');
-    expect(store.state.value.reason.type).toBe('load-error');
-    if (store.state.value.reason.type !== 'load-error') throw new Error('预期 load-error');
+    expect(store.state.value.reason.type).toBe('initialize-error');
+    if (store.state.value.reason.type !== 'initialize-error') {
+      throw new Error('预期 initialize-error');
+    }
     expect(store.state.value.reason.error.message).toBe('IPC 失败');
     expect(io.save).not.toHaveBeenCalled();
 
@@ -203,7 +205,7 @@ describe('设置提交', () => {
     expect(ready(store).effective.mirrorchyanCdk).toBe('beta');
   });
 
-  it('加密失败保留有效 CDK，后续编辑可以重新提交；未修改 CDK 时复用密文', async () => {
+  it('加密失败保留有效 CDK，后续编辑可以重新提交，未修改 CDK 时复用密文', async () => {
     const { store, io } = setup(createSettingsFixture({ mirrorchyanCdkEncrypted: 'old-cipher' }));
     io.decrypt.mockResolvedValueOnce('  test-plain  ');
     await store.initialize();

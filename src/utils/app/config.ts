@@ -17,7 +17,7 @@ export const proxyModeItems = [
   { label: '自定义代理', value: UpdateProxyMode.Custom },
 ];
 
-/** 应用内唯一的设置 store；完整初始值只由 Rust 后端返回。 */
+/** 应用内唯一的设置 store。完整初始值只由 Rust 后端返回。 */
 const settings = createConfigStore({
   load: loadOeaConfig,
   save: saveOeaConfig,
@@ -25,13 +25,13 @@ const settings = createConfigStore({
   decrypt: cdkDecrypt,
 });
 
-/** Settings 首次加载生命周期，以及 ready 后的 draft/effective 设置。 */
+/** Settings 初始化生命周期，以及 ready 后的 draft/effective 设置。 */
 export const settingsState = settings.state;
 /** 保留现有导出名，供应用层统一展示保存失败通知。 */
 export const configSaveError = computed(() =>
   settingsState.value.status === 'ready' ? settingsState.value.saveError : null,
 );
-/** 从 Rust 后端首次加载完整设置，加载失败后可再次调用。 */
+/** 从 Rust 后端初始化完整设置，初始化失败后可再次调用。 */
 export const initOeaConfig = settings.initialize;
 /** 标记纯浏览器模式不支持后端 Settings。 */
 export const markSettingsUnsupported = settings.markUnsupported;

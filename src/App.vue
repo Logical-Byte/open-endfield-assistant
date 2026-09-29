@@ -38,11 +38,11 @@ watch(configSaveError, (error) => {
 watch(settingsState, (state) => {
   if (
     state.status === 'unavailable' &&
-    state.reason.type === 'load-error' &&
+    state.reason.type === 'initialize-error' &&
     route.path !== '/settings'
   ) {
     toast.add({
-      title: '设置加载失败',
+      title: '设置初始化失败',
       description: '自动更新和扫描提示暂时不会使用用户设置。',
       color: 'error',
       actions: [{ label: '前往设置', onClick: () => router.push('/settings') }],

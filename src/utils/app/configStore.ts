@@ -12,10 +12,10 @@ export type DraftSettings = Omit<
 };
 
 export type SettingsState =
-  | { status: 'loading' }
+  | { status: 'initializing' }
   | {
       status: 'unavailable';
-      reason: { type: 'load-error'; error: Error } | { type: 'unsupported' };
+      reason: { type: 'initialize-error'; error: Error } | { type: 'unsupported' };
     }
   | {
       status: 'ready';
@@ -24,7 +24,7 @@ export type SettingsState =
       saveError: Error | null;
     };
 
-// 修改 ScanGuide 文案且需要所有用户重新确认时递增；无需改变配置文件版本。
+// 修改 ScanGuide 文案且需要所有用户重新确认时递增。无需改变配置文件版本。
 const CURRENT_SCAN_TIPS_VERSION = 1;
 
 /** 配置 store 使用的持久化边界，生产环境连接 Tauri IPC，测试中可替换为受控 Promise。 */
@@ -44,12 +44,12 @@ interface ConfigStore {
   retry(): void;
 }
 
-/** 创建设置 store。`io` 可替换，使测试能直接控制加载、加密和保存的完成时机。 */
+/** 创建设置 store。`io` 可替换，使测试能直接控制初始化、加密和保存的完成时机。 */
 export function createConfigStore(io: ConfigPersistence): ConfigStore {
-  const state = shallowRef<SettingsState>({ status: 'loading' });
-  // 最近一次成功加载或保存的完整 DTO，用来保留版本字段和可复用的 CDK 密文。
+  const state = shallowRef<SettingsState>({ status: 'initializing' });
+  // 最近一次成功初始化或保存的完整 DTO，用来保留版本字段和可复用的 CDK 密文。
   let persisted: OeaConfig | null = null;
-  // 同一个初始化 Promise 返回给并发调用方；失败后清空以允许重试。
+  // 同一个初始化 Promise 返回给并发调用方。失败后清空以允许重试。
   let initialization: Promise<void> | null = null;
   // 防止多个 write() 并发执行，使 io.encrypt() 和 io.save() 严格串行。
   let saving = false;
@@ -61,14 +61,14 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
     if (state.value.status === 'ready') return Promise.resolve();
     if (initialization !== null) return initialization;
 
-    state.value = { status: 'loading' };
-    initialization = load().finally(() => {
+    state.value = { status: 'initializing' };
+    initialization = initializeFromBackend().finally(() => {
       initialization = null;
     });
     return initialization;
   }
 
-  async function load(): Promise<void> {
+  async function initializeFromBackend(): Promise<void> {
     try {
       const config = await io.load();
       let cdk: string | null = '';
@@ -90,7 +90,7 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
     } catch (error) {
       state.value = {
         status: 'unavailable',
-        reason: { type: 'load-error', error: asError(error) },
+        reason: { type: 'initialize-error', error: asError(error) },
       };
     }
   }
@@ -101,7 +101,7 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
     state.value = { status: 'unavailable', reason: { type: 'unsupported' } };
   }
 
-  /** 将 patch 合并到 draft，并安排串行保存。首次加载完成前忽略编辑。 */
+  /** 将 patch 合并到 draft，并安排串行保存。首次初始化完成前忽略编辑。 */
   function edit(patch: Partial<DraftSettings>): void {
     const current = state.value;
     if (current.status !== 'ready') return;
