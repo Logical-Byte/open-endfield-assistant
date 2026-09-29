@@ -25,25 +25,3 @@ where
 
     Some(total as f32 / pixel_count as f32)
 }
-
-#[cfg(test)]
-mod tests {
-    use image::{Rgba, RgbaImage};
-
-    use crate::utils::region::Region2D;
-
-    use super::mean_luma;
-
-    #[test]
-    fn computes_mean_luma_in_region() {
-        let image = RgbaImage::from_fn(3, 1, |x, _| match x {
-            0 => Rgba([0, 0, 0, 255]),
-            1 => Rgba([255, 255, 255, 255]),
-            _ => Rgba([255, 0, 0, 255]),
-        });
-
-        let mean = mean_luma(&image, Region2D::from_ltwh(0, 0, 2, 1));
-
-        assert_eq!(mean, Some(127.5));
-    }
-}

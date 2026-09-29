@@ -15,7 +15,7 @@ pub struct MatchResult {
 }
 
 /// 通过模板名称取得模板，并在 `image` 的指定区域内搜索。
-pub(crate) fn find<I, P>(
+pub fn find<I, P>(
     image: &I,
     template_name: &str,
     search_region: Region2D<u32>,
@@ -77,7 +77,7 @@ fn offset_match(mut matched: MatchResult, search_region: Region2D<u32>) -> Match
 }
 
 /// 通过模板名称取得模板，并在已经裁剪的图片区域内搜索。
-pub(crate) fn find_in_region<I, P>(
+pub fn find_in_region<I, P>(
     image_region: &I,
     template_name: &str,
     templates: &mut P,
@@ -126,77 +126,4 @@ where
     let score = extremes.max_value;
 
     Ok(MatchResult { region, score })
-}
-
-#[cfg(test)]
-mod tests {
-    use anyhow::Result;
-    use image::{Rgb, RgbImage};
-
-    use crate::utils::region::Region2D;
-
-    use super::{super::TemplateProvider, find, match_template_in_region};
-
-    struct InMemoryTemplates {
-        template: RgbImage,
-    }
-
-    impl TemplateProvider for InMemoryTemplates {
-        fn get(&mut self, template_name: &str) -> Result<&RgbImage> {
-            assert_eq!(template_name, "foo/bar.png");
-            Ok(&self.template)
-        }
-    }
-
-    #[test]
-    fn finds_named_template_in_search_region() {
-        let image = RgbImage::from_fn(4, 2, |x, y| {
-            let value = match (x, y) {
-                (1, 0) | (2, 1) => 0,
-                (2, 0) | (1, 1) => 255,
-                _ => 128,
-            };
-            Rgb([value, value, value])
-        });
-        let mut templates = InMemoryTemplates {
-            template: RgbImage::from_fn(2, 2, |x, y| {
-                let value = if x == y { 0 } else { 255 };
-                Rgb([value, value, value])
-            }),
-        };
-
-        let matched = find(
-            &image,
-            "foo/bar.png",
-            Region2D::from_ltwh(1, 0, 3, 2),
-            &mut templates,
-        )
-        .unwrap();
-
-        assert_eq!(matched.region, Region2D::from_ltwh(1, 0, 2, 2));
-        assert_eq!(matched.score, 1.0);
-    }
-
-    #[test]
-    fn matches_loaded_template_in_search_region() {
-        let image = RgbImage::from_fn(4, 2, |x, y| {
-            let value = match (x, y) {
-                (1, 0) | (2, 1) => 0,
-                (2, 0) | (1, 1) => 255,
-                _ => 128,
-            };
-            Rgb([value, value, value])
-        });
-        let template = RgbImage::from_fn(2, 2, |x, y| {
-            let value = if x == y { 0 } else { 255 };
-            Rgb([value, value, value])
-        });
-
-        let matched =
-            match_template_in_region(&image, &template, Some(Region2D::from_ltwh(1, 0, 3, 2)))
-                .unwrap();
-
-        assert_eq!(matched.region, Region2D::from_ltwh(1, 0, 2, 2));
-        assert_eq!(matched.score, 1.0);
-    }
 }

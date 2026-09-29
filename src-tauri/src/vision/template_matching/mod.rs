@@ -10,6 +10,8 @@ mod ccoeff;
 mod match_template;
 mod template_source;
 
-pub use ccoeff::*;
-pub use match_template::*;
-pub(crate) use template_source::{LazyTemplateLoader, TemplateProvider};
+pub use match_template::{
+    MatchResult, find, find_in_region, match_in_region, match_template_in_region,
+};
+pub(crate) use template_source::LazyTemplateLoader;
+pub use template_source::TemplateProvider;
