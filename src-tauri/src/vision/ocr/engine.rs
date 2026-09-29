@@ -9,7 +9,7 @@ use rapidocr_core::{
     types::OcrOutput,
 };
 
-pub struct OcrEngine {
+pub(crate) struct OcrEngine {
     ocr: RapidOcr,
 }
 
@@ -19,7 +19,7 @@ impl OcrEngine {
     /// # 参数
     /// - `pipeline_config`: 识别管线配置
     /// - `models_dir`: OCR 模型目录（如 [`crate::app_paths::AppPaths::models_dir()`]）
-    pub fn new(pipeline_config: PipelineConfig, models_dir: &Path) -> Result<Self> {
+    pub(crate) fn new(pipeline_config: PipelineConfig, models_dir: &Path) -> Result<Self> {
         let model_dir = models_dir;
         let model_set = PPOCRV6_TINY;
 
@@ -49,7 +49,7 @@ impl OcrEngine {
         Ok(Self { ocr })
     }
 
-    pub fn ocr(&mut self, image: &RgbImage) -> Result<OcrOutput> {
+    pub(crate) fn ocr(&mut self, image: &RgbImage) -> Result<OcrOutput> {
         let start_time = Instant::now();
         let output = self.ocr.run_image(image)?;
         let elapsed = start_time.elapsed();

@@ -92,7 +92,7 @@ impl CcoeffNormalized {
 /// R(x,y) = (∑T·I - n·T̄·Ī) / √(∑(T-T̄)² · ∑(I-Ī)²)
 ///
 /// 利用 CrossCorrelation 拿到 ∑T·I，配合积分图 O(1) 取 ∑I/∑I²。
-pub fn match_template_ccoeff_normed_parallel(
+pub(super) fn match_template_ccoeff_normed_parallel(
     image: &GrayImage,
     template: &GrayImage,
 ) -> Image<Luma<f32>> {

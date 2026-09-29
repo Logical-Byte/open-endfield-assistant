@@ -18,8 +18,7 @@ use crate::{
     config::OeaConfig,
     data::AppData,
     navigation::Navigator,
-    ocr::OcrEngine,
-    platform,
+    platform, vision,
 };
 
 use super::{reporting::ScanReporter, workflow::ArchiveScanner};
@@ -27,7 +26,7 @@ use super::{reporting::ScanReporter, workflow::ArchiveScanner};
 /// 一次真实扫描所需的协作者，由控制器在任务获准启动后创建。
 pub(crate) struct ArchiveScanWorker {
     oea_config: OeaConfig,
-    ocr: Arc<Mutex<OcrEngine>>,
+    ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     navigator: Arc<Navigator>,
     app_data: Arc<AppData>,
 }
@@ -35,7 +34,7 @@ pub(crate) struct ArchiveScanWorker {
 impl ArchiveScanWorker {
     pub(crate) fn new(
         oea_config: OeaConfig,
-        ocr: Arc<Mutex<OcrEngine>>,
+        ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
         navigator: Arc<Navigator>,
         app_data: Arc<AppData>,
     ) -> Self {

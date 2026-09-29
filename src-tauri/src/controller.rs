@@ -15,7 +15,7 @@ use crate::{
     config::{ConfigStore, OeaConfig},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
-    ocr::OcrEngine,
+    vision,
 };
 
 /// 应用控制器（Tauri 托管状态）。
@@ -23,7 +23,7 @@ pub struct Controller {
     /// 应用配置存储
     config_store: Arc<ConfigStore>,
     /// 共享 OCR 引擎（跨会话复用模型）
-    ocr: Arc<Mutex<OcrEngine>>,
+    ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     /// 导航器（本游戏全部场景，跨线程共享只读）
     navigator: Arc<Navigator>,
     /// 全局唯一自动化任务运行时
@@ -36,7 +36,7 @@ impl Controller {
     /// 创建控制器。
     pub(crate) fn new(
         config_store: Arc<ConfigStore>,
-        ocr: Arc<Mutex<OcrEngine>>,
+        ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
         navigator: Arc<Navigator>,
         automation_runtime: Arc<automation::Runtime>,
         app_data: AppData,

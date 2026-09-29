@@ -14,13 +14,12 @@ use tracing::{info, warn};
 use crate::{
     app_paths::AppPaths,
     automation::{AutomationStopped, StopToken, is_stop_requested},
-    ocr::OcrEngine,
     platform::{
         self, WindowHandle,
         capture::{PrintWindowScreencap, ScreencapBase},
         input::{InputBase, SeizeInput},
     },
-    template_matching::LazyTemplateLoader,
+    vision::{ocr, template_matching},
 };
 
 use self::resolution::{Resolution, ResolutionTransform};
@@ -42,9 +41,9 @@ pub struct Session {
     /// 输入器
     input: Box<dyn InputBase>,
     /// 共享 OCR 引擎（跨会话复用模型加载）
-    ocr: Arc<Mutex<OcrEngine>>,
+    ocr: Arc<Mutex<ocr::OcrEngine>>,
     /// 模板加载器（懒加载 + 缓存）
-    templates: LazyTemplateLoader,
+    templates: template_matching::LazyTemplateLoader,
     /// 停止令牌
     stop: StopToken,
 }
@@ -58,7 +57,7 @@ impl Session {
     /// 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）；
     /// 4. 创建截图器与输入器；
     /// 5. 组装会话（复用共享 OCR 引擎与模板目录）。
-    pub(crate) fn connect(ocr: &Arc<Mutex<OcrEngine>>, stop: StopToken) -> Result<Self> {
+    pub(crate) fn connect(ocr: &Arc<Mutex<ocr::OcrEngine>>, stop: StopToken) -> Result<Self> {
         // 1. 获取游戏窗口（仅确保窗口在屏幕上，不抢占前台）
         let hwnd = platform::window::get_window_by_title(
             Some(platform::window::ENDFIELD_WINDOW_CLASS),
@@ -112,7 +111,7 @@ impl Session {
         hwnd: WindowHandle,
         screencap: Box<dyn ScreencapBase>,
         input: Box<dyn InputBase>,
-        ocr: Arc<Mutex<OcrEngine>>,
+        ocr: Arc<Mutex<ocr::OcrEngine>>,
         templates_root: impl Into<PathBuf>,
         resolution_transform: ResolutionTransform,
         stop: StopToken,
@@ -122,7 +121,7 @@ impl Session {
             screencap,
             input,
             ocr,
-            templates: LazyTemplateLoader::new(templates_root),
+            templates: template_matching::LazyTemplateLoader::new(templates_root),
             resolution_transform,
             stop,
         }

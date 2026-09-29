@@ -7,7 +7,7 @@ use image::RgbImage;
 use crate::utils::path::resolve_existing_relative_file;
 
 /// 按逻辑名称提供模板图片，不向调用方暴露存储与缓存策略。
-pub(crate) trait TemplateSource {
+pub(crate) trait TemplateProvider {
     /// 返回由模板源持有的图片。
     fn get(&mut self, template_name: &str) -> Result<&RgbImage>;
 }
@@ -29,7 +29,7 @@ impl LazyTemplateLoader {
     }
 }
 
-impl TemplateSource for LazyTemplateLoader {
+impl TemplateProvider for LazyTemplateLoader {
     fn get(&mut self, template_name: &str) -> Result<&RgbImage> {
         if self.cache.contains_key(template_name) {
             return Ok(self
@@ -60,7 +60,7 @@ mod tests {
     fn returns_a_cached_template_after_its_file_is_removed() {
         use image::{Rgb, RgbImage};
 
-        use super::{LazyTemplateLoader, TemplateSource};
+        use super::{LazyTemplateLoader, TemplateProvider};
 
         let templates = tempfile::tempdir().unwrap();
         let template = templates.path().join("cached.png");
@@ -69,9 +69,14 @@ mod tests {
             .unwrap();
 
         let mut loader = LazyTemplateLoader::new(templates.path());
-        loader.get("cached.png").unwrap();
+        TemplateProvider::get(&mut loader, "cached.png").unwrap();
         fs::remove_file(template).unwrap();
 
-        assert_eq!(loader.get("cached.png").unwrap().width(), 1);
+        assert_eq!(
+            TemplateProvider::get(&mut loader, "cached.png")
+                .unwrap()
+                .width(),
+            1
+        );
     }
 }
