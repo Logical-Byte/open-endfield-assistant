@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { UpdateProxyMode, UpdateSource, type OeaSettings } from '@/types/oeaSettings';
+import { UpdateProxyMode, UpdateSource, type Settings } from '@/types/settings';
 import { createSettingsStore, type SettingsState } from './settingsStore';
 
 type ReadySettingsState = Extract<SettingsState, { status: 'ready' }>;
 
-function createSettingsFixture(overrides: Partial<OeaSettings> = {}): OeaSettings {
+function createSettingsFixture(overrides: Partial<Settings> = {}): Settings {
   return {
     majorVersion: 0,
     minorVersion: 0,
@@ -43,18 +43,18 @@ function deferred<T>(): {
   return { promise, resolve, reject };
 }
 
-function setup(settings: OeaSettings = createSettingsFixture()): {
+function setup(settings: Settings = createSettingsFixture()): {
   store: ReturnType<typeof createSettingsStore>;
   io: {
-    load: ReturnType<typeof vi.fn<() => Promise<OeaSettings>>>;
-    save: ReturnType<typeof vi.fn<(settings: OeaSettings) => Promise<void>>>;
+    load: ReturnType<typeof vi.fn<() => Promise<Settings>>>;
+    save: ReturnType<typeof vi.fn<(settings: Settings) => Promise<void>>>;
     encrypt: ReturnType<typeof vi.fn<(plain: string) => Promise<string>>>;
     decrypt: ReturnType<typeof vi.fn<(encrypted: string) => Promise<string>>>;
   };
 } {
   const io = {
-    load: vi.fn<() => Promise<OeaSettings>>().mockResolvedValue(settings),
-    save: vi.fn<(settings: OeaSettings) => Promise<void>>().mockResolvedValue(undefined),
+    load: vi.fn<() => Promise<Settings>>().mockResolvedValue(settings),
+    save: vi.fn<(settings: Settings) => Promise<void>>().mockResolvedValue(undefined),
     encrypt: vi.fn<(plain: string) => Promise<string>>().mockResolvedValue('test-ciphertext'),
     decrypt: vi.fn<(encrypted: string) => Promise<string>>().mockResolvedValue('test-plain'),
   };
@@ -106,7 +106,7 @@ describe('设置提交', () => {
 
   it('初始化期间不接受编辑，初始化失败也不会用占位默认值覆盖已有设置', async () => {
     const { store, io } = setup();
-    const load = deferred<OeaSettings>();
+    const load = deferred<Settings>();
     io.load.mockReturnValueOnce(load.promise);
     const initialization = store.initialize();
     store.edit({ soundVolume: 0.1 });

@@ -1,8 +1,8 @@
-import type { OeaSettings } from '@/types/oeaSettings';
+import type { Settings } from '@/types/settings';
 import { readonly, shallowRef, type Ref } from 'vue';
 
 export type DraftSettings = Omit<
-  OeaSettings,
+  Settings,
   'majorVersion' | 'minorVersion' | 'mirrorchyanCdkEncrypted' | 'scanTipsDismissedVersion'
 > & {
   /** 可编辑的 Mirror 酱 CDK 明文。`null` 表示解密失败。 */
@@ -29,8 +29,8 @@ const CURRENT_SCAN_TIPS_VERSION = 1;
 
 /** 设置 store 使用的持久化边界，生产环境连接 Tauri IPC，测试中可替换为受控 Promise。 */
 interface SettingsPersistence {
-  load(): Promise<OeaSettings>;
-  save(settings: OeaSettings): Promise<void>;
+  load(): Promise<Settings>;
+  save(settings: Settings): Promise<void>;
   encrypt(plain: string): Promise<string>;
   decrypt(encrypted: string): Promise<string>;
 }
@@ -48,7 +48,7 @@ interface SettingsStore {
 export function createSettingsStore(io: SettingsPersistence): SettingsStore {
   const state = shallowRef<SettingsState>({ status: 'initializing' });
   // 最近一次成功初始化或保存的完整 DTO，用来保留版本字段和可复用的 CDK 密文。
-  let persisted: OeaSettings | null = null;
+  let persisted: Settings | null = null;
   // 同一个初始化 Promise 返回给并发调用方。失败后清空以允许重试。
   let initialization: Promise<void> | null = null;
   // 防止多个 write() 并发执行，使 io.encrypt() 和 io.save() 严格串行。
@@ -157,7 +157,7 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
           if (mirrorchyanCdk !== null && mirrorchyanCdk !== effective.mirrorchyanCdk) {
             encrypted = mirrorchyanCdk ? await io.encrypt(mirrorchyanCdk) : '';
           }
-          const settings: OeaSettings = {
+          const settings: Settings = {
             ...persisted,
             ...values,
             mirrorchyanCdkEncrypted: encrypted,
@@ -199,7 +199,7 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
   };
 }
 
-function toDraft(settings: OeaSettings, mirrorchyanCdk: string | null): DraftSettings {
+function toDraft(settings: Settings, mirrorchyanCdk: string | null): DraftSettings {
   return {
     minimizeToTray: settings.minimizeToTray,
     soundVolume: settings.soundVolume,
