@@ -38,7 +38,7 @@ export async function initUiScale(): Promise<void> {
  * 将当前缩放值应用到 WebView2 窗口（`ZoomFactor`）。
  * 非 Tauri 环境或无法解析为有限数字时直接跳过。
  */
-export async function applyUiScale(): Promise<void> {
+async function applyUiScale(): Promise<void> {
   if (!isTauri()) {
     return;
   }
