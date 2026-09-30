@@ -26,11 +26,11 @@ where
     P: TemplateProvider + ?Sized,
 {
     let template = templates.get(template_name)?;
-    pure::match_template_in_region(image, template, Some(search_region))
+    super::pure::match_template_in_region(image, template, Some(search_region))
 }
 
 /// 使用已加载模板的纯计算接口。
-mod pure {
+pub(crate) mod pure {
     use anyhow::{Result, bail};
     use image::{GenericImageView, Pixel, imageops};
     use imageproc::template_matching;
@@ -40,7 +40,7 @@ mod pure {
     /// 使用已加载的模板在 `image` 的指定区域内搜索。
     ///
     /// `search_region` 为空时搜索完整图片。结果区域始终相对于 `image`。
-    pub(super) fn match_template_in_region<I, T>(
+    pub(crate) fn match_template_in_region<I, T>(
         image: &I,
         template: &T,
         search_region: Option<Region2D<u32>>,

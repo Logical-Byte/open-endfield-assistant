@@ -3,7 +3,6 @@ use crate::automation::ScreenCapture;
 use crate::{automation, navigation, vision::template_matching};
 use anyhow::{Context, Result};
 use clap::ValueEnum;
-use image::RgbImage;
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -131,14 +130,6 @@ fn connect() -> Result<automation::Session, Error> {
     }
 }
 
-/// One explicit filesystem image, owned for the duration of a single search.
-struct FileTemplate(RgbImage);
-impl template_matching::TemplateProvider for FileTemplate {
-    fn get(&mut self, _name: &str) -> Result<&RgbImage> {
-        Ok(&self.0)
-    }
-}
-
 fn match_image(
     command: &str,
     image: &image::RgbaImage,
@@ -152,28 +143,27 @@ fn match_image(
     let template_path = template
         .canonicalize()
         .with_context(|| format!("failed to resolve template path: {}", template.display()))?;
-    let mut provider = FileTemplate(
-        image::open(&template_path)
-            .with_context(|| {
-                format!(
-                    "failed to decode template image: {}",
-                    template_path.display()
-                )
-            })?
-            .to_rgb8(),
-    );
-    let template = json!({"path":template_path.to_string_lossy(), "width":provider.0.width(), "height":provider.0.height()});
-    let matched = template_matching::find(image, "explicit-file", search, &mut provider)
+    let template_image = image::open(&template_path)
         .with_context(|| {
             format!(
-                "failed to match template {} ({}x{}) in region ({region}) of {}x{} input",
-                template_path.display(),
-                provider.0.width(),
-                provider.0.height(),
-                image.width(),
-                image.height()
+                "failed to decode template image: {}",
+                template_path.display()
             )
-        })?;
+        })?
+        .to_rgb8();
+    let template = json!({"path":template_path.to_string_lossy(), "width":template_image.width(), "height":template_image.height()});
+    let matched =
+        template_matching::pure::match_template_in_region(image, &template_image, Some(search))
+            .with_context(|| {
+                format!(
+                    "failed to match template {} ({}x{}) in region ({region}) of {}x{} input",
+                    template_path.display(),
+                    template_image.width(),
+                    template_image.height(),
+                    image.width(),
+                    image.height()
+                )
+            })?;
     let matched_region = Rect::from_region(matched.region);
     Ok(Output {
         human: format!(
