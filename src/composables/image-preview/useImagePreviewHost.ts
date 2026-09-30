@@ -3,7 +3,7 @@ import {
   closeImagePreview,
   currentImagePreviewTarget,
 } from '@/composables/image-preview/imagePreviewState';
-import { useImagePreviewScale } from '@/composables/image-preview/useImagePreviewScale';
+import { createImagePreviewScale } from '@/composables/image-preview/imagePreviewScale';
 import { downloadFile } from '@/utils/file';
 import { useDevicePixelRatio, useMagicKeys } from '@vueuse/core';
 import type { ComputedRef, CSSProperties, Ref } from 'vue';
@@ -56,7 +56,7 @@ export function useImagePreviewHost(
     getPrevScale,
     getNextScaleWithMultiplier,
     getPrevScaleWithMultiplier,
-  } = useImagePreviewScale();
+  } = createImagePreviewScale();
 
   /** 缩放大于等于此阈值时，让图片使用最近邻居采样 */
   const PIXELATED_SCALE_THRESHOLD = 4;
