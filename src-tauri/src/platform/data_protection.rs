@@ -12,7 +12,7 @@ pub fn encrypt(plain: &[u8]) -> Result<Vec<u8>> {
         windows::dpapi::encrypt(plain)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = plain;
         Err(super::unsupported("DPAPI encryption"))
@@ -26,7 +26,7 @@ pub fn decrypt(data: &[u8]) -> Result<Vec<u8>> {
         windows::dpapi::decrypt(data)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = data;
         Err(super::unsupported("DPAPI decryption"))

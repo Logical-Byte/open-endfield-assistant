@@ -10,7 +10,7 @@ pub fn resolve_system_proxy() -> Result<Option<String>, String> {
         super::windows::proxy::resolve_system_proxy()
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         Ok(None)
     }

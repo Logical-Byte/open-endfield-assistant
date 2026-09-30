@@ -76,7 +76,7 @@ impl SeizeInput {
             }
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = (window, block_input);
             Self {}
@@ -94,7 +94,7 @@ impl InputBase for SeizeInput {
             self.state.touch_down(contact, point.x, point.y)
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = (contact, point);
             Err(super::unsupported("window input"))
@@ -107,7 +107,7 @@ impl InputBase for SeizeInput {
             self.state.touch_move(contact, point.x, point.y)
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = (contact, point);
             Err(super::unsupported("window input"))
@@ -120,7 +120,7 @@ impl InputBase for SeizeInput {
             self.state.touch_up(contact, point.x, point.y)
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = (contact, point);
             Err(super::unsupported("window input"))
@@ -133,7 +133,7 @@ impl InputBase for SeizeInput {
             self.state.scroll(delta.x, delta.y)
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = delta;
             Err(super::unsupported("window input"))
@@ -146,7 +146,7 @@ impl InputBase for SeizeInput {
             self.state.key_down(vk_code)
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = vk_code;
             Err(super::unsupported("window input"))
@@ -159,7 +159,7 @@ impl InputBase for SeizeInput {
             self.state.key_up(vk_code)
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = vk_code;
             Err(super::unsupported("window input"))

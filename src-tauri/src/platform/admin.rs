@@ -12,7 +12,7 @@ pub fn is_elevated() -> bool {
         windows::admin::is_elevated()
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         false
     }
@@ -28,7 +28,7 @@ pub fn restart_as_admin() -> Result<()> {
         windows::admin::restart_as_admin()
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         Err(super::unsupported("restart_as_admin"))
     }

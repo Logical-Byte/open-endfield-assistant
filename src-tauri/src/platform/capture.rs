@@ -46,7 +46,7 @@ impl PrintWindowScreencap {
             }
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = window;
             Self {}
@@ -60,7 +60,7 @@ impl PrintWindowScreencap {
             self.state.screencap()
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             Err(super::unsupported("window capture"))
         }
@@ -81,7 +81,7 @@ impl ScreencapBase for PrintWindowScreencap {
             self.state.screencap_region(relative_region)
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = relative_region;
             Err(super::unsupported("window capture"))

@@ -39,7 +39,7 @@ impl KeyboardHookGuard {
             self.inner.shutdown()
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             Ok(())
         }
@@ -57,7 +57,7 @@ pub fn listen() -> Result<(mpsc::Receiver<KeyEvent>, KeyboardHookGuard)> {
         Ok((rx, KeyboardHookGuard { inner }))
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let (_tx, rx) = mpsc::channel();
         Ok((rx, KeyboardHookGuard {}))

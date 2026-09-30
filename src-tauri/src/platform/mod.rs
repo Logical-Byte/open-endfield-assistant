@@ -39,14 +39,14 @@ impl WindowHandle {
             self.raw.is_invalid()
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             true
         }
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 fn unsupported(operation: &str) -> anyhow::Error {
     anyhow::anyhow!("{operation} is not supported on macOS")
 }

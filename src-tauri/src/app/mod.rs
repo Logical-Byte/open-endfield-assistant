@@ -36,7 +36,7 @@ where
     builder.data_directory(app_paths.webview_data_dir())
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 fn configure_main_window<'a, R, M>(
     builder: tauri::WebviewWindowBuilder<'a, R, M>,
     _app_paths: &AppPaths,
