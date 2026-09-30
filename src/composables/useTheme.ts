@@ -753,14 +753,20 @@ watch(
   { immediate: true },
 );
 
+/** 本地主题偏好的初始化与重置默认值。 */
+const themeDefaults = {
+  radius: 0.25,
+  cornerShape: supportsCornerShape ? 'log2(3)' : '1',
+  englishFont: 'use-chinese',
+  chineseFont: 'harmonyos-sans-sc',
+  monospaceFont: 'jetbrains-mono',
+};
+
 /** 圆角半径（单位：rem） */
-const radius = useStorage<number>('oea:theme.radius', 0.25);
+const radius = useStorage<number>('oea:theme.radius', themeDefaults.radius);
 
 /** 圆角形状预设值（对应 cornerShapePresets 中的 value） */
-const cornerShape = useStorage<string>(
-  'oea:theme.cornerShape',
-  supportsCornerShape ? 'log2(3)' : '1',
-);
+const cornerShape = useStorage<string>('oea:theme.cornerShape', themeDefaults.cornerShape);
 
 /** 当前选中的圆角形状 */
 const selectedCornerShape = computed<CornerShapePreset | undefined>(() =>
@@ -777,11 +783,11 @@ const cornerShapeCoefficient = computed<number>(() => {
 });
 
 /** 选中的英文字体 ID */
-const englishFont = useStorage<string>('oea:theme.englishFont', 'use-chinese');
+const englishFont = useStorage<string>('oea:theme.englishFont', themeDefaults.englishFont);
 /** 选中的中文字体 ID */
-const chineseFont = useStorage<string>('oea:theme.chineseFont', 'harmonyos-sans-sc');
+const chineseFont = useStorage<string>('oea:theme.chineseFont', themeDefaults.chineseFont);
 /** 选中的等宽字体 ID */
-const monospaceFont = useStorage<string>('oea:theme.monospaceFont', 'jetbrains-mono');
+const monospaceFont = useStorage<string>('oea:theme.monospaceFont', themeDefaults.monospaceFont);
 
 /** 选中的英文字体配置 */
 const englishFontOption = computed<FontOption | undefined>(() =>
@@ -951,11 +957,11 @@ function resetTheme() {
   primary.value = defaultTheme.ui.colors.primary;
   secondary.value = defaultTheme.ui.colors.secondary;
   neutral.value = defaultTheme.ui.colors.neutral;
-  radius.value = 0.25;
-  cornerShape.value = supportsCornerShape ? 'log2(3)' : '1';
-  englishFont.value = 'use-chinese';
-  chineseFont.value = 'harmonyos-sans-sc';
-  monospaceFont.value = 'jetbrains-mono';
+  radius.value = themeDefaults.radius;
+  cornerShape.value = themeDefaults.cornerShape;
+  englishFont.value = themeDefaults.englishFont;
+  chineseFont.value = themeDefaults.chineseFont;
+  monospaceFont.value = themeDefaults.monospaceFont;
 }
 
 export function useTheme() {
