@@ -929,18 +929,6 @@ function loadFontCss(fontOptions: FontOption[]): void {
   }
 }
 
-function loadEnglishFontCss() {
-  loadFontCss(englishFontOptions);
-}
-
-function loadChineseFontCss() {
-  loadFontCss(chineseFontOptions);
-}
-
-function loadMonospaceFontCss() {
-  loadFontCss(monospaceFontOptions);
-}
-
 function getPreviewFontFamily(
   type: 'english' | 'chinese' | 'monospace',
   item: FontOption,
@@ -993,9 +981,7 @@ export function useTheme() {
     monospaceFont,
     style,
     link,
-    loadEnglishFontCss,
-    loadChineseFontCss,
-    loadMonospaceFontCss,
+    loadFontCss,
     getPreviewFontFamily,
     resetTheme,
   };

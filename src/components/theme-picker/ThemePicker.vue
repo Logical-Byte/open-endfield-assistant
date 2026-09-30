@@ -37,9 +37,7 @@ const {
   englishFont,
   chineseFont,
   monospaceFont,
-  loadEnglishFontCss,
-  loadChineseFontCss,
-  loadMonospaceFontCss,
+  loadFontCss,
   getPreviewFontFamily,
   resetTheme,
 } = useTheme();
@@ -160,7 +158,7 @@ const {
             }"
             @update:open="
               (open) => {
-                if (open) loadEnglishFontCss();
+                if (open) loadFontCss(englishFontOptions);
               }
             "
           >
@@ -187,7 +185,7 @@ const {
             }"
             @update:open="
               (open) => {
-                if (open) loadChineseFontCss();
+                if (open) loadFontCss(chineseFontOptions);
               }
             "
           >
@@ -214,7 +212,7 @@ const {
             }"
             @update:open="
               (open) => {
-                if (open) loadMonospaceFontCss();
+                if (open) loadFontCss(monospaceFontOptions);
               }
             "
           >
