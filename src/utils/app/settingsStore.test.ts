@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { UpdateProxyMode, UpdateSource, type OeaSettings } from '@/types/oeaSettings';
-import { createConfigStore, type SettingsState } from './configStore';
+import { UpdateProxyMode, UpdateSource, type Settings } from '@/types/settings';
+import { createSettingsStore, type SettingsState } from './settingsStore';
 
 type ReadySettingsState = Extract<SettingsState, { status: 'ready' }>;
 
-function createSettingsFixture(overrides: Partial<OeaSettings> = {}): OeaSettings {
+function createSettingsFixture(overrides: Partial<Settings> = {}): Settings {
   return {
     majorVersion: 0,
     minorVersion: 0,
@@ -22,7 +22,7 @@ function createSettingsFixture(overrides: Partial<OeaSettings> = {}): OeaSetting
   };
 }
 
-function ready(store: ReturnType<typeof createConfigStore>): ReadySettingsState {
+function ready(store: ReturnType<typeof createSettingsStore>): ReadySettingsState {
   const state = store.state.value;
   expect(state.status).toBe('ready');
   if (state.status !== 'ready') throw new Error(`预期 ready，实际为 ${state.status}`);
@@ -43,22 +43,22 @@ function deferred<T>(): {
   return { promise, resolve, reject };
 }
 
-function setup(config: OeaSettings = createSettingsFixture()): {
-  store: ReturnType<typeof createConfigStore>;
+function setup(settings: Settings = createSettingsFixture()): {
+  store: ReturnType<typeof createSettingsStore>;
   io: {
-    load: ReturnType<typeof vi.fn<() => Promise<OeaSettings>>>;
-    save: ReturnType<typeof vi.fn<(config: OeaSettings) => Promise<void>>>;
+    load: ReturnType<typeof vi.fn<() => Promise<Settings>>>;
+    save: ReturnType<typeof vi.fn<(settings: Settings) => Promise<void>>>;
     encrypt: ReturnType<typeof vi.fn<(plain: string) => Promise<string>>>;
     decrypt: ReturnType<typeof vi.fn<(encrypted: string) => Promise<string>>>;
   };
 } {
   const io = {
-    load: vi.fn<() => Promise<OeaSettings>>().mockResolvedValue(config),
-    save: vi.fn<(config: OeaSettings) => Promise<void>>().mockResolvedValue(undefined),
+    load: vi.fn<() => Promise<Settings>>().mockResolvedValue(settings),
+    save: vi.fn<(settings: Settings) => Promise<void>>().mockResolvedValue(undefined),
     encrypt: vi.fn<(plain: string) => Promise<string>>().mockResolvedValue('test-ciphertext'),
     decrypt: vi.fn<(encrypted: string) => Promise<string>>().mockResolvedValue('test-plain'),
   };
-  return { store: createConfigStore(io), io };
+  return { store: createSettingsStore(io), io };
 }
 
 describe('设置提交', () => {
@@ -104,9 +104,9 @@ describe('设置提交', () => {
     expect(ready(firstRun).effective.scanGuideEnabled).toBe(true);
   });
 
-  it('初始化期间不接受编辑，初始化失败也不会用占位默认值覆盖已有配置', async () => {
+  it('初始化期间不接受编辑，初始化失败也不会用占位默认值覆盖已有设置', async () => {
     const { store, io } = setup();
-    const load = deferred<OeaSettings>();
+    const load = deferred<Settings>();
     io.load.mockReturnValueOnce(load.promise);
     const initialization = store.initialize();
     store.edit({ soundVolume: 0.1 });

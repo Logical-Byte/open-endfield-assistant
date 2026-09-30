@@ -12,8 +12,8 @@ import {
   UpdateStatus,
 } from '@/types/update';
 import { appStatus } from '@/utils/app/appStatus';
-import { settingsState } from '@/utils/app/config';
-import type { DraftSettings } from '@/utils/app/configStore';
+import { settingsState } from '@/utils/app/settings';
+import type { DraftSettings } from '@/utils/app/settingsStore';
 import { logDebug, logError, logWarn, onAutomationStatus } from '@/utils/tauri';
 import { updatePopoverOpen } from '@/utils/uiState';
 import { Channel, invoke } from '@tauri-apps/api/core';

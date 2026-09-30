@@ -3,12 +3,12 @@ import { useTheme } from '@/composables/useTheme';
 import { initAppStatus } from '@/utils/app/appStatus';
 import { initArchiveContract } from '@/utils/app/archiveContract';
 import {
-  configSaveError,
-  initOeaConfig,
+  settingsSaveError,
+  initOeaSettings,
   markSettingsUnsupported,
   retrySettingsSave,
   settingsState,
-} from '@/utils/app/config';
+} from '@/utils/app/settings';
 import { initLogState } from '@/utils/app/logState';
 import { initPrtsData } from '@/utils/app/prtsData';
 import { initScanResults } from '@/utils/app/scanResults';
@@ -24,7 +24,7 @@ const toast = useToast();
 const route = useRoute();
 const router = useRouter();
 // 扫描提示也能触发设置保存，失败通知放在应用层以覆盖设置页以外的操作。
-watch(configSaveError, (error) => {
+watch(settingsSaveError, (error) => {
   if (error) {
     toast.add({
       title: '设置未保存',
@@ -73,7 +73,7 @@ async function initApp(): Promise<void> {
   await initPrtsData();
   await initArchiveContract();
   await initLogState();
-  await initOeaConfig();
+  await initOeaSettings();
   await initScanResults();
   await initUiScale();
   await initUpdateState();

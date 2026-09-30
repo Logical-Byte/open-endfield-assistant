@@ -10,7 +10,7 @@ export enum UpdateProxyMode {
   Custom = 'custom',
 }
 
-export interface OeaSettings {
+export interface Settings {
   /** 设置文件主版本；字段结构发生不兼容变化时递增。 */
   majorVersion: number;
   /** 设置文件次版本；添加兼容字段时递增。 */

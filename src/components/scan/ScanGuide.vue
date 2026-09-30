@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { editSettings, settingsState } from '@/utils/app/config';
+import { editSettings, settingsState } from '@/utils/app/settings';
 import { computed, ref } from 'vue';
 
 /**
- * 修改下方扫描指引文案时，如果要求所有用户重新查看，应递增 `configStore.ts` 的
+ * 修改下方扫描指引文案时，如果要求所有用户重新查看，应递增 `settingsStore.ts` 的
  * `CURRENT_SCAN_TIPS_VERSION`。
  */
 
@@ -12,9 +12,9 @@ const dismissedThisSession = ref(false);
 
 /**
  * 是否显示启动扫描提示。
- * 配置初始化完成前不渲染，避免启动时短暂闪现提示。
+ * 设置初始化完成前不渲染，避免启动时短暂闪现提示。
  * 初始化完成后，`settingsState.value.effective.scanGuideEnabled` 为 `true`
- * 且本次启动内未手动关闭时显示。提示版本的比较和编码由 `configStore.ts` 负责。
+ * 且本次启动内未手动关闭时显示。提示版本的比较和编码由 `settingsStore.ts` 负责。
  */
 const showScanGuide = computed(
   () =>
@@ -23,7 +23,7 @@ const showScanGuide = computed(
     !dismissedThisSession.value,
 );
 
-/** 是否勾选「下次更新前不再提示」。勾选后点击「我知道了」会将确认版本写入配置并持久化。 */
+/** 是否勾选「下次更新前不再提示」。勾选后点击「我知道了」会将确认版本写入设置并持久化。 */
 const dismissGuide = ref(false);
 
 /**
@@ -31,7 +31,7 @@ const dismissGuide = ref(false);
  *
  * 勾选时提交关闭提示，版本编码和保存由设置模块负责。
  * 保存成功后隐藏。保存失败则保留提示，让用户可以重试。
- * 未勾选：仅本次启动内隐藏，不写配置，下次启动仍会展示。
+ * 未勾选：仅本次启动内隐藏，不写设置，下次启动仍会展示。
  */
 function dismissScanGuide(): void {
   if (dismissGuide.value) {

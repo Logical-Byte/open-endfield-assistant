@@ -1,7 +1,7 @@
-import { UpdateProxyMode, UpdateSource } from '@/types/oeaSettings';
+import { UpdateProxyMode, UpdateSource } from '@/types/settings';
 import { cdkDecrypt, cdkEncrypt, loadOeaSettings, saveOeaSettings } from '@/utils/tauri';
 import { computed } from 'vue';
-import { createConfigStore } from './configStore';
+import { createSettingsStore } from './settingsStore';
 
 /** 更新源选项 */
 export const updateSourceItems = [
@@ -18,7 +18,7 @@ export const proxyModeItems = [
 ];
 
 /** 应用内唯一的设置 store。完整初始值只由 Rust 后端返回。 */
-const settings = createConfigStore({
+const settings = createSettingsStore({
   load: loadOeaSettings,
   save: saveOeaSettings,
   encrypt: cdkEncrypt,
@@ -27,12 +27,12 @@ const settings = createConfigStore({
 
 /** Settings 初始化生命周期，以及 ready 后的 draft/effective 设置。 */
 export const settingsState = settings.state;
-/** 保留现有导出名，供应用层统一展示保存失败通知。 */
-export const configSaveError = computed(() =>
+/** 供应用层统一展示保存失败通知。 */
+export const settingsSaveError = computed(() =>
   settingsState.value.status === 'ready' ? settingsState.value.saveError : null,
 );
 /** 从 Rust 后端初始化完整设置，初始化失败后可再次调用。 */
-export const initOeaConfig = settings.initialize;
+export const initOeaSettings = settings.initialize;
 /** 标记纯浏览器模式不支持后端 Settings。 */
 export const markSettingsUnsupported = settings.markUnsupported;
 /** 更新 ready 状态内的 draft，保存成功后才更新 effective。 */
