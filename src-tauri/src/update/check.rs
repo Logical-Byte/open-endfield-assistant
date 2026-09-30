@@ -3,7 +3,7 @@ use semver::Version;
 use serde::Deserialize;
 use tracing::{error, warn};
 
-use crate::config::{OeaConfig, UpdateSource};
+use crate::settings::{OeaSettings, UpdateSource};
 
 use super::http;
 
@@ -43,12 +43,12 @@ struct MirrorchyanData {
 }
 
 pub(super) async fn check_for_update(
-    config: &OeaConfig,
+    settings: &OeaSettings,
     current_version: &str,
     user_agent: &str,
 ) -> Result<Option<AvailableUpdateMetadata>, String> {
-    let client = http::build_client(config, user_agent)?;
-    let cdk = configured_cdk(config);
+    let client = http::build_client(settings, user_agent)?;
+    let cdk = configured_cdk(settings);
     let mut last_response = None;
     let mut last_error = None;
 
@@ -142,11 +142,11 @@ pub(super) async fn check_for_update(
     ))
 }
 
-pub(super) fn configured_cdk(config: &OeaConfig) -> Option<String> {
-    if config.update_source != UpdateSource::Mirrorchyan {
+pub(super) fn configured_cdk(settings: &OeaSettings) -> Option<String> {
+    if settings.update_source != UpdateSource::Mirrorchyan {
         return None;
     }
-    let encrypted = config.mirrorchyan_cdk_encrypted.trim();
+    let encrypted = settings.mirrorchyan_cdk_encrypted.trim();
     if encrypted.is_empty() {
         return None;
     }

@@ -5,7 +5,7 @@ use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::config::{OeaConfig, UpdateSource};
+use crate::settings::{OeaSettings, UpdateSource};
 
 use super::{
     check::{self, AvailableUpdateMetadata, MirrorchyanPackage},
@@ -58,19 +58,19 @@ struct GithubAsset {
 
 pub(super) async fn resolve_download_plan(
     metadata: &AvailableUpdateMetadata,
-    config: &OeaConfig,
+    settings: &OeaSettings,
     user_agent: &str,
     cancellation: &CancellationToken,
 ) -> Result<DownloadPlan, String> {
-    let cdk = check::configured_cdk(config);
+    let cdk = check::configured_cdk(settings);
     let selected = select_source(
-        config.update_source,
+        settings.update_source,
         cdk.as_deref(),
         metadata.mirrorchyan_package.as_ref(),
     );
     debug!(
         operation = "download",
-        configured_source = ?config.update_source,
+        configured_source = ?settings.update_source,
         selected_source = ?selected,
         has_cdk = cdk.is_some(),
         has_mirrorchyan_package = metadata.mirrorchyan_package.is_some(),
@@ -84,9 +84,9 @@ pub(super) async fn resolve_download_plan(
                 .as_ref()
                 .expect("选择 MirrorChyan 时必须有缓存下载信息"),
         )),
-        SourceChoice::Oem => resolve_oem_plan(metadata, config, user_agent, cancellation).await,
+        SourceChoice::Oem => resolve_oem_plan(metadata, settings, user_agent, cancellation).await,
         SourceChoice::Github => {
-            resolve_github_plan(metadata, config, user_agent, cancellation).await
+            resolve_github_plan(metadata, settings, user_agent, cancellation).await
         }
     }
 }
@@ -123,11 +123,11 @@ fn mirrorchyan_plan(
 
 async fn resolve_oem_plan(
     metadata: &AvailableUpdateMetadata,
-    config: &OeaConfig,
+    settings: &OeaSettings,
     user_agent: &str,
     cancellation: &CancellationToken,
 ) -> Result<DownloadPlan, String> {
-    let client = http::build_client(config, user_agent)?;
+    let client = http::build_client(settings, user_agent)?;
     let response = send_with_cancellation(
         client
             .get(OEM_STABLE_MANIFEST_URL)
@@ -191,11 +191,11 @@ pub(super) fn update_source_label(source: UpdateSource) -> &'static str {
 
 async fn resolve_github_plan(
     metadata: &AvailableUpdateMetadata,
-    config: &OeaConfig,
+    settings: &OeaSettings,
     user_agent: &str,
     cancellation: &CancellationToken,
 ) -> Result<DownloadPlan, String> {
-    let client = http::build_client(config, user_agent)?;
+    let client = http::build_client(settings, user_agent)?;
     let mut url = reqwest::Url::parse(GITHUB_RELEASE_TAG_URL)
         .map_err(|error| format!("GitHub API URL 构造失败: {error}"))?;
     url.path_segments_mut()

@@ -130,8 +130,8 @@ impl AppPaths {
         self.root_dir.join("config")
     }
 
-    /// OEA 应用配置文件（`<root_dir>/config/oea_config.json`）。
-    pub fn oea_config_file(&self) -> PathBuf {
+    /// OEA 用户设置文件。为兼容现有安装，磁盘路径仍为 `<root_dir>/config/oea_config.json`。
+    pub fn oea_settings_file(&self) -> PathBuf {
         self.config_dir().join("oea_config.json")
     }
 }

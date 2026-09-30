@@ -4,12 +4,12 @@ mod app;
 
 pub mod app_paths;
 pub mod automation;
-pub mod config;
 pub mod controller;
 pub mod data;
 pub mod logger;
 pub mod navigation;
 pub mod platform;
+pub mod settings;
 pub(crate) mod storage;
 pub mod update;
 pub mod utils;

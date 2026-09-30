@@ -2,7 +2,7 @@
 //!
 //! 全局持有一个默认输出流（保活到应用退出；输出流被 drop 播放即停），
 //! 每次播放将解码后的音源直接混入输出流：`Mixer::add` 即播即忘、播完自动释放。
-//! 音量通过 `amplify` 逐样本增益实现，由 [`crate::config::OeaConfig::sound_volume`] 配置。
+//! 音量通过 `amplify` 逐样本增益实现，由 [`crate::settings::OeaSettings::sound_volume`] 设置。
 
 use std::path::Path;
 use std::{fs::File, io::BufReader, sync::OnceLock};

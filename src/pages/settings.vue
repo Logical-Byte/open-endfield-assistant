@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
-import { UpdateProxyMode } from '@/types/oeaConfig';
+import { UpdateProxyMode } from '@/types/oeaSettings';
 import {
   configSaveError,
   editSettings,

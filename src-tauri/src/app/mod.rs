@@ -17,8 +17,8 @@ use tauri::Manager;
 use tracing::{error, info, warn};
 
 use crate::{
-    app_paths::AppPaths, automation, config::ConfigStore, controller::Controller, data::AppData,
-    logger, navigation::Navigator, platform, update, vision,
+    app_paths::AppPaths, automation, controller::Controller, data::AppData, logger,
+    navigation::Navigator, platform, settings, update, vision,
 };
 
 use self::hooks::{crash, portable};
@@ -72,8 +72,8 @@ pub fn run() {
             commands::get_archive_contract,
             commands::quit,
             commands::open_log_dir,
-            commands::load_oea_config,
-            commands::save_oea_config,
+            commands::load_oea_settings,
+            commands::save_oea_settings,
             commands::cdk_encrypt,
             commands::cdk_decrypt,
             commands::screenshot,
@@ -104,7 +104,7 @@ pub fn run() {
                     return;
                 }
                 let controller = app_handle.state::<Controller>();
-                if controller.oea_config_snapshot().minimize_to_tray {
+                if controller.settings_snapshot().minimize_to_tray {
                     api.prevent_close();
                     if let Some(window) = app_handle.get_webview_window("main") {
                         let _ = window.hide();
@@ -175,8 +175,8 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     // WebView2 缺失时自动下载引导程序并安装。
     platform::webview::ensure_installed(&app_paths.cache_dir()).inspect_err(|e| warn!("{e:#}"))?;
 
-    // 解析应用配置文件
-    let config_store = Arc::new(ConfigStore::at(app_paths.oea_config_file()));
+    // 加载用户设置
+    let settings_store = Arc::new(settings::SettingsStore::at(app_paths.oea_settings_file()));
 
     // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。
     fs::create_dir_all(app_paths.webview_data_dir()).with_context(|| {
@@ -222,7 +222,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     app.manage(frontend_event_sink);
 
     // 组装应用控制器并托管为 `State`。
-    let controller = Controller::new(config_store, ocr, navigator, automation_runtime, app_data);
+    let controller = Controller::new(settings_store, ocr, navigator, automation_runtime, app_data);
     app.manage(controller);
 
     // 初始化系统托盘（依赖已托管的 `Controller`，托盘菜单事件直接驱动它）

@@ -3,7 +3,7 @@
 use serde::Serialize;
 use tracing::{debug, error, info, warn};
 
-use crate::{config::UpdateProxyMode, controller::Controller};
+use crate::{controller::Controller, settings::UpdateProxyMode};
 
 use super::{
     UpdateManager, check, download, http,
@@ -50,23 +50,23 @@ pub async fn check_update(
         );
         check_error.to_string()
     })?;
-    let config = controller.oea_config_snapshot();
+    let settings = controller.settings_snapshot();
     let current_version = app.package_info().version.to_string();
     let user_agent = http::update_user_agent(&current_version);
     debug!(
         operation = "check",
         current_version = %current_version,
-        configured_source = ?config.update_source,
-        proxy_mode = ?config.update_proxy_mode,
+        configured_source = ?settings.update_source,
+        proxy_mode = ?settings.update_proxy_mode,
         "更新检查开始"
     );
     info!(
-        "开始检查更新：当前版本 {}，配置的下载源为 {}，{}",
+        "开始检查更新：当前版本 {}，设置的下载源为 {}，{}",
         current_version,
-        source::update_source_label(config.update_source),
-        proxy_mode_label(config.update_proxy_mode)
+        source::update_source_label(settings.update_source),
+        proxy_mode_label(settings.update_proxy_mode)
     );
-    let available = match check::check_for_update(&config, &current_version, &user_agent).await {
+    let available = match check::check_for_update(&settings, &current_version, &user_agent).await {
         Ok(available) => available,
         Err(check_error) => {
             error!(
@@ -115,7 +115,7 @@ pub async fn check_update(
     }
 }
 
-/// 使用缓存的可用更新和当前配置完成更新包下载。
+/// 使用缓存的可用更新和当前设置完成更新包下载。
 #[tauri::command]
 pub async fn download_update(
     manager: tauri::State<'_, UpdateManager>,
@@ -131,7 +131,7 @@ pub async fn download_update(
         );
         download_error.to_string()
     })?;
-    let config = controller.oea_config_snapshot();
+    let settings = controller.settings_snapshot();
     let metadata = download_lease.available_update().clone();
     let session = download_lease.session();
     let session_id = download_lease.id();
@@ -141,36 +141,37 @@ pub async fn download_update(
         operation = "download",
         session_id,
         version = %metadata.version_name,
-        configured_source = ?config.update_source,
-        proxy_mode = ?config.update_proxy_mode,
+        configured_source = ?settings.update_source,
+        proxy_mode = ?settings.update_proxy_mode,
         "更新下载请求已接受"
     );
     info!(
-        "开始下载更新 {}：配置的下载源为 {}，{}",
+        "开始下载更新 {}：设置的下载源为 {}，{}",
         metadata.version_name,
-        source::update_source_label(config.update_source),
-        proxy_mode_label(config.update_proxy_mode)
+        source::update_source_label(settings.update_source),
+        proxy_mode_label(settings.update_proxy_mode)
     );
-    let plan =
-        match source::resolve_download_plan(&metadata, &config, &user_agent, &cancellation).await {
-            Ok(plan) => plan,
-            Err(download_error) => {
-                error!(
-                    operation = "download",
-                    phase = "resolve_plan",
-                    session_id,
-                    version = %metadata.version_name,
-                    error = %download_error,
-                    "更新下载失败"
-                );
-                return Err(download_error);
-            }
-        };
+    let plan = match source::resolve_download_plan(&metadata, &settings, &user_agent, &cancellation)
+        .await
+    {
+        Ok(plan) => plan,
+        Err(download_error) => {
+            error!(
+                operation = "download",
+                phase = "resolve_plan",
+                session_id,
+                version = %metadata.version_name,
+                error = %download_error,
+                "更新下载失败"
+            );
+            return Err(download_error);
+        }
+    };
     let package_path = match download::download_update_plan(
         plan,
         session_id,
         session,
-        &config,
+        &settings,
         &user_agent,
         on_progress,
     )

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::config::{OeaConfig, UpdateProxyMode};
+use crate::settings::{OeaSettings, UpdateProxyMode};
 
 /// 构造更新请求共用的客户端配置。
 fn base_client_builder(user_agent: &str) -> reqwest::ClientBuilder {
@@ -17,14 +17,14 @@ pub(super) fn update_user_agent(app_version: &str) -> String {
     format!("OEA/{app_version} (Windows NT 10.0; Win64; x64)")
 }
 
-/// 按一次调用的配置快照构建更新 HTTP 客户端。
+/// 按一次调用的设置快照构建更新 HTTP 客户端。
 pub(super) fn build_client(
-    config: &OeaConfig,
+    settings: &OeaSettings,
     user_agent: &str,
 ) -> Result<reqwest::Client, String> {
     let mut builder = base_client_builder(user_agent);
 
-    match config.update_proxy_mode {
+    match settings.update_proxy_mode {
         UpdateProxyMode::System => {
             if let Some(url) = crate::platform::proxy::resolve_system_proxy()? {
                 builder = builder.proxy(
@@ -36,11 +36,11 @@ pub(super) fn build_client(
             }
         }
         UpdateProxyMode::Custom => {
-            if config.update_proxy_url.trim().is_empty() {
+            if settings.update_proxy_url.trim().is_empty() {
                 builder = builder.no_proxy();
             } else {
                 builder = builder.proxy(
-                    reqwest::Proxy::all(config.update_proxy_url.trim())
+                    reqwest::Proxy::all(settings.update_proxy_url.trim())
                         .map_err(|error| format!("代理配置失败: {error}"))?,
                 );
             }

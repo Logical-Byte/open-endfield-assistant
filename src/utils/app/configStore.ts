@@ -1,8 +1,8 @@
-import type { OeaConfig } from '@/types/oeaConfig';
+import type { OeaSettings } from '@/types/oeaSettings';
 import { readonly, shallowRef, type Ref } from 'vue';
 
 export type DraftSettings = Omit<
-  OeaConfig,
+  OeaSettings,
   'majorVersion' | 'minorVersion' | 'mirrorchyanCdkEncrypted' | 'scanTipsDismissedVersion'
 > & {
   /** 可编辑的 Mirror 酱 CDK 明文。`null` 表示解密失败。 */
@@ -29,8 +29,8 @@ const CURRENT_SCAN_TIPS_VERSION = 1;
 
 /** 配置 store 使用的持久化边界，生产环境连接 Tauri IPC，测试中可替换为受控 Promise。 */
 interface ConfigPersistence {
-  load(): Promise<OeaConfig>;
-  save(config: OeaConfig): Promise<void>;
+  load(): Promise<OeaSettings>;
+  save(config: OeaSettings): Promise<void>;
   encrypt(plain: string): Promise<string>;
   decrypt(encrypted: string): Promise<string>;
 }
@@ -48,7 +48,7 @@ interface ConfigStore {
 export function createConfigStore(io: ConfigPersistence): ConfigStore {
   const state = shallowRef<SettingsState>({ status: 'initializing' });
   // 最近一次成功初始化或保存的完整 DTO，用来保留版本字段和可复用的 CDK 密文。
-  let persisted: OeaConfig | null = null;
+  let persisted: OeaSettings | null = null;
   // 同一个初始化 Promise 返回给并发调用方。失败后清空以允许重试。
   let initialization: Promise<void> | null = null;
   // 防止多个 write() 并发执行，使 io.encrypt() 和 io.save() 严格串行。
@@ -157,7 +157,7 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
           if (mirrorchyanCdk !== null && mirrorchyanCdk !== effective.mirrorchyanCdk) {
             encrypted = mirrorchyanCdk ? await io.encrypt(mirrorchyanCdk) : '';
           }
-          const config: OeaConfig = {
+          const config: OeaSettings = {
             ...persisted,
             ...values,
             mirrorchyanCdkEncrypted: encrypted,
@@ -199,7 +199,7 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
   };
 }
 
-function toDraft(config: OeaConfig, mirrorchyanCdk: string | null): DraftSettings {
+function toDraft(config: OeaSettings, mirrorchyanCdk: string | null): DraftSettings {
   return {
     minimizeToTray: config.minimizeToTray,
     soundVolume: config.soundVolume,

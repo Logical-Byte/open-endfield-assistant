@@ -1,5 +1,5 @@
-import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
-import { cdkDecrypt, cdkEncrypt, loadOeaConfig, saveOeaConfig } from '@/utils/tauri';
+import { UpdateProxyMode, UpdateSource } from '@/types/oeaSettings';
+import { cdkDecrypt, cdkEncrypt, loadOeaSettings, saveOeaSettings } from '@/utils/tauri';
 import { computed } from 'vue';
 import { createConfigStore } from './configStore';
 
@@ -19,8 +19,8 @@ export const proxyModeItems = [
 
 /** 应用内唯一的设置 store。完整初始值只由 Rust 后端返回。 */
 const settings = createConfigStore({
-  load: loadOeaConfig,
-  save: saveOeaConfig,
+  load: loadOeaSettings,
+  save: saveOeaSettings,
   encrypt: cdkEncrypt,
   decrypt: cdkDecrypt,
 });
