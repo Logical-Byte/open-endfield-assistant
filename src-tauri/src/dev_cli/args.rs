@@ -8,7 +8,7 @@ use std::{fmt, path::PathBuf, str::FromStr};
 #[command(
     name = "OEA dev",
     bin_name = "OEA dev",
-    version,
+    version = application_version(),
     about = "Developer tools (unstable interface)"
 )]
 pub(super) struct Dev {
@@ -17,6 +17,17 @@ pub(super) struct Dev {
     pub json: bool,
     #[command(subcommand)]
     pub command: Command,
+}
+
+fn application_version() -> &'static str {
+    #[derive(serde::Deserialize)]
+    struct AppVersion<'a> {
+        version: &'a str,
+    }
+
+    let config: AppVersion<'static> = serde_json::from_str(include_str!("../../tauri.conf.json"))
+        .expect("tauri.conf.json must contain an application version");
+    config.version
 }
 
 #[derive(Debug, Subcommand)]

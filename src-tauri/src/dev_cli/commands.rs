@@ -39,8 +39,7 @@ pub(super) fn execute(command: &Command) -> Result<Output, Error> {
             let image = image::open(&path)
                 .with_context(|| format!("failed to decode input image: {}", path.display()))?
                 .to_rgba8();
-            let input =
-                json!({"kind":"file", "path":path, "width":image.width(), "height":image.height()});
+            let input = json!({"kind":"file", "path":path.to_string_lossy(), "width":image.width(), "height":image.height()});
             match_image(command.name(), &image, input, template, *region).map_err(Error::from)
         }
         Command::Connect => {
@@ -92,7 +91,7 @@ pub(super) fn execute(command: &Command) -> Result<Output, Error> {
                     image.width(),
                     image.height()
                 ),
-                json: json!({"ok":true,"command":"screenshot","path":path,
+                json: json!({"ok":true,"command":"screenshot","path":path.to_string_lossy(),
                     "capture_size":{"width":width,"height":height},"normalized_size":normalized_size,
                     "crop":crop,"saved_size":{"width":image.width(),"height":image.height()}}),
             })
@@ -163,8 +162,7 @@ fn match_image(
             })?
             .to_rgb8(),
     );
-    let template =
-        json!({"path":template_path, "width":provider.0.width(), "height":provider.0.height()});
+    let template = json!({"path":template_path.to_string_lossy(), "width":provider.0.width(), "height":provider.0.height()});
     let matched = template_matching::find(image, "explicit-file", search, &mut provider)
         .with_context(|| {
             format!(
@@ -193,4 +191,56 @@ fn match_image(
         json: json!({"ok":true, "command":command, "input":input, "template":template,
             "search_region":region, "match":{"region":matched_region,"score":matched.score}}),
     })
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+
+    use super::*;
+
+    #[test]
+    fn matches_images_in_a_non_unicode_directory_without_panicking() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp
+            .path()
+            .join(OsString::from_vec(b"images-\xff".to_vec()));
+        std::fs::create_dir(&dir).unwrap();
+        let image_path = dir.join("input.png");
+        let template_path = dir.join("template.png");
+        let image = image::RgbImage::from_fn(4, 4, |x, y| image::Rgb([(x * 31 + y * 47) as u8; 3]));
+        image.save(&image_path).unwrap();
+        image.save(&template_path).unwrap();
+
+        let output = execute(&Command::MatchImage {
+            image: image_path.clone(),
+            template: template_path.clone(),
+            region: Rect {
+                left: 0,
+                top: 0,
+                width: 4,
+                height: 4,
+            },
+        })
+        .unwrap_or_else(|error| panic!("{}", error.source));
+
+        assert_eq!(output.json["ok"], true);
+        assert_eq!(
+            output.json["input"]["path"],
+            image_path
+                .canonicalize()
+                .unwrap()
+                .to_string_lossy()
+                .as_ref()
+        );
+        assert_eq!(
+            output.json["template"]["path"],
+            template_path
+                .canonicalize()
+                .unwrap()
+                .to_string_lossy()
+                .as_ref()
+        );
+        assert!(output.human.contains("images-\u{fffd}"));
+    }
 }
