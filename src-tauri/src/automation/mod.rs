@@ -18,9 +18,12 @@ mod capabilities;
 mod events;
 mod runtime;
 mod session;
+#[cfg(feature = "cli")]
+pub(crate) use session::Session;
 mod stats;
 
-use cancellation::{AutomationStopped, StopToken, is_stop_requested, new_stop_token, request_stop};
+pub(crate) use cancellation::new_stop_token;
+use cancellation::{AutomationStopped, StopToken, is_stop_requested, request_stop};
 pub use capabilities::{
     Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
     TemplateTarget,

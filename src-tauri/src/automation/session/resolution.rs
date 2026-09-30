@@ -109,7 +109,7 @@ impl ResolutionTransform {
         &CANONICAL_RESOLUTION
     }
 
-    fn physical(&self) -> &Resolution {
+    pub(super) fn physical(&self) -> &Resolution {
         &self.physical
     }
 }

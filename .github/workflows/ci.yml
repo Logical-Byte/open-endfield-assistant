@@ -109,11 +109,11 @@ jobs:
         id: test
         continue-on-error: true
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --features cli
 
       - name: Backend clippy
         working-directory: src-tauri
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Propagate backend failures
         if: ${{ !cancelled() }}

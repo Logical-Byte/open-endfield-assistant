@@ -10,3 +10,5 @@ mod template_source;
 
 pub(crate) use matching::find;
 pub(crate) use template_source::LazyTemplateLoader;
+#[cfg(feature = "cli")]
+pub(crate) use template_source::TemplateProvider;

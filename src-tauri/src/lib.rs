@@ -2,6 +2,11 @@
 
 mod app;
 
+#[cfg(feature = "cli")]
+mod dev_cli;
+#[cfg(feature = "cli")]
+pub use dev_cli::run_dev_cli;
+
 pub mod app_paths;
 pub mod automation;
 pub mod controller;
