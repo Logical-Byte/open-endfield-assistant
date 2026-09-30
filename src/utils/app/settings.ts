@@ -39,10 +39,3 @@ export const markSettingsUnsupported = settings.markUnsupported;
 export const editSettings = settings.edit;
 /** 保存失败后重新提交完整 draft。 */
 export const retrySettingsSave = settings.retry;
-
-/** Nuxt UI 滑块可能发出数组中间值，只接收合法音量。 */
-export function setSoundVolume(value: number | number[] | undefined): void {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    settings.edit({ soundVolume: Math.min(1, Math.max(0, value)) });
-  }
-}

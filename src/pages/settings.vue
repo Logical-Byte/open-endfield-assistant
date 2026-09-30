@@ -7,7 +7,6 @@ import {
   initOeaSettings,
   settingsState,
   retrySettingsSave,
-  setSoundVolume,
   proxyModeItems,
   updateSourceItems,
 } from '@/utils/app/settings';
@@ -55,6 +54,12 @@ const uiScaleNumber = computed<number>({
     }
   },
 });
+
+function updateSoundVolume(value: number | number[] | undefined): void {
+  if (typeof value === 'number') {
+    editSettings({ soundVolume: value });
+  }
+}
 
 // UInput 自带 lazy 提交，输入中间值留在控件内。普通失焦不会产生修改。
 const mirrorchyanCdk = computed<string>({
@@ -265,7 +270,7 @@ const stopScrollToHash = router.afterEach((to) => {
                 :min="0"
                 :model-value="draftSettings.soundVolume"
                 :step="0.05"
-                @update:model-value="setSoundVolume"
+                @update:model-value="updateSoundVolume"
               />
               <span class="w-10 text-end text-sm tabular-nums">
                 {{ Math.round(draftSettings.soundVolume * 100) }}%

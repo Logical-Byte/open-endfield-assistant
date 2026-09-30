@@ -107,6 +107,12 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
     if (current.status !== 'ready') return;
 
     const next = { ...current.draft, ...patch };
+    if (patch.soundVolume !== undefined) {
+      // 非有限音量保留原值，同次编辑的其他字段仍可提交。
+      next.soundVolume = Number.isFinite(patch.soundVolume)
+        ? Math.min(1, Math.max(0, patch.soundVolume))
+        : current.draft.soundVolume;
+    }
     if (typeof patch.mirrorchyanCdk === 'string') {
       next.mirrorchyanCdk = patch.mirrorchyanCdk.trim();
     }

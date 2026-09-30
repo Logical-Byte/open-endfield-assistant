@@ -62,6 +62,37 @@ function setup(settings: Settings = createSettingsFixture()): {
 }
 
 describe('设置提交', () => {
+  it.each([
+    { value: -0.2, expected: 0 },
+    { value: 1.5, expected: 1 },
+    { value: 0.123, expected: 0.123 },
+  ])('音量编辑 $value 保存为 $expected，不按滑块步长舍入', async ({ value, expected }) => {
+    const { store, io } = setup();
+    await store.initialize();
+
+    store.edit({ soundVolume: value });
+
+    expect(ready(store).draft.soundVolume).toBe(expected);
+    expect(io.save.mock.calls[0]?.[0].soundVolume).toBe(expected);
+    await Promise.resolve();
+    expect(ready(store).effective.soundVolume).toBe(expected);
+  });
+
+  it.each([NaN, Infinity, -Infinity])(
+    '忽略非有限音量 %s，同次编辑的其他字段仍保存',
+    async (value) => {
+      const { store, io } = setup();
+      await store.initialize();
+
+      store.edit({ soundVolume: value, minimizeToTray: true });
+
+      expect(ready(store).draft).toMatchObject({ soundVolume: 0.5, minimizeToTray: true });
+      expect(io.save.mock.calls[0]?.[0]).toMatchObject({ soundVolume: 0.5, minimizeToTray: true });
+      await Promise.resolve();
+      expect(ready(store).effective).toMatchObject({ soundVolume: 0.5, minimizeToTray: true });
+    },
+  );
+
   it('首次从后端初始化完成前不暴露任何设置值', () => {
     const { store, io } = setup();
 
