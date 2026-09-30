@@ -31,9 +31,9 @@ connect / navigate / screenshot / match
   navigate -> Navigator::navigate_to -> 生产识别、输入、等待与重试
 
 match-image
-  本地原图，不缩放 -> 文件模板 provider -> template_matching::find
+  本地原图，不缩放 -> template_matching::pure::match_template_in_region
 match
-  生产 720p 图像 -> 文件模板 provider -> template_matching::find
+  生产 720p 图像 -> template_matching::pure::match_template_in_region
 ```
 
 `--crop` 和 `--region` 使用 `LEFT,TOP,WIDTH,HEIGHT`，四个字段均为十进制无符号整数。宽高必须为正，整个矩形必须位于输入图像内。窗口命令使用 1280×720 坐标，本地图像使用原始像素坐标。匹配返回最高分位置和原始 `CCOEFF_NORMED` score，不添加 threshold。
