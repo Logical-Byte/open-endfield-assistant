@@ -32,7 +32,7 @@ impl ForegroundGuard {
             Self { oea_window }
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = oea_window;
             Self {}
@@ -54,7 +54,7 @@ impl ForegroundGuard {
             }
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             false
         }
@@ -68,7 +68,7 @@ pub fn get_app_window(app_handle: &tauri::AppHandle) -> Result<WindowHandle> {
         windows::window::get_app_window(app_handle)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = app_handle;
         Ok(WindowHandle {})
@@ -87,7 +87,7 @@ pub fn get_window_by_title(class_name: Option<&str>, title: Option<&str>) -> Res
         windows::window::get_window_by_title(class_name, title)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = (class_name, title);
         Err(super::unsupported("window lookup"))
@@ -101,7 +101,7 @@ pub fn get_client_rect(window: WindowHandle) -> Result<Region2D<i32>> {
         windows::window::get_client_rect(window)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = window;
         Err(super::unsupported("window geometry"))
@@ -115,7 +115,7 @@ pub fn set_thread_dpi_awareness_context() {
         windows::window::set_thread_dpi_awareness_context();
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {}
 }
 
@@ -126,7 +126,7 @@ pub fn ensure_foreground_and_topmost(window: WindowHandle) -> Result<()> {
         windows::window::ensure_foreground_and_topmost(window)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = window;
         Err(super::unsupported("foreground window control"))
@@ -140,7 +140,7 @@ pub fn restore_window_if_minimized(window: WindowHandle) -> Result<()> {
         windows::window::restore_window_if_minimized(window)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = window;
         Err(super::unsupported("window restoration"))
@@ -154,7 +154,7 @@ pub fn ensure_window_on_screen(window: WindowHandle) -> Result<()> {
         windows::window::ensure_window_on_screen(window)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = window;
         Err(super::unsupported("window positioning"))
@@ -176,7 +176,7 @@ pub mod hdr {
             windows::window::hdr::is_hdr_enabled_on_window_monitor(window)
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(unix)]
         {
             let _ = window;
             Err(super::super::unsupported("HDR detection"))

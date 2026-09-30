@@ -13,7 +13,7 @@ pub fn play_wav(path: &Path, volume: f32) {
         windows::sound::play_wav(path, volume);
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = (path, volume);
     }

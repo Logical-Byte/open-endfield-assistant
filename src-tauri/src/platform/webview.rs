@@ -17,7 +17,7 @@ pub fn ensure_installed(cache_dir: &Path) -> Result<bool> {
         windows::webview2::ensure_installed(cache_dir)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = cache_dir;
         Ok(true)
@@ -31,7 +31,7 @@ pub fn get_zoom(window: tauri::WebviewWindow) -> Result<f64> {
         windows::webview2::get_zoom(window)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = window;
         Ok(1.0)
@@ -45,7 +45,7 @@ pub fn register_zoom_changed_listener(window: &tauri::WebviewWindow) {
         windows::webview2::register_zoom_changed_listener(window);
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = window;
     }

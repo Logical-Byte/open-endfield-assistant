@@ -26,7 +26,7 @@ pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> Result<()> 
         windows::dialog::show_message(title, content, icon)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(unix)]
     {
         let _ = (title, content, icon);
         Err(super::unsupported("native message dialog"))
