@@ -10,7 +10,7 @@ import {
   updateCheckState,
 } from '@/utils/app/update';
 import { renderMarkdown } from '@/utils/markdown';
-import { updatePopoverOpen } from '@/utils/uiState';
+import { updatePopoverOpen } from '@/utils/app/updatePopover';
 import { oeaVersion } from '@/version';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';

@@ -15,7 +15,7 @@ import { appStatus } from '@/utils/app/appStatus';
 import { settingsState } from '@/utils/app/settings';
 import type { DraftSettings } from '@/utils/app/settingsStore';
 import { logDebug, logError, logWarn, onAutomationStatus } from '@/utils/tauri';
-import { updatePopoverOpen } from '@/utils/uiState';
+import { updatePopoverOpen } from '@/utils/app/updatePopover';
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { computed, ref, shallowRef } from 'vue';
