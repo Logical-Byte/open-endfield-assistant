@@ -24,19 +24,19 @@ export type SettingsState =
       saveError: Error | null;
     };
 
-// 修改 ScanGuide 文案且需要所有用户重新确认时递增。无需改变配置文件版本。
+// 修改 ScanGuide 文案且需要所有用户重新确认时递增。无需改变设置文件版本。
 const CURRENT_SCAN_TIPS_VERSION = 1;
 
-/** 配置 store 使用的持久化边界，生产环境连接 Tauri IPC，测试中可替换为受控 Promise。 */
-interface ConfigPersistence {
+/** 设置 store 使用的持久化边界，生产环境连接 Tauri IPC，测试中可替换为受控 Promise。 */
+interface SettingsPersistence {
   load(): Promise<OeaSettings>;
-  save(config: OeaSettings): Promise<void>;
+  save(settings: OeaSettings): Promise<void>;
   encrypt(plain: string): Promise<string>;
   decrypt(encrypted: string): Promise<string>;
 }
 
-/** 配置 store 对调用方公开的只读状态和写入操作。 */
-interface ConfigStore {
+/** 设置 store 对调用方公开的只读状态和写入操作。 */
+interface SettingsStore {
   state: Readonly<Ref<SettingsState>>;
   initialize(): Promise<void>;
   markUnsupported(): void;
@@ -45,7 +45,7 @@ interface ConfigStore {
 }
 
 /** 创建设置 store。`io` 可替换，使测试能直接控制初始化、加密和保存的完成时机。 */
-export function createConfigStore(io: ConfigPersistence): ConfigStore {
+export function createSettingsStore(io: SettingsPersistence): SettingsStore {
   const state = shallowRef<SettingsState>({ status: 'initializing' });
   // 最近一次成功初始化或保存的完整 DTO，用来保留版本字段和可复用的 CDK 密文。
   let persisted: OeaSettings | null = null;
@@ -70,21 +70,21 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
 
   async function initializeFromBackend(): Promise<void> {
     try {
-      const config = await io.load();
+      const settings = await io.load();
       let cdk: string | null = '';
-      if (config.mirrorchyanCdkEncrypted) {
+      if (settings.mirrorchyanCdkEncrypted) {
         try {
-          cdk = await io.decrypt(config.mirrorchyanCdkEncrypted);
+          cdk = await io.decrypt(settings.mirrorchyanCdkEncrypted);
         } catch {
           cdk = null;
         }
       }
-      persisted = { ...config };
-      const settings = toDraft(config, cdk);
+      persisted = { ...settings };
+      const draft = toDraft(settings, cdk);
       state.value = {
         status: 'ready',
-        draft: settings,
-        effective: settings,
+        draft,
+        effective: draft,
         saveError: null,
       };
     } catch (error) {
@@ -95,7 +95,7 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
     }
   }
 
-  /** 纯浏览器模式没有配置后端，以 unavailable 状态明确表达能力边界。 */
+  /** 纯浏览器模式没有设置后端，以 unavailable 状态明确表达能力边界。 */
   function markUnsupported(): void {
     if (state.value.status === 'ready') return;
     state.value = { status: 'unavailable', reason: { type: 'unsupported' } };
@@ -157,7 +157,7 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
           if (mirrorchyanCdk !== null && mirrorchyanCdk !== effective.mirrorchyanCdk) {
             encrypted = mirrorchyanCdk ? await io.encrypt(mirrorchyanCdk) : '';
           }
-          const config: OeaSettings = {
+          const settings: OeaSettings = {
             ...persisted,
             ...values,
             mirrorchyanCdkEncrypted: encrypted,
@@ -169,8 +169,8 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
                   ? 0
                   : CURRENT_SCAN_TIPS_VERSION,
           };
-          await io.save(config);
-          persisted = config;
+          await io.save(settings);
+          persisted = settings;
           const latest: SettingsState = state.value;
           if (latest.status === 'ready') {
             state.value = { ...latest, effective: candidate };
@@ -199,16 +199,16 @@ export function createConfigStore(io: ConfigPersistence): ConfigStore {
   };
 }
 
-function toDraft(config: OeaSettings, mirrorchyanCdk: string | null): DraftSettings {
+function toDraft(settings: OeaSettings, mirrorchyanCdk: string | null): DraftSettings {
   return {
-    minimizeToTray: config.minimizeToTray,
-    soundVolume: config.soundVolume,
-    updateSource: config.updateSource,
-    updateProxyMode: config.updateProxyMode,
-    updateProxyUrl: config.updateProxyUrl,
-    autoDownloadUpdates: config.autoDownloadUpdates,
-    autoInstallUpdates: config.autoInstallUpdates,
-    scanGuideEnabled: config.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION,
+    minimizeToTray: settings.minimizeToTray,
+    soundVolume: settings.soundVolume,
+    updateSource: settings.updateSource,
+    updateProxyMode: settings.updateProxyMode,
+    updateProxyUrl: settings.updateProxyUrl,
+    autoDownloadUpdates: settings.autoDownloadUpdates,
+    autoInstallUpdates: settings.autoInstallUpdates,
+    scanGuideEnabled: settings.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION,
     mirrorchyanCdk,
   };
 }

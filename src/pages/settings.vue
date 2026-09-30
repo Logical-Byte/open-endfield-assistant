@@ -2,15 +2,15 @@
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import { UpdateProxyMode } from '@/types/oeaSettings';
 import {
-  configSaveError,
+  settingsSaveError,
   editSettings,
-  initOeaConfig,
+  initOeaSettings,
   settingsState,
   retrySettingsSave,
   setSoundVolume,
   proxyModeItems,
   updateSourceItems,
-} from '@/utils/app/config';
+} from '@/utils/app/settings';
 import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
 import { uiScale } from '@/utils/uiScale';
 import { oeaVersion } from '@/version';
@@ -175,7 +175,7 @@ const stopScrollToHash = router.afterEach((to) => {
       <UPageBody>
         <UAlert
           v-if="settingsInitializeError"
-          :actions="[{ label: '重新初始化', onClick: initOeaConfig }]"
+          :actions="[{ label: '重新初始化', onClick: initOeaSettings }]"
           color="error"
           description="无法从后端初始化设置。界面缩放和开发者功能仍可使用。"
           icon="i-lucide-circle-alert"
@@ -191,7 +191,7 @@ const stopScrollToHash = router.afterEach((to) => {
           variant="subtle"
         />
         <UAlert
-          v-if="configSaveError"
+          v-if="settingsSaveError"
           :actions="[{ label: '重试保存', onClick: retrySettingsSave }]"
           color="error"
           description="已保留当前编辑，应用仍使用最近一次成功保存的设置。"

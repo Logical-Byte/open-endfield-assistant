@@ -8,12 +8,12 @@
 
 两个版本号配合决定是否展示：
 
-- **当前提示版本**：设置模块内部常量 `CURRENT_SCAN_TIPS_VERSION`（`src/utils/app/configStore.ts`）。修改 `ScanGuide.vue` 文案时，在这里决定是否递增版本。
+- **当前提示版本**：设置模块内部常量 `CURRENT_SCAN_TIPS_VERSION`（`src/utils/app/settingsStore.ts`）。修改 `ScanGuide.vue` 文案时，在这里决定是否递增版本。
 - **用户已确认版本**：后端设置字段 `scanTipsDismissedVersion`（`config/oea_config.json`，默认 `0`）。用户勾选「下次更新前不再提示」并点击「我知道了」时写入。
 
 设置模块将 `scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION` 投影为 `scanGuideEnabled`，页面只读写这个布尔设置。加载完成后，扫描页依据已生效值决定是否展示。
 
-- 不勾选、直接点「我知道了」：仅本次启动隐藏（内存标志），不写配置，下次启动仍展示。
+- 不勾选、直接点「我知道了」：仅本次启动隐藏（内存标志），不写设置，下次启动仍展示。
 - 勾选后点「我知道了」：通过 `editSettings({ scanGuideEnabled: false })` 提交，由设置模块编码为当前版本并串行保存。成功后本版本内不再展示，失败时保留提示并允许重试。
 
 ### 更新提示文案，让所有用户重新看一次
@@ -29,7 +29,7 @@
 
 只修改 `ScanGuide.vue` 中的提示文案，保持 `CURRENT_SCAN_TIPS_VERSION` 不变。已确认过的用户（版本号 ≥ 当前版本）不会重新看到；只有从未确认过的新用户会看到最新文案。
 
-> 说明：`scanTipsDismissedVersion` 字段本身属于配置兼容变更，首次新增该字段时 bump 了一次 `minorVersion`（当前为 `1`）。后续只改动版本号的「值」不构成结构变更，不要再 bump。
+> 说明：`scanTipsDismissedVersion` 字段本身属于设置兼容变更，首次新增该字段时 bump 了一次 `minorVersion`（当前为 `1`）。后续只改动版本号的「值」不构成结构变更，不要再 bump。
 
 ## UI 状态约定
 
