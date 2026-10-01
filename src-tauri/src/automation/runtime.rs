@@ -14,10 +14,14 @@ use crate::automation::{
 };
 
 /// 当前自动化任务的生命周期状态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "camelCase")]
 pub enum Status {
-    Idle,
+    Idle {
+        /// 最近一次运行的结束信息；初始状态为空，成功启动新任务后移除。
+        #[serde(rename = "lastRun")]
+        last_run: Option<LastRun>,
+    },
     Running {
         #[serde(rename = "taskKind")]
         task_kind: TaskKind,
@@ -30,23 +34,23 @@ pub enum Status {
 
 impl Status {
     pub fn is_active(&self) -> bool {
-        !matches!(self, Self::Idle)
+        !matches!(self, Self::Idle { .. })
     }
 }
 
 /// 自动化运行的终态。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
-pub(crate) enum RunOutcome {
+pub enum RunOutcome {
     Completed,
     Stopped,
     Failed { error: String },
 }
 
-/// 自动化运行结束时向前端推送的一次性通知。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// 空闲状态中保留的最近一次运行结束信息。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct RunFinished {
+pub struct LastRun {
     task_kind: TaskKind,
     outcome: RunOutcome,
 }
@@ -99,8 +103,10 @@ struct RuntimeState {
 }
 
 impl RuntimeState {
-    fn finish(&mut self) {
-        self.status = Status::Idle;
+    fn finish(&mut self, last_run: LastRun) {
+        self.status = Status::Idle {
+            last_run: Some(last_run),
+        };
         self.stop = None;
     }
 }
@@ -109,7 +115,7 @@ impl Runtime {
     pub(crate) fn new(events: Arc<dyn EventSink>) -> Self {
         Self {
             state: Mutex::new(RuntimeState {
-                status: Status::Idle,
+                status: Status::Idle { last_run: None },
                 stop: None,
             }),
             events,
@@ -158,10 +164,10 @@ impl Runtime {
         let status = match state.status {
             Status::Running { task_kind } => {
                 let status = Status::Stopping { task_kind };
-                state.status = status;
+                state.status = status.clone();
                 Some(status)
             }
-            Status::Idle | Status::Stopping { .. } => None,
+            Status::Idle { .. } | Status::Stopping { .. } => None,
         };
         request_stop(&stop);
         if let Some(status) = status {
@@ -180,7 +186,7 @@ impl Runtime {
 
     /// 读取当前自动化状态。
     pub(crate) fn status(&self) -> Status {
-        self.state.lock().unwrap().status
+        self.state.lock().unwrap().status.clone()
     }
 
     fn claim_start(&self, task_kind: TaskKind) -> Option<StopToken> {
@@ -195,7 +201,7 @@ impl Runtime {
         Some(stop)
     }
 
-    /// 处理 worker 退出：记录统计、释放运行状态，再推送状态与一次性终态。
+    /// 处理 worker 退出：记录统计，将结束信息写入空闲状态，再推送完整状态。
     fn handle_worker_exit(&self, task_kind: TaskKind, result: WorkerExit) {
         let WorkerExit { reason, capture } = result;
         if let Some(summary) = capture {
@@ -229,16 +235,15 @@ impl Runtime {
             }
         };
 
-        self.finish_run_and_emit(RunFinished { task_kind, outcome });
+        self.finish_run_and_emit(LastRun { task_kind, outcome });
     }
 
-    fn finish_run_and_emit(&self, event: RunFinished) {
+    fn finish_run_and_emit(&self, last_run: LastRun) {
         let mut state = self.state.lock().unwrap();
-        state.finish();
+        state.finish(last_run);
 
-        // 在两个有序事件发出前继续占用 `claim` 锁，防止新任务的 `Running` 插入旧任务终态。
-        self.emit_status_value(Status::Idle);
-        self.events.publish(Event::RunFinished(event));
+        // 推送结束状态前继续占用 `claim` 锁，保证它先于下一次运行的状态发出。
+        self.emit_status_value(state.status.clone());
     }
 
     fn emit_status(&self) {
@@ -257,7 +262,7 @@ mod tests {
     use crate::automation::{
         Event, EventSink, TaskKind,
         events::testing::RecordingEventSink,
-        runtime::{FinishReason, RunFinished, RunOutcome, Status, Worker, WorkerExit},
+        runtime::{FinishReason, LastRun, RunOutcome, Status, Worker, WorkerExit},
     };
 
     use super::Runtime;
@@ -283,15 +288,16 @@ mod tests {
         runtime.start(TaskKind::ArchiveScan, || Box::new(CompletingWorker));
 
         assert_eq!(
-            events.wait_for_events(3),
+            events.wait_for_events(2),
             vec![
                 Event::StatusChanged(Status::Running {
                     task_kind: TaskKind::ArchiveScan,
                 }),
-                Event::StatusChanged(Status::Idle),
-                Event::RunFinished(RunFinished {
-                    task_kind: TaskKind::ArchiveScan,
-                    outcome: RunOutcome::Completed,
+                Event::StatusChanged(Status::Idle {
+                    last_run: Some(LastRun {
+                        task_kind: TaskKind::ArchiveScan,
+                        outcome: RunOutcome::Completed,
+                    }),
                 }),
             ]
         );

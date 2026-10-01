@@ -30,7 +30,7 @@ pub use capabilities::{
 };
 pub(crate) use events::{Event, EventSink};
 pub(crate) use runtime::Runtime;
-pub use runtime::Status;
+pub use runtime::{LastRun, RunOutcome, Status};
 
 /// 用户可以启动的自动化任务种类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

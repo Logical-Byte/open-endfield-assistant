@@ -112,9 +112,8 @@ fn run_event_thread(
 
 fn emit_event(app_handle: &AppHandle, event: automation::Event) -> tauri::Result<()> {
     match event {
-        automation::Event::StatusChanged(status) => app_handle.emit("automation-status", status),
-        automation::Event::RunFinished(finished) => {
-            app_handle.emit("automation-run-finished", finished)
+        automation::Event::StatusChanged(status) => {
+            app_handle.emit("automation-status-changed", status)
         }
         automation::Event::ArchiveScanResult(result) => app_handle.emit("scan-result", result),
     }

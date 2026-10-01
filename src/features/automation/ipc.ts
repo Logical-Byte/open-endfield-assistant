@@ -23,10 +23,10 @@ export async function getAutomationStatus(): Promise<Automation.Status> {
  * 监听自动化状态变更事件（启动 / 结束均触发）。
  * 返回取消监听函数，组件卸载时应调用。
  */
-export async function onAutomationStatus(
+export async function onAutomationStatusChanged(
   cb: (status: Automation.Status) => void,
 ): Promise<() => void> {
-  return await listen<Automation.Status>('automation-status', (event) => cb(event.payload));
+  return await listen<Automation.Status>('automation-status-changed', (event) => cb(event.payload));
 }
 
 /** 监听每次自动化运行的一次性终态通知。 */

@@ -5,7 +5,7 @@ import {
   ScanResultCardProps,
   ScanResultStatus,
 } from '@/features/archiveScan/types/scanResult';
-import { appStatus } from '@/features/automation/state';
+import { automationStatus } from '@/features/automation/state';
 import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
 import { applyCorrection } from '@/features/archiveScan/correction';
 import { exportToOem } from '@/features/archiveScan/exportOem';
@@ -16,7 +16,9 @@ import { startAutomation, stopAutomation } from '@/features/automation/ipc';
 import { computed, ref, watch } from 'vue';
 
 function toggleScan() {
-  return appStatus.value.state === 'idle' ? startAutomation('archiveScan') : stopAutomation();
+  return automationStatus.value.state === 'idle'
+    ? startAutomation('archiveScan')
+    : stopAutomation();
 }
 
 /** 用户是否手动关闭了扫描失败提示（失败原因变化时自动恢复显示） */
@@ -130,9 +132,9 @@ const summary = computed(() => {
     <div class="flex h-full flex-col gap-4">
       <div class="flex flex-wrap gap-2">
         <UButton
-          :color="appStatus.state !== 'idle' ? 'error' : 'success'"
-          :icon="appStatus.state !== 'idle' ? 'i-lucide-square' : 'i-lucide-play'"
-          :label="appStatus.state !== 'idle' ? '停止扫描（引号键）' : '开始扫描（引号键）'"
+          :color="automationStatus.state !== 'idle' ? 'error' : 'success'"
+          :icon="automationStatus.state !== 'idle' ? 'i-lucide-square' : 'i-lucide-play'"
+          :label="automationStatus.state !== 'idle' ? '停止扫描（引号键）' : '开始扫描（引号键）'"
           @click="toggleScan"
         />
         <UButton class="ms-auto" icon="i-lucide-map" label="导出到地图集" @click="exportToOem" />

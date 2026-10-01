@@ -58,7 +58,7 @@ impl Controller {
         self.settings_store.snapshot()
     }
 
-    /// 读取当前自动化状态；任务终态由一次性事件单独推送。
+    /// 读取当前自动化状态，空闲状态包含最近一次运行的结束信息。
     pub fn automation_status(&self) -> automation::Status {
         self.automation_runtime.status()
     }
