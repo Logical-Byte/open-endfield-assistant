@@ -48,5 +48,5 @@ impl WindowHandle {
 
 #[cfg(unix)]
 fn unsupported(operation: &str) -> anyhow::Error {
-    anyhow::anyhow!("{operation} is not supported on macOS")
+    anyhow::anyhow!("{operation} is not supported on {}", std::env::consts::OS)
 }
