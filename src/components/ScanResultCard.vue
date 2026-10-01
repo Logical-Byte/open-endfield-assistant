@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import type { ArchiveAcquisitionMethod } from '@/types/archiveContract';
-import type { ScanResultCardProps } from '@/types/scanResult';
-import { CollectType } from '@/types/scanResult';
+import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
+import type { ScanResultCardProps } from '@/features/archiveScan/types/scanResult';
+import { CollectType } from '@/features/archiveScan/types/scanResult';
 import { openImagePreview } from '@/composables/image-preview';
-import { getAcquisitionMethod } from '@/utils/app/archiveContract';
-import { getCategoryName, getCategoryTitles, getPageName } from '@/utils/prts';
+import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
+import {
+  getCategoryName,
+  getCategoryTitles,
+  getPageName,
+} from '@/features/gameData/archiveQueries';
 import { computed, type CSSProperties } from 'vue';
 
 const { collectType, category, subCategory, imageUrl, title, archiveId } =

@@ -1,5 +1,5 @@
-import type { LogEntry, LogLevel } from '@/types/log';
-import { logLines } from '@/utils/app/logState';
+import type { LogEntry, LogLevel } from '@/features/log/types/log';
+import { logLines } from '@/features/log/logState';
 import { computed, ref } from 'vue';
 
 /** 日志等级阈值（数字越小越详细，用于界面过滤）。 */

@@ -1,5 +1,5 @@
-import type { PrtsData } from '@/types/prts';
-import { getPrtsData } from '@/utils/tauri';
+import type { PrtsData } from '@/features/gameData/types/prts';
+import { getPrtsData } from '@/features/gameData/ipc';
 import { ref } from 'vue';
 
 /** prts.json 完整数据（加载完成前为 null） */

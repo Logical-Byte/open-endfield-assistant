@@ -1,4 +1,5 @@
-import { getWebviewZoom, logError, onWebviewZoomChanged } from '@/utils/tauri';
+import { getWebviewZoom, onWebviewZoomChanged } from '@/features/appearance/ipc';
+import { logError } from '@/features/log/ipc';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { watchDebounced } from '@vueuse/core';

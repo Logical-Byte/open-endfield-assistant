@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { editSettings, settingsState } from '@/utils/app/settings';
+import { editSettings, settingsState } from '@/features/settings/settings';
 import { computed, ref } from 'vue';
 
 /**

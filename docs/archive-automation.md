@@ -8,7 +8,7 @@
 
 两个版本号配合决定是否展示：
 
-- **当前提示版本**：设置模块内部常量 `CURRENT_SCAN_TIPS_VERSION`（`src/utils/app/settingsStore.ts`）。修改 `ScanGuide.vue` 文案时，在这里决定是否递增版本。
+- **当前提示版本**：设置模块内部常量 `CURRENT_SCAN_TIPS_VERSION`（`src/features/settings/settingsStore.ts`）。修改 `ScanGuide.vue` 文案时，在这里决定是否递增版本。
 - **用户已确认版本**：后端设置字段 `scanTipsDismissedVersion`（`config/oea_config.json`，默认 `0`）。用户勾选「下次更新前不再提示」并点击「我知道了」时写入。
 
 设置模块将 `scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION` 投影为 `scanGuideEnabled`，页面只读写这个布尔设置。加载完成后，扫描页依据已生效值决定是否展示。

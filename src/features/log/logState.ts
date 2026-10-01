@@ -1,5 +1,5 @@
-import type { LogEntry } from '@/types/log';
-import { onLog } from '@/utils/tauri';
+import type { LogEntry } from '@/features/log/types/log';
+import { onLog } from '@/features/log/ipc';
 import { ref } from 'vue';
 
 /** 日志缓冲上限，防止长时间运行导致内存无限增长 */

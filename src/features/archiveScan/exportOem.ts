@@ -3,11 +3,11 @@
 //! 流程：构建 upload 数据 → gzip 压缩（单流、无文件名）→ URL-safe Base64 → 打开
 //! `https://oem.re/i/<base64>`（由 opener 插件交给系统浏览器）。
 
-import type { UploadData } from '@/types/upload';
-import { prtsData } from '@/utils/app/prtsData';
-import { scanResults } from '@/utils/app/scanResults';
-import { deriveArchiveCollection } from '@/utils/archiveCollection';
-import { logDebug, logError, logInfo } from '@/utils/tauri';
+import type { UploadData } from '@/features/archiveScan/types/upload';
+import { prtsData } from '@/features/gameData/prtsData';
+import { scanResults } from '@/features/archiveScan/results';
+import { deriveArchiveCollection } from '@/features/archiveScan/collection';
+import { logDebug, logError, logInfo } from '@/features/log/ipc';
 import { oeaVersion } from '@/version';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { gzipSync, strToU8 } from 'fflate';

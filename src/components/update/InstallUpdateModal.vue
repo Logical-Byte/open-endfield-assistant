@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { UpdateInstallStatus } from '@/types/update';
+import { UpdateInstallStatus } from '@/features/update/types/update';
 import {
   closeInstallModal,
   installError,
@@ -9,8 +9,8 @@ import {
   justUpdatedInfo,
   retryInstall,
   showInstallModal,
-} from '@/utils/app/update';
-import { renderMarkdown } from '@/utils/markdown';
+} from '@/features/update/update';
+import { renderMarkdown } from '@/shared/markdown';
 import { computed } from 'vue';
 
 /** 是否正在安装（弹窗不可关闭）。 */

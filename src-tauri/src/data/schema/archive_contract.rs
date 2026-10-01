@@ -1,4 +1,4 @@
-//! `archive_contract.json` 的 Rust 类型定义（与前端 `src/types/archiveContract.ts` 对齐）。
+//! `archive_contract.json` 的 Rust 类型定义（与前端 `src/features/gameData/types/archiveContract.ts` 对齐）。
 //!
 //! 该数据文件描述档案库全部逻辑条目（对应 prts.json allItems 按逻辑 id 归并）的
 //! 获取方式，按 6 个分类分组。每条记录以 `acquisition.method` 为判别字段，对应不同的

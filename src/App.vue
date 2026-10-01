@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { useTheme } from '@/composables/useTheme';
-import { initAppStatus } from '@/utils/app/appStatus';
-import { initArchiveContract } from '@/utils/app/archiveContract';
+import { initAppStatus } from '@/features/automation/state';
+import { initArchiveContract } from '@/features/gameData/archiveContract';
 import {
   settingsSaveError,
   initOeaSettings,
   markSettingsUnsupported,
   retrySettingsSave,
   settingsState,
-} from '@/utils/app/settings';
-import { initLogState } from '@/utils/app/logState';
-import { initPrtsData } from '@/utils/app/prtsData';
-import { initScanResults } from '@/utils/app/scanResults';
-import { initUpdateState } from '@/utils/app/update';
-import { initUiScale } from '@/utils/uiScale';
+} from '@/features/settings/settings';
+import { initLogState } from '@/features/log/logState';
+import { initPrtsData } from '@/features/gameData/prtsData';
+import { initScanResults } from '@/features/archiveScan/results';
+import { initUpdateState } from '@/features/update/update';
+import { initUiScale } from '@/features/appearance/uiScale';
 import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';

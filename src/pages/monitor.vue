@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ScreenshotFormat } from '@/types/screenshot';
-import { screenshot } from '@/utils/tauri';
+import type { ScreenshotFormat } from '@/features/monitor/types/screenshot';
+import { screenshot } from '@/features/monitor/ipc';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 /** 监控截图分辨率（720p）。 */

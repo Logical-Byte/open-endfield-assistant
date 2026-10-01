@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { startDownload, updateCheckState } from '@/utils/app/update';
+import { startDownload, updateCheckState } from '@/features/update/update';
 import { oeaVersion } from '@/version';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';

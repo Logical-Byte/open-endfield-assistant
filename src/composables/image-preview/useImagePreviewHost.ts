@@ -4,7 +4,7 @@ import {
   currentImagePreviewTarget,
 } from '@/composables/image-preview/imagePreviewState';
 import { createImagePreviewScale } from '@/composables/image-preview/imagePreviewScale';
-import { downloadFile } from '@/utils/file';
+import { downloadFile } from '@/shared/file';
 import { useDevicePixelRatio, useMagicKeys } from '@vueuse/core';
 import type { ComputedRef, CSSProperties, Ref } from 'vue';
 import { computed, nextTick, ref, toValue, watch } from 'vue';
