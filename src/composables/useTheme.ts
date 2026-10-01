@@ -1,10 +1,10 @@
-import { defaultTheme } from '@/utils/theme/defaultTheme';
+import { defaultTheme } from '@/features/appearance/defaultTheme';
 import {
   englishFontOptions,
   chineseFontOptions,
   monospaceFontOptions,
   type FontOption,
-} from '@/utils/theme/fonts';
+} from '@/features/appearance/fonts';
 import type { ResolvableLink, ResolvableStyle } from '@unhead/vue';
 import { useStorage } from '@vueuse/core';
 import colors from 'tailwindcss/colors';

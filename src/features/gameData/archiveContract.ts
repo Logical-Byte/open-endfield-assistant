@@ -1,5 +1,8 @@
-import type { ArchiveAcquisitionMethod, ArchiveContract } from '@/types/archiveContract';
-import { getArchiveContract } from '@/utils/tauri';
+import type {
+  ArchiveAcquisitionMethod,
+  ArchiveContract,
+} from '@/features/gameData/types/archiveContract';
+import { getArchiveContract } from '@/features/gameData/ipc';
 import { computed, ref } from 'vue';
 
 /** 档案获取契约数据（加载完成前为 null） */

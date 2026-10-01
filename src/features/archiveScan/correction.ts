@@ -1,7 +1,7 @@
 //! 人工纠错：把用户选择的标题写入扫描结果，标题完全匹配时标记为已收集。
 
-import type { ScanResult } from '@/types/scanResult';
-import { getItemIdsByTitle } from '@/utils/prts';
+import type { ScanResult } from '@/features/archiveScan/types/scanResult';
+import { getItemIdsByTitle } from '@/features/gameData/archiveQueries';
 
 /**
  * 应用人工纠错。

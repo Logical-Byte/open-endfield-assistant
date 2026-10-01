@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { UpdateProxyMode, UpdateSource, type Settings } from '@/types/settings';
+import { UpdateProxyMode, UpdateSource, type Settings } from '@/features/settings/types/settings';
 import { createSettingsStore, type SettingsState } from './settingsStore';
 
 type ReadySettingsState = Extract<SettingsState, { status: 'ready' }>;

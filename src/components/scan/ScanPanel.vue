@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { CollectType, ScanResult, ScanResultCardProps, ScanResultStatus } from '@/types/scanResult';
-import { appStatus, scanError } from '@/utils/app/appStatus';
-import { getAcquisitionMethod } from '@/utils/app/archiveContract';
-import { applyCorrection } from '@/utils/app/correction';
-import { exportToOem } from '@/utils/app/exportOem';
-import { prtsData } from '@/utils/app/prtsData';
-import { clearScanResults, scanResults } from '@/utils/app/scanResults';
-import { deriveArchiveCollection } from '@/utils/archiveCollection';
-import { startAutomation, stopAutomation } from '@/utils/tauri';
+import {
+  CollectType,
+  ScanResult,
+  ScanResultCardProps,
+  ScanResultStatus,
+} from '@/features/archiveScan/types/scanResult';
+import { appStatus } from '@/features/automation/state';
+import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
+import { applyCorrection } from '@/features/archiveScan/correction';
+import { exportToOem } from '@/features/archiveScan/exportOem';
+import { prtsData } from '@/features/gameData/prtsData';
+import { clearScanResults, scanResults, scanError } from '@/features/archiveScan/results';
+import { deriveArchiveCollection } from '@/features/archiveScan/collection';
+import { startAutomation, stopAutomation } from '@/features/automation/ipc';
 import { computed, ref, watch } from 'vue';
 
 function toggleScan() {

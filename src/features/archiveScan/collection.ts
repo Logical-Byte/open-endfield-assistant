@@ -1,5 +1,5 @@
-import type { PrtsAllItem } from '@/types/prts';
-import type { ScanResult } from '@/types/scanResult';
+import type { PrtsAllItem } from '@/features/gameData/types/prts';
+import type { ScanResult } from '@/features/archiveScan/types/scanResult';
 
 export interface ArchiveCollection {
   collectedIds: string[];

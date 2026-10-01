@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useScrollToBottom } from '@/composables/useScrollToBottom';
-import { clearLogs, filteredLogLines, levelOptions, logLevelFilter } from '@/utils/log';
-import { openLogDir } from '@/utils/tauri';
+import { clearLogs, filteredLogLines, levelOptions, logLevelFilter } from '@/features/log/log';
+import { openLogDir } from '@/features/log/ipc';
 import { useTemplateRef } from 'vue';
 
 /** 把 ISO 8601 时间字符串格式化为 `MM-dd HH:MM:SS`（解析失败时原样返回）。 */

@@ -1,7 +1,7 @@
-import type { PrtsAllItem } from '@/types/prts';
-import type { ScanResult } from '@/types/scanResult';
+import type { PrtsAllItem } from '@/features/gameData/types/prts';
+import type { ScanResult } from '@/features/archiveScan/types/scanResult';
 import { describe, expect, it } from 'vitest';
-import { deriveArchiveCollection } from './archiveCollection';
+import { deriveArchiveCollection } from './collection';
 
 const allItems: Record<string, PrtsAllItem> = {
   paperNote: {

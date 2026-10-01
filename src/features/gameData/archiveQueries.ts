@@ -1,4 +1,4 @@
-import { prtsData } from '@/utils/app/prtsData';
+import { prtsData } from '@/features/gameData/prtsData';
 
 /** 大类 id（pageType）→ 中文名；找不到时回退为原 id。 */
 export function getPageName(pageType: string): string {

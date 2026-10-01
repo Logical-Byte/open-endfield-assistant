@@ -29,7 +29,7 @@ import type {
   PrtsFirstLv,
   PrtsPage,
   PrtsPageType,
-} from '../../src/types/prts';
+} from '../../src/features/gameData/types/prts';
 import {
   getTranslation,
   prtsAllItemTable,

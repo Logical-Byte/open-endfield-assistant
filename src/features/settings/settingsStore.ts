@@ -1,4 +1,4 @@
-import type { Settings } from '@/types/settings';
+import type { Settings } from '@/features/settings/types/settings';
 import { readonly, shallowRef, type Ref } from 'vue';
 
 export type DraftSettings = Omit<

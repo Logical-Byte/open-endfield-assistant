@@ -1,5 +1,5 @@
-import { installError, startDeveloperInstall, updateOperationBusy } from '@/utils/app/update';
-import { logInfo } from '@/utils/tauri';
+import { installError, startDeveloperInstall, updateOperationBusy } from '@/features/update/update';
+import { logInfo } from '@/features/log/ipc';
 import { computed, ref } from 'vue';
 
 /** 开发者选项手动安装流程的可见诊断日志。 */

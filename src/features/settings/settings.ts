@@ -1,5 +1,5 @@
-import { UpdateProxyMode, UpdateSource } from '@/types/settings';
-import { cdkDecrypt, cdkEncrypt, loadOeaSettings, saveOeaSettings } from '@/utils/tauri';
+import { UpdateProxyMode, UpdateSource } from '@/features/settings/types/settings';
+import { cdkDecrypt, cdkEncrypt, loadOeaSettings, saveOeaSettings } from '@/features/settings/ipc';
 import { computed } from 'vue';
 import { createSettingsStore } from './settingsStore';
 

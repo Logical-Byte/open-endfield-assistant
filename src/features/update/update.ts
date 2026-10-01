@@ -1,23 +1,32 @@
 import {
   DownloadProgress,
   DownloadState,
-  UpdateAvailability,
   UpdateCheckState,
   UpdateCompleteInfo,
   UpdateInfo,
   UpdateInstallStage,
-  UpdateInstallStageEvent,
   UpdateInstallStatus,
   UpdateOperation,
   UpdateStatus,
-} from '@/types/update';
-import { appStatus } from '@/utils/app/appStatus';
-import { settingsState } from '@/utils/app/settings';
-import type { DraftSettings } from '@/utils/app/settingsStore';
-import { logDebug, logError, logWarn, onAutomationStatus } from '@/utils/tauri';
-import { updatePopoverOpen } from '@/utils/app/updatePopover';
-import { Channel, invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+} from '@/features/update/types/update';
+import { appStatus } from '@/features/automation/state';
+import { settingsState } from '@/features/settings/settings';
+import type { DraftSettings } from '@/features/settings/settingsStore';
+import { logDebug, logError, logWarn } from '@/features/log/ipc';
+import { onAutomationStatus } from '@/features/automation/ipc';
+import { updatePopoverOpen } from '@/features/update/updatePopover';
+import {
+  getUpdateStatus,
+  requestUpdateCheck,
+  createDownloadProgressChannel,
+  downloadUpdate,
+  requestDownloadCancellation,
+  takeStartupUpdateResult,
+  onUpdateInstallStage,
+  installUpdate,
+  developerInstallUpdate,
+  type StartupUpdateResult,
+} from './ipc';
 import { computed, ref, shallowRef } from 'vue';
 
 const EMPTY_DOWNLOAD_PROGRESS: DownloadProgress = {
@@ -139,7 +148,7 @@ export function installStageLabel(stage: UpdateInstallStage): string {
 /** 用一次 IPC 替换完整后端状态投影。 */
 export async function refreshUpdateStatus(): Promise<void> {
   try {
-    updateStatus.value = await invoke<UpdateStatus>('get_update_status');
+    updateStatus.value = await getUpdateStatus();
   } catch (error) {
     writeUpdateLog(logWarn, `更新前端：读取后端更新状态失败: ${String(error)}`);
   }
@@ -159,7 +168,7 @@ export async function checkUpdate(): Promise<void> {
   checkError.value = null;
   let shouldAutoDownload = false;
   try {
-    const availability = await invoke<UpdateAvailability>('check_update');
+    const availability = await requestUpdateCheck();
     lastCheckedAt.value = Date.now();
     if (availability.status === 'available') {
       const settings = currentEffectiveSettings();
@@ -207,12 +216,12 @@ export async function startDownload(): Promise<void> {
   downloadFailed.value = false;
   updatePopoverOpen.value = true;
 
-  const onProgress = new Channel<DownloadProgress>((progress) => {
+  const onProgress = createDownloadProgressChannel((progress) => {
     downloadProgress.value = progress;
   });
   let completed = false;
   try {
-    const update = await invoke<UpdateInfo>('download_update', { onProgress });
+    const update = await downloadUpdate(onProgress);
     completed = true;
     writeUpdateLog(logDebug, `更新前端：download_update 调用完成（version=${update.versionName}）`);
   } catch (error) {
@@ -245,7 +254,7 @@ export async function cancelDownload(): Promise<void> {
   }
   downloadCancelling.value = true;
   try {
-    await invoke('cancel_download');
+    await requestDownloadCancellation();
   } catch (error) {
     writeUpdateLog(
       logWarn,
@@ -292,13 +301,10 @@ export async function initUpdateState(): Promise<void> {
   }
 }
 
-/** Rust 启动恢复的最小返回值：完成一次资源事务，或没有已完成的事务。 */
-type StartupUpdateResult = 'completed' | null;
-
 /** 查询并消费本次启动是否完成了一个更新事务。 */
 async function consumeStartupUpdateResult(): Promise<StartupUpdateResult> {
   try {
-    return await invoke<StartupUpdateResult>('consume_startup_update_result');
+    return await takeStartupUpdateResult();
   } catch (error) {
     writeUpdateLog(logWarn, `更新前端：读取启动更新结果失败: ${String(error)}`);
     return null;
@@ -351,10 +357,10 @@ export async function startInstall(): Promise<InstallStartResult> {
   beginInstallPresentation();
   let unlisten: (() => void) | null = null;
   try {
-    unlisten = await listen<UpdateInstallStageEvent>('update-install-stage', (event) => {
+    unlisten = await onUpdateInstallStage((event) => {
       installStage.value = event.payload.stage;
     });
-    await invoke('install_update');
+    await installUpdate();
     return 'started';
   } catch (error) {
     handleInstallFailure(error);
@@ -382,7 +388,7 @@ export async function startDeveloperInstall(
   let installationStarted = false;
   let unlisten: (() => void) | null = null;
   try {
-    unlisten = await listen<UpdateInstallStageEvent>('update-install-stage', (event) => {
+    unlisten = await onUpdateInstallStage((event) => {
       if (!installationStarted) {
         installationStarted = true;
         beginInstallPresentation();
@@ -390,7 +396,7 @@ export async function startDeveloperInstall(
       installStage.value = event.payload.stage;
       onStage(event.payload.stage);
     });
-    const accepted = await invoke<boolean>('developer_install_update');
+    const accepted = await developerInstallUpdate();
     writeUpdateLog(logDebug, `更新前端：developer_install_update 调用完成（accepted=${accepted}）`);
     return accepted ? 'started' : 'cancelled';
   } catch (error) {

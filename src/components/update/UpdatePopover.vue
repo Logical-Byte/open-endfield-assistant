@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { DownloadProgress } from '@/types/update';
-import { appStatus } from '@/utils/app/appStatus';
+import { DownloadProgress } from '@/features/update/types/update';
+import { appStatus } from '@/features/automation/state';
 import {
   cancelDownload,
   checkUpdate,
@@ -8,9 +8,9 @@ import {
   startDownload,
   startInstall,
   updateCheckState,
-} from '@/utils/app/update';
-import { renderMarkdown } from '@/utils/markdown';
-import { updatePopoverOpen } from '@/utils/app/updatePopover';
+} from '@/features/update/update';
+import { renderMarkdown } from '@/shared/markdown';
+import { updatePopoverOpen } from '@/features/update/updatePopover';
 import { oeaVersion } from '@/version';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';

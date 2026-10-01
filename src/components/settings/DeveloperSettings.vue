@@ -4,7 +4,7 @@ import {
   developerInstallTrace,
   developerInstallUnavailable,
   developerInstallUpdatePackage,
-} from '@/utils/app/developerUpdate';
+} from '@/features/update/developerUpdate';
 
 const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
 </script>

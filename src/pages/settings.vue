@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
-import { UpdateProxyMode } from '@/types/settings';
+import { UpdateProxyMode } from '@/features/settings/types/settings';
 import {
   settingsSaveError,
   editSettings,
@@ -9,9 +9,9 @@ import {
   retrySettingsSave,
   proxyModeItems,
   updateSourceItems,
-} from '@/utils/app/settings';
-import { checkUpdate, updateCheckState, updateOperationBusy } from '@/utils/app/update';
-import { uiScale } from '@/utils/uiScale';
+} from '@/features/settings/settings';
+import { checkUpdate, updateCheckState, updateOperationBusy } from '@/features/update/update';
+import { uiScale } from '@/features/appearance/uiScale';
 import { oeaVersion } from '@/version';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
