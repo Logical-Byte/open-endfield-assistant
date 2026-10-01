@@ -5,7 +5,7 @@ import { CollectType } from '@/types/scanResult';
 import { openImagePreview } from '@/composables/image-preview';
 import { getAcquisitionMethod } from '@/utils/app/archiveContract';
 import { getCategoryName, getCategoryTitles, getPageName } from '@/utils/prts';
-import { computed } from 'vue';
+import { computed, type CSSProperties } from 'vue';
 
 const { collectType, category, subCategory, imageUrl, title, archiveId } =
   defineProps<ScanResultCardProps>();
@@ -70,21 +70,21 @@ const CROP_WIDTH = CROP_RIGHT - CROP_LEFT;
 const CROP_HEIGHT = CROP_BOTTOM - CROP_TOP;
 
 /** 裁剪容器样式：保持裁剪区域的宽高比 */
-const cropContainerStyle = computed(() => ({
+const cropContainerStyle: CSSProperties = {
   aspectRatio: `${CROP_WIDTH} / ${CROP_HEIGHT}`,
-}));
+};
 
 /**
  * 裁剪图片样式：图片按基准分辨率等比放大（宽高比恒为 16:9），
  * 使裁剪区域恰好填满容器。
  * width/left 的 100% 指容器宽，height/top 的 100% 指容器高。
  */
-const cropImageStyle = computed(() => ({
+const cropImageStyle: CSSProperties = {
   width: `calc(100% * ${BASE_WIDTH} / ${CROP_WIDTH})`,
   height: `calc(100% * ${BASE_HEIGHT} / ${CROP_HEIGHT})`,
   left: `calc(100% * -${CROP_LEFT} / ${CROP_WIDTH})`,
   top: `calc(100% * -${CROP_TOP} / ${CROP_HEIGHT})`,
-}));
+};
 </script>
 
 <template>

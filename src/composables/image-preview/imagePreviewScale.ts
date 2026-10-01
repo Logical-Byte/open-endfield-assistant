@@ -1,5 +1,5 @@
 /** 图片缩放配置选项 */
-export interface UseImagePreviewScaleOptions {
+export interface ImagePreviewScaleOptions {
   /** 最小缩放倍数 */
   minScale?: number;
   /** 最大缩放倍数 */
@@ -12,8 +12,16 @@ export interface UseImagePreviewScaleOptions {
   multiplier?: number;
 }
 
+interface ImagePreviewScale {
+  clampScale(value: number): number;
+  getNextScale(value: number): number;
+  getPrevScale(value: number): number;
+  getNextScaleWithMultiplier(value: number): number;
+  getPrevScaleWithMultiplier(value: number): number;
+}
+
 /**
- * 用于计算图片预览缩放倍数的组合式函数。
+ * 用于计算图片预览缩放倍数的工具工厂。
  *
  * 该函数提供了一系列工具，用于查找上一个或下一个“适当”的缩放倍数。
  * “适当”的缩放倍数定义为：`coefficient * base ^ n`，其中 `n` 为任意整数，`coefficient` 是 `coefficients` 数组中的任意元素。
@@ -27,7 +35,8 @@ export interface UseImagePreviewScaleOptions {
  * @param options 缩放配置选项
  * @returns 缩放计算相关的工具函数
  */
-export function useImagePreviewScale(options: UseImagePreviewScaleOptions = {}) {
+
+export function createImagePreviewScale(options: ImagePreviewScaleOptions = {}): ImagePreviewScale {
   const {
     minScale = 1 / 1024,
     maxScale = 1024,

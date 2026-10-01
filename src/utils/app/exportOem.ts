@@ -23,7 +23,7 @@ const OEM_IMPORT_URL_PREFIX = 'https://oem.re/i/';
  * - 未收集 = 所有档案去掉已收集。
  * 两个列表均按 allItems 的展示顺序排列。
  */
-export function buildUploadData(): UploadData {
+function buildUploadData(): UploadData {
   const allItems = prtsData.value?.allItems ?? {};
   const collection = deriveArchiveCollection(allItems, scanResults.value);
   return {

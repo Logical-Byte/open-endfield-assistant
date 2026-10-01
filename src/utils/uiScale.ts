@@ -25,22 +25,20 @@ export async function initUiScale(): Promise<void> {
     logError(`读取 UI 缩放失败: ${errorMessage}`);
   }
 
-  if (isTauri()) {
-    // 监听 WebView2 原生缩放（`Ctrl+滚轮` / `Ctrl+加减`）变化，同步回 `uiScale`。
-    await onWebviewZoomChanged((zoom) => {
-      const factor = Number(zoom);
-      if (Number.isFinite(factor)) {
-        uiScale.value = factor;
-      }
-    });
-  }
+  // 监听 WebView2 原生缩放（`Ctrl+滚轮` / `Ctrl+加减`）变化，同步回 `uiScale`。
+  await onWebviewZoomChanged((zoom) => {
+    const factor = Number(zoom);
+    if (Number.isFinite(factor)) {
+      uiScale.value = factor;
+    }
+  });
 }
 
 /**
  * 将当前缩放值应用到 WebView2 窗口（`ZoomFactor`）。
  * 非 Tauri 环境或无法解析为有限数字时直接跳过。
  */
-export async function applyUiScale(): Promise<void> {
+async function applyUiScale(): Promise<void> {
   if (!isTauri()) {
     return;
   }
