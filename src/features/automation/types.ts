@@ -16,9 +16,3 @@ export type RunOutcome =
   | { status: 'completed' }
   | { status: 'stopped' }
   | { status: 'failed'; error: string };
-
-/** 自动化运行结束时后端发送的一次性通知。 */
-export interface RunFinished {
-  taskKind: TaskKind;
-  outcome: RunOutcome;
-}

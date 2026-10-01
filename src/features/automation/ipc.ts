@@ -28,12 +28,3 @@ export async function onAutomationStatusChanged(
 ): Promise<() => void> {
   return await listen<Automation.Status>('automation-status-changed', (event) => cb(event.payload));
 }
-
-/** 监听每次自动化运行的一次性终态通知。 */
-export async function onAutomationRunFinished(
-  cb: (finished: Automation.RunFinished) => void,
-): Promise<() => void> {
-  return await listen<Automation.RunFinished>('automation-run-finished', (event) =>
-    cb(event.payload),
-  );
-}
