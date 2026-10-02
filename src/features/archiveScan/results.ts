@@ -1,7 +1,8 @@
 import type { ScanResult } from '@/features/archiveScan/types/scanResult';
-import { automationStatus } from '@/features/automation/state';
+import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import { onScanResult } from './ipc';
-import { ref, watch } from 'vue';
+import { whenever } from '@vueuse/core';
+import { ref } from 'vue';
 
 /** 扫描结果列表（随扫描进度实时追加） */
 export const scanResults = ref<ScanResult[]>([]);
@@ -15,23 +16,20 @@ export function clearScanResults(): void {
 }
 
 export async function initScanResults(): Promise<void> {
-  // 每次开始新档案扫描（含热键触发）时清空上次任务的结果。
-  watch(
-    automationStatus,
-    (status) => {
-      if (status.state === 'running' && status.taskKind === 'archiveScan') {
-        clearScanResults();
-        scanError.value = null;
-      }
-      if (
-        status.state === 'idle' &&
-        status.lastRun?.taskKind === 'archiveScan' &&
-        status.lastRun.outcome.status === 'failed'
-      ) {
-        scanError.value = status.lastRun.outcome.error;
-      }
+  const task = useAutomationTask('archiveScan');
+  whenever(
+    () => task.phase.value === 'running',
+    () => {
+      clearScanResults();
+      scanError.value = null;
     },
-    // 启动时同步清空旧结果，避免延后的 watcher 清掉刚追加的新结果。
+    { flush: 'sync' },
+  );
+  whenever(
+    task.outcome,
+    (outcome) => {
+      if (outcome.status === 'failed') scanError.value = outcome.error;
+    },
     { flush: 'sync' },
   );
   await onScanResult((result) => {
