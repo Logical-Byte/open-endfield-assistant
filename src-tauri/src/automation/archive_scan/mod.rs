@@ -14,3 +14,10 @@ mod workflow;
 pub(crate) use reporting::ScanResult;
 pub(crate) use simulation_worker::SimulatedArchiveScanWorker;
 pub(crate) use worker::ArchiveScanWorker;
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum WorkerType {
+    Production,
+    Simulation,
+}

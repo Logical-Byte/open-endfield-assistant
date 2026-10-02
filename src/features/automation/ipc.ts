@@ -5,8 +5,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
 /** 启动指定种类的自动化任务（后端在后台线程执行，立即返回当前状态）。 */
-export async function startAutomation(taskKind: Automation.TaskKind): Promise<Automation.Status> {
-  return await invoke('start_automation', { taskKind });
+export async function startAutomation(
+  request: Automation.StartRequest,
+): Promise<Automation.Status> {
+  return await invoke('start_automation', { request });
 }
 
 /** 请求停止当前自动化任务（优雅停止）。 */

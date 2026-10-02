@@ -13,28 +13,21 @@ import { prtsData } from '@/features/gameData/prtsData';
 import { clearScanResults, scanResults, scanError } from '@/features/archiveScan/results';
 import { deriveArchiveCollection } from '@/features/archiveScan/collection';
 import { startAutomation, stopAutomation } from '@/features/automation/ipc';
-import { simulateArchiveScan } from '@/features/archiveScan/simulation';
+import { archiveScanWorkerType } from '@/features/archiveScan/workerType';
 import type { Status } from '@/features/automation/types';
 import { computed, ref, watch } from 'vue';
 
 function toggleScan(): Promise<Status> {
   return automationStatus.value.state === 'idle'
-    ? startAutomation(simulateArchiveScan.value ? 'archiveScanSimulation' : 'archiveScan')
+    ? startAutomation({ taskKind: 'archiveScan', workerType: archiveScanWorkerType.value })
     : stopAutomation();
 }
 
-// 运行中依据后端实际任务显示模式，修改开关只影响下一次启动。
-const simulationSelected = computed<boolean>(() =>
-  automationStatus.value.state === 'idle'
-    ? simulateArchiveScan.value
-    : automationStatus.value.taskKind === 'archiveScanSimulation',
-);
-
 const scanButtonLabel = computed<string>(() => {
   if (automationStatus.value.state !== 'idle') {
-    return simulationSelected.value ? '停止模拟扫描' : '停止扫描（引号键）';
+    return '停止扫描（引号键）';
   }
-  return simulationSelected.value ? '开始模拟扫描' : '开始扫描（引号键）';
+  return archiveScanWorkerType.value === 'simulation' ? '开始模拟扫描' : '开始扫描（引号键）';
 });
 
 /** 用户是否手动关闭了扫描失败提示（失败原因变化时自动恢复显示） */
@@ -149,7 +142,11 @@ const summary = computed(() => {
       <div class="flex flex-wrap gap-2">
         <UButton
           :color="
-            automationStatus.state !== 'idle' ? 'error' : simulationSelected ? 'warning' : 'success'
+            automationStatus.state !== 'idle'
+              ? 'error'
+              : archiveScanWorkerType === 'simulation'
+                ? 'warning'
+                : 'success'
           "
           :icon="automationStatus.state !== 'idle' ? 'i-lucide-square' : 'i-lucide-play'"
           :label="scanButtonLabel"
