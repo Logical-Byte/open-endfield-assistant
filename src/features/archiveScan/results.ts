@@ -19,15 +19,11 @@ export async function initScanResults(): Promise<void> {
   watch(
     automationStatus,
     (status) => {
-      if (status.state === 'running' && status.taskKind === 'archiveScan') {
+      if (status.state === 'running') {
         clearScanResults();
         scanError.value = null;
       }
-      if (
-        status.state === 'idle' &&
-        status.lastRun?.taskKind === 'archiveScan' &&
-        status.lastRun.outcome.status === 'failed'
-      ) {
+      if (status.state === 'idle' && status.lastRun?.outcome.status === 'failed') {
         scanError.value = status.lastRun.outcome.error;
       }
     },

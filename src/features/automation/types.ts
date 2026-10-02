@@ -1,5 +1,5 @@
 /** 用户可以启动的自动化任务种类。 */
-export type TaskKind = 'archiveScan';
+export type TaskKind = 'archiveScan' | 'archiveScanSimulation';
 
 /** 后端保存的自动化运行状态。 */
 export type Status =

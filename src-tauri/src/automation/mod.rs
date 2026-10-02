@@ -37,4 +37,5 @@ pub use runtime::{LastRun, RunOutcome, Status};
 #[serde(rename_all = "camelCase")]
 pub enum TaskKind {
     ArchiveScan,
+    ArchiveScanSimulation,
 }

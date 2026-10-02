@@ -81,6 +81,13 @@ impl Controller {
             automation::TaskKind::ArchiveScan => self
                 .automation_runtime
                 .start(task_kind, || Box::new(self.archive_scan_worker())),
+            automation::TaskKind::ArchiveScanSimulation => {
+                self.automation_runtime.start(task_kind, || {
+                    Box::new(archive_scan::SimulatedArchiveScanWorker::new(Arc::clone(
+                        &self.app_data,
+                    )))
+                })
+            }
         }
     }
 
