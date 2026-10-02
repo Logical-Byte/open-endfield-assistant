@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { archiveScanWorkerType } from '@/features/archiveScan/workerType';
+import { simulateArchiveScan } from '@/features/archiveScan/workerType';
 import {
   developerInstallBusy,
   developerInstallTrace,
@@ -26,12 +26,7 @@ const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
     icon="i-lucide-scan-text"
     title="模拟档案扫描"
   >
-    <UCheckbox
-      color="warning"
-      label="使用模拟扫描结果"
-      :model-value="archiveScanWorkerType === 'simulation'"
-      @update:model-value="archiveScanWorkerType = $event === true ? 'simulation' : 'production'"
-    />
+    <UCheckbox v-model="simulateArchiveScan" color="warning" label="使用模拟扫描结果" />
   </SettingsItem>
   <SettingsItem
     description="从给定的 .zip 更新包运行一次原地更新流程。支持增量包和全量包。"
