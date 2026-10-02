@@ -120,7 +120,7 @@ pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
     }
 
     // 订阅运行状态事件：扫描档案库任务启动 / 结束都会推送，据此切换菜单文案
-    app_handle.listen("automation-status", |event| {
+    app_handle.listen("automation-status-changed", |event| {
         if let Ok(status) = serde_json::from_str::<automation::Status>(event.payload()) {
             update_toggle_item(status.is_active());
         }

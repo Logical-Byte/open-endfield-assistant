@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DownloadProgress } from '@/features/update/types/update';
-import { appStatus } from '@/features/automation/state';
+import { automationStatus } from '@/features/automation/state';
 import {
   cancelDownload,
   checkUpdate,
@@ -211,12 +211,12 @@ function formatSpeed(bytesPerSecond: number): string {
           <UButton
             block
             color="primary"
-            :disabled="appStatus.state !== 'idle'"
+            :disabled="automationStatus.state !== 'idle'"
             icon="i-lucide-package-check"
             label="立即安装"
             @click="startInstall"
           />
-          <p v-if="appStatus.state !== 'idle'" class="text-xs text-dimmed">
+          <p v-if="automationStatus.state !== 'idle'" class="text-xs text-dimmed">
             扫描任务运行中，扫描结束后将自动安装
           </p>
         </div>

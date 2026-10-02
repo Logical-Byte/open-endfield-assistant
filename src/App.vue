@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useTheme } from '@/composables/useTheme';
-import { initAppStatus } from '@/features/automation/state';
+import { initAutomationState } from '@/features/automation/state';
 import { initArchiveContract } from '@/features/gameData/archiveContract';
 import {
   settingsSaveError,
@@ -69,7 +69,7 @@ async function initApp(): Promise<void> {
     markSettingsUnsupported();
     return;
   }
-  await initAppStatus();
+  await initAutomationState();
   await initPrtsData();
   await initArchiveContract();
   await initLogState();

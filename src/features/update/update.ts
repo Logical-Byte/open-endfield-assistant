@@ -9,11 +9,10 @@ import {
   UpdateOperation,
   UpdateStatus,
 } from '@/features/update/types/update';
-import { appStatus } from '@/features/automation/state';
+import { automationStatus } from '@/features/automation/state';
 import { settingsState } from '@/features/settings/settings';
 import type { DraftSettings } from '@/features/settings/settingsStore';
 import { logDebug, logError, logWarn } from '@/features/log/ipc';
-import { onAutomationStatus } from '@/features/automation/ipc';
 import { updatePopoverOpen } from '@/features/update/updatePopover';
 import {
   getUpdateStatus,
@@ -27,7 +26,7 @@ import {
   developerInstallUpdate,
   type StartupUpdateResult,
 } from './ipc';
-import { computed, ref, shallowRef } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 
 const EMPTY_DOWNLOAD_PROGRESS: DownloadProgress = {
   downloadedSize: 0,
@@ -284,7 +283,7 @@ export async function initUpdateState(): Promise<void> {
     showInstallModal.value = true;
   }
 
-  await onAutomationStatus((status) => {
+  watch(automationStatus, (status) => {
     if (status.state === 'idle') {
       void tryAutoInstall();
     }
@@ -319,11 +318,11 @@ export async function tryAutoInstall(): Promise<void> {
     effectiveOperation.value !== 'idle' ||
     installStatus.value !== UpdateInstallStatus.Idle ||
     autoInstallEnabled !== true ||
-    appStatus.value.state !== 'idle'
+    automationStatus.value.state !== 'idle'
   ) {
     writeUpdateLog(
       logDebug,
-      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${autoInstallEnabled ?? 'n/a'}, automating=${appStatus.value.state !== 'idle'}）`,
+      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${autoInstallEnabled ?? 'n/a'}, automating=${automationStatus.value.state !== 'idle'}）`,
     );
     return;
   }
@@ -342,7 +341,7 @@ export async function startInstall(): Promise<InstallStartResult> {
     );
     return 'skipped';
   }
-  if (appStatus.value.state !== 'idle') {
+  if (automationStatus.value.state !== 'idle') {
     writeUpdateLog(logDebug, '更新前端：自动化任务运行中，安装请求留待任务结束后重试');
     useToast().add({
       title: '扫描任务运行中',
