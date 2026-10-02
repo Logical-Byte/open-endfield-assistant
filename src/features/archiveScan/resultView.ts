@@ -1,7 +1,4 @@
-import type {
-  ArchiveAcquisitionMethod,
-  ArchiveContract,
-} from '@/features/gameData/types/archiveContract';
+import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
 import type { PrtsAllItem, PrtsData } from '@/features/gameData/types/prts';
 import type { ScannedItemRecord } from './scannedItems';
 import { deriveArchiveMatching, type ArchiveMatching } from './matching';
@@ -54,7 +51,7 @@ function archiveUrl(base: string, archiveId: string | null): string | null {
 /** 先展示待纠错记录，再按目录顺序展示档案。统计不受可见性筛选影响。 */
 export function deriveArchiveScanView(
   data: PrtsData | null,
-  contract: ArchiveContract | null,
+  methodByArchiveId: ReadonlyMap<string, ArchiveAcquisitionMethod>,
   scannedItems: readonly Readonly<ScannedItemRecord>[],
 ): ArchiveScanView {
   const allItems: Record<string, PrtsAllItem> = data?.allItems ?? {};
@@ -67,10 +64,6 @@ export function deriveArchiveScanView(
     const titles: string[] = titlesByCategory.get(archive.categoryId) ?? [];
     titles.push(archive.title);
     titlesByCategory.set(archive.categoryId, titles);
-  }
-  const methodByArchiveId: Map<string, ArchiveAcquisitionMethod> = new Map();
-  for (const rows of Object.values(contract?.categories ?? {})) {
-    for (const row of rows) methodByArchiveId.set(row.id, row.acquisition.method);
   }
 
   function makeCard(details: CardDetails): ArchiveScanResultCardProps {

@@ -10,7 +10,7 @@ import {
   type CommandResult,
   type AutomationTask,
 } from '@/features/automation/useAutomationTask';
-import { archiveContract } from '@/features/gameData/archiveContract';
+import { methodByArchiveId } from '@/features/gameData/archiveContract';
 import { exportToOem } from '@/features/archiveScan/exportOem';
 import { prtsData } from '@/features/gameData/prtsData';
 import {
@@ -60,7 +60,7 @@ const hideCollected: Ref<boolean> = ref(false);
 const hideNotObtainableInOverworld: Ref<boolean> = ref(false);
 
 const resultView: ComputedRef<ArchiveScanView> = computed((): ArchiveScanView =>
-  deriveArchiveScanView(prtsData.value, archiveContract.value, scannedItems.value),
+  deriveArchiveScanView(prtsData.value, methodByArchiveId.value, scannedItems.value),
 );
 const filteredResultCards: ComputedRef<ArchiveScanResultCardProps[]> = computed(
   (): ArchiveScanResultCardProps[] =>
