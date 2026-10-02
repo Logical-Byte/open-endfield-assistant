@@ -1,3 +1,5 @@
+import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
+
 /** 档案扫描结果卡片的展示状态。 */
 export enum ArchiveScanCardStatus {
   /** 已有成功匹配的扫描记录，匹配可能来自后端自动识别或人工纠错。 */
@@ -13,8 +15,12 @@ export enum ArchiveScanCardStatus {
 /** 档案扫描结果展示行：目录中的档案，或尚待纠错的扫描记录。 */
 export interface ArchiveScanResultCardProps {
   status: ArchiveScanCardStatus;
-  category: string;
-  subCategory: string;
+  categoryLabel: string | null;
+  candidates: string[];
+  acquisitionMethod: ArchiveAcquisitionMethod | null;
+  acquisitionLabel: string | null;
+  oemUrl: string | null;
+  intelUrl: string | null;
   imageUrl: string | null;
   title: string;
   archiveId: string | null;
