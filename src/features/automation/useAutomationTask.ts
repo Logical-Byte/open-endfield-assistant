@@ -30,6 +30,8 @@ export type CommandResult = 'submitted' | 'skipped';
 export interface AutomationTask<K extends TaskKind> {
   /** 只读后端状态投影。*/
   readonly phase: ComputedRef<TaskPhase>;
+  /** 当前绑定的任务仍未结束，包含运行和停止收尾阶段。 */
+  readonly isActive: ComputedRef<boolean>;
   /**
    * 可观察到的最近一次的绑定的 taskKind 的运行结果，尚未记录时为 null。
    * 每次 composable 调用独立保留自己的记录。
@@ -55,6 +57,7 @@ export function useAutomationTask<K extends TaskKind>(taskKind: K): AutomationTa
     return status.taskKind === taskKind ? status.state : 'blocked';
   });
   const canStart = computed((): boolean => phase.value === 'idle');
+  const isActive = computed((): boolean => phase.value === 'running' || phase.value === 'stopping');
   const canStop = computed((): boolean => phase.value === 'running');
   const outcome = shallowRef<Readonly<RunOutcome> | null>(null);
   whenever(
@@ -85,5 +88,13 @@ export function useAutomationTask<K extends TaskKind>(taskKind: K): AutomationTa
     return 'submitted';
   }
 
-  return { phase, outcome: shallowReadonly(outcome), canStart, canStop, tryStart, tryStop };
+  return {
+    phase,
+    isActive,
+    outcome: shallowReadonly(outcome),
+    canStart,
+    canStop,
+    tryStart,
+    tryStop,
+  };
 }

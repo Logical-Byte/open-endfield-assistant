@@ -15,7 +15,7 @@ import { deriveArchiveCollection } from '@/features/archiveScan/collection';
 import { archiveScanWorkerType } from '@/features/archiveScan/workerType';
 import { computed, ref, watch } from 'vue';
 
-const { phase, canStart, canStop, tryStart, tryStop } = useAutomationTask('archiveScan');
+const { phase, isActive, canStart, canStop, tryStart, tryStop } = useAutomationTask('archiveScan');
 
 function toggleScan(): Promise<CommandResult> {
   return canStart.value ? tryStart({ workerType: archiveScanWorkerType.value }) : tryStop();
@@ -142,14 +142,10 @@ const summary = computed(() => {
       <div class="flex flex-wrap gap-2">
         <UButton
           :color="
-            phase === 'running' || phase === 'stopping'
-              ? 'error'
-              : archiveScanWorkerType === 'simulation'
-                ? 'warning'
-                : 'success'
+            isActive ? 'error' : archiveScanWorkerType === 'simulation' ? 'warning' : 'success'
           "
           :disabled="!canStart && !canStop"
-          :icon="phase === 'running' || phase === 'stopping' ? 'i-lucide-square' : 'i-lucide-play'"
+          :icon="isActive ? 'i-lucide-square' : 'i-lucide-play'"
           :label="scanButtonLabel"
           @click="toggleScan"
         />
@@ -206,7 +202,7 @@ const summary = computed(() => {
 
           <UButton
             color="error"
-            :disabled="phase === 'running' || phase === 'stopping'"
+            :disabled="isActive"
             icon="i-lucide-trash-2"
             label="清空"
             size="xs"
