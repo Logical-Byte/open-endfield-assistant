@@ -8,7 +8,7 @@ import { getItemIdsByTitle } from '@/features/gameData/archiveQueries';
  *
  * 标题与当前子分类下的档案完全匹配：标记为已收集（`success`），写入命中的档案 id；
  * 否则视为无法识别（`unrecognized`），清空档案 id，可再次纠正。
- * 同标题多条时全部视为已收集。
+ * 当前小分类下同标题多条时全部视为已收集。
  */
 export function applyCorrection(scanResult: ScanResult, title: string): void {
   scanResult.correctedTitle = title;

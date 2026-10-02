@@ -44,10 +44,10 @@ const successfulScan: ScanResult = {
 };
 
 describe('deriveArchiveCollection', () => {
-  it('collects every archive with the matched title in catalog order', () => {
+  it('keeps same-title archives in other subcategories uncollected', () => {
     expect(deriveArchiveCollection(allItems, [successfulScan])).toEqual({
-      collectedIds: ['paperNote', 'digitalNote'],
-      notCollectedIds: ['unrelated'],
+      collectedIds: ['paperNote'],
+      notCollectedIds: ['unrelated', 'digitalNote'],
     });
   });
 

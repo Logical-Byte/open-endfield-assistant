@@ -122,7 +122,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
   return result;
 });
 /**
- * 扫描结果统计（与导出到地图集口径一致：重名档案只要有一个已收集，全部视为已收集）。
+ * 扫描结果统计（与导出到地图集口径一致：同一小分类下同标题档案只要有一个已收集，该组全部视为已收集）。
  * 已收集 / 未收集为档案数，识别错误为扫描失败（failed / unrecognized）条数。
  */
 const summary = computed(() => {

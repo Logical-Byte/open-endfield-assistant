@@ -9,7 +9,7 @@ export interface ArchiveCollection {
 /**
  * 根据扫描结果计算档案收集状态。
  *
- * 同标题档案中只要有一项成功命中，所有同标题档案都视为已收集。
+ * 同一小分类下的同标题档案中只要有一项成功命中，该组档案都视为已收集。
  * 返回的 ID 保持档案全集的展示顺序。
  */
 export function deriveArchiveCollection(
@@ -25,13 +25,14 @@ export function deriveArchiveCollection(
     }
   }
 
-  const idsByTitle = new Map<string, string[]>();
+  const idsByCategoryAndTitle = new Map<string, string[]>();
   for (const item of Object.values(allItems)) {
-    const ids = idsByTitle.get(item.title) ?? [];
+    const key = JSON.stringify([item.categoryId, item.title]);
+    const ids = idsByCategoryAndTitle.get(key) ?? [];
     ids.push(item.id);
-    idsByTitle.set(item.title, ids);
+    idsByCategoryAndTitle.set(key, ids);
   }
-  for (const ids of idsByTitle.values()) {
+  for (const ids of idsByCategoryAndTitle.values()) {
     if (ids.some((id) => collected.has(id))) {
       for (const id of ids) {
         collected.add(id);
