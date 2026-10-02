@@ -5,26 +5,26 @@ import {
   ScanResultCardProps,
   ScanResultStatus,
 } from '@/features/archiveScan/types/scanResult';
-import { automationStatus } from '@/features/automation/state';
+import { useAutomationTask, type CommandResult } from '@/features/automation/useAutomationTask';
 import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
 import { applyCorrection } from '@/features/archiveScan/correction';
 import { exportToOem } from '@/features/archiveScan/exportOem';
 import { prtsData } from '@/features/gameData/prtsData';
 import { clearScanResults, scanResults, scanError } from '@/features/archiveScan/results';
 import { deriveArchiveCollection } from '@/features/archiveScan/collection';
-import { startAutomation, stopAutomation } from '@/features/automation/ipc';
 import { archiveScanWorkerType } from '@/features/archiveScan/workerType';
-import type { Status } from '@/features/automation/types';
 import { computed, ref, watch } from 'vue';
 
-function toggleScan(): Promise<Status> {
-  return automationStatus.value.state === 'idle'
-    ? startAutomation({ taskKind: 'archiveScan', workerType: archiveScanWorkerType.value })
-    : stopAutomation();
+const { phase, canStart, canStop, tryStart, tryStop } = useAutomationTask('archiveScan');
+
+function toggleScan(): Promise<CommandResult> {
+  return canStart.value ? tryStart({ workerType: archiveScanWorkerType.value }) : tryStop();
 }
 
 const scanButtonLabel = computed<string>(() => {
-  if (automationStatus.value.state !== 'idle') {
+  if (phase.value === 'stopping') return '正在停止扫描';
+  if (phase.value === 'blocked') return '其他自动化任务正在运行';
+  if (phase.value === 'running') {
     return '停止扫描（引号键）';
   }
   return archiveScanWorkerType.value === 'simulation' ? '开始模拟扫描' : '开始扫描（引号键）';
@@ -142,13 +142,14 @@ const summary = computed(() => {
       <div class="flex flex-wrap gap-2">
         <UButton
           :color="
-            automationStatus.state !== 'idle'
+            phase === 'running' || phase === 'stopping'
               ? 'error'
               : archiveScanWorkerType === 'simulation'
                 ? 'warning'
                 : 'success'
           "
-          :icon="automationStatus.state !== 'idle' ? 'i-lucide-square' : 'i-lucide-play'"
+          :disabled="!canStart && !canStop"
+          :icon="phase === 'running' || phase === 'stopping' ? 'i-lucide-square' : 'i-lucide-play'"
           :label="scanButtonLabel"
           @click="toggleScan"
         />

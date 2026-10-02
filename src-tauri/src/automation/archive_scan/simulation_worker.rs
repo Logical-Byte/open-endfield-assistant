@@ -60,13 +60,13 @@ impl Worker for SimulatedArchiveScanWorker {
 
         let finish_at = Instant::now() + Duration::from_secs(20);
         let mut sequence = 0;
-        loop {
+        let finish_reason = 'scan: loop {
             let interval = Duration::from_millis(fastrand::u64(350..=650));
             let next_result_at = (Instant::now() + interval).min(finish_at);
             // 分片等待，保持停止操作的响应速度。
             while Instant::now() < next_result_at {
                 if is_stop_requested(&stop) {
-                    return WorkerExit::without_capture(FinishReason::Stopped);
+                    break 'scan FinishReason::Stopped;
                 }
                 thread::sleep(
                     next_result_at
@@ -75,10 +75,10 @@ impl Worker for SimulatedArchiveScanWorker {
                 );
             }
             if is_stop_requested(&stop) {
-                return WorkerExit::without_capture(FinishReason::Stopped);
+                break FinishReason::Stopped;
             }
             if Instant::now() >= finish_at {
-                break;
+                break FinishReason::Completed;
             }
 
             // 先展示固定样例，后续随机组合，让每次扫描都能覆盖不同的卡片状态。
@@ -119,8 +119,12 @@ impl Worker for SimulatedArchiveScanWorker {
                 ocr_result,
                 corrected,
             );
-        }
+        };
 
-        WorkerExit::without_capture(FinishReason::Completed)
+        if matches!(finish_reason, FinishReason::Stopped) {
+            // 模拟一秒收尾，让前端有时间展示“正在停止扫描”，期间不再产出结果。
+            thread::sleep(Duration::from_secs(1));
+        }
+        WorkerExit::without_capture(finish_reason)
     }
 }
