@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import {
   CollectType,
-  ScanResult,
-  ScanResultCardProps,
-  ScanResultStatus,
-} from '@/features/archiveScan/types/scanResult';
+  ScannedItem,
+  ScannedItemCardProps,
+  ScannedItemStatus,
+} from '@/features/archiveScan/types/scannedItem';
 import { useAutomationTask, type CommandResult } from '@/features/automation/useAutomationTask';
 import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
 import { applyCorrection } from '@/features/archiveScan/correction';
 import { exportToOem } from '@/features/archiveScan/exportOem';
 import { prtsData } from '@/features/gameData/prtsData';
-import { clearScanResults, scanResults, scanError } from '@/features/archiveScan/results';
+import { clearScannedItems, scannedItems, scanError } from '@/features/archiveScan/results';
 import { deriveArchiveCollection } from '@/features/archiveScan/collection';
 import { archiveScanWorkerType } from '@/features/archiveScan/workerType';
 import { computed, ref, watch } from 'vue';
@@ -44,7 +44,7 @@ watch(scanError, () => {
   scanErrorDismissed.value = false;
 });
 
-function statusToCollectType(status: ScanResultStatus): CollectType {
+function statusToCollectType(status: ScannedItemStatus): CollectType {
   switch (status) {
     case 'success':
       return CollectType.Collected;
@@ -56,11 +56,11 @@ function statusToCollectType(status: ScanResultStatus): CollectType {
 }
 
 /** 应用人工纠错：更新对应扫描结果（标记为已收集或无法识别）。 */
-function onCorrect(scanResult: ScanResult | null, title: string): void {
-  if (scanResult === null) {
+function onCorrect(scannedItem: ScannedItem | null, title: string): void {
+  if (scannedItem === null) {
     return;
   }
-  applyCorrection(scanResult, title);
+  applyCorrection(scannedItem, title);
 }
 
 const hideCollected = ref(false);
@@ -71,20 +71,20 @@ function isNotObtainableInOverworld(archiveId: string | null): boolean {
   return archiveId !== null && getAcquisitionMethod(archiveId) !== 'map';
 }
 
-const filteredScanResults = computed<ScanResultCardProps[]>(() => {
-  const result: ScanResultCardProps[] = [];
-  for (const scanResult of scanResults.value) {
-    if (scanResult.status === 'success') {
+const filteredScannedItems = computed<ScannedItemCardProps[]>(() => {
+  const result: ScannedItemCardProps[] = [];
+  for (const scannedItem of scannedItems.value) {
+    if (scannedItem.status === 'success') {
       continue;
     }
     result.push({
-      collectType: statusToCollectType(scanResult.status),
-      category: scanResult.category,
-      subCategory: scanResult.subCategory,
-      imageUrl: scanResult.image,
-      title: scanResult.correctedTitle ?? scanResult.ocrResult,
-      archiveId: scanResult.itemIds[0] ?? null,
-      scanResult,
+      collectType: statusToCollectType(scannedItem.status),
+      category: scannedItem.foundInCategory,
+      subCategory: scannedItem.foundInSubCategory,
+      imageUrl: scannedItem.image,
+      title: scannedItem.correctedTitle ?? scannedItem.ocrResult,
+      archiveId: scannedItem.correctedMatchItemIds[0] ?? null,
+      scannedItem,
     });
   }
 
@@ -93,19 +93,19 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
     if (hideNotObtainableInOverworld.value && isNotObtainableInOverworld(id)) {
       continue;
     }
-    const maybeScanResult = scanResults.value.find((r) => r.itemIds.includes(id));
-    if (maybeScanResult !== undefined) {
-      if (hideCollected.value && maybeScanResult.status === 'success') {
+    const maybeScannedItem = scannedItems.value.find((r) => r.correctedMatchItemIds.includes(id));
+    if (maybeScannedItem !== undefined) {
+      if (hideCollected.value && maybeScannedItem.status === 'success') {
         continue;
       }
       result.push({
-        collectType: statusToCollectType(maybeScanResult.status),
-        category: maybeScanResult.category,
-        subCategory: maybeScanResult.subCategory,
-        imageUrl: maybeScanResult.image,
-        title: maybeScanResult.correctedTitle ?? title,
+        collectType: statusToCollectType(maybeScannedItem.status),
+        category: maybeScannedItem.foundInCategory,
+        subCategory: maybeScannedItem.foundInSubCategory,
+        imageUrl: maybeScannedItem.image,
+        title: maybeScannedItem.correctedTitle ?? title,
         archiveId: id,
-        scanResult: maybeScanResult,
+        scannedItem: maybeScannedItem,
       });
     } else {
       result.push({
@@ -115,7 +115,7 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
         imageUrl: null,
         title,
         archiveId: id,
-        scanResult: null,
+        scannedItem: null,
       });
     }
   }
@@ -126,8 +126,8 @@ const filteredScanResults = computed<ScanResultCardProps[]>(() => {
  * 已收集 / 未收集为档案数，识别错误为扫描失败（failed / unrecognized）条数。
  */
 const summary = computed(() => {
-  const collection = deriveArchiveCollection(prtsData.value?.allItems ?? {}, scanResults.value);
-  const error = scanResults.value.filter((result) => result.status !== 'success').length;
+  const collection = deriveArchiveCollection(prtsData.value?.allItems ?? {}, scannedItems.value);
+  const error = scannedItems.value.filter((result) => result.status !== 'success').length;
   return {
     error,
     notCollected: collection.notCollectedIds.length,
@@ -207,21 +207,21 @@ const summary = computed(() => {
             label="清空"
             size="xs"
             variant="ghost"
-            @click="clearScanResults()"
+            @click="clearScannedItems()"
           />
         </div>
 
         <UScrollArea
           v-slot="{ item }"
           class="flex-1 scrollbar-gutter-stable p-1"
-          :items="filteredScanResults"
+          :items="filteredScannedItems"
           :virtualize="{
             estimateSize: 56,
             skipMeasurement: true,
             overscan: 8,
           }"
         >
-          <ScanResultCard v-bind="item" @correct="onCorrect(item.scanResult, $event)" />
+          <ScannedItemCard v-bind="item" @correct="onCorrect(item.scannedItem, $event)" />
         </UScrollArea>
       </div>
     </div>

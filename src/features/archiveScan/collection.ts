@@ -1,5 +1,5 @@
 import type { PrtsAllItem } from '@/features/gameData/types/prts';
-import type { ScanResult } from '@/features/archiveScan/types/scanResult';
+import type { ScannedItem } from '@/features/archiveScan/types/scannedItem';
 
 export interface ArchiveCollection {
   collectedIds: string[];
@@ -14,12 +14,12 @@ export interface ArchiveCollection {
  */
 export function deriveArchiveCollection(
   allItems: Record<string, PrtsAllItem>,
-  scanResults: readonly ScanResult[],
+  scannedItems: readonly ScannedItem[],
 ): ArchiveCollection {
   const collected = new Set<string>();
-  for (const result of scanResults) {
+  for (const result of scannedItems) {
     if (result.status === 'success') {
-      for (const id of result.itemIds) {
+      for (const id of result.correctedMatchItemIds) {
         collected.add(id);
       }
     }

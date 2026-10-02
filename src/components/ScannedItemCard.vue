@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
-import type { ScanResultCardProps } from '@/features/archiveScan/types/scanResult';
-import { CollectType } from '@/features/archiveScan/types/scanResult';
+import type { ScannedItemCardProps } from '@/features/archiveScan/types/scannedItem';
+import { CollectType } from '@/features/archiveScan/types/scannedItem';
 import { openImagePreview } from '@/composables/image-preview';
 import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
 import {
@@ -12,7 +12,7 @@ import {
 import { computed, type CSSProperties } from 'vue';
 
 const { collectType, category, subCategory, imageUrl, title, archiveId } =
-  defineProps<ScanResultCardProps>();
+  defineProps<ScannedItemCardProps>();
 
 const emit = defineEmits<{
   correct: [title: string];

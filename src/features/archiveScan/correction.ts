@@ -1,6 +1,6 @@
 //! 人工纠错：把用户选择的标题写入扫描结果，标题完全匹配时标记为已收集。
 
-import type { ScanResult } from '@/features/archiveScan/types/scanResult';
+import type { ScannedItem } from '@/features/archiveScan/types/scannedItem';
 import { getItemIdsByTitle } from '@/features/gameData/archiveQueries';
 
 /**
@@ -10,14 +10,14 @@ import { getItemIdsByTitle } from '@/features/gameData/archiveQueries';
  * 否则视为无法识别（`unrecognized`），清空档案 id，可再次纠正。
  * 当前小分类下同标题多条时全部视为已收集。
  */
-export function applyCorrection(scanResult: ScanResult, title: string): void {
-  scanResult.correctedTitle = title;
-  const itemIds = getItemIdsByTitle(scanResult.subCategory, title);
-  if (itemIds.length > 0) {
-    scanResult.status = 'success';
-    scanResult.itemIds = itemIds;
+export function applyCorrection(scannedItem: ScannedItem, title: string): void {
+  scannedItem.correctedTitle = title;
+  const correctedMatchItemIds = getItemIdsByTitle(scannedItem.foundInSubCategory, title);
+  if (correctedMatchItemIds.length > 0) {
+    scannedItem.status = 'success';
+    scannedItem.correctedMatchItemIds = correctedMatchItemIds;
   } else {
-    scanResult.status = 'unrecognized';
-    scanResult.itemIds = [];
+    scannedItem.status = 'unrecognized';
+    scannedItem.correctedMatchItemIds = [];
   }
 }

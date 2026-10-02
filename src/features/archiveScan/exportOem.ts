@@ -5,7 +5,7 @@
 
 import type { UploadData } from '@/features/archiveScan/types/upload';
 import { prtsData } from '@/features/gameData/prtsData';
-import { scanResults } from '@/features/archiveScan/results';
+import { scannedItems } from '@/features/archiveScan/results';
 import { deriveArchiveCollection } from '@/features/archiveScan/collection';
 import { logDebug, logError, logInfo } from '@/features/log/ipc';
 import { oeaVersion } from '@/version';
@@ -25,7 +25,7 @@ const OEM_IMPORT_URL_PREFIX = 'https://oem.re/i/';
  */
 function buildUploadData(): UploadData {
   const allItems = prtsData.value?.allItems ?? {};
-  const collection = deriveArchiveCollection(allItems, scanResults.value);
+  const collection = deriveArchiveCollection(allItems, scannedItems.value);
   return {
     majorVersion: 0,
     minorVersion: 0,

@@ -11,7 +11,7 @@ import {
 } from '@/features/settings/settings';
 import { initLogState } from '@/features/log/logState';
 import { initPrtsData } from '@/features/gameData/prtsData';
-import { initScanResults } from '@/features/archiveScan/results';
+import { initScannedItems } from '@/features/archiveScan/results';
 import { initUpdateState } from '@/features/update/update';
 import { initUiScale } from '@/features/appearance/uiScale';
 import { isTauri } from '@tauri-apps/api/core';
@@ -74,7 +74,7 @@ async function initApp(): Promise<void> {
   await initArchiveContract();
   await initLogState();
   await initOeaSettings();
-  await initScanResults();
+  await initScannedItems();
   await initUiScale();
   await initUpdateState();
 }

@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::constants::{ARROW_RIGHT_ROI, NEXT_BUTTON_ROI, OCR_ROI, THRESHOLD};
-use super::correction::{CorrectionOverride, correct};
+use super::correction::{CorrectionOverride, match_with_correction};
 use super::plan::{category_id_of, page_type_of};
 use super::reporting::{ScanReporter, encode_png_data_url};
 use crate::data::ArchiveTitleIndex;
@@ -68,7 +68,8 @@ where
 
         // 2b. 纠错：在本子分类的候选标题中找最可能的档案
         let category_id = category_id_of(subscene);
-        let corrected = correct(archive_titles, category_id, &ocr_text, correction_overrides);
+        let corrected =
+            match_with_correction(archive_titles, category_id, &ocr_text, correction_overrides);
         match &corrected {
             Some(c) => info!(
                 "第 {} 份档案纠错为：{}（id: {}）",
