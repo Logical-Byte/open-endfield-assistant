@@ -206,6 +206,7 @@ const summary = computed(() => {
 
           <UButton
             color="error"
+            :disabled="phase === 'running' || phase === 'stopping'"
             icon="i-lucide-trash-2"
             label="清空"
             size="xs"
