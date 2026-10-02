@@ -40,9 +40,9 @@ impl ScreenshotFormat {
 #[tauri::command]
 pub fn start_automation(
     state: tauri::State<Controller>,
-    task_kind: automation::TaskKind,
+    request: automation::StartRequest,
 ) -> automation::Status {
-    state.start_automation(task_kind);
+    state.start_automation(request);
     state.automation_status()
 }
 

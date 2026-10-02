@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { simulateArchiveScan } from '@/features/archiveScan/workerType';
 import {
   developerInstallBusy,
   developerInstallTrace,
@@ -20,6 +21,13 @@ const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
       variant="subtle"
     />
   </div>
+  <SettingsItem
+    description="用固定示例结果调试档案扫描页面，无需游戏窗口。约 20 秒完成，可随时停止。重启应用后关闭。"
+    icon="i-lucide-scan-text"
+    title="模拟档案扫描"
+  >
+    <UCheckbox v-model="simulateArchiveScan" color="warning" label="使用模拟扫描结果" />
+  </SettingsItem>
   <SettingsItem
     description="从给定的 .zip 更新包运行一次原地更新流程。支持增量包和全量包。"
     icon="i-lucide-flask-conical"

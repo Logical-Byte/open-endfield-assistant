@@ -3342,6 +3342,7 @@ dependencies = [
  "bytes",
  "chrono",
  "clap",
+ "fastrand",
  "futures-util",
  "image",
  "imageproc 0.27.0",

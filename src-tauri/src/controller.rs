@@ -76,11 +76,21 @@ impl Controller {
     // ========== 启动 / 停止 / 退出 ==========
 
     /// 启动指定种类的自动化任务。
-    pub fn start_automation(&self, task_kind: automation::TaskKind) {
-        match task_kind {
-            automation::TaskKind::ArchiveScan => self
-                .automation_runtime
-                .start(task_kind, || Box::new(self.archive_scan_worker())),
+    pub(crate) fn start_automation(&self, request: automation::StartRequest) {
+        match request {
+            automation::StartRequest::ArchiveScan { worker_type } => {
+                self.automation_runtime
+                    .start(automation::TaskKind::ArchiveScan, || match worker_type {
+                        archive_scan::WorkerType::Production => {
+                            Box::new(self.archive_scan_worker())
+                        }
+                        archive_scan::WorkerType::Simulation => {
+                            Box::new(archive_scan::SimulatedArchiveScanWorker::new(Arc::clone(
+                                &self.app_data,
+                            )))
+                        }
+                    })
+            }
         }
     }
 
@@ -94,7 +104,9 @@ impl Controller {
         if self.automation_status().is_active() {
             self.stop_automation();
         } else {
-            self.start_automation(automation::TaskKind::ArchiveScan);
+            self.start_automation(automation::StartRequest::ArchiveScan {
+                worker_type: archive_scan::WorkerType::Production,
+            });
         }
     }
 

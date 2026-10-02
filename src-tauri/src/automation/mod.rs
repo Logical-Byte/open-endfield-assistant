@@ -38,3 +38,12 @@ pub use runtime::{LastRun, RunOutcome, Status};
 pub enum TaskKind {
     ArchiveScan,
 }
+
+#[derive(serde::Deserialize)]
+#[serde(tag = "taskKind", rename_all = "camelCase")]
+pub(crate) enum StartRequest {
+    ArchiveScan {
+        #[serde(rename = "workerType")]
+        worker_type: archive_scan::WorkerType,
+    },
+}
