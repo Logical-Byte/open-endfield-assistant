@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
-import type { ScannedItemCardProps } from '@/features/archiveScan/types/scannedItem';
-import { CollectType } from '@/features/archiveScan/types/scannedItem';
+import type { ArchiveScanResultCardProps } from '@/features/archiveScan/types/archiveScanResultCard';
+import { ArchiveScanCardStatus } from '@/features/archiveScan/types/archiveScanResultCard';
 import { openImagePreview } from '@/composables/image-preview';
 import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
 import {
@@ -11,8 +11,8 @@ import {
 } from '@/features/gameData/archiveQueries';
 import { computed, type CSSProperties } from 'vue';
 
-const { collectType, category, subCategory, imageUrl, title, archiveId } =
-  defineProps<ScannedItemCardProps>();
+const { status, category, subCategory, imageUrl, title, archiveId } =
+  defineProps<ArchiveScanResultCardProps>();
 
 const emit = defineEmits<{
   correct: [title: string];
@@ -95,10 +95,10 @@ const cropImageStyle: CSSProperties = {
   <UCard
     class="border-l-8"
     :class="{
-      'border-success': collectType === CollectType.Collected,
-      'border-warning': collectType === CollectType.Unrecognized,
-      'border-error': collectType === CollectType.Failed,
-      'border-(--ui-text-dimmed)': collectType === CollectType.NotCollected,
+      'border-success': status === ArchiveScanCardStatus.Matched,
+      'border-warning': status === ArchiveScanCardStatus.Unrecognized,
+      'border-error': status === ArchiveScanCardStatus.OcrFailed,
+      'border-(--ui-text-dimmed)': status === ArchiveScanCardStatus.NotMatched,
     }"
     :ui="{
       body: 'px-3! py-0!',
@@ -119,7 +119,7 @@ const cropImageStyle: CSSProperties = {
           v-if="imageUrl"
           class="relative w-full overflow-hidden"
           :class="{
-            'opacity-25': collectType === CollectType.Collected,
+            'opacity-25': status === ArchiveScanCardStatus.Matched,
           }"
           :style="cropContainerStyle"
           @click="
@@ -140,7 +140,7 @@ const cropImageStyle: CSSProperties = {
         <div v-else class="flex h-12 items-center justify-center bg-accented" />
         <!-- 图片预览右下角状态标记：已收集 / 需纠错 -->
         <UBadge
-          v-if="collectType === CollectType.Collected"
+          v-if="status === ArchiveScanCardStatus.Matched"
           class="absolute right-1 bottom-1"
           color="success"
           label="已收集"
@@ -148,7 +148,10 @@ const cropImageStyle: CSSProperties = {
           size="sm"
         />
         <UBadge
-          v-else-if="collectType === CollectType.Unrecognized || collectType === CollectType.Failed"
+          v-else-if="
+            status === ArchiveScanCardStatus.Unrecognized ||
+            status === ArchiveScanCardStatus.OcrFailed
+          "
           class="absolute right-1 bottom-1"
           color="error"
           label="需纠错"
@@ -156,7 +159,7 @@ const cropImageStyle: CSSProperties = {
           size="sm"
         />
         <UBadge
-          v-else-if="collectType === CollectType.NotCollected"
+          v-else-if="status === ArchiveScanCardStatus.NotMatched"
           class="absolute right-1 bottom-1"
           color="neutral"
           label="未收集"
@@ -166,7 +169,7 @@ const cropImageStyle: CSSProperties = {
       </div>
 
       <div class="min-w-0 flex-1">
-        <p v-if="collectType === CollectType.NotCollected" class="text-center">{{ title }}</p>
+        <p v-if="status === ArchiveScanCardStatus.NotMatched" class="text-center">{{ title }}</p>
         <div v-else class="flex flex-col">
           <!-- <p class="text-xs font-medium text-muted">标题识别纠错</p> -->
           <UInputMenu
@@ -182,7 +185,7 @@ const cropImageStyle: CSSProperties = {
 
       <div class="flex w-36 justify-center">
         <UButton
-          v-if="acquisitionMethod === 'map' && collectType === CollectType.Collected"
+          v-if="acquisitionMethod === 'map' && status === ArchiveScanCardStatus.Matched"
           class="text-muted"
           color="neutral"
           label="在 OEM 中查看"
@@ -192,7 +195,7 @@ const cropImageStyle: CSSProperties = {
           variant="outline"
         />
         <UButton
-          v-else-if="acquisitionMethod === 'map' && collectType === CollectType.NotCollected"
+          v-else-if="acquisitionMethod === 'map' && status === ArchiveScanCardStatus.NotMatched"
           label="前往 OEM 收集"
           target="_blank"
           :to="oemUrl ?? undefined"
@@ -201,7 +204,7 @@ const cropImageStyle: CSSProperties = {
         />
         <UButton
           v-else-if="acquisitionLabel"
-          :class="{ 'text-muted': collectType === CollectType.Collected }"
+          :class="{ 'text-muted': status === ArchiveScanCardStatus.Matched }"
           color="neutral"
           :label="acquisitionLabel"
           size="sm"

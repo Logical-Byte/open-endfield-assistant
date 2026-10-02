@@ -1,3 +1,4 @@
+/** 当前扫描记录的匹配状态。 */
 export type ScannedItemStatus = 'success' | 'unrecognized' | 'failed';
 
 /** 单份档案的扫描结果（与 Rust 侧 `ScannedItem` 对齐）。 */
@@ -16,22 +17,4 @@ export interface ScannedItem {
   correctedTitle: string | null;
   /** 纠错命中的档案 id（allItems 的 id，当前小分类下同标题多条时返回全部） */
   correctedMatchItemIds: readonly string[];
-}
-
-export enum CollectType {
-  Collected,
-  Unrecognized,
-  Failed,
-  NotCollected,
-}
-
-export interface ScannedItemCardProps {
-  collectType: CollectType;
-  category: string;
-  subCategory: string;
-  imageUrl: string | null;
-  title: string;
-  archiveId: string | null;
-  /** 对应的扫描结果对象（未收集卡片为 null，不可纠错） */
-  scannedItem: ScannedItem | null;
 }

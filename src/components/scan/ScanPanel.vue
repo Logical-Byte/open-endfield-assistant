@@ -1,19 +1,23 @@
 <script setup lang="ts">
 import {
-  CollectType,
-  ScannedItem,
-  ScannedItemCardProps,
-  ScannedItemStatus,
-} from '@/features/archiveScan/types/scannedItem';
+  ArchiveScanCardStatus,
+  ArchiveScanResultCardProps,
+} from '@/features/archiveScan/types/archiveScanResultCard';
+import type { ScannedItemStatus } from '@/features/archiveScan/types/scannedItem';
 import { useAutomationTask, type CommandResult } from '@/features/automation/useAutomationTask';
 import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
-import { applyCorrection } from '@/features/archiveScan/correction';
 import { exportToOem } from '@/features/archiveScan/exportOem';
 import { prtsData } from '@/features/gameData/prtsData';
-import { clearScannedItems, scannedItems, scanError } from '@/features/archiveScan/results';
+import {
+  clearScannedItems,
+  correctScannedItem,
+  scannedItems,
+  scanError,
+  type ScannedItemRecord,
+} from '@/features/archiveScan/scannedItems';
 import { deriveArchiveCollection } from '@/features/archiveScan/collection';
 import { archiveScanWorkerType } from '@/features/archiveScan/workerType';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, type ComputedRef, type DeepReadonly } from 'vue';
 
 const { phase, isActive, canStart, canStop, tryStart, tryStop } = useAutomationTask('archiveScan');
 
@@ -44,23 +48,15 @@ watch(scanError, () => {
   scanErrorDismissed.value = false;
 });
 
-function statusToCollectType(status: ScannedItemStatus): CollectType {
+function toCardStatus(status: ScannedItemStatus): ArchiveScanCardStatus {
   switch (status) {
     case 'success':
-      return CollectType.Collected;
+      return ArchiveScanCardStatus.Matched;
     case 'unrecognized':
-      return CollectType.Unrecognized;
+      return ArchiveScanCardStatus.Unrecognized;
     case 'failed':
-      return CollectType.Failed;
+      return ArchiveScanCardStatus.OcrFailed;
   }
-}
-
-/** 应用人工纠错：更新对应扫描结果（标记为已收集或无法识别）。 */
-function onCorrect(scannedItem: ScannedItem | null, title: string): void {
-  if (scannedItem === null) {
-    return;
-  }
-  applyCorrection(scannedItem, title);
 }
 
 const hideCollected = ref(false);
@@ -71,67 +67,79 @@ function isNotObtainableInOverworld(archiveId: string | null): boolean {
   return archiveId !== null && getAcquisitionMethod(archiveId) !== 'map';
 }
 
-const filteredScannedItems = computed<ScannedItemCardProps[]>(() => {
-  const result: ScannedItemCardProps[] = [];
-  for (const scannedItem of scannedItems.value) {
-    if (scannedItem.status === 'success') {
-      continue;
-    }
-    result.push({
-      collectType: statusToCollectType(scannedItem.status),
-      category: scannedItem.foundInCategory,
-      subCategory: scannedItem.foundInSubCategory,
-      imageUrl: scannedItem.image,
-      title: scannedItem.correctedTitle ?? scannedItem.ocrResult,
-      archiveId: scannedItem.correctedMatchItemIds[0] ?? null,
-      scannedItem,
-    });
-  }
-
-  for (const { categoryId, id, title, type } of Object.values(prtsData.value?.allItems ?? {})) {
-    // 隐藏无法在大世界中获取的档案（获取方式非地图交互点位）
-    if (hideNotObtainableInOverworld.value && isNotObtainableInOverworld(id)) {
-      continue;
-    }
-    const maybeScannedItem = scannedItems.value.find((r) => r.correctedMatchItemIds.includes(id));
-    if (maybeScannedItem !== undefined) {
-      if (hideCollected.value && maybeScannedItem.status === 'success') {
+const filteredResultCards: ComputedRef<ArchiveScanResultCardProps[]> = computed(
+  (): ArchiveScanResultCardProps[] => {
+    const result: ArchiveScanResultCardProps[] = [];
+    for (const scannedItem of scannedItems.value) {
+      if (scannedItem.status === 'success') {
         continue;
       }
       result.push({
-        collectType: statusToCollectType(maybeScannedItem.status),
-        category: maybeScannedItem.foundInCategory,
-        subCategory: maybeScannedItem.foundInSubCategory,
-        imageUrl: maybeScannedItem.image,
-        title: maybeScannedItem.correctedTitle ?? title,
-        archiveId: id,
-        scannedItem: maybeScannedItem,
-      });
-    } else {
-      result.push({
-        collectType: CollectType.NotCollected,
-        category: type,
-        subCategory: categoryId,
-        imageUrl: null,
-        title,
-        archiveId: id,
-        scannedItem: null,
+        status: toCardStatus(scannedItem.status),
+        category: scannedItem.foundInCategory,
+        subCategory: scannedItem.foundInSubCategory,
+        imageUrl: scannedItem.image,
+        title: scannedItem.correctedTitle ?? scannedItem.ocrResult,
+        archiveId: scannedItem.correctedMatchItemIds[0] ?? null,
+        scannedItemId: scannedItem.scannedItemId,
       });
     }
-  }
-  return result;
-});
+
+    for (const { categoryId, id, title, type } of Object.values(prtsData.value?.allItems ?? {})) {
+      // 隐藏无法在大世界中获取的档案（获取方式非地图交互点位）
+      if (hideNotObtainableInOverworld.value && isNotObtainableInOverworld(id)) {
+        continue;
+      }
+      const maybeScannedItem: DeepReadonly<ScannedItemRecord> | undefined = scannedItems.value.find(
+        (item: DeepReadonly<ScannedItemRecord>): boolean => item.correctedMatchItemIds.includes(id),
+      );
+      if (maybeScannedItem !== undefined) {
+        if (hideCollected.value && maybeScannedItem.status === 'success') {
+          continue;
+        }
+        result.push({
+          status: toCardStatus(maybeScannedItem.status),
+          category: maybeScannedItem.foundInCategory,
+          subCategory: maybeScannedItem.foundInSubCategory,
+          imageUrl: maybeScannedItem.image,
+          title: maybeScannedItem.correctedTitle ?? title,
+          archiveId: id,
+          scannedItemId: maybeScannedItem.scannedItemId,
+        });
+      } else {
+        result.push({
+          status: ArchiveScanCardStatus.NotMatched,
+          category: type,
+          subCategory: categoryId,
+          imageUrl: null,
+          title,
+          archiveId: id,
+          scannedItemId: null,
+        });
+      }
+    }
+    return result;
+  },
+);
 /**
  * 扫描结果统计（与导出到地图集口径一致：同一小分类下同标题档案只要有一个已收集，该组全部视为已收集）。
  * 已收集 / 未收集为档案数，识别错误为扫描失败（failed / unrecognized）条数。
  */
-const summary = computed(() => {
+interface ScanSummary {
+  notSuccessCount: number;
+  notCollectedCount: number;
+  collectedCount: number;
+}
+
+const summary: ComputedRef<ScanSummary> = computed((): ScanSummary => {
   const collection = deriveArchiveCollection(prtsData.value?.allItems ?? {}, scannedItems.value);
-  const error = scannedItems.value.filter((result) => result.status !== 'success').length;
+  const notSuccessCount: number = scannedItems.value.filter(
+    (item: DeepReadonly<ScannedItemRecord>): boolean => item.status !== 'success',
+  ).length;
   return {
-    error,
-    notCollected: collection.notCollectedIds.length,
-    collected: collection.collectedIds.length,
+    notSuccessCount,
+    notCollectedCount: collection.notCollectedIds.length,
+    collectedCount: collection.collectedIds.length,
   };
 });
 </script>
@@ -181,13 +189,13 @@ const summary = computed(() => {
             <p class="text-sm font-medium">扫描结果</p>
             <div class="flex items-center gap-1.5">
               <span class="rounded bg-error/10 px-1.5 py-0.5 text-xs text-error">
-                识别错误 {{ summary.error }}
+                识别错误 {{ summary.notSuccessCount }}
               </span>
               <span class="rounded bg-elevated px-1.5 py-0.5 text-xs text-muted">
-                未收集 {{ summary.notCollected }}
+                未收集 {{ summary.notCollectedCount }}
               </span>
               <span class="rounded bg-success/10 px-1.5 py-0.5 text-xs text-success">
-                已收集 {{ summary.collected }}
+                已收集 {{ summary.collectedCount }}
               </span>
             </div>
           </div>
@@ -214,14 +222,17 @@ const summary = computed(() => {
         <UScrollArea
           v-slot="{ item }"
           class="flex-1 scrollbar-gutter-stable p-1"
-          :items="filteredScannedItems"
+          :items="filteredResultCards"
           :virtualize="{
             estimateSize: 56,
             skipMeasurement: true,
             overscan: 8,
           }"
         >
-          <ScannedItemCard v-bind="item" @correct="onCorrect(item.scannedItem, $event)" />
+          <ArchiveScanResultCard
+            v-bind="item"
+            @correct="item.scannedItemId !== null && correctScannedItem(item.scannedItemId, $event)"
+          />
         </UScrollArea>
       </div>
     </div>

@@ -5,7 +5,7 @@
 
 import type { UploadData } from '@/features/archiveScan/types/upload';
 import { prtsData } from '@/features/gameData/prtsData';
-import { scannedItems } from '@/features/archiveScan/results';
+import { scannedItems } from '@/features/archiveScan/scannedItems';
 import { deriveArchiveCollection } from '@/features/archiveScan/collection';
 import { logDebug, logError, logInfo } from '@/features/log/ipc';
 import { oeaVersion } from '@/version';

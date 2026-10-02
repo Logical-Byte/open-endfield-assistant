@@ -11,7 +11,7 @@ import {
 } from '@/features/settings/settings';
 import { initLogState } from '@/features/log/logState';
 import { initPrtsData } from '@/features/gameData/prtsData';
-import { initScannedItems } from '@/features/archiveScan/results';
+import { initScannedItems } from '@/features/archiveScan/scannedItems';
 import { initUpdateState } from '@/features/update/update';
 import { initUiScale } from '@/features/appearance/uiScale';
 import { isTauri } from '@tauri-apps/api/core';
