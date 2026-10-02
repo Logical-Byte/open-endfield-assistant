@@ -1,5 +1,6 @@
 import type { PrtsAllItem } from '@/features/gameData/types/prts';
 import type { ScannedItem } from '@/features/archiveScan/types/scannedItem';
+import { deriveArchiveMatching, type ArchiveMatching } from './matching';
 
 export interface ArchiveCollection {
   collectedIds: string[];
@@ -16,33 +17,12 @@ export function deriveArchiveCollection(
   allItems: Record<string, PrtsAllItem>,
   scannedItems: readonly ScannedItem[],
 ): ArchiveCollection {
-  const collected = new Set<string>();
-  for (const result of scannedItems) {
-    if (result.status === 'success') {
-      for (const id of result.correctedMatchItemIds) {
-        collected.add(id);
-      }
-    }
-  }
-
-  const idsByCategoryAndTitle = new Map<string, string[]>();
-  for (const item of Object.values(allItems)) {
-    const key = JSON.stringify([item.categoryId, item.title]);
-    const ids = idsByCategoryAndTitle.get(key) ?? [];
-    ids.push(item.id);
-    idsByCategoryAndTitle.set(key, ids);
-  }
-  for (const ids of idsByCategoryAndTitle.values()) {
-    if (ids.some((id) => collected.has(id))) {
-      for (const id of ids) {
-        collected.add(id);
-      }
-    }
-  }
-
-  const allIds = Object.keys(allItems);
+  const matching: ArchiveMatching<ScannedItem> = deriveArchiveMatching(allItems, scannedItems);
+  const allIds: string[] = Object.keys(allItems);
   return {
-    collectedIds: allIds.filter((id) => collected.has(id)),
-    notCollectedIds: allIds.filter((id) => !collected.has(id)),
+    collectedIds: allIds.filter((id: string): boolean => matching.matchedByArchiveId[id] !== null),
+    notCollectedIds: allIds.filter(
+      (id: string): boolean => matching.matchedByArchiveId[id] === null,
+    ),
   };
 }
