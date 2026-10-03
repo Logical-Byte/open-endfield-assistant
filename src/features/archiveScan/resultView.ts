@@ -1,39 +1,35 @@
 import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
-import type { PrtsAllItem, PrtsData } from '@/features/gameData/types/prts';
-import type { ScannedItemRecord } from './scannedItems';
-import { deriveArchiveMatching, type ArchiveMatching } from './matching';
-import {
-  ArchiveScanCardStatus,
-  type ArchiveScanResultCardProps,
-} from './types/archiveScanResultCard';
+import type { PrtsData } from '@/features/gameData/types/prts';
+import type { ArchiveId, ScannedItemRecord } from './types/scannedItem';
+import { deriveArchiveMatching } from './matching';
 
-export interface ArchiveScanSummary {
-  notSuccessCount: number;
-  notCollectedCount: number;
-  collectedCount: number;
+export interface ArchiveDetails {
+  readonly id: ArchiveId;
+  readonly title: string;
+  readonly category: string;
+  readonly categoryLabel: string;
+  readonly acquisitionMethod: ArchiveAcquisitionMethod | null;
+  readonly acquisitionLabel: string | null;
+  readonly oemUrl: string;
+  readonly intelUrl: string;
+}
+
+export interface ArchiveEntryView extends ArchiveDetails {
+  readonly scans: readonly Readonly<ScannedItemRecord>[];
+}
+
+export interface ScannedItemView extends Readonly<ScannedItemRecord> {
+  readonly categoryLabel: string;
+  readonly candidates: readonly string[];
+  readonly archives: readonly ArchiveDetails[];
 }
 
 export interface ArchiveScanView {
-  cards: ArchiveScanResultCardProps[];
-  summary: ArchiveScanSummary;
+  readonly archives: readonly ArchiveEntryView[];
+  readonly scans: readonly ScannedItemView[];
 }
 
-export interface ArchiveScanFilters {
-  hideCollected: boolean;
-  hideNotObtainableInOverworld: boolean;
-}
-
-interface CardDetails {
-  status: ArchiveScanCardStatus;
-  category: string;
-  subCategory: string;
-  imageUrl: string | null;
-  title: string;
-  archiveId: string | null;
-  scannedItemId: number | null;
-}
-
-const ACQUISITION_METHOD_LABELS: Record<ArchiveAcquisitionMethod, string> = {
+const acquisitionLabels: Record<ArchiveAcquisitionMethod, string> = {
   map: '地图拾取',
   mission: '跟随任务',
   auto: '自动解锁',
@@ -41,106 +37,46 @@ const ACQUISITION_METHOD_LABELS: Record<ArchiveAcquisitionMethod, string> = {
   invstgt: '报告摘要',
 };
 
-function archiveUrl(base: string, archiveId: string | null): string | null {
-  if (archiveId === null) return null;
-  const url: URL = new URL(base);
-  url.searchParams.set('type', archiveId);
-  return url.toString();
-}
-
-/** 先展示待纠错记录，再按目录顺序展示档案。统计不受可见性筛选影响。 */
+/** 两种展示数据共享一次匹配计算，档案目录始终来自 ground truth。 */
 export function deriveArchiveScanView(
   data: PrtsData | null,
   methodByArchiveId: ReadonlyMap<string, ArchiveAcquisitionMethod>,
-  scannedItems: readonly Readonly<ScannedItemRecord>[],
+  scans: readonly Readonly<ScannedItemRecord>[],
 ): ArchiveScanView {
-  const allItems: Record<string, PrtsAllItem> = data?.allItems ?? {};
-  const matching: ArchiveMatching<Readonly<ScannedItemRecord>> = deriveArchiveMatching(
-    allItems,
-    scannedItems,
-  );
-  const titlesByCategory: Map<string, string[]> = new Map();
-  for (const archive of Object.values(allItems)) {
-    const titles: string[] = titlesByCategory.get(archive.categoryId) ?? [];
-    titles.push(archive.title);
+  const allItems = data?.allItems ?? {};
+  const matching = deriveArchiveMatching(allItems, scans);
+  const titlesByCategory = new Map<string, Set<string>>();
+  const archiveById = new Map<ArchiveId, ArchiveEntryView>();
+  function categoryLabel(page: string, category: string): string {
+    return `${data?.PrtsPage[page]?.name ?? page} · ${data?.PrtsCategory[category]?.name ?? category}`;
+  }
+  for (const [key, archive] of Object.entries(allItems)) {
+    const id = key as ArchiveId;
+    const method = methodByArchiveId.get(id) ?? null;
+    const titles = titlesByCategory.get(archive.categoryId) ?? new Set<string>();
+    titles.add(archive.title);
     titlesByCategory.set(archive.categoryId, titles);
-  }
-
-  function makeCard(details: CardDetails): ArchiveScanResultCardProps {
-    const { category, subCategory, ...display }: CardDetails = details;
-    const method: ArchiveAcquisitionMethod | null =
-      details.archiveId === null ? null : (methodByArchiveId.get(details.archiveId) ?? null);
-    return {
-      ...display,
-      categoryLabel:
-        category && subCategory
-          ? `${data?.PrtsPage[category]?.name ?? category} − ${data?.PrtsCategory[subCategory]?.name ?? subCategory}`
-          : null,
-      candidates: titlesByCategory.get(subCategory) ?? [],
+    archiveById.set(id, {
+      id,
+      title: archive.title,
+      category: archive.categoryId,
+      categoryLabel: categoryLabel(archive.type, archive.categoryId),
       acquisitionMethod: method,
-      acquisitionLabel:
-        method !== null && method !== 'map' ? ACQUISITION_METHOD_LABELS[method] : null,
-      oemUrl: archiveUrl('https://oem.re/', details.archiveId),
-      intelUrl: archiveUrl('https://opendfieldmap.org/intel/', details.archiveId),
-    };
-  }
-
-  const cards: ArchiveScanResultCardProps[] = [];
-  for (const item of matching.unmatchedItems) {
-    cards.push(
-      makeCard({
-        status:
-          item.status === 'failed'
-            ? ArchiveScanCardStatus.OcrFailed
-            : ArchiveScanCardStatus.Unrecognized,
-        category: item.foundInCategory,
-        subCategory: item.foundInSubCategory,
-        imageUrl: item.image,
-        title: item.correctedTitle ?? item.ocrResult,
-        archiveId: item.correctedMatchItemIds[0] ?? null,
-        scannedItemId: item.scannedItemId,
-      }),
-    );
-  }
-
-  let collectedCount: number = 0;
-  for (const [id, archive] of Object.entries(allItems)) {
-    const matched: Readonly<ScannedItemRecord> | null = matching.matchedByArchiveId[id]!;
-    if (matched !== null) collectedCount++;
-    cards.push(
-      makeCard({
-        status: matched === null ? ArchiveScanCardStatus.NotMatched : ArchiveScanCardStatus.Matched,
-        category: archive.type,
-        subCategory: archive.categoryId,
-        imageUrl: matched?.image ?? null,
-        title: matched?.correctedTitle ?? archive.title,
-        archiveId: id,
-        scannedItemId: matched?.scannedItemId ?? null,
-      }),
-    );
+      acquisitionLabel: method === null ? null : acquisitionLabels[method],
+      oemUrl: `https://oem.re/?type=${encodeURIComponent(id)}`,
+      intelUrl: `https://opendfieldmap.org/intel/?type=${encodeURIComponent(id)}`,
+      scans: matching.scansByArchiveId.get(id) ?? [],
+    });
   }
   return {
-    cards,
-    summary: {
-      notSuccessCount: matching.unmatchedItems.length,
-      notCollectedCount: Object.keys(allItems).length - collectedCount,
-      collectedCount,
-    },
+    archives: [...archiveById.values()],
+    scans: scans.map((scan): ScannedItemView => ({
+      ...scan,
+      categoryLabel: categoryLabel(scan.foundInCategory, scan.foundInSubCategory),
+      candidates: [...(titlesByCategory.get(scan.foundInSubCategory) ?? [])],
+      archives: (matching.archiveIdsByScan.get(scan) ?? []).map((id): ArchiveDetails =>
+        archiveById.get(id)!,
+      ),
+    })),
   };
-}
-
-/** 可见性筛选只针对目录档案，待纠错记录始终保留。 */
-export function filterArchiveScanCards(
-  cards: readonly ArchiveScanResultCardProps[],
-  filters: ArchiveScanFilters,
-): ArchiveScanResultCardProps[] {
-  return cards.filter((card: ArchiveScanResultCardProps): boolean => {
-    if (
-      card.status === ArchiveScanCardStatus.Unrecognized ||
-      card.status === ArchiveScanCardStatus.OcrFailed
-    )
-      return true;
-    if (filters.hideCollected && card.status === ArchiveScanCardStatus.Matched) return false;
-    return !filters.hideNotObtainableInOverworld || card.acquisitionMethod === 'map';
-  });
 }

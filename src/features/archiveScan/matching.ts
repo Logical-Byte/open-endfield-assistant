@@ -1,35 +1,39 @@
 import type { PrtsAllItem } from '@/features/gameData/types/prts';
-import type { ScannedItem } from './types/scannedItem';
+import type { ArchiveId, ScannedItem } from './types/scannedItem';
 
 export interface ArchiveMatching<T extends ScannedItem> {
-  matchedByArchiveId: Record<string, T | null>;
-  unmatchedItems: T[];
+  readonly scansByArchiveId: ReadonlyMap<ArchiveId, readonly T[]>;
+  readonly archiveIdsByScan: ReadonlyMap<T, readonly ArchiveId[]>;
 }
 
-/** 同小分类、同标题共享最早的成功记录。保留输入记录类型，供卡片读取前端 ID。 */
+/** 同小分类、同标题共享成功扫描证据，保留全部记录及双向关系。 */
 export function deriveArchiveMatching<T extends ScannedItem>(
   allItems: Record<string, PrtsAllItem>,
   scannedItems: readonly T[],
 ): ArchiveMatching<T> {
-  const firstMatchByGroup: Map<string, T> = new Map();
-  const unmatchedItems: T[] = [];
-  for (const scannedItem of scannedItems) {
-    if (scannedItem.status !== 'success') {
-      unmatchedItems.push(scannedItem);
-      continue;
+  const scansByGroup = new Map<string, T[]>();
+  for (const scan of scannedItems) {
+    if (scan.status !== 'success') continue;
+    const groups = new Set<string>();
+    for (const id of scan.correctedMatchItemIds) {
+      const archive = allItems[id];
+      if (archive) groups.add(JSON.stringify([archive.categoryId, archive.title]));
     }
-    for (const id of scannedItem.correctedMatchItemIds) {
-      const archive: PrtsAllItem | undefined = allItems[id];
-      if (archive === undefined) continue;
-      const key: string = JSON.stringify([archive.categoryId, archive.title]);
-      if (!firstMatchByGroup.has(key)) firstMatchByGroup.set(key, scannedItem);
+    for (const group of groups) {
+      const scans = scansByGroup.get(group) ?? [];
+      scans.push(scan);
+      scansByGroup.set(group, scans);
     }
   }
 
-  const matchedByArchiveId: Record<string, T | null> = {};
-  for (const [id, archive] of Object.entries(allItems)) {
-    const key: string = JSON.stringify([archive.categoryId, archive.title]);
-    matchedByArchiveId[id] = firstMatchByGroup.get(key) ?? null;
+  const scansByArchiveId = new Map<ArchiveId, readonly T[]>();
+  const archiveIdsByScan = new Map<T, ArchiveId[]>();
+  for (const scan of scannedItems) archiveIdsByScan.set(scan, []);
+  for (const [key, archive] of Object.entries(allItems)) {
+    const id = key as ArchiveId;
+    const scans = scansByGroup.get(JSON.stringify([archive.categoryId, archive.title])) ?? [];
+    scansByArchiveId.set(id, scans);
+    for (const scan of scans) archiveIdsByScan.get(scan)!.push(id);
   }
-  return { matchedByArchiveId, unmatchedItems };
+  return { scansByArchiveId, archiveIdsByScan };
 }

@@ -1,10 +1,10 @@
 import type { PrtsAllItem } from '@/features/gameData/types/prts';
-import type { ScannedItem } from '@/features/archiveScan/types/scannedItem';
+import type { ArchiveId, ScannedItem } from '@/features/archiveScan/types/scannedItem';
 import { deriveArchiveMatching, type ArchiveMatching } from './matching';
 
 export interface ArchiveCollection {
-  collectedIds: string[];
-  notCollectedIds: string[];
+  collectedIds: ArchiveId[];
+  notCollectedIds: ArchiveId[];
 }
 
 /**
@@ -18,11 +18,13 @@ export function deriveArchiveCollection(
   scannedItems: readonly ScannedItem[],
 ): ArchiveCollection {
   const matching: ArchiveMatching<ScannedItem> = deriveArchiveMatching(allItems, scannedItems);
-  const allIds: string[] = Object.keys(allItems);
+  const allIds = Object.keys(allItems) as ArchiveId[];
   return {
-    collectedIds: allIds.filter((id: string): boolean => matching.matchedByArchiveId[id] !== null),
+    collectedIds: allIds.filter(
+      (id: ArchiveId): boolean => (matching.scansByArchiveId.get(id)?.length ?? 0) > 0,
+    ),
     notCollectedIds: allIds.filter(
-      (id: string): boolean => matching.matchedByArchiveId[id] === null,
+      (id: ArchiveId): boolean => (matching.scansByArchiveId.get(id)?.length ?? 0) === 0,
     ),
   };
 }
