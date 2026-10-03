@@ -122,9 +122,6 @@ impl SettingsStore {
 
     /// 保存完整设置。文件提交成功后才会发布新的内存快照。
     pub fn save(&self, settings: OeaSettings) -> Result<()> {
-        settings
-            .essence_scan
-            .validate(crate::essence::Catalog::bundled())?;
         self.file.replace(settings)
     }
 

@@ -1,7 +1,7 @@
 //! 静态数据文件统一管理。
 //!
 //! 集中加载 `resources/data/` 下的运行时数据文件（如 `prts.json`、
-//! `archive_contract.json`），统一读取、解析、日志与错误处理。
+//! `archive_contract.json`、`essence_catalog.json`），统一读取、解析、日志与错误处理。
 //!
 //! 应用启动时调用 [`AppData::load`] 一次，之后各模块只读共享（E1 严格策略：
 //! 任一数据文件缺失或损坏即视为致命错误，启动失败并指明是哪个文件）。
@@ -13,7 +13,7 @@ use anyhow::{Context, Result};
 use serde::de::DeserializeOwned;
 use tracing::info;
 
-use crate::app_paths::AppPaths;
+use crate::{app_paths::AppPaths, essence};
 
 pub(crate) mod archive_title_index;
 pub(crate) mod schema;
@@ -42,6 +42,8 @@ pub struct AppData {
     archive_contract: ArchiveContract,
     /// 档案标题索引（启动时从 prts.json 派生构建一次）
     archive_titles: ArchiveTitleIndex,
+    /// 基质属性与武器目录（essence_catalog.json，供规则评估与前端设置共用）
+    essence_catalog: essence::Catalog,
 }
 
 impl AppData {
@@ -56,10 +58,19 @@ impl AppData {
         let row_count: usize = archive_contract.categories.values().map(Vec::len).sum();
         info!("已加载 archive_contract.json（{} 条获取契约）", row_count);
 
+        let essence_catalog =
+            load_resource_json::<essence::Catalog>(app_paths, "data/essence_catalog.json")?;
+        info!(
+            "已加载 essence_catalog.json（{} 个属性，{} 把武器）",
+            essence_catalog.stats.len(),
+            essence_catalog.weapons.len()
+        );
+
         Ok(Self {
             prts,
             archive_contract,
             archive_titles,
+            essence_catalog,
         })
     }
 
@@ -76,5 +87,10 @@ impl AppData {
     /// 档案标题索引。
     pub fn archive_titles(&self) -> &ArchiveTitleIndex {
         &self.archive_titles
+    }
+
+    /// 基质属性与武器目录。
+    pub fn essence_catalog(&self) -> &essence::Catalog {
+        &self.essence_catalog
     }
 }

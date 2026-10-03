@@ -13,7 +13,7 @@ use crate::{
     automation,
     controller::Controller,
     data::{ArchiveContract, PrtsData},
-    platform, settings,
+    essence, platform, settings,
 };
 
 /// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
@@ -41,9 +41,11 @@ impl ScreenshotFormat {
 pub fn start_automation(
     state: tauri::State<Controller>,
     request: automation::StartRequest,
-) -> automation::Status {
-    state.start_automation(request);
-    state.automation_status()
+) -> Result<automation::Status, String> {
+    state
+        .start_automation(request)
+        .map_err(|error| format!("{error:#}"))?;
+    Ok(state.automation_status())
 }
 
 /// 请求停止当前自动化任务。
@@ -61,8 +63,8 @@ pub fn get_automation_status(state: tauri::State<Controller>) -> automation::Sta
 
 /// 基质规则编辑与结果展示共用的只读属性、武器目录。
 #[tauri::command]
-pub fn get_essence_catalog() -> &'static crate::essence::Catalog {
-    crate::essence::Catalog::bundled()
+pub fn get_essence_catalog<'a>(state: tauri::State<'a, Controller>) -> &'a essence::Catalog {
+    state.inner().essence_catalog()
 }
 
 /// 返回 `prts.json` 完整数据（前端用于分类中文名映射与自动补全候选）。
@@ -136,8 +138,8 @@ pub fn save_oea_settings(
         "正在保存设置 {oea_settings:?} 到 {}",
         store.path().display()
     );
-    store.save(oea_settings).map_err(|e| {
-        error!("保存设置文件失败: {e:#}");
+    state.save_settings(oea_settings).map_err(|e| {
+        error!("保存设置失败: {e:#}");
         format!("{e:#}")
     })?;
     info!("已成功保存设置到 {}", store.path().display());

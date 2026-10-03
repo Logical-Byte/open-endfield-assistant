@@ -2,8 +2,6 @@
 
 mod evaluation;
 
-use std::sync::OnceLock;
-
 use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
 
@@ -17,14 +15,6 @@ pub struct Catalog {
 }
 
 impl Catalog {
-    pub fn bundled() -> &'static Self {
-        static CATALOG: OnceLock<Catalog> = OnceLock::new();
-        CATALOG.get_or_init(|| {
-            serde_json::from_str(include_str!("../../../resources/data/essence_catalog.json"))
-                .expect("内置基质与武器数据应当有效")
-        })
-    }
-
     fn stat(&self, id: &str) -> Option<&Stat> {
         self.stats.iter().find(|stat| stat.id == id)
     }

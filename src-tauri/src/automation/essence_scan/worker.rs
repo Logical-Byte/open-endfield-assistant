@@ -9,7 +9,8 @@ use crate::{
         session::Session,
         stats::counts::Capture,
     },
-    essence, platform, settings, vision,
+    data::AppData,
+    platform, settings, vision,
 };
 
 use super::workflow;
@@ -17,28 +18,25 @@ use super::workflow;
 pub(crate) struct EssenceScanWorker {
     settings: settings::OeaSettings,
     ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
+    app_data: Arc<AppData>,
 }
 
 impl EssenceScanWorker {
     pub(crate) fn new(
         settings: settings::OeaSettings,
         ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
+        app_data: Arc<AppData>,
     ) -> Self {
-        Self { settings, ocr }
+        Self {
+            settings,
+            ocr,
+            app_data,
+        }
     }
 }
 
 impl Worker for EssenceScanWorker {
     fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> WorkerExit {
-        if let Err(error) = self
-            .settings
-            .essence_scan
-            .validate(essence::Catalog::bundled())
-        {
-            return WorkerExit::without_capture(FinishReason::Failed(format!(
-                "基质扫描设置无效: {error:#}"
-            )));
-        }
         let mut session = match Session::connect(&self.ocr, Arc::clone(&stop)) {
             Ok(session) => session,
             Err(_) if is_stop_requested(&stop) => {
@@ -64,7 +62,12 @@ impl Worker for EssenceScanWorker {
         }
 
         let mut captured = Capture::new(&mut session);
-        let result = workflow::scan(&mut captured, &self.settings.essence_scan, events.as_ref());
+        let result = workflow::scan(
+            &mut captured,
+            &self.settings.essence_scan,
+            self.app_data.essence_catalog(),
+            events.as_ref(),
+        );
         let capture = captured.finish();
         let reason = match result {
             Ok(()) => FinishReason::Completed,

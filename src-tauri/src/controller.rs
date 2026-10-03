@@ -7,12 +7,14 @@
 
 use std::sync::{Arc, Mutex};
 
+use anyhow::{Context, Result};
 use tauri::{AppHandle, Manager};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     automation::{self, archive_scan, essence_scan},
     data::{AppData, ArchiveContract, PrtsData},
+    essence,
     navigation::Navigator,
     settings, vision,
 };
@@ -27,7 +29,7 @@ pub struct Controller {
     navigator: Arc<Navigator>,
     /// 全局唯一自动化任务运行时
     automation_runtime: Arc<automation::Runtime>,
-    /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
+    /// 静态数据（档案数据、纠错索引与基质目录，启动时统一加载）
     app_data: Arc<AppData>,
 }
 
@@ -58,6 +60,15 @@ impl Controller {
         self.settings_store.snapshot()
     }
 
+    /// 校验依赖静态数据的规则后持久化完整设置。
+    pub fn save_settings(&self, settings: settings::OeaSettings) -> Result<()> {
+        settings
+            .essence_scan
+            .validate(self.app_data.essence_catalog())
+            .context("基质扫描设置无效")?;
+        self.settings_store.save(settings)
+    }
+
     /// 读取当前自动化状态，空闲状态包含最近一次运行的结束信息。
     pub fn automation_status(&self) -> automation::Status {
         self.automation_runtime.status()
@@ -73,10 +84,15 @@ impl Controller {
         self.app_data.archive_contract()
     }
 
+    /// 返回基质属性与武器目录，供前端编辑规则和展示结果。
+    pub fn essence_catalog(&self) -> &essence::Catalog {
+        self.app_data.essence_catalog()
+    }
+
     // ========== 启动 / 停止 / 退出 ==========
 
     /// 启动指定种类的自动化任务。
-    pub(crate) fn start_automation(&self, request: automation::StartRequest) {
+    pub(crate) fn start_automation(&self, request: automation::StartRequest) -> Result<()> {
         match request {
             automation::StartRequest::ArchiveScan { worker_type } => {
                 self.automation_runtime
@@ -92,25 +108,30 @@ impl Controller {
                     })
             }
             automation::StartRequest::EssenceScan { worker_type } => {
+                let settings = self.settings_store.snapshot();
+                settings
+                    .essence_scan
+                    .validate(self.app_data.essence_catalog())
+                    .context("基质扫描设置无效")?;
                 self.automation_runtime
-                    .start(automation::TaskKind::EssenceScan, || {
-                        let settings = self.settings_store.snapshot();
-                        match worker_type {
-                            essence_scan::WorkerType::Production => {
-                                Box::new(essence_scan::EssenceScanWorker::new(
-                                    settings,
-                                    Arc::clone(&self.ocr),
-                                ))
-                            }
-                            essence_scan::WorkerType::Simulation => {
-                                Box::new(essence_scan::SimulatedEssenceScanWorker::new(
-                                    settings.essence_scan,
-                                ))
-                            }
+                    .start(automation::TaskKind::EssenceScan, || match worker_type {
+                        essence_scan::WorkerType::Production => {
+                            Box::new(essence_scan::EssenceScanWorker::new(
+                                settings,
+                                Arc::clone(&self.ocr),
+                                Arc::clone(&self.app_data),
+                            ))
+                        }
+                        essence_scan::WorkerType::Simulation => {
+                            Box::new(essence_scan::SimulatedEssenceScanWorker::new(
+                                settings.essence_scan,
+                                Arc::clone(&self.app_data),
+                            ))
                         }
                     })
             }
         }
+        Ok(())
     }
 
     /// 请求停止当前自动化任务（原子置位，由任务内部轮询实现优雅停止）。
@@ -122,10 +143,10 @@ impl Controller {
     pub fn toggle_archive_scan(&self) {
         if self.automation_status().is_active() {
             self.stop_automation();
-        } else {
-            self.start_automation(automation::StartRequest::ArchiveScan {
-                worker_type: archive_scan::WorkerType::Production,
-            });
+        } else if let Err(error) = self.start_automation(automation::StartRequest::ArchiveScan {
+            worker_type: archive_scan::WorkerType::Production,
+        }) {
+            error!(error = %error, "启动档案扫描失败");
         }
     }
 

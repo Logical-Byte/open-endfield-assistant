@@ -11,6 +11,7 @@ use crate::{
         Event, EventSink, StopToken, is_stop_requested,
         runtime::{FinishReason, Worker, WorkerExit},
     },
+    data::AppData,
     essence,
 };
 
@@ -18,21 +19,19 @@ use super::ScannedItem;
 
 pub(crate) struct SimulatedEssenceScanWorker {
     settings: essence::ScanSettings,
+    app_data: Arc<AppData>,
 }
 
 const SAMPLE_COUNT: u32 = 54;
 const INTERVAL: Duration = Duration::from_millis(370);
 
 impl SimulatedEssenceScanWorker {
-    pub(crate) fn new(settings: essence::ScanSettings) -> Self {
-        Self { settings }
+    pub(crate) fn new(settings: essence::ScanSettings, app_data: Arc<AppData>) -> Self {
+        Self { settings, app_data }
     }
 
     fn scan(&self, stop: &StopToken, events: &dyn EventSink, interval: Duration) -> FinishReason {
-        let catalog = essence::Catalog::bundled();
-        if let Err(error) = self.settings.validate(catalog) {
-            return FinishReason::Failed(format!("基质扫描设置无效: {error:#}"));
-        }
+        let catalog = self.app_data.essence_catalog();
         for index in 0..SAMPLE_COUNT {
             if !wait_for_sample(stop, interval) {
                 return FinishReason::Stopped;
@@ -124,9 +123,12 @@ fn sample(index: u32) -> essence::Essence {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
+    use std::{path::Path, sync::Mutex};
 
-    use crate::automation::{new_stop_token, request_stop};
+    use crate::{
+        app_paths::AppPaths,
+        automation::{new_stop_token, request_stop},
+    };
 
     use super::*;
 
@@ -151,14 +153,22 @@ mod tests {
         }
     }
 
+    fn app_data() -> Arc<AppData> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        Arc::new(AppData::load(&AppPaths::with_root_dir(root)).unwrap())
+    }
+
     #[test]
     fn deterministic_samples_use_settings_and_preserve_inventory_order() {
-        let worker = SimulatedEssenceScanWorker::new(essence::ScanSettings {
-            skip_abandoned: true,
-            non_five_star: essence::NonFiveStar::Skip,
-            high_level: Some([3, 3, 3]),
-            ..essence::ScanSettings::default()
-        });
+        let worker = SimulatedEssenceScanWorker::new(
+            essence::ScanSettings {
+                skip_abandoned: true,
+                non_five_star: essence::NonFiveStar::Skip,
+                high_level: Some([3, 3, 3]),
+                ..essence::ScanSettings::default()
+            },
+            app_data(),
+        );
         let events = Samples::default();
         let reason = worker.scan(&new_stop_token(), &events, Duration::ZERO);
         assert!(matches!(reason, FinishReason::Completed));
@@ -204,7 +214,7 @@ mod tests {
     #[test]
     fn stop_prevents_all_later_results() {
         let stop = new_stop_token();
-        let worker = SimulatedEssenceScanWorker::new(essence::ScanSettings::default());
+        let worker = SimulatedEssenceScanWorker::new(essence::ScanSettings::default(), app_data());
         let events = Samples {
             stop_after: Some((3, Arc::clone(&stop))),
             ..Samples::default()

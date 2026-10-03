@@ -14,5 +14,26 @@ mod state;
 mod targets;
 mod transition;
 
+use crate::automation::TemplateMatching;
+use crate::navigation::targets::ESSENCE_INVENTORY;
+use anyhow::{Result, ensure};
+use image::RgbaImage;
+
 pub(crate) use navigator::Navigator;
 pub(crate) use state::{ArchiveState, ArchiveSubscene, CentralPage, RecordsPage, UiState};
+
+/// 要求当前截图处于贵重品库的武器基质页面。
+pub(crate) fn require_essence_inventory<C: TemplateMatching>(
+    io: &mut C,
+    frame: &RgbaImage,
+) -> Result<()> {
+    ensure!(
+        frame.dimensions() == (1280, 720),
+        "基质扫描只支持 1280×720 客户区"
+    );
+    ensure!(
+        io.find_template(frame, &ESSENCE_INVENTORY)?.is_some(),
+        "未识别到武器基质页面，请按 N 打开贵重品库并选择武器基质"
+    );
+    Ok(())
+}

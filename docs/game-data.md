@@ -25,6 +25,13 @@ pnpm makedata
 - `resources/data/prts.json`：档案层级、顺序、名称和标题。
 - `resources/data/archive_contract.json`：档案分类、图标、获取方式及参数。
 
+### 基质目录
+
+`resources/data/essence_catalog.json` 保存基质属性的稳定 ID、名称和类型，以及武器的
+属性组合。通过 `scripts/importEssenceCatalog.py` 从 EER 资源仓库导入，来源和许可见
+[第三方组件](third-party-notices.md)。这份数据由 `AppData` 与档案数据一起在启动时加载，
+供规则编辑、结果展示和后端纯函数判断共享。模板更新和校准见 [基质扫描](essence-automation.md)。
+
 ## 数据表与标题差异
 
 一级子分类：`PrtsPage.json`

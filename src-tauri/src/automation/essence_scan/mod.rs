@@ -1,10 +1,10 @@
 //! 背包基质扫描任务，逐条发布识别结果与保留建议。
 
 mod layout;
-mod pagination;
-mod recognition;
+mod reporting;
 mod simulation_worker;
-mod templates;
+#[cfg(test)]
+mod tests;
 mod worker;
 mod workflow;
 

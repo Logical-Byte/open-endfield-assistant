@@ -14,6 +14,9 @@ const TEMPLATE_MATCH_THRESHOLD: f32 = 0.75;
 const ARCHIVE_CLOSE_ROI: Region2D<u32> = ltrb!(1180, 0, 1280, 100);
 /// 档案库子界面左下角分类水印的模板搜索区域。
 const ARCHIVE_WATERMARK_ROI: Region2D<u32> = ltrb!(52, 482, 189, 618);
+/// 背包武器基质页面左上角标题的模板搜索目标。
+pub(super) const ESSENCE_INVENTORY: TemplateTarget =
+    target_with_threshold("基质/scene.png", ltrb!(20, 38, 102, 78), 0.7);
 
 /// 协议终端中档案库入口的模板搜索目标。
 pub(super) const TERMINAL_ARCHIVE_ENTRY: TemplateTarget =
@@ -61,5 +64,17 @@ const fn target(template_name: &'static str, roi: Region2D<u32>) -> TemplateTarg
         template_name,
         roi,
         threshold: TEMPLATE_MATCH_THRESHOLD,
+    }
+}
+
+const fn target_with_threshold(
+    template_name: &'static str,
+    roi: Region2D<u32>,
+    threshold: f32,
+) -> TemplateTarget {
+    TemplateTarget {
+        template_name,
+        roi,
+        threshold,
     }
 }

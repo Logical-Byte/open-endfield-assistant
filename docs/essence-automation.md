@@ -36,14 +36,19 @@
 
 ## 扫描实现
 
-代码入口为 `src-tauri/src/automation/essence_scan/`。
+基质扫描沿用 OEA 的模块职责：
 
-- `layout.rs`：720p 固定像素位置，9 列、约 104 像素行距。
-- `recognition.rs`：属性和按钮模板匹配、等级亮点计数、稀有度色相识别、卡片占用检测。
-- `pagination.rs`：比较翻页前后网格的重叠区域，测量内容实际移动的像素数。
-- `workflow.rs`：回到顶部，逐行点击、识别、判断与上报，滚动后继续未访问的行。
-- `worker.rs`：连接游戏和检查实际分辨率，沿用 OEA 任务生命周期与停止令牌。
-- `simulation_worker.rs`：无需游戏的固定样例，使用相同保留判断函数。
+- `data::AppData`：启动时从资源目录加载属性、武器数据，与档案数据一同只读共享。
+- `essence`：基质、规则与判断结果的领域类型，按显式传入的目录执行纯函数判断。
+- `Controller`：在保存设置和启动扫描时校验规则，将数据与设置快照注入 Worker。
+- `navigation`：在当前截图上确认武器基质页面。尚无自动进入该页面的导航路径。
+- `vision::essence`：识别属性、标记、等级、稀有度、卡片占用和滚动条，隐藏详情布局。
+- `vision::scroll`：比较指定区域的重叠图像，测量内容实际移动的像素数。
+- `automation::essence_scan`：保存固定 720p 背包网格位置，编排回到顶部、逐行点击、
+  识别、判断、截图上报与滚动。生产 Worker 检查实际分辨率，模拟 Worker 注入固定样例。
+
+场景和详情模板匹配均经过 `TemplateMatching` 能力，复用 `Session` 的
+`LazyTemplateLoader` 和调用统计 adapter。`SettingsStore` 只承担设置持久化。
 
 每次向上拖动约三行并保留两行重叠。扫描游标使用背包行列位置，两个属性完全相同的
 基质会分别记录。尾页按观测到的实际位移处理。滚动条到底后完成扫描。
@@ -56,8 +61,9 @@
 ## 资源与校准
 
 属性目录位于 `resources/data/essence_catalog.json`，模板位于
-`resources/templates/基质/`。这两类文件由资源子模块版本管理，并编译进程序。
-更新或切换本地分支时需要同步资源子模块。
+`resources/templates/基质/`。这两类文件由资源子模块版本管理，在运行时从应用资源目录读取。
+目录数据由 `AppData` 启动时加载一次，模板由 `Session` 按需加载并缓存。
+更新或切换本地分支时需要同步资源子模块，打包时应包含完整资源目录。
 来源版本和许可见 [第三方组件](third-party-notices.md)。
 
 更新目录：
@@ -73,7 +79,10 @@ uv run --with pillow python scripts/importEssenceTemplates.py /path/to/endfield-
 cargo fmt --manifest-path src-tauri/Cargo.toml --all
 ```
 
-本次验证包含真实内置模板拼接出的合成详情图，以及 73 枚基质的合成背包：从列表中部
+脚本同时生成 `src-tauri/src/vision/essence_templates.rs` 中的属性 ID 与模板路径清单。
+Rust 清单不包含图片字节，新增模板后仍使用 OEA 的统一资源发现、加载与缓存机制。
+
+本次验证包含运行时模板拼接出的合成详情图，以及 73 枚基质的合成背包：从列表中部
 回到顶部、跨页重叠、部分尾页、空槽、相同属性的多个基质和中途停止。
 这些测试验证算法与事件行为。真实游戏的字形、亮度、卡片占用阈值和布局仍需要
 Windows 720p 实机校准。若高度重复的网格图像无法唯一确定翻页位移，扫描会报告位置无法确认。
@@ -87,6 +96,7 @@ Windows 720p 实机校准。若高度重复的网格图像无法唯一确定翻�
 ```bash
 pnpm tauri dev
 cargo test --manifest-path src-tauri/Cargo.toml automation::essence_scan --lib
+cargo test --manifest-path src-tauri/Cargo.toml vision:: --lib
 ```
 
 Windows 目标的编译检查仍使用 [后端规范](rule-backend.md) 中的命令。
