@@ -13,10 +13,16 @@ export type Status =
   | {
       state: 'idle';
       /** 最近一次运行的结束信息，初始状态为 null，成功启动新任务后移除。 */
-      lastRun: { taskKind: TaskKind; outcome: RunOutcome } | null;
+      lastRun: { runId: number; taskKind: TaskKind; outcome: RunOutcome } | null;
     }
-  | { state: 'running'; taskKind: TaskKind }
-  | { state: 'stopping'; taskKind: TaskKind };
+  | { state: 'running'; runId: number; taskKind: TaskKind }
+  | { state: 'stopping'; runId: number; taskKind: TaskKind };
+
+/** 领域事件所属的运行，用于排除上一轮延迟送达的结果。 */
+export interface RunEvent<T> {
+  runId: number;
+  payload: T;
+}
 
 /** 一次自动化运行的终态。 */
 export type RunOutcome =

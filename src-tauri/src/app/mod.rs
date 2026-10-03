@@ -215,7 +215,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     let frontend_event_sink = Arc::new(automation_events::TauriEventSink::start(
         app.handle().clone(),
     )?);
-    let automation_events: Arc<dyn automation::EventSink> =
+    let automation_events: Arc<dyn automation::RuntimeEventSink> =
         Arc::<automation_events::TauriEventSink>::clone(&frontend_event_sink);
     let automation_runtime = Arc::new(automation::Runtime::new(automation_events));
 

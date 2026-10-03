@@ -20,13 +20,17 @@ struct ThreadState {
 }
 
 enum EventThreadCommand {
-    Emit(automation::Event),
+    EmitStatus(automation::Status),
+    EmitRun {
+        run_id: u32,
+        event: automation::Event,
+    },
     Shutdown,
 }
 
 impl TauriEventSink {
     pub(super) fn start(app_handle: AppHandle) -> std::io::Result<Self> {
-        // 使用无界通道，让 `EventSink::publish` 只负责快速接受事件。
+        // 使用无界通道，让事件发布只负责快速接受事件。
         let (sender, receiver) = mpsc::channel();
         let thread = run_event_thread(app_handle, receiver)?;
 
@@ -58,10 +62,7 @@ impl TauriEventSink {
             error!("自动化事件线程发生 panic");
         }
     }
-}
-
-impl automation::EventSink for TauriEventSink {
-    fn publish(&self, event: automation::Event) {
+    fn send(&self, command: EventThreadCommand) {
         let disconnected = {
             let mut inner = self
                 .inner
@@ -70,7 +71,7 @@ impl automation::EventSink for TauriEventSink {
             let Some(sender) = inner.sender.as_ref() else {
                 return;
             };
-            if sender.send(EventThreadCommand::Emit(event)).is_err() {
+            if sender.send(command).is_err() {
                 inner.sender.take();
                 true
             } else {
@@ -81,6 +82,16 @@ impl automation::EventSink for TauriEventSink {
         if disconnected {
             error!("向自动化事件线程发送事件失败: 接收端已断开");
         }
+    }
+}
+
+impl automation::RuntimeEventSink for TauriEventSink {
+    fn publish_status(&self, status: automation::Status) {
+        self.send(EventThreadCommand::EmitStatus(status));
+    }
+
+    fn publish_run_event(&self, run_id: u32, event: automation::Event) {
+        self.send(EventThreadCommand::EmitRun { run_id, event });
     }
 }
 
@@ -98,25 +109,31 @@ fn run_event_thread(
         .name("oea-automation-events".to_string())
         .spawn(move || {
             while let Ok(command) = receiver.recv() {
-                match command {
-                    EventThreadCommand::Emit(event) => {
-                        if let Err(error) = emit_event(&app_handle, event) {
-                            error!("向前端推送自动化事件失败: {error}");
-                        }
+                let result = match command {
+                    EventThreadCommand::EmitStatus(status) => {
+                        app_handle.emit("automation-status-changed", status)
+                    }
+                    EventThreadCommand::EmitRun { run_id, event } => {
+                        emit_run_event(&app_handle, run_id, event)
                     }
                     EventThreadCommand::Shutdown => break,
+                };
+                if let Err(error) = result {
+                    error!("向前端推送自动化事件失败: {error}");
                 }
             }
         })
 }
 
-fn emit_event(app_handle: &AppHandle, event: automation::Event) -> tauri::Result<()> {
+fn emit_run_event(
+    app_handle: &AppHandle,
+    run_id: u32,
+    event: automation::Event,
+) -> tauri::Result<()> {
     match event {
-        automation::Event::StatusChanged(status) => {
-            app_handle.emit("automation-status-changed", status)
-        }
-        automation::Event::ArchiveItemScanned(result) => {
-            app_handle.emit("archive-item-scanned", result)
-        }
+        automation::Event::ArchiveItemScanned(payload) => app_handle.emit(
+            "archive-item-scanned",
+            automation::RunEvent { run_id, payload },
+        ),
     }
 }

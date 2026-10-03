@@ -1,4 +1,4 @@
-import { computed, shallowReadonly, shallowRef, type ComputedRef, type Ref } from 'vue';
+import { computed, shallowReadonly, shallowRef, watch, type ComputedRef, type Ref } from 'vue';
 import { whenever } from '@vueuse/core';
 import { startAutomation, stopAutomation } from './ipc';
 import { automationStatus } from './state';
@@ -32,6 +32,8 @@ export interface AutomationTask<K extends TaskKind> {
   readonly phase: ComputedRef<TaskPhase>;
   /** 当前绑定的任务仍未结束，包含运行和停止收尾阶段。 */
   readonly isActive: ComputedRef<boolean>;
+  /** 当前或最近一次本任务的运行标识。其他任务运行时保留，尚未运行时为 null。 */
+  readonly runId: Readonly<Ref<number | null>>;
   /**
    * 可观察到的最近一次的绑定的 taskKind 的运行结果，尚未记录时为 null。
    * 每次 composable 调用独立保留自己的记录。
@@ -60,6 +62,15 @@ export function useAutomationTask<K extends TaskKind>(taskKind: K): AutomationTa
   const isActive = computed((): boolean => phase.value === 'running' || phase.value === 'stopping');
   const canStop = computed((): boolean => phase.value === 'running');
   const outcome = shallowRef<Readonly<RunOutcome> | null>(null);
+  const runId = shallowRef<number | null>(null);
+  watch(
+    automationStatus,
+    (status) => {
+      const run = status.state === 'idle' ? status.lastRun : status;
+      if (run?.taskKind === taskKind) runId.value = run.runId;
+    },
+    { immediate: true, flush: 'sync' },
+  );
   whenever(
     (): Readonly<RunOutcome> | null => {
       const status = automationStatus.value;
@@ -91,6 +102,7 @@ export function useAutomationTask<K extends TaskKind>(taskKind: K): AutomationTa
   return {
     phase,
     isActive,
+    runId: shallowReadonly(runId),
     outcome: shallowReadonly(outcome),
     canStart,
     canStop,

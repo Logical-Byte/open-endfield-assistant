@@ -28,7 +28,7 @@ pub use capabilities::{
     Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
     TemplateTarget,
 };
-pub(crate) use events::{Event, EventSink};
+pub(crate) use events::{Event, EventSink, RunEvent, RuntimeEventSink};
 pub(crate) use runtime::Runtime;
 pub use runtime::{LastRun, RunOutcome, Status};
 

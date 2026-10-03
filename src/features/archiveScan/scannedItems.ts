@@ -48,7 +48,7 @@ export function correctScannedItem(scannedItemId: number, title: string): void {
 export async function initScannedItems(): Promise<void> {
   const task = useAutomationTask('archiveScan');
   whenever(
-    (): boolean => task.phase.value === 'running',
+    task.runId,
     () => {
       clearScannedItems();
       error.value = null;
@@ -62,7 +62,8 @@ export async function initScannedItems(): Promise<void> {
     },
     { flush: 'sync' },
   );
-  await onScannedItem((item: ScannedItem) => {
-    items.value.push({ ...item, scannedItemId: nextScannedItemId++ });
+  await onScannedItem(({ runId, payload }) => {
+    if (runId !== task.runId.value) return;
+    items.value.push({ ...payload, scannedItemId: nextScannedItemId++ });
   });
 }
