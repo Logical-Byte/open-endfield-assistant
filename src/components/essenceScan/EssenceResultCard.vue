@@ -3,6 +3,7 @@ import { computed, type DeepReadonly } from 'vue';
 import { openImagePreview } from '@/composables/image-preview';
 import {
   decisionPresentation,
+  markingPresentation,
   reasonLabels,
   rarityLabels,
 } from '@/features/essenceScan/resultView';
@@ -14,6 +15,7 @@ const { item, catalog } = defineProps<{
 }>();
 
 const decision = computed(() => decisionPresentation[item.evaluation.decision]);
+const marking = computed(() => markingPresentation(item.marking));
 const stats = computed(() =>
   item.essence.stats.map((id, index) => ({
     name: id === null ? '未知属性' : (catalog?.stats.find((stat) => stat.id === id)?.name ?? id),
@@ -89,6 +91,7 @@ function previewImage(): void {
       <p class="text-sm text-toned">{{ reasonLabels[item.evaluation.reason] }}</p>
       <p v-if="weapons.length" class="text-xs text-muted">匹配武器：{{ weapons.join('、') }}</p>
       <div class="flex flex-wrap gap-3 text-xs text-muted">
+        <span>扫描时：</span>
         <span class="inline-flex items-center gap-1">
           <UIcon
             :name="
@@ -113,6 +116,18 @@ function previewImage(): void {
             : item.essence.abandoned
               ? '已标记弃用'
               : '未标记弃用'
+        }}</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <UBadge
+          :color="marking.color"
+          :icon="marking.icon"
+          :label="marking.label"
+          size="sm"
+          variant="soft"
+        />
+        <span v-if="item.marking.status === 'failed'" class="text-xs text-error">{{
+          item.marking.error
         }}</span>
       </div>
     </div>

@@ -12,7 +12,7 @@ use crate::storage::CachedJsonFile;
 /// 当前设置文件主要版本号
 pub const CURRENT_MAJOR_VERSION: u32 = 0;
 /// 当前设置文件次要版本号
-pub const CURRENT_MINOR_VERSION: u32 = 1;
+pub const CURRENT_MINOR_VERSION: u32 = 2;
 
 /// 更新源。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

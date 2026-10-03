@@ -13,7 +13,7 @@ use crate::{
     navigation, vision,
 };
 
-use super::{ScannedItem, layout, reporting};
+use super::{ScannedItem, layout, marking, reporting};
 
 pub(super) fn scan(
     io: &mut (impl ScreenCapture + Input + Drag + Clock + TemplateMatching),
@@ -41,6 +41,9 @@ pub(super) fn scan(
                 navigation::require_essence_inventory(io, &detail)?;
                 let essence = vision::essence::recognize(io, &detail)?;
                 let evaluation = essence::evaluate(&essence, settings, catalog);
+                let image = Some(reporting::screenshot_data_url(&detail)?);
+                let plan = essence::plan_marking(&essence, evaluation.decision, settings.auto_mark);
+                let (marking, mark_result) = marking::apply(io, &essence, plan);
                 sequence += 1;
                 events.publish(Event::EssenceItemScanned(ScannedItem {
                     sequence,
@@ -49,8 +52,10 @@ pub(super) fn scan(
                     column: column as u32 + 1,
                     essence,
                     evaluation,
-                    image: Some(reporting::screenshot_data_url(&detail)?),
+                    marking,
+                    image,
                 }));
+                mark_result?;
             }
             next_row += 1;
         }

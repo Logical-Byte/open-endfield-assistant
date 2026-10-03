@@ -43,6 +43,7 @@ it('retains finishing results, protects active scans, and isolates each run and 
       abandoned: false,
     },
     evaluation: { decision: 'keep', reason: 'weaponMatch', matchedWeaponIds: ['sword'] },
+    marking: { status: 'disabled' },
     image: null,
   };
   try {

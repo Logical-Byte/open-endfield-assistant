@@ -191,6 +191,19 @@ async function toggleScan(): Promise<void> {
 
       <EssenceScanRules :disabled="phase !== 'idle'" />
 
+      <UAlert
+        v-if="readySettings?.effective.essenceScan.autoMark"
+        color="warning"
+        :description="
+          essenceScanWorkerType === 'simulation'
+            ? '本次模拟会显示计划中的锁定或弃用操作，不操作游戏窗口。'
+            : '本轮会按已保存规则锁定保留项、标记丢弃项。标记无法确认时会停止，并保留已扫描结果。'
+        "
+        icon="i-lucide-tags"
+        title="自动标记已开启"
+        variant="subtle"
+      />
+
       <section aria-label="扫描统计" class="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <div class="rounded-lg border border-default bg-default p-3">
           <p class="text-xs text-muted">已扫描</p>
@@ -254,6 +267,17 @@ async function toggleScan(): Promise<void> {
           显示 {{ filteredItems.length }} /
           {{ scannedItems.length }} 份基质。点击统计卡可以筛选判断结果。
         </p>
+        <div class="flex flex-wrap gap-3 text-xs">
+          <span v-if="summary.marking.applied" class="text-success"
+            >标记已确认 {{ summary.marking.applied }}</span
+          >
+          <span v-if="summary.marking.simulated" class="text-warning"
+            >模拟标记 {{ summary.marking.simulated }}</span
+          >
+          <span v-if="summary.marking.failed" class="text-error"
+            >标记未确认 {{ summary.marking.failed }}</span
+          >
+        </div>
         <div
           v-if="scannedItems.length === 0"
           class="flex min-h-64 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-default text-center"

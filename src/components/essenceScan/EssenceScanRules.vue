@@ -117,6 +117,13 @@ function ruleLabel(rule: readonly string[]): string {
         ><UIcon name="i-lucide-sliders-horizontal" />保留规则</span
       >
       <span class="flex items-center gap-2 text-xs text-muted">
+        <UBadge
+          v-if="draft?.autoMark"
+          color="warning"
+          label="自动标记已开启"
+          size="sm"
+          variant="soft"
+        />
         <span v-if="draft" class="hidden sm:inline"
           >排除 {{ draft.excludedWeaponIds.length }} 把武器 ·
           {{ draft.customKeeps.length }} 个自定义组合</span
@@ -159,6 +166,18 @@ function ruleLabel(rule: readonly string[]): string {
               disabled ? '自动化任务运行期间暂时不能修改规则。' : ''
             }}
           </p>
+          <div class="space-y-2 rounded-md bg-muted p-3">
+            <USwitch
+              :disabled="!canEdit"
+              label="自动锁定或标记弃用"
+              :model-value="draft.autoMark"
+              @update:model-value="editRules({ autoMark: $event })"
+            />
+            <p class="text-xs text-muted">
+              默认关闭。开启后，保留的基质自动锁定，建议丢弃的未锁定基质标记弃用，每次操作后重新识别确认。
+              跳过和待确认项目保持原状。已锁定的基质不会自动解锁，扫描不执行分解。
+            </p>
+          </div>
           <div class="grid gap-5 md:grid-cols-3">
             <UFormField label="非五星基质">
               <USelect

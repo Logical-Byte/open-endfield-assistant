@@ -19,6 +19,7 @@ function createSettingsFixture(overrides: Partial<Settings> = {}): Settings {
     autoInstallUpdates: true,
     scanTipsDismissedVersion: 0,
     essenceScan: {
+      autoMark: false,
       nonFiveStar: 'process',
       protectLocked: true,
       skipAbandoned: false,

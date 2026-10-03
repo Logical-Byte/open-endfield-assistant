@@ -71,7 +71,10 @@ impl Worker for EssenceScanWorker {
         let capture = captured.finish();
         let reason = match result {
             Ok(()) => FinishReason::Completed,
-            Err(error) if error.downcast_ref::<AutomationStopped>().is_some() => {
+            Err(error)
+                if is_stop_requested(&stop)
+                    || error.downcast_ref::<AutomationStopped>().is_some() =>
+            {
                 FinishReason::Stopped
             }
             Err(error) => FinishReason::Failed(format!("基质扫描失败: {error:#}")),

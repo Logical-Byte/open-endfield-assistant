@@ -15,7 +15,7 @@ use crate::{
     essence,
 };
 
-use super::ScannedItem;
+use super::{Marking, ScannedItem};
 
 pub(crate) struct SimulatedEssenceScanWorker {
     settings: essence::ScanSettings,
@@ -38,6 +38,14 @@ impl SimulatedEssenceScanWorker {
             }
             let essence = sample(index);
             let evaluation = essence::evaluate(&essence, &self.settings, catalog);
+            let marking =
+                match essence::plan_marking(&essence, evaluation.decision, self.settings.auto_mark)
+                {
+                    essence::MarkingPlan::Disabled => Marking::Disabled,
+                    essence::MarkingPlan::Skipped => Marking::Skipped,
+                    essence::MarkingPlan::AlreadySet(action) => Marking::AlreadySet { action },
+                    essence::MarkingPlan::Apply(action) => Marking::Simulated { action },
+                };
             if is_stop_requested(stop) {
                 return FinishReason::Stopped;
             }
@@ -48,6 +56,7 @@ impl SimulatedEssenceScanWorker {
                 column: index % 9 + 1,
                 essence,
                 evaluation,
+                marking,
                 image: None,
             }));
         }
@@ -165,6 +174,7 @@ mod tests {
                 skip_abandoned: true,
                 non_five_star: essence::NonFiveStar::Skip,
                 high_level: Some([3, 3, 3]),
+                auto_mark: true,
                 ..essence::ScanSettings::default()
             },
             app_data(),
@@ -189,6 +199,27 @@ mod tests {
                 essence::Reason::NonFiveStar,
                 essence::Reason::HighLevel,
                 essence::Reason::IncompleteRecognition,
+            ]
+        );
+        let markings: Vec<_> = items.iter().take(7).map(|item| &item.marking).collect();
+        assert_eq!(
+            markings,
+            [
+                &Marking::Simulated {
+                    action: essence::MarkAction::Lock,
+                },
+                &Marking::Simulated {
+                    action: essence::MarkAction::Abandon,
+                },
+                &Marking::AlreadySet {
+                    action: essence::MarkAction::Lock,
+                },
+                &Marking::Skipped,
+                &Marking::Skipped,
+                &Marking::Simulated {
+                    action: essence::MarkAction::Lock,
+                },
+                &Marking::Skipped,
             ]
         );
         assert_eq!(
@@ -221,6 +252,8 @@ mod tests {
         };
         let reason = worker.scan(&stop, &events, Duration::ZERO);
         assert!(matches!(reason, FinishReason::Stopped));
-        assert_eq!(events.items.lock().unwrap().len(), 3);
+        let items = events.items.lock().unwrap();
+        assert_eq!(items.len(), 3);
+        assert!(items.iter().all(|item| item.marking == Marking::Disabled));
     }
 }

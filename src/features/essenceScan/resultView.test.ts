@@ -25,6 +25,7 @@ function item(sequence: number, decision: Decision): ScannedItem {
       abandoned: false,
     },
     evaluation: { decision, reason: 'weaponMatch', matchedWeaponIds: ['sword'] },
+    marking: { status: 'disabled' },
     image: null,
   };
 }
@@ -35,8 +36,26 @@ describe('scan result view', () => {
     items.push(item(5, 'keep'));
     items[4]!.essence.stats = [null, null, null];
 
-    expect(deriveSummary(items)).toEqual({ total: 5, keep: 2, discard: 1, skip: 1, review: 1 });
-    expect(deriveSummary([])).toEqual({ total: 0, keep: 0, discard: 0, skip: 0, review: 0 });
+    expect(deriveSummary(items)).toMatchObject({
+      total: 5,
+      keep: 2,
+      discard: 1,
+      skip: 1,
+      review: 1,
+    });
+    expect(deriveSummary([])).toMatchObject({ total: 0, keep: 0, discard: 0, skip: 0, review: 0 });
+  });
+
+  it('counts confirmed, simulated, and failed marking separately from the decision', () => {
+    const items = Array.from({ length: 5 }, (_, index) => item(index + 1, 'keep'));
+    items[0]!.marking = { status: 'applied', action: 'lock' };
+    items[1]!.marking = { status: 'simulated', action: 'lock' };
+    items[2]!.marking = { status: 'failed', action: 'lock', error: '未观察到锁定标记' };
+    items[3]!.marking = { status: 'alreadySet', action: 'lock' };
+
+    const summary = deriveSummary(items);
+    expect(summary.keep).toBe(5);
+    expect(summary.marking).toEqual({ applied: 1, simulated: 1, failed: 1 });
   });
 
   it('combines decision filtering with stat, weapon, and sequence searches', () => {

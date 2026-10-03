@@ -1,11 +1,13 @@
 //! 基质数据与保留规则。识别和游戏操作由自动化模块负责，判断本身只依赖输入数据。
 
 mod evaluation;
+mod marking;
 
 use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
 
 pub use evaluation::{Decision, Evaluation, Reason, evaluate};
+pub use marking::{MarkAction, MarkingPlan, plan_marking};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -97,6 +99,8 @@ pub struct ScanSettings {
     pub non_five_star: NonFiveStar,
     pub protect_locked: bool,
     pub skip_abandoned: bool,
+    /// 根据保留建议自动锁定或标记弃用，默认关闭。
+    pub auto_mark: bool,
     /// 任一类型达标即保留，数组按主属性、次属性、技能排列。
     pub high_level: Option<[u8; 3]>,
     pub excluded_weapon_ids: Vec<String>,
@@ -110,6 +114,7 @@ impl Default for ScanSettings {
             non_five_star: NonFiveStar::Process,
             protect_locked: true,
             skip_abandoned: false,
+            auto_mark: false,
             high_level: None,
             excluded_weapon_ids: Vec::new(),
             custom_keeps: Vec::new(),

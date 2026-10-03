@@ -17,6 +17,7 @@ export interface EssenceCatalog {
 
 /** 一次扫描使用后端已保存设置的快照。三个阈值按属性类型排列。 */
 export interface EssenceScanSettings {
+  autoMark: boolean;
   nonFiveStar: 'process' | 'skip';
   protectLocked: boolean;
   skipAbandoned: boolean;
@@ -49,6 +50,12 @@ export interface Evaluation {
   matchedWeaponIds: string[];
 }
 
+export type MarkAction = 'lock' | 'abandon';
+export type MarkingOutcome =
+  | { status: 'disabled' | 'skipped' }
+  | { status: 'alreadySet' | 'applied' | 'simulated'; action: MarkAction }
+  | { status: 'failed'; action: MarkAction; error: string };
+
 /** 位置从 1 开始，row 为背包中的绝对行号。 */
 export interface ScannedItem {
   sequence: number;
@@ -57,5 +64,6 @@ export interface ScannedItem {
   column: number;
   essence: Essence;
   evaluation: Evaluation;
+  marking: MarkingOutcome;
   image: string | null;
 }
