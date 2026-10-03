@@ -48,3 +48,14 @@ export interface Evaluation {
     | 'incompleteRecognition';
   matchedWeaponIds: string[];
 }
+
+/** 位置从 1 开始，row 为背包中的绝对行号。 */
+export interface ScannedItem {
+  sequence: number;
+  page: number;
+  row: number;
+  column: number;
+  essence: Essence;
+  evaluation: Evaluation;
+  image: string | null;
+}

@@ -9,6 +9,11 @@ const navigationMenuItems: NavigationMenuItem[] = [
     to: '/',
   },
   {
+    label: '基质扫描',
+    icon: 'i-lucide-gem',
+    to: '/essence-scan',
+  },
+  {
     label: '日志',
     icon: 'i-lucide-scroll-text',
     to: '/log',

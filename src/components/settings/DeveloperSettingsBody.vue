@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { simulateArchiveScan } from '@/features/archiveScan/workerType';
+import { simulateEssenceScan } from '@/features/essenceScan/workerType';
+import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import {
   developerInstallBusy,
   developerInstallTrace,
@@ -10,6 +12,7 @@ import {
 import SettingsItem from './SettingsItem.vue';
 
 const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
+const { isActive: essenceScanActive } = useAutomationTask('essenceScan');
 </script>
 
 <template>
@@ -27,6 +30,18 @@ const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
     title="模拟档案扫描"
   >
     <UCheckbox v-model="simulateArchiveScan" color="warning" label="使用模拟扫描结果" />
+  </SettingsItem>
+  <SettingsItem
+    description="用固定的 54 份基质调试规则与结果页面，无需游戏窗口。约 20 秒完成，可随时停止。重启应用后关闭。"
+    icon="i-lucide-gem"
+    title="模拟基质扫描"
+  >
+    <UCheckbox
+      v-model="simulateEssenceScan"
+      color="warning"
+      :disabled="essenceScanActive"
+      label="使用模拟基质结果"
+    />
   </SettingsItem>
   <SettingsItem
     description="从给定的 .zip 更新包运行一次原地更新流程。支持增量包和全量包。"

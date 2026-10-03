@@ -38,6 +38,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/essence-scan': RouteRecordInfo<
+      '/essence-scan',
+      '/essence-scan',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/help': RouteRecordInfo<
       '/help',
       '/help',
@@ -82,6 +89,14 @@ declare module 'vue-router/auto-routes' {
     'src/pages/index.vue': {
       routes:
         | '/'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/essence-scan.vue': {
+      routes:
+        | '/essence-scan'
       views:
         | never
       pathParamNames:
