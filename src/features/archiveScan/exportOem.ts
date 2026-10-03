@@ -5,7 +5,7 @@
 
 import type { UploadData } from '@/features/archiveScan/types/upload';
 import { prtsData } from '@/features/gameData/prtsData';
-import { scanResults } from '@/features/archiveScan/results';
+import { scannedItems } from '@/features/archiveScan/scannedItems';
 import { deriveArchiveCollection } from '@/features/archiveScan/collection';
 import { logDebug, logError, logInfo } from '@/features/log/ipc';
 import { oeaVersion } from '@/version';
@@ -19,13 +19,13 @@ const OEM_IMPORT_URL_PREFIX = 'https://oem.re/i/';
  * 构建上传数据：已收集 / 未收集档案 id 列表。
  *
  * - 已收集 = 全部成功扫描（含人工纠错）命中的档案 id；
- * - 重名档案：同名档案中只要有一个已收集，全部视为已收集；
+ * - 同一小分类下的同标题档案：只要有一个已收集，该组全部视为已收集；
  * - 未收集 = 所有档案去掉已收集。
  * 两个列表均按 allItems 的展示顺序排列。
  */
 function buildUploadData(): UploadData {
   const allItems = prtsData.value?.allItems ?? {};
-  const collection = deriveArchiveCollection(allItems, scanResults.value);
+  const collection = deriveArchiveCollection(allItems, scannedItems.value);
   return {
     majorVersion: 0,
     minorVersion: 0,

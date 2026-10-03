@@ -1,6 +1,6 @@
 //! 档案库扫描结果的数据结构与上报器。
 //!
-//! `ScanResult` 是档案扫描的逐条产出。`ArchiveScanWorker` 把应用层注入的
+//! `ScannedItem` 是档案扫描的逐条产出。`ArchiveScanWorker` 把应用层注入的
 //! [`EventSink`] 包装为 `ScanReporter`，工作流不依赖 Tauri 句柄。
 
 use std::io::Cursor;
@@ -15,22 +15,22 @@ use crate::automation::{Event, EventSink};
 /// 单份档案的扫描结果。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct ScanResult {
+pub(crate) struct ScannedItem {
     /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
     /// `failed`（OCR 结果为空）
     pub status: String,
-    /// 档案库大类 id（pageType：multi_media / text / document）
-    pub category: String,
-    /// 档案库小类 id（categoryId）
-    pub sub_category: String,
+    /// 扫描时所在的档案库大类 id（pageType：multi_media / text / document）
+    pub found_in_category: String,
+    /// 扫描时所在的档案库小类 id（categoryId）
+    pub found_in_sub_category: String,
     /// 档案详情页面截图（base64 PNG data URL，已缩小以控制事件体积）
     pub image: String,
-    /// OCR 识别结果（前端可编辑）
+    /// 原始 OCR 识别结果（人工纠错时保留）
     pub ocr_result: String,
     /// 纠错后的档案标题（无法识别时为 `None`）
     pub corrected_title: Option<String>,
-    /// 纠错命中的档案 id（allItems 的 id，同标题多条时返回全部）
-    pub item_ids: Vec<String>,
+    /// 纠错命中的档案 id（allItems 的 id，当前小分类下同标题多条时返回全部）
+    pub corrected_match_item_ids: Vec<String>,
 }
 
 /// 截图编码为 data URL 前的最大宽度（等比缩小，控制事件体积与内存占用）。
@@ -75,24 +75,24 @@ impl ScanReporter {
     pub(super) fn report(
         &self,
         status: &str,
-        category: &str,
-        sub_category: &str,
+        found_in_category: &str,
+        found_in_sub_category: &str,
         image: String,
         ocr_result: String,
         corrected: Option<super::correction::Corrected>,
     ) {
-        let (corrected_title, item_ids) = match corrected {
+        let (corrected_title, corrected_match_item_ids) = match corrected {
             Some(c) => (Some(c.title), c.item_ids),
             None => (None, Vec::new()),
         };
-        self.events.publish(Event::ArchiveScanResult(ScanResult {
+        self.events.publish(Event::ArchiveItemScanned(ScannedItem {
             status: status.to_string(),
-            category: category.to_string(),
-            sub_category: sub_category.to_string(),
+            found_in_category: found_in_category.to_string(),
+            found_in_sub_category: found_in_sub_category.to_string(),
             image,
             ocr_result,
             corrected_title,
-            item_ids,
+            corrected_match_item_ids,
         }));
     }
 }

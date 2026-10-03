@@ -1,77 +1,36 @@
 <script setup lang="ts">
-import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
-import type { ScanResultCardProps } from '@/features/archiveScan/types/scanResult';
-import { CollectType } from '@/features/archiveScan/types/scanResult';
+import type { ArchiveScanResultCardProps } from '@/features/archiveScan/types/archiveScanResultCard';
+import { ArchiveScanCardStatus } from '@/features/archiveScan/types/archiveScanResultCard';
 import { openImagePreview } from '@/composables/image-preview';
-import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
-import {
-  getCategoryName,
-  getCategoryTitles,
-  getPageName,
-} from '@/features/gameData/archiveQueries';
-import { computed, type CSSProperties } from 'vue';
+import type { CSSProperties } from 'vue';
 
-const { collectType, category, subCategory, imageUrl, title, archiveId } =
-  defineProps<ScanResultCardProps>();
+const {
+  status,
+  categoryLabel,
+  imageUrl,
+  title,
+  candidates,
+  acquisitionMethod,
+  acquisitionLabel,
+  oemUrl,
+  intelUrl,
+} = defineProps<ArchiveScanResultCardProps>();
 
-const emit = defineEmits<{
+const emit: (event: 'correct', title: string) => void = defineEmits<{
   correct: [title: string];
 }>();
 
-// 自动补全候选：当前子分类下所有档案标题（prts 数据加载幂等）
-const candidates = computed<string[]>(() => getCategoryTitles(subCategory));
-
-/** 非地图获取方式的展示文本（仅地图交互点位显示 OEM 按钮） */
-const ACQUISITION_METHOD_LABELS: Record<ArchiveAcquisitionMethod, string> = {
-  map: '地图拾取',
-  mission: '跟随任务',
-  auto: '自动解锁',
-  shop: '商店购买',
-  invstgt: '报告摘要',
-};
-
-/** 当前档案的获取方式（未知 / 未收录时为 null） */
-const acquisitionMethod = computed<ArchiveAcquisitionMethod | null>(() =>
-  archiveId ? getAcquisitionMethod(archiveId) : null,
-);
-
-/** 非地图获取方式的展示文本（地图点位 / 未知时不显示） */
-const acquisitionLabel = computed<string | null>(() => {
-  const method = acquisitionMethod.value;
-  return method && method !== 'map' ? ACQUISITION_METHOD_LABELS[method] : null;
-});
-
-/** OEM 档案链接（地图交互点位，指向 https://oem.re/?type=<档案 id>；URL 由 `new URL` + `URLSearchParams` 构造） */
-const oemUrl = computed<string | null>(() => {
-  if (!archiveId) {
-    return null;
-  }
-  const url = new URL('https://oem.re/');
-  url.searchParams.set('type', archiveId);
-  return url.toString();
-});
-
-/** 档案收集专题链接（非地图点位，指向 https://opendfieldmap.org/intel/?type=<档案 id>） */
-const intelUrl = computed<string | null>(() => {
-  if (!archiveId) {
-    return null;
-  }
-  const url = new URL('https://opendfieldmap.org/intel/');
-  url.searchParams.set('type', archiveId);
-  return url.toString();
-});
-
 /** 基准分辨率（16:9，实际分辨率不同时按此等比例缩放） */
-const BASE_WIDTH = 1280;
-const BASE_HEIGHT = 720;
+const BASE_WIDTH: number = 1280;
+const BASE_HEIGHT: number = 720;
 /** 裁剪区域（以基准分辨率为坐标系） */
-const CROP_LEFT = 360;
-const CROP_TOP = 48;
-const CROP_RIGHT = 876;
-const CROP_BOTTOM = 134;
+const CROP_LEFT: number = 360;
+const CROP_TOP: number = 48;
+const CROP_RIGHT: number = 876;
+const CROP_BOTTOM: number = 134;
 /** 裁剪区域尺寸 */
-const CROP_WIDTH = CROP_RIGHT - CROP_LEFT;
-const CROP_HEIGHT = CROP_BOTTOM - CROP_TOP;
+const CROP_WIDTH: number = CROP_RIGHT - CROP_LEFT;
+const CROP_HEIGHT: number = CROP_BOTTOM - CROP_TOP;
 
 /** 裁剪容器样式：保持裁剪区域的宽高比 */
 const cropContainerStyle: CSSProperties = {
@@ -95,10 +54,10 @@ const cropImageStyle: CSSProperties = {
   <UCard
     class="border-l-8"
     :class="{
-      'border-success': collectType === CollectType.Collected,
-      'border-warning': collectType === CollectType.Unrecognized,
-      'border-error': collectType === CollectType.Failed,
-      'border-(--ui-text-dimmed)': collectType === CollectType.NotCollected,
+      'border-success': status === ArchiveScanCardStatus.Matched,
+      'border-warning': status === ArchiveScanCardStatus.Unrecognized,
+      'border-error': status === ArchiveScanCardStatus.OcrFailed,
+      'border-(--ui-text-dimmed)': status === ArchiveScanCardStatus.NotMatched,
     }"
     :ui="{
       body: 'px-3! py-0!',
@@ -106,12 +65,7 @@ const cropImageStyle: CSSProperties = {
   >
     <div class="flex flex-col items-center gap-3 sm:flex-row">
       <div class="flex w-31.5 items-center justify-center">
-        <UBadge
-          v-if="category && subCategory"
-          color="info"
-          :label="`${getPageName(category)} − ${getCategoryName(subCategory)}`"
-          variant="outline"
-        />
+        <UBadge v-if="categoryLabel" color="info" :label="categoryLabel" variant="outline" />
       </div>
 
       <div class="relative w-72">
@@ -119,14 +73,14 @@ const cropImageStyle: CSSProperties = {
           v-if="imageUrl"
           class="relative w-full overflow-hidden"
           :class="{
-            'opacity-25': collectType === CollectType.Collected,
+            'opacity-25': status === ArchiveScanCardStatus.Matched,
           }"
           :style="cropContainerStyle"
           @click="
             openImagePreview({
               url: imageUrl,
               name: `档案详情截图`,
-              downloadName: () => `档案详情截图 - ${title}.png`,
+              downloadName: (): string => `档案详情截图 - ${title}.png`,
             })
           "
         >
@@ -140,7 +94,7 @@ const cropImageStyle: CSSProperties = {
         <div v-else class="flex h-12 items-center justify-center bg-accented" />
         <!-- 图片预览右下角状态标记：已收集 / 需纠错 -->
         <UBadge
-          v-if="collectType === CollectType.Collected"
+          v-if="status === ArchiveScanCardStatus.Matched"
           class="absolute right-1 bottom-1"
           color="success"
           label="已收集"
@@ -148,7 +102,10 @@ const cropImageStyle: CSSProperties = {
           size="sm"
         />
         <UBadge
-          v-else-if="collectType === CollectType.Unrecognized || collectType === CollectType.Failed"
+          v-else-if="
+            status === ArchiveScanCardStatus.Unrecognized ||
+            status === ArchiveScanCardStatus.OcrFailed
+          "
           class="absolute right-1 bottom-1"
           color="error"
           label="需纠错"
@@ -156,7 +113,7 @@ const cropImageStyle: CSSProperties = {
           size="sm"
         />
         <UBadge
-          v-else-if="collectType === CollectType.NotCollected"
+          v-else-if="status === ArchiveScanCardStatus.NotMatched"
           class="absolute right-1 bottom-1"
           color="neutral"
           label="未收集"
@@ -166,7 +123,7 @@ const cropImageStyle: CSSProperties = {
       </div>
 
       <div class="min-w-0 flex-1">
-        <p v-if="collectType === CollectType.NotCollected" class="text-center">{{ title }}</p>
+        <p v-if="status === ArchiveScanCardStatus.NotMatched" class="text-center">{{ title }}</p>
         <div v-else class="flex flex-col">
           <!-- <p class="text-xs font-medium text-muted">标题识别纠错</p> -->
           <UInputMenu
@@ -175,14 +132,14 @@ const cropImageStyle: CSSProperties = {
             mode="autocomplete"
             :model-value="title ?? ''"
             placeholder="选择或输入档案标题"
-            @update:model-value="(value) => emit('correct', value)"
+            @update:model-value="(value: string) => emit('correct', value)"
           />
         </div>
       </div>
 
       <div class="flex w-36 justify-center">
         <UButton
-          v-if="acquisitionMethod === 'map' && collectType === CollectType.Collected"
+          v-if="acquisitionMethod === 'map' && status === ArchiveScanCardStatus.Matched"
           class="text-muted"
           color="neutral"
           label="在 OEM 中查看"
@@ -192,7 +149,7 @@ const cropImageStyle: CSSProperties = {
           variant="outline"
         />
         <UButton
-          v-else-if="acquisitionMethod === 'map' && collectType === CollectType.NotCollected"
+          v-else-if="acquisitionMethod === 'map' && status === ArchiveScanCardStatus.NotMatched"
           label="前往 OEM 收集"
           target="_blank"
           :to="oemUrl ?? undefined"
@@ -201,7 +158,7 @@ const cropImageStyle: CSSProperties = {
         />
         <UButton
           v-else-if="acquisitionLabel"
-          :class="{ 'text-muted': collectType === CollectType.Collected }"
+          :class="{ 'text-muted': status === ArchiveScanCardStatus.Matched }"
           color="neutral"
           :label="acquisitionLabel"
           size="sm"

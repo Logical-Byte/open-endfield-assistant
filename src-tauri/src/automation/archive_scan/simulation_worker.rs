@@ -17,7 +17,7 @@ use crate::{
 };
 
 use super::{
-    correction::{DEFAULT_CORRECTION_OVERRIDES, correct},
+    correction::{DEFAULT_CORRECTION_OVERRIDES, match_with_correction},
     reporting::{ScanReporter, encode_png_data_url},
 };
 
@@ -97,7 +97,7 @@ impl Worker for SimulatedArchiveScanWorker {
             };
             sequence += 1;
 
-            let corrected = correct(
+            let corrected = match_with_correction(
                 self.app_data.archive_titles(),
                 sub_category,
                 &ocr_result,

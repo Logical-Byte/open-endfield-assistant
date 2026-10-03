@@ -2,13 +2,13 @@
 //!
 //! 工作流通过 [`EventSink`] 发布已经发生的领域事实，隐藏底层的 Tauri 或其他传输机制。
 
-use super::{archive_scan::ScanResult, runtime::Status};
+use super::{archive_scan::ScannedItem, runtime::Status};
 
 /// 自动化模块能够向外发布的事件。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Event {
     StatusChanged(Status),
-    ArchiveScanResult(ScanResult),
+    ArchiveItemScanned(ScannedItem),
 }
 
 /// 自动化事件 [`Event`] 的观察出口。

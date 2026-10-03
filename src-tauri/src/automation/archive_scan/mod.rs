@@ -11,7 +11,7 @@ mod simulation_worker;
 mod worker;
 mod workflow;
 
-pub(crate) use reporting::ScanResult;
+pub(crate) use reporting::ScannedItem;
 pub(crate) use simulation_worker::SimulatedArchiveScanWorker;
 pub(crate) use worker::ArchiveScanWorker;
 

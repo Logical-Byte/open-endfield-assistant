@@ -115,6 +115,8 @@ fn emit_event(app_handle: &AppHandle, event: automation::Event) -> tauri::Result
         automation::Event::StatusChanged(status) => {
             app_handle.emit("automation-status-changed", status)
         }
-        automation::Event::ArchiveScanResult(result) => app_handle.emit("scan-result", result),
+        automation::Event::ArchiveItemScanned(result) => {
+            app_handle.emit("archive-item-scanned", result)
+        }
     }
 }

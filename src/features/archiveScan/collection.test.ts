@@ -1,5 +1,5 @@
 import type { PrtsAllItem } from '@/features/gameData/types/prts';
-import type { ScanResult } from '@/features/archiveScan/types/scanResult';
+import type { ScannedItem } from '@/features/archiveScan/types/scannedItem';
 import { describe, expect, it } from 'vitest';
 import { deriveArchiveCollection } from './collection';
 
@@ -33,34 +33,34 @@ const allItems: Record<string, PrtsAllItem> = {
   },
 };
 
-const successfulScan: ScanResult = {
+const successfulScan: ScannedItem = {
   status: 'success',
-  category: 'document',
-  subCategory: 'paper',
+  foundInCategory: 'document',
+  foundInSubCategory: 'paper',
   image: '',
   ocrResult: '研究人员的笔记',
   correctedTitle: '研究人员的笔记',
-  itemIds: ['paperNote'],
+  correctedMatchItemIds: ['paperNote'],
 };
 
 describe('deriveArchiveCollection', () => {
-  it('collects every archive with the matched title in catalog order', () => {
+  it('keeps same-title archives in other subcategories uncollected', () => {
     expect(deriveArchiveCollection(allItems, [successfulScan])).toEqual({
-      collectedIds: ['paperNote', 'digitalNote'],
-      notCollectedIds: ['unrelated'],
+      collectedIds: ['paperNote'],
+      notCollectedIds: ['unrelated', 'digitalNote'],
     });
   });
 
   it('ignores archive IDs from unsuccessful scans', () => {
-    const failedScan: ScanResult = {
+    const failedScan: ScannedItem = {
       ...successfulScan,
       status: 'failed',
-      itemIds: ['paperNote'],
+      correctedMatchItemIds: ['paperNote'],
     };
-    const unrecognizedScan: ScanResult = {
+    const unrecognizedScan: ScannedItem = {
       ...successfulScan,
       status: 'unrecognized',
-      itemIds: ['unrelated'],
+      correctedMatchItemIds: ['unrelated'],
     };
 
     expect(deriveArchiveCollection(allItems, [failedScan, unrecognizedScan])).toEqual({

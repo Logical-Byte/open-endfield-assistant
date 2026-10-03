@@ -1,27 +1,35 @@
 <script setup lang="ts">
+import type { ArchiveScanResultCardProps } from '@/features/archiveScan/types/archiveScanResultCard';
 import {
-  CollectType,
-  ScanResult,
-  ScanResultCardProps,
-  ScanResultStatus,
-} from '@/features/archiveScan/types/scanResult';
-import { useAutomationTask, type CommandResult } from '@/features/automation/useAutomationTask';
-import { getAcquisitionMethod } from '@/features/gameData/archiveContract';
-import { applyCorrection } from '@/features/archiveScan/correction';
+  deriveArchiveScanView,
+  filterArchiveScanCards,
+  type ArchiveScanView,
+} from '@/features/archiveScan/resultView';
+import {
+  useAutomationTask,
+  type CommandResult,
+  type AutomationTask,
+} from '@/features/automation/useAutomationTask';
+import { methodByArchiveId } from '@/features/gameData/archiveContract';
 import { exportToOem } from '@/features/archiveScan/exportOem';
 import { prtsData } from '@/features/gameData/prtsData';
-import { clearScanResults, scanResults, scanError } from '@/features/archiveScan/results';
-import { deriveArchiveCollection } from '@/features/archiveScan/collection';
+import {
+  clearScannedItems,
+  correctScannedItem,
+  scannedItems,
+  scanError,
+} from '@/features/archiveScan/scannedItems';
 import { archiveScanWorkerType } from '@/features/archiveScan/workerType';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
 
-const { phase, isActive, canStart, canStop, tryStart, tryStop } = useAutomationTask('archiveScan');
+const { phase, isActive, canStart, canStop, tryStart, tryStop }: AutomationTask<'archiveScan'> =
+  useAutomationTask('archiveScan');
 
 function toggleScan(): Promise<CommandResult> {
   return canStart.value ? tryStart({ workerType: archiveScanWorkerType.value }) : tryStop();
 }
 
-const scanButtonLabel = computed<string>(() => {
+const scanButtonLabel: ComputedRef<string> = computed((): string => {
   if (phase.value === 'stopping') return '正在停止扫描';
   if (phase.value === 'blocked') return '其他自动化任务正在运行';
   if (phase.value === 'running') {
@@ -31,109 +39,36 @@ const scanButtonLabel = computed<string>(() => {
 });
 
 /** 用户是否手动关闭了扫描失败提示（失败原因变化时自动恢复显示） */
-const scanErrorDismissed = ref(false);
+const scanErrorDismissed: Ref<boolean> = ref(false);
 
 /** 是否展示扫描失败提示（存在失败原因且未被手动关闭） */
-const showScanError = computed(() => scanError.value !== null && !scanErrorDismissed.value);
+const showScanError: ComputedRef<boolean> = computed(
+  (): boolean => scanError.value !== null && !scanErrorDismissed.value,
+);
 
 /** 当前扫描失败原因（无失败时为 undefined，用于提示文案） */
-const scanErrorMessage = computed(() => scanError.value ?? undefined);
+const scanErrorMessage: ComputedRef<string | undefined> = computed(
+  (): string | undefined => scanError.value ?? undefined,
+);
 
 // 失败原因变化（含重新失败）时恢复显示提示
 watch(scanError, () => {
   scanErrorDismissed.value = false;
 });
 
-function statusToCollectType(status: ScanResultStatus): CollectType {
-  switch (status) {
-    case 'success':
-      return CollectType.Collected;
-    case 'unrecognized':
-      return CollectType.Unrecognized;
-    case 'failed':
-      return CollectType.Failed;
-  }
-}
+const hideCollected: Ref<boolean> = ref(false);
+const hideNotObtainableInOverworld: Ref<boolean> = ref(false);
 
-/** 应用人工纠错：更新对应扫描结果（标记为已收集或无法识别）。 */
-function onCorrect(scanResult: ScanResult | null, title: string): void {
-  if (scanResult === null) {
-    return;
-  }
-  applyCorrection(scanResult, title);
-}
-
-const hideCollected = ref(false);
-const hideNotObtainableInOverworld = ref(false);
-
-/** 档案是否可在大世界中获取：仅获取方式为地图交互点位（method = 'map'）的档案可在世界内直接收集。 */
-function isNotObtainableInOverworld(archiveId: string | null): boolean {
-  return archiveId !== null && getAcquisitionMethod(archiveId) !== 'map';
-}
-
-const filteredScanResults = computed<ScanResultCardProps[]>(() => {
-  const result: ScanResultCardProps[] = [];
-  for (const scanResult of scanResults.value) {
-    if (scanResult.status === 'success') {
-      continue;
-    }
-    result.push({
-      collectType: statusToCollectType(scanResult.status),
-      category: scanResult.category,
-      subCategory: scanResult.subCategory,
-      imageUrl: scanResult.image,
-      title: scanResult.correctedTitle ?? scanResult.ocrResult,
-      archiveId: scanResult.itemIds[0] ?? null,
-      scanResult,
-    });
-  }
-
-  for (const { categoryId, id, title, type } of Object.values(prtsData.value?.allItems ?? {})) {
-    // 隐藏无法在大世界中获取的档案（获取方式非地图交互点位）
-    if (hideNotObtainableInOverworld.value && isNotObtainableInOverworld(id)) {
-      continue;
-    }
-    const maybeScanResult = scanResults.value.find((r) => r.itemIds.includes(id));
-    if (maybeScanResult !== undefined) {
-      if (hideCollected.value && maybeScanResult.status === 'success') {
-        continue;
-      }
-      result.push({
-        collectType: statusToCollectType(maybeScanResult.status),
-        category: maybeScanResult.category,
-        subCategory: maybeScanResult.subCategory,
-        imageUrl: maybeScanResult.image,
-        title: maybeScanResult.correctedTitle ?? title,
-        archiveId: id,
-        scanResult: maybeScanResult,
-      });
-    } else {
-      result.push({
-        collectType: CollectType.NotCollected,
-        category: type,
-        subCategory: categoryId,
-        imageUrl: null,
-        title,
-        archiveId: id,
-        scanResult: null,
-      });
-    }
-  }
-  return result;
-});
-/**
- * 扫描结果统计（与导出到地图集口径一致：重名档案只要有一个已收集，全部视为已收集）。
- * 已收集 / 未收集为档案数，识别错误为扫描失败（failed / unrecognized）条数。
- */
-const summary = computed(() => {
-  const collection = deriveArchiveCollection(prtsData.value?.allItems ?? {}, scanResults.value);
-  const error = scanResults.value.filter((result) => result.status !== 'success').length;
-  return {
-    error,
-    notCollected: collection.notCollectedIds.length,
-    collected: collection.collectedIds.length,
-  };
-});
+const resultView: ComputedRef<ArchiveScanView> = computed((): ArchiveScanView =>
+  deriveArchiveScanView(prtsData.value, methodByArchiveId.value, scannedItems.value),
+);
+const filteredResultCards: ComputedRef<ArchiveScanResultCardProps[]> = computed(
+  (): ArchiveScanResultCardProps[] =>
+    filterArchiveScanCards(resultView.value.cards, {
+      hideCollected: hideCollected.value,
+      hideNotObtainableInOverworld: hideNotObtainableInOverworld.value,
+    }),
+);
 </script>
 
 <template>
@@ -181,13 +116,13 @@ const summary = computed(() => {
             <p class="text-sm font-medium">扫描结果</p>
             <div class="flex items-center gap-1.5">
               <span class="rounded bg-error/10 px-1.5 py-0.5 text-xs text-error">
-                识别错误 {{ summary.error }}
+                识别错误 {{ resultView.summary.notSuccessCount }}
               </span>
               <span class="rounded bg-elevated px-1.5 py-0.5 text-xs text-muted">
-                未收集 {{ summary.notCollected }}
+                未收集 {{ resultView.summary.notCollectedCount }}
               </span>
               <span class="rounded bg-success/10 px-1.5 py-0.5 text-xs text-success">
-                已收集 {{ summary.collected }}
+                已收集 {{ resultView.summary.collectedCount }}
               </span>
             </div>
           </div>
@@ -207,21 +142,24 @@ const summary = computed(() => {
             label="清空"
             size="xs"
             variant="ghost"
-            @click="clearScanResults()"
+            @click="clearScannedItems()"
           />
         </div>
 
         <UScrollArea
           v-slot="{ item }"
           class="flex-1 scrollbar-gutter-stable p-1"
-          :items="filteredScanResults"
+          :items="filteredResultCards"
           :virtualize="{
             estimateSize: 56,
             skipMeasurement: true,
             overscan: 8,
           }"
         >
-          <ScanResultCard v-bind="item" @correct="onCorrect(item.scanResult, $event)" />
+          <ArchiveScanResultCard
+            v-bind="item"
+            @correct="item.scannedItemId !== null && correctScannedItem(item.scannedItemId, $event)"
+          />
         </UScrollArea>
       </div>
     </div>
