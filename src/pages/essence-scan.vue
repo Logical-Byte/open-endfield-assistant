@@ -105,7 +105,7 @@ async function toggleScan(): Promise<void> {
       <header class="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 class="flex items-center gap-2 text-xl font-semibold">
-            <UIcon class="text-primary" name="i-lucide-gem" />基质扫描
+            <UIcon class="text-primary" name="i-lucide-gem" />基质扫描（原型）
           </h1>
           <p class="mt-1 text-sm text-muted">遍历背包中的武器基质，按已保存的规则给出保留建议。</p>
         </div>

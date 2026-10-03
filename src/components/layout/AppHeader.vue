@@ -9,7 +9,7 @@ const navigationMenuItems: NavigationMenuItem[] = [
     to: '/',
   },
   {
-    label: '基质扫描',
+    label: '基质扫描（原型）',
     icon: 'i-lucide-gem',
     to: '/essence-scan',
   },
