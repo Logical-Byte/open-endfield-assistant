@@ -14,9 +14,9 @@ from PIL import Image
 def main() -> None:
     root = Path(__file__).resolve().parent.parent
     source = Path(sys.argv[1]) / "src/endfield_essence_recognizer/templates"
-    target = root / "src-tauri/assets/essence"
+    target = root / "resources/templates/基质"
     target.mkdir(parents=True, exist_ok=True)
-    catalog = json.loads((root / "src-tauri/src/essence/catalog.json").read_text())
+    catalog = json.loads((root / "resources/data/essence_catalog.json").read_text())
     entries = [(stat["id"], source / "generated" / f"{stat['id']}.png") for stat in catalog["stats"]]
     entries += [
         ("scene", source / "screenshot/武器基质.png"),
@@ -30,7 +30,7 @@ def main() -> None:
         image = Image.open(path).convert("RGB")
         image = image.resize(tuple(round(size * 2 / 3) for size in image.size), Image.Resampling.LANCZOS)
         image.save(target / f"{name}.png")
-        lines.append(f'    ("{name}", include_bytes!("../../../assets/essence/{name}.png")),')
+        lines.append(f'    ("{name}", include_bytes!("../../../../resources/templates/基质/{name}.png")),')
     lines.append("];")
     (root / "src-tauri/src/automation/essence_scan/templates.rs").write_text("\n".join(lines) + "\n")
     print(f"已生成 {len(entries)} 个 720p 模板")

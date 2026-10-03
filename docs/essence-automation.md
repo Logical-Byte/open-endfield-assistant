@@ -55,8 +55,9 @@
 
 ## 资源与校准
 
-属性目录固定在 `src-tauri/src/essence/catalog.json`，模板固定在
-`src-tauri/assets/essence/` 并编译进程序，无需另行更新资源子模块。
+属性目录位于 `resources/data/essence_catalog.json`，模板位于
+`resources/templates/基质/`。这两类文件由资源子模块版本管理，并编译进程序。
+更新或切换本地分支时需要同步资源子模块。
 来源版本和许可见 [第三方组件](third-party-notices.md)。
 
 更新目录：

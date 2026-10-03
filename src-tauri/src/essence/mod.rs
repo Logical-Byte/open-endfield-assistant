@@ -20,7 +20,8 @@ impl Catalog {
     pub fn bundled() -> &'static Self {
         static CATALOG: OnceLock<Catalog> = OnceLock::new();
         CATALOG.get_or_init(|| {
-            serde_json::from_str(include_str!("catalog.json")).expect("内置基质与武器数据应当有效")
+            serde_json::from_str(include_str!("../../../resources/data/essence_catalog.json"))
+                .expect("内置基质与武器数据应当有效")
         })
     }
 

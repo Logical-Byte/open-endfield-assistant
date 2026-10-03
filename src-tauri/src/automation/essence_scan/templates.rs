@@ -2,143 +2,146 @@
 pub(super) const TEMPLATES: &[(&str, &[u8])] = &[
     (
         "gat_passive_attr_agi",
-        include_bytes!("../../../assets/essence/gat_passive_attr_agi.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_agi.png"),
     ),
     (
         "gat_passive_attr_atk",
-        include_bytes!("../../../assets/essence/gat_passive_attr_atk.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_atk.png"),
     ),
     (
         "gat_passive_attr_crirate",
-        include_bytes!("../../../assets/essence/gat_passive_attr_crirate.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_crirate.png"),
     ),
     (
         "gat_passive_attr_firedam",
-        include_bytes!("../../../assets/essence/gat_passive_attr_firedam.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_firedam.png"),
     ),
     (
         "gat_passive_attr_heal",
-        include_bytes!("../../../assets/essence/gat_passive_attr_heal.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_heal.png"),
     ),
     (
         "gat_passive_attr_hp",
-        include_bytes!("../../../assets/essence/gat_passive_attr_hp.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_hp.png"),
     ),
     (
         "gat_passive_attr_icedam",
-        include_bytes!("../../../assets/essence/gat_passive_attr_icedam.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_icedam.png"),
     ),
     (
         "gat_passive_attr_magicdam",
-        include_bytes!("../../../assets/essence/gat_passive_attr_magicdam.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_magicdam.png"),
     ),
     (
         "gat_passive_attr_main",
-        include_bytes!("../../../assets/essence/gat_passive_attr_main.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_main.png"),
     ),
     (
         "gat_passive_attr_naturaldam",
-        include_bytes!("../../../assets/essence/gat_passive_attr_naturaldam.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_naturaldam.png"),
     ),
     (
         "gat_passive_attr_phydam",
-        include_bytes!("../../../assets/essence/gat_passive_attr_phydam.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_phydam.png"),
     ),
     (
         "gat_passive_attr_physpell",
-        include_bytes!("../../../assets/essence/gat_passive_attr_physpell.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_physpell.png"),
     ),
     (
         "gat_passive_attr_pulsedam",
-        include_bytes!("../../../assets/essence/gat_passive_attr_pulsedam.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_pulsedam.png"),
     ),
     (
         "gat_passive_attr_str",
-        include_bytes!("../../../assets/essence/gat_passive_attr_str.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_str.png"),
     ),
     (
         "gat_passive_attr_usp",
-        include_bytes!("../../../assets/essence/gat_passive_attr_usp.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_usp.png"),
     ),
     (
         "gat_passive_attr_will",
-        include_bytes!("../../../assets/essence/gat_passive_attr_will.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_will.png"),
     ),
     (
         "gat_passive_attr_wisd",
-        include_bytes!("../../../assets/essence/gat_passive_attr_wisd.png"),
+        include_bytes!("../../../../resources/templates/基质/gat_passive_attr_wisd.png"),
     ),
     (
         "gst_passive_break",
-        include_bytes!("../../../assets/essence/gst_passive_break.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_break.png"),
     ),
     (
         "gst_passive_burst",
-        include_bytes!("../../../assets/essence/gst_passive_burst.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_burst.png"),
     ),
     (
         "gst_passive_combo",
-        include_bytes!("../../../assets/essence/gst_passive_combo.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_combo.png"),
     ),
     (
         "gst_passive_crit",
-        include_bytes!("../../../assets/essence/gst_passive_crit.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_crit.png"),
     ),
     (
         "gst_passive_force",
-        include_bytes!("../../../assets/essence/gst_passive_force.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_force.png"),
     ),
     (
         "gst_passive_heal",
-        include_bytes!("../../../assets/essence/gst_passive_heal.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_heal.png"),
     ),
     (
         "gst_passive_keyword",
-        include_bytes!("../../../assets/essence/gst_passive_keyword.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_keyword.png"),
     ),
     (
         "gst_passive_magabn",
-        include_bytes!("../../../assets/essence/gst_passive_magabn.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_magabn.png"),
     ),
     (
         "gst_passive_phyabn",
-        include_bytes!("../../../assets/essence/gst_passive_phyabn.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_phyabn.png"),
     ),
     (
         "gst_passive_smash",
-        include_bytes!("../../../assets/essence/gst_passive_smash.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_smash.png"),
     ),
     (
         "gst_passive_spirit",
-        include_bytes!("../../../assets/essence/gst_passive_spirit.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_spirit.png"),
     ),
     (
         "gst_passive_tacafter",
-        include_bytes!("../../../assets/essence/gst_passive_tacafter.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_tacafter.png"),
     ),
     (
         "gst_passive_tactic",
-        include_bytes!("../../../assets/essence/gst_passive_tactic.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_tactic.png"),
     ),
     (
         "gst_passive_ult",
-        include_bytes!("../../../assets/essence/gst_passive_ult.png"),
+        include_bytes!("../../../../resources/templates/基质/gst_passive_ult.png"),
     ),
-    ("scene", include_bytes!("../../../assets/essence/scene.png")),
+    (
+        "scene",
+        include_bytes!("../../../../resources/templates/基质/scene.png"),
+    ),
     (
         "locked",
-        include_bytes!("../../../assets/essence/locked.png"),
+        include_bytes!("../../../../resources/templates/基质/locked.png"),
     ),
     (
         "unlocked",
-        include_bytes!("../../../assets/essence/unlocked.png"),
+        include_bytes!("../../../../resources/templates/基质/unlocked.png"),
     ),
     (
         "abandoned",
-        include_bytes!("../../../assets/essence/abandoned.png"),
+        include_bytes!("../../../../resources/templates/基质/abandoned.png"),
     ),
     (
         "unabandoned",
-        include_bytes!("../../../assets/essence/unabandoned.png"),
+        include_bytes!("../../../../resources/templates/基质/unabandoned.png"),
     ),
 ];

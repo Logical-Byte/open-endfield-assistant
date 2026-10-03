@@ -2,7 +2,7 @@
 
 ## EER 基质规则数据
 
-`src-tauri/src/essence/catalog.json` 包含基质属性名称、类型以及武器属性组合，来源为
+`resources/data/essence_catalog.json` 包含基质属性名称、类型以及武器属性组合，来源为
 [eer-resource](https://github.com/Logical-Byte/eer-resource) 的
 `f10cada35e2569c248a89df5b2b59552b37876fc`，通过 `scripts/importEssenceCatalog.py` 提取。
 
@@ -11,7 +11,7 @@
 自定义组合、高等级保留规则，不包含数量认领与冗余清理。EER 仓库声明使用 AGPL-3.0，
 本页记录参考来源，不替代上游许可文本。
 
-`src-tauri/assets/essence/` 的 36 个模板由该 EER 版本中的属性文字模板和五个界面状态
+`resources/templates/基质/` 的 36 个模板由该 EER 版本中的属性文字模板和五个界面状态
 截图通过 `scripts/importEssenceTemplates.py` 重采样至 720p。目录内 `LICENSE.EER`
 保存上游的许可文本。模板与目录数据的更新方法见 [基质扫描](essence-automation.md)。
 

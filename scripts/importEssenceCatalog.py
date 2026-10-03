@@ -28,7 +28,7 @@ def main() -> None:
             for key, value in sorted(weapons.items())
         ],
     }
-    target = Path(__file__).resolve().parent.parent / "src-tauri/src/essence/catalog.json"
+    target = Path(__file__).resolve().parent.parent / "resources/data/essence_catalog.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n")
     print(f"已导入 {len(catalog['stats'])} 个属性、{len(catalog['weapons'])} 把武器到 {target}")
