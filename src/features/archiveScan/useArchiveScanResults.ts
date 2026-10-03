@@ -43,6 +43,8 @@ export function filterOptions(
 function acceptsMatch(filter: MatchingFilter, matched: boolean): boolean {
   return filter === 'all' || (filter === 'matched' ? matched : !matched);
 }
+// Reka Select 将空字符串用于清除选择，选项本身必须有非空值。
+const ALL_CATEGORIES = 'all';
 interface CategoryOption {
   label: string;
   value: string;
@@ -79,8 +81,8 @@ export function useArchiveScanResults(
   const scanFilter = ref<MatchingFilter>('unmatched');
   const archiveSearch = ref('');
   const scanSearch = ref('');
-  const archiveCategory = ref('');
-  const scanCategory = ref('');
+  const archiveCategory = ref(ALL_CATEGORIES);
+  const scanCategory = ref(ALL_CATEGORIES);
   const mapOnly = ref(false);
   const lastEdit = ref<Readonly<ScannedItemRecord> | null>(null);
   const archives = computed((): readonly ArchiveEntryView[] => view.value.archives);
@@ -92,7 +94,7 @@ export function useArchiveScanResults(
     (): number => scans.value.filter((s): boolean => s.archives.length > 0).length,
   );
   const categories = computed((): CategoryOption[] => [
-    { label: '全部分类', value: '' },
+    { label: '全部分类', value: ALL_CATEGORIES },
     ...Object.values(source.data.value?.PrtsCategory ?? {}).map((category): CategoryOption => ({
       label: category.name,
       value: category.categoryId,
@@ -103,7 +105,7 @@ export function useArchiveScanResults(
       (a): boolean =>
         acceptsMatch(archiveFilter.value, a.scans.length > 0) &&
         (!mapOnly.value || a.acquisitionMethod === 'map') &&
-        (!archiveCategory.value || a.category === archiveCategory.value) &&
+        (archiveCategory.value === ALL_CATEGORIES || a.category === archiveCategory.value) &&
         a.title.includes(archiveSearch.value),
     ),
   );
@@ -111,7 +113,7 @@ export function useArchiveScanResults(
     scans.value.filter(
       (s): boolean =>
         acceptsMatch(scanFilter.value, s.archives.length > 0) &&
-        (!scanCategory.value || s.foundInSubCategory === scanCategory.value) &&
+        (scanCategory.value === ALL_CATEGORIES || s.foundInSubCategory === scanCategory.value) &&
         [s.ocrResult, s.correctedTitle ?? ''].some((title): boolean =>
           title.includes(scanSearch.value),
         ),
@@ -148,12 +150,12 @@ export function useArchiveScanResults(
   function revealScan(): void {
     scanFilter.value = 'all';
     scanSearch.value = '';
-    scanCategory.value = '';
+    scanCategory.value = ALL_CATEGORIES;
   }
   function revealArchive(): void {
     archiveFilter.value = 'all';
     archiveSearch.value = '';
-    archiveCategory.value = '';
+    archiveCategory.value = ALL_CATEGORIES;
     mapOnly.value = false;
   }
   return {
