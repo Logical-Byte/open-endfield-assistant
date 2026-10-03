@@ -48,7 +48,7 @@ export function deriveArchiveScanView(
   const titlesByCategory = new Map<string, Set<string>>();
   const archiveById = new Map<ArchiveId, ArchiveEntryView>();
   function categoryLabel(page: string, category: string): string {
-    return `${data?.PrtsPage[page]?.name ?? page} · ${data?.PrtsCategory[category]?.name ?? category}`;
+    return `${data?.PrtsPage[page]?.name ?? page}/${data?.PrtsCategory[category]?.name ?? category}`;
   }
   for (const [key, archive] of Object.entries(allItems)) {
     const id = key as ArchiveId;

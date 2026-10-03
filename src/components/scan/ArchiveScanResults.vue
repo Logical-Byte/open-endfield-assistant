@@ -316,11 +316,6 @@ watch(scans, (): void => {
           />
         </UScrollArea>
         <div v-if="!visibleScans.length" class="flex-1 py-14 text-center">
-          <UIcon
-            class="mb-2 size-6"
-            :class="scans.length ? 'text-success' : 'text-muted'"
-            :name="scans.length ? 'i-lucide-check-check' : 'i-lucide-scan-line'"
-          />
           <p class="text-sm text-muted">
             {{
               !scans.length

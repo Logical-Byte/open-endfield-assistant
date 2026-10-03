@@ -40,11 +40,8 @@ const {
           <h3 class="line-clamp-2 text-sm font-medium text-highlighted" :title="entry.title">
             {{ entry.title }}
           </h3>
-          <p
-            class="mt-1 truncate text-xs text-muted"
-            :title="`${entry.categoryLabel} · ${entry.acquisitionLabel ?? '获取方式未知'}`"
-          >
-            {{ entry.categoryLabel }} · {{ entry.acquisitionLabel }}
+          <p class="mt-1 truncate text-xs text-muted" :title="entry.categoryLabel">
+            {{ entry.categoryLabel }}
           </p>
         </div>
       </div>
