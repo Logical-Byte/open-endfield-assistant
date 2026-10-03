@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { watch } from 'vue';
 import { useEvidencePopover } from './useEvidencePopover';
 import type { ArchiveEntryView } from '@/features/archiveScan/resultView';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
@@ -8,10 +7,11 @@ defineProps<{
   selected?: boolean;
 }>();
 const emit = defineEmits<{ clearHighlight: []; locateScan: [id: ScannedItemId] }>();
-const { open: evidenceOpen, cancelClose, scheduleClose } = useEvidencePopover();
-watch(evidenceOpen, (open: boolean): void => {
-  if (!open) emit('clearHighlight');
-});
+const {
+  open: evidenceOpen,
+  cancelClose,
+  scheduleClose,
+} = useEvidencePopover((): void => emit('clearHighlight'));
 </script>
 
 <template>

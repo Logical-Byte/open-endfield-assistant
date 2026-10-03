@@ -1,7 +1,7 @@
 import { onUnmounted, ref, watch, type Ref } from 'vue';
 
 // 点击展开。短暂延迟允许鼠标跨过按钮与弹窗之间的间隙。
-export function useEvidencePopover(): {
+export function useEvidencePopover(onClose: () => void): {
   open: Ref<boolean>;
   cancelClose: () => void;
   scheduleClose: () => void;
@@ -18,8 +18,14 @@ export function useEvidencePopover(): {
     }, 150);
   }
   watch(open, (value: boolean): void => {
-    if (!value) cancelClose();
+    if (!value) {
+      cancelClose();
+      onClose();
+    }
   });
-  onUnmounted(cancelClose);
+  onUnmounted((): void => {
+    cancelClose();
+    if (open.value) onClose();
+  });
   return { open, cancelClose, scheduleClose };
 }

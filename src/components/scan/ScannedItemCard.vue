@@ -16,11 +16,12 @@ const emit = defineEmits<{
 }>();
 const draft = ref(props.item.correctedTitle ?? props.item.ocrResult);
 const editing = ref(false);
-const { open: floatingMatchesOpen, cancelClose, scheduleClose } = useEvidencePopover();
+const {
+  open: floatingMatchesOpen,
+  cancelClose,
+  scheduleClose,
+} = useEvidencePopover((): void => emit('clearHighlight'));
 
-watch(floatingMatchesOpen, (open: boolean): void => {
-  if (!open) emit('clearHighlight');
-});
 watch(
   () => props.item.correctedTitle,
   (): void => {
