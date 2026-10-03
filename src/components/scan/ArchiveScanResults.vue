@@ -51,6 +51,7 @@ const splitStyle = computed((): Record<string, string> => ({
   '--left-pane': `${leftWidth.value}fr`,
   '--right-pane': `${100 - leftWidth.value}fr`,
 }));
+// 下限与 CSS 的两栏最小宽度一致，拖动时保留标题和操作区所需空间。
 function resizeLimits(): { min: number; max: number } {
   const width = (splitContainer.value?.clientWidth ?? 0) - 16;
   const archiveMin = window.innerWidth >= 1200 ? 560 : 360;
@@ -99,6 +100,7 @@ function correct(id: ScannedItemId, title: string): void {
     color: count ? 'success' : 'warning',
   });
 }
+// 解除筛选后先等虚拟列表收到新 items，再按索引定位未挂载的记录。
 async function locateScan(id: ScannedItemId): Promise<void> {
   revealScan();
   selectedScanId.value = id;

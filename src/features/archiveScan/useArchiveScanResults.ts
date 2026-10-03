@@ -71,6 +71,11 @@ interface ArchiveScanResultsState {
   revealScan: () => void;
   revealArchive: () => void;
 }
+/**
+ * 每次调用持有独立的筛选和单步撤销状态，默认连接共享的真实扫描数据。
+ * 两栏数据从同一匹配结果派生，筛选只影响显示，不影响关联与导出。
+ * 滚动和临时高亮由页面负责。
+ */
 export function useArchiveScanResults(
   source: ArchiveScanSource = liveSource,
 ): ArchiveScanResultsState {
@@ -131,6 +136,7 @@ export function useArchiveScanResults(
     },
     { flush: 'sync' },
   );
+  /** 返回纠错后的关联档案数量，供页面提示使用。 */
   function correct(id: ScannedItemId, title: string): number {
     const previous = source.scans.value.find((s): boolean => s.scannedItemId === id);
     if (!previous) return 0;
@@ -147,6 +153,7 @@ export function useArchiveScanResults(
     source.clear();
     lastEdit.value = null;
   }
+  // 定位前解除目标栏筛选，避免关联记录被当前条件隐藏。
   function revealScan(): void {
     scanFilter.value = 'all';
     scanSearch.value = '';

@@ -3,6 +3,7 @@ import type { ArchiveId, ScannedItem } from './types/scannedItem';
 
 export interface ArchiveMatching<T extends ScannedItem> {
   readonly scansByArchiveId: ReadonlyMap<ArchiveId, readonly T[]>;
+  // 以输入记录对象为键，让导出逻辑复用匹配规则时无需依赖前端扫描 ID。
   readonly archiveIdsByScan: ReadonlyMap<T, readonly ArchiveId[]>;
 }
 
@@ -14,6 +15,7 @@ export function deriveArchiveMatching<T extends ScannedItem>(
   const scansByGroup = new Map<string, T[]>();
   for (const scan of scannedItems) {
     if (scan.status !== 'success') continue;
+    // 同一条扫描可能命中多个同名 ID，在共享分组中只计一次证据。
     const groups = new Set<string>();
     for (const id of scan.correctedMatchItemIds) {
       const archive = allItems[id];

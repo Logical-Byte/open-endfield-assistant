@@ -1,6 +1,9 @@
 import { onUnmounted, ref, watch, type Ref } from 'vue';
 
-// 点击展开。短暂延迟允许鼠标跨过按钮与弹窗之间的间隙。
+/**
+ * 供两类证据弹窗共用。调用方通过点击控制 open，移开后延迟关闭，允许鼠标跨过弹窗间隙。
+ * 普通关闭与来源 Card 卸载都会调用 onClose，用于清除对侧定位高亮。
+ */
 export function useEvidencePopover(onClose: () => void): {
   open: Ref<boolean>;
   cancelClose: () => void;
@@ -25,6 +28,7 @@ export function useEvidencePopover(onClose: () => void): {
   });
   onUnmounted((): void => {
     cancelClose();
+    // 虚拟列表也会卸载 Card，只有仍打开的来源弹窗需要清理其定位高亮。
     if (open.value) onClose();
   });
   return { open, cancelClose, scheduleClose };
