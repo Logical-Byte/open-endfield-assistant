@@ -89,7 +89,7 @@ export function useArchiveScanResults(
   const archiveCategory = ref(ALL_CATEGORIES);
   const scanCategory = ref(ALL_CATEGORIES);
   const mapOnly = ref(false);
-  const lastEdit = ref<Readonly<ScannedItemRecord> | null>(null);
+  const lastEdit: Ref<Readonly<ScannedItemRecord> | null> = ref(null);
   const archives = computed((): readonly ArchiveEntryView[] => view.value.archives);
   const scans = computed((): readonly ScannedItemView[] => view.value.scans);
   const matchedArchives = computed(
