@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 pub struct CapabilityCallCounts {
     pub screenshot: u64,
     pub click: u64,
+    pub drag: u64,
     pub press_key: u64,
     pub move_mouse_to_safe_position: u64,
     pub find_template: u64,
@@ -67,8 +68,8 @@ mod tests {
 
     use crate::{
         automation::{
-            Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
-            TemplateTarget,
+            Clock, Drag, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch,
+            TemplateMatching, TemplateTarget,
         },
         utils::region::Region2D,
     };
@@ -134,6 +135,12 @@ mod tests {
         }
     }
 
+    impl Drag for AllCapabilities {
+        fn drag(&mut self, _from: Point720p, _to: Point720p) -> Result<()> {
+            Ok(())
+        }
+    }
+
     impl TemplateMatching for AllCapabilities {
         fn find_template(
             &mut self,
@@ -170,6 +177,9 @@ mod tests {
         let mut captured = Capture::new(&mut capabilities);
         let screenshot = captured.screenshot().unwrap();
         captured.click(Point720p { x: 10, y: 20 }).unwrap();
+        captured
+            .drag(Point720p { x: 10, y: 20 }, Point720p { x: 30, y: 40 })
+            .unwrap();
         captured.press_key(Key::Escape).unwrap();
         captured.move_mouse_to_safe_position().unwrap();
         captured.find_template(&screenshot, &target).unwrap();
@@ -184,6 +194,7 @@ mod tests {
             CapabilityCallCounts {
                 screenshot: 1,
                 click: 1,
+                drag: 1,
                 press_key: 1,
                 move_mouse_to_safe_position: 1,
                 find_template: 1,

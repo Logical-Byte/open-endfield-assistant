@@ -11,6 +11,10 @@
 自定义组合、高等级保留规则，不包含数量认领与冗余清理。EER 仓库声明使用 AGPL-3.0，
 本页记录参考来源，不替代上游许可文本。
 
+`src-tauri/assets/essence/` 的 36 个模板由该 EER 版本中的属性文字模板和五个界面状态
+截图通过 `scripts/importEssenceTemplates.py` 重采样至 720p。目录内 `LICENSE.EER`
+保存上游的许可文本。模板与目录数据的更新方法见 [基质扫描](essence-automation.md)。
+
 ## RapidOCR OCR 模型
 
 OEA 使用以下 OCR 模型文件：

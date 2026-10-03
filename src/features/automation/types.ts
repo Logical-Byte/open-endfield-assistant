@@ -1,9 +1,15 @@
 import type { ArchiveScanWorkerType } from '@/features/archiveScan/workerType';
+import type { EssenceScanWorkerType } from '@/features/essenceScan/workerType';
 
-export type StartRequest = {
-  taskKind: 'archiveScan';
-  workerType: ArchiveScanWorkerType;
-};
+export type StartRequest =
+  | {
+      taskKind: 'archiveScan';
+      workerType: ArchiveScanWorkerType;
+    }
+  | {
+      taskKind: 'essenceScan';
+      workerType: EssenceScanWorkerType;
+    };
 
 /** 用户可以启动的自动化任务种类。 */
 export type TaskKind = StartRequest['taskKind'];

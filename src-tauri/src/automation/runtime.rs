@@ -232,11 +232,12 @@ impl Runtime {
         if let Some(summary) = capture {
             let calls = summary.calls;
             info!(
-                "自动化任务统计：耗时 {:.1} 秒，截图 {} 次，点击 {} 次，按键 {} 次，\
+                "自动化任务统计：耗时 {:.1} 秒，截图 {} 次，点击 {} 次，拖动 {} 次，按键 {} 次，\
                  显式鼠标归位 {} 次，模板匹配 {} 次，OCR {} 次，等待 {} 次",
                 summary.elapsed.as_secs_f64(),
                 calls.screenshot,
                 calls.click,
+                calls.drag,
                 calls.press_key,
                 calls.move_mouse_to_safe_position,
                 calls.find_template,

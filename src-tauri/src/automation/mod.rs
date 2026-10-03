@@ -15,6 +15,7 @@
 pub(crate) mod archive_scan;
 mod cancellation;
 mod capabilities;
+pub(crate) mod essence_scan;
 mod events;
 mod runtime;
 mod session;
@@ -25,7 +26,7 @@ mod stats;
 pub(crate) use cancellation::new_stop_token;
 use cancellation::{AutomationStopped, StopToken, is_stop_requested, request_stop};
 pub use capabilities::{
-    Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
+    Clock, Drag, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
     TemplateTarget,
 };
 pub(crate) use events::{Event, EventSink, RunEvent, RuntimeEventSink};
@@ -37,6 +38,7 @@ pub use runtime::{LastRun, RunOutcome, Status};
 #[serde(rename_all = "camelCase")]
 pub enum TaskKind {
     ArchiveScan,
+    EssenceScan,
 }
 
 #[derive(serde::Deserialize)]
@@ -45,5 +47,9 @@ pub(crate) enum StartRequest {
     ArchiveScan {
         #[serde(rename = "workerType")]
         worker_type: archive_scan::WorkerType,
+    },
+    EssenceScan {
+        #[serde(rename = "workerType")]
+        worker_type: essence_scan::WorkerType,
     },
 }

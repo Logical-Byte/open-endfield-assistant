@@ -135,5 +135,9 @@ fn emit_run_event(
             "archive-item-scanned",
             automation::RunEvent { run_id, payload },
         ),
+        automation::Event::EssenceItemScanned(payload) => app_handle.emit(
+            "essence-item-scanned",
+            automation::RunEvent { run_id, payload },
+        ),
     }
 }

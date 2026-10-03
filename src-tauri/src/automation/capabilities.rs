@@ -68,6 +68,12 @@ pub trait Input {
     fn move_mouse_to_safe_position(&mut self) -> Result<()>;
 }
 
+/// 为需要拖动列表的工作流提供独立的鼠标拖动能力。
+pub trait Drag {
+    /// 按住鼠标左键，从起点平滑拖动到终点后松开。
+    fn drag(&mut self, from: Point720p, to: Point720p) -> Result<()>;
+}
+
 /// 在工作流提供的截图中查找模板。
 ///
 /// `Ok(None)` 是目标不存在这一业务结果；模板加载或匹配失败通过 `Err` 传播。

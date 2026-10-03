@@ -124,10 +124,7 @@ impl SeizeInputState {
     }
 
     pub(in crate::platform) fn touch_up(&self, contact: Contact, _x: i32, _y: i32) -> Result<()> {
-        if !self.hwnd.is_invalid() {
-            self.ensure_foreground()?;
-        }
-
+        // 释放按键不依赖窗口焦点，避免窗口失效或切换时鼠标保持按下。
         defer! {
             let _ = self.unblock_input();
         }

@@ -11,7 +11,7 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    automation::{self, archive_scan},
+    automation::{self, archive_scan, essence_scan},
     data::{AppData, ArchiveContract, PrtsData},
     navigation::Navigator,
     settings, vision,
@@ -88,6 +88,25 @@ impl Controller {
                             Box::new(archive_scan::SimulatedArchiveScanWorker::new(Arc::clone(
                                 &self.app_data,
                             )))
+                        }
+                    })
+            }
+            automation::StartRequest::EssenceScan { worker_type } => {
+                self.automation_runtime
+                    .start(automation::TaskKind::EssenceScan, || {
+                        let settings = self.settings_store.snapshot();
+                        match worker_type {
+                            essence_scan::WorkerType::Production => {
+                                Box::new(essence_scan::EssenceScanWorker::new(
+                                    settings,
+                                    Arc::clone(&self.ocr),
+                                ))
+                            }
+                            essence_scan::WorkerType::Simulation => {
+                                Box::new(essence_scan::SimulatedEssenceScanWorker::new(
+                                    settings.essence_scan,
+                                ))
+                            }
                         }
                     })
             }
