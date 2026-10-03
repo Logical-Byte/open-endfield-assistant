@@ -215,6 +215,7 @@ function toDraft(settings: Settings, mirrorchyanCdk: string | null): DraftSettin
     autoDownloadUpdates: settings.autoDownloadUpdates,
     autoInstallUpdates: settings.autoInstallUpdates,
     scanGuideEnabled: settings.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION,
+    essenceScan: settings.essenceScan,
     mirrorchyanCdk,
   };
 }

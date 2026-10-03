@@ -11,6 +11,7 @@ pub mod app_paths;
 pub mod automation;
 pub mod controller;
 pub mod data;
+pub mod essence;
 pub mod logger;
 pub mod navigation;
 pub mod platform;

@@ -1,5 +1,16 @@
 # 第三方组件
 
+## EER 基质规则数据
+
+`src-tauri/src/essence/catalog.json` 包含基质属性名称、类型以及武器属性组合，来源为
+[eer-resource](https://github.com/Logical-Byte/eer-resource) 的
+`f10cada35e2569c248a89df5b2b59552b37876fc`，通过 `scripts/importEssenceCatalog.py` 提取。
+
+扫描和分类设计参考 [EER](https://github.com/Logical-Byte/endfield-essence-recognizer)
+`066d0e5b830fa06e0addbb52966fe6513b7e4eb1`。OEA 只实现独立分类所需的武器匹配、
+自定义组合、高等级保留规则，不包含数量认领与冗余清理。EER 仓库声明使用 AGPL-3.0，
+本页记录参考来源，不替代上游许可文本。
+
 ## RapidOCR OCR 模型
 
 OEA 使用以下 OCR 模型文件：

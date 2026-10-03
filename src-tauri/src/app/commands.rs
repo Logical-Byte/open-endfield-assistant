@@ -59,6 +59,12 @@ pub fn get_automation_status(state: tauri::State<Controller>) -> automation::Sta
     state.automation_status()
 }
 
+/// 基质规则编辑与结果展示共用的只读属性、武器目录。
+#[tauri::command]
+pub fn get_essence_catalog() -> &'static crate::essence::Catalog {
+    crate::essence::Catalog::bundled()
+}
+
 /// 返回 `prts.json` 完整数据（前端用于分类中文名映射与自动补全候选）。
 #[tauri::command]
 pub fn get_prts_data<'a>(state: tauri::State<'a, Controller>) -> &'a PrtsData {

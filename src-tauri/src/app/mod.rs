@@ -69,6 +69,7 @@ pub fn run() {
             commands::stop_automation,
             commands::get_automation_status,
             commands::get_prts_data,
+            commands::get_essence_catalog,
             commands::get_archive_contract,
             commands::quit,
             commands::open_log_dir,

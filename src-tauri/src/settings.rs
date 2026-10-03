@@ -12,7 +12,7 @@ use crate::storage::CachedJsonFile;
 /// 当前设置文件主要版本号
 pub const CURRENT_MAJOR_VERSION: u32 = 0;
 /// 当前设置文件次要版本号
-pub const CURRENT_MINOR_VERSION: u32 = 0;
+pub const CURRENT_MINOR_VERSION: u32 = 1;
 
 /// 更新源。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -68,6 +68,8 @@ pub struct OeaSettings {
     /// `CURRENT_SCAN_TIPS_VERSION`，本字段无需改动；只改文案不递增版本号则老用户不重看。
     /// 本字段的「值」不属于 settings 结构变更，不会因此再次 bump `minorVersion`。
     pub scan_tips_dismissed_version: u32,
+    /// 基质扫描的保留规则，与档案扫描设置相互独立。
+    pub essence_scan: crate::essence::ScanSettings,
 }
 
 impl Default for OeaSettings {
@@ -84,6 +86,7 @@ impl Default for OeaSettings {
             auto_download_updates: true,
             auto_install_updates: true,
             scan_tips_dismissed_version: 0,
+            essence_scan: crate::essence::ScanSettings::default(),
         }
     }
 }
@@ -119,6 +122,9 @@ impl SettingsStore {
 
     /// 保存完整设置。文件提交成功后才会发布新的内存快照。
     pub fn save(&self, settings: OeaSettings) -> Result<()> {
+        settings
+            .essence_scan
+            .validate(crate::essence::Catalog::bundled())?;
         self.file.replace(settings)
     }
 
@@ -163,6 +169,7 @@ mod tests {
             auto_download_updates: false,
             auto_install_updates: false,
             scan_tips_dismissed_version: 1,
+            essence_scan: crate::essence::ScanSettings::default(),
         };
         let store = SettingsStore::at(path.clone());
         store.save(original_settings.clone()).unwrap();

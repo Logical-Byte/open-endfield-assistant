@@ -1,3 +1,5 @@
+import type { EssenceScanSettings } from '@/features/essenceScan/types';
+
 export enum UpdateSource {
   Mirrorchyan = 'mirrorchyan',
   Oem = 'oem',
@@ -33,4 +35,6 @@ export interface Settings {
   autoInstallUpdates: boolean;
   /** 用户已确认的扫描启动提示版本；设置 store 将其投影为 `scanGuideEnabled`。 */
   scanTipsDismissedVersion: number;
+  /** 基质扫描的独立保留规则。 */
+  essenceScan: EssenceScanSettings;
 }

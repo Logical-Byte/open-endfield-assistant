@@ -18,6 +18,14 @@ function createSettingsFixture(overrides: Partial<Settings> = {}): Settings {
     autoDownloadUpdates: true,
     autoInstallUpdates: true,
     scanTipsDismissedVersion: 0,
+    essenceScan: {
+      nonFiveStar: 'process',
+      protectLocked: true,
+      skipAbandoned: false,
+      highLevel: null,
+      excludedWeaponIds: [],
+      customKeeps: [],
+    },
     ...overrides,
   };
 }
