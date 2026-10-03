@@ -82,13 +82,13 @@ export function useArchiveScanResults(
   const view = computed((): ReturnType<typeof deriveArchiveScanView> =>
     deriveArchiveScanView(source.data.value, source.methods.value, source.scans.value),
   );
-  const archiveFilter = ref<MatchingFilter>('unmatched');
-  const scanFilter = ref<MatchingFilter>('unmatched');
-  const archiveSearch = ref('');
-  const scanSearch = ref('');
-  const archiveCategory = ref(ALL_CATEGORIES);
-  const scanCategory = ref(ALL_CATEGORIES);
-  const mapOnly = ref(false);
+  const archiveFilter: Ref<MatchingFilter> = ref<MatchingFilter>('unmatched');
+  const scanFilter: Ref<MatchingFilter> = ref<MatchingFilter>('unmatched');
+  const archiveSearch: Ref<string> = ref('');
+  const scanSearch: Ref<string> = ref('');
+  const archiveCategory: Ref<string> = ref(ALL_CATEGORIES);
+  const scanCategory: Ref<string> = ref(ALL_CATEGORIES);
+  const mapOnly: Ref<boolean> = ref(false);
   const lastEdit: Ref<Readonly<ScannedItemRecord> | null> = ref(null);
   const archives = computed((): readonly ArchiveEntryView[] => view.value.archives);
   const scans = computed((): readonly ScannedItemView[] => view.value.scans);

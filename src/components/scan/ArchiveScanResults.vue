@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch, type Ref } from 'vue';
 import { useResizeObserver } from '@vueuse/core';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import {
@@ -36,17 +36,17 @@ const {
 } = useArchiveScanResults(props.source);
 const { isActive } = useAutomationTask('archiveScan');
 const toast = useToast();
-const selectedArchiveId = ref<ArchiveId | null>(null);
-const selectedScanId = ref<ScannedItemId | null>(null);
+const selectedArchiveId: Ref<ArchiveId | null> = ref(null);
+const selectedScanId: Ref<ScannedItemId | null> = ref(null);
 // Nuxt UI 暴露的 virtualizer 负责将尚未挂载的记录滚入可见区。
 interface ScrollList {
   virtualizer?: { scrollToIndex: (index: number, options: { align: 'auto' }) => void };
 }
-const archiveList = ref<ScrollList | null>(null);
-const scanList = ref<ScrollList | null>(null);
-const splitContainer = ref<HTMLElement | null>(null);
-const leftWidth = ref(46.5);
-const resizing = ref(false);
+const archiveList: Ref<ScrollList | null> = ref(null);
+const scanList: Ref<ScrollList | null> = ref(null);
+const splitContainer: Ref<HTMLElement | null> = ref(null);
+const leftWidth: Ref<number> = ref(46.5);
+const resizing: Ref<boolean> = ref(false);
 const splitStyle = computed((): Record<string, string> => ({
   '--left-pane': `${leftWidth.value}fr`,
   '--right-pane': `${100 - leftWidth.value}fr`,

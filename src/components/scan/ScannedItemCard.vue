@@ -4,7 +4,7 @@ import { useEvidencePopover } from './useEvidencePopover';
 import type { ScannedItemView } from '@/features/archiveScan/resultView';
 import type { ArchiveId } from '@/features/archiveScan/types/scannedItem';
 import { openImagePreview } from '@/composables/image-preview';
-import type { CSSProperties } from 'vue';
+import type { CSSProperties, Ref } from 'vue';
 const props = defineProps<{
   item: ScannedItemView;
   selected?: boolean;
@@ -14,8 +14,8 @@ const emit = defineEmits<{
   locateArchive: [id: ArchiveId];
   clearHighlight: [];
 }>();
-const draft = ref(props.item.correctedTitle ?? props.item.ocrResult);
-const editing = ref(false);
+const draft: Ref<string> = ref(props.item.correctedTitle ?? props.item.ocrResult);
+const editing: Ref<boolean> = ref(false);
 const {
   open: floatingMatchesOpen,
   cancelClose,

@@ -9,7 +9,7 @@ export function useEvidencePopover(onClose: () => void): {
   cancelClose: () => void;
   scheduleClose: () => void;
 } {
-  const open = ref(false);
+  const open: Ref<boolean> = ref(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
   function cancelClose(): void {
     clearTimeout(timer);
