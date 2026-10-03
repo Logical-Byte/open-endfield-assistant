@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref } from 'vue';
 
+import { developerSettingsEnabled as enabled } from '@/features/settings/developerSettings';
+
 import DeveloperSettingsBody from './DeveloperSettingsBody.vue';
 import SettingsCard from './SettingsCard.vue';
 
 const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
 
-const enabled = ref<boolean>(false);
 const toggleBusy = ref<boolean>(false);
 const rootElement = ref<HTMLElement>();
 const anchorSpacerHeight = ref<number>(0);
