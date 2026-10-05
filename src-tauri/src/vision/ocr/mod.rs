@@ -5,6 +5,7 @@
 
 mod engine;
 mod inference;
+mod recognition;
 mod text_detection;
 
 pub(crate) use engine::OcrEngine;
