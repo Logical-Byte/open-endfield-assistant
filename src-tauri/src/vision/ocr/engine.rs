@@ -1,94 +1,82 @@
 use std::{path::Path, time::Instant};
 
 use anyhow::{Context, Result};
-use image::RgbImage;
-use rapidocr_core::{
-    RapidOcr,
-    config::{InferenceOptions, PipelineConfig},
-    model::{ModelCache, ModelDownloadMode, PPOCRV6_TINY},
-    types::OcrOutput,
-};
+use image::{RgbImage, RgbaImage, imageops};
+use imageproc::contrast::ThresholdType;
+
+use crate::utils::region::Region2D;
+
+use super::{Config, Recognition, inference, text_detection};
 
 pub(crate) struct OcrEngine {
-    ocr: RapidOcr,
+    inference: inference::Inference,
 }
 
 impl OcrEngine {
-    /// 创建 OCR 引擎。
-    ///
-    /// # 参数
-    /// - `pipeline_config`: 识别管线配置
-    /// - `models_dir`: OCR 模型目录（如 [`crate::app_paths::AppPaths::models_dir()`]）
-    pub(crate) fn new(pipeline_config: PipelineConfig, models_dir: &Path) -> Result<Self> {
-        let model_dir = models_dir;
-        let model_set = PPOCRV6_TINY;
-
-        let cache = ModelCache::new(model_dir);
-        cache
-            .ensure_model_set_for_pipeline(&model_set, pipeline_config, ModelDownloadMode::Never)
-            .with_context(|| {
-                format!(
-                    "初始化 OCR 模型失败（模型目录: {}），请确认 ocr-models 目录包含识别模型文件",
-                    model_dir.display()
-                )
-            })?;
-
-        let cfg = cache
-            .config_for(&model_set)
-            .with_pipeline(pipeline_config)
-            .with_inference_options(InferenceOptions {
-                intra_threads: 8,
-                inter_threads: 1,
-                parallel_execution: true,
-                enable_cpu_mem_arena: true,
-                ..Default::default()
-            });
-        let ocr =
-            RapidOcr::from_config(cfg).with_context(|| "创建 OCR 推理引擎失败（ONNX Runtime）")?;
-
-        Ok(Self { ocr })
+    /// 加载 PP-OCRv6 tiny 模型和字典，初始化可复用的识别引擎。
+    pub(crate) fn new(models_dir: &Path, config: Config) -> Result<Self> {
+        let inference = inference::Inference::new(models_dir, config).with_context(|| {
+            format!(
+                "初始化 OCR 模型失败（模型目录: {}），请确认识别模型和字典完整",
+                models_dir.display(),
+            )
+        })?;
+        Ok(Self { inference })
     }
 
-    pub(crate) fn ocr(&mut self, image: &RgbImage) -> Result<OcrOutput> {
-        let start_time = Instant::now();
-        let output = self.ocr.run_image(image)?;
-        let elapsed = start_time.elapsed();
-        tracing::trace!(
-            "OCR completed in {:.2?}, output: {:?}",
-            elapsed,
-            output
-                .lines
-                .iter()
-                .map(|l| l.text.as_str())
-                .collect::<Vec<_>>()
-                .join("\n"),
-        );
-        Ok(output)
+    /// 输入一张已裁剪的 RGB 单行图像，返回文字与平均字符置信度。
+    pub(crate) fn recognize(&mut self, image: &RgbImage) -> Result<Recognition> {
+        let start = Instant::now();
+        let result = self.inference.recognize(image)?;
+        tracing::trace!(backend = super::BACKEND_NAME, elapsed = ?start.elapsed(), text = %result.text, score = result.score, "OCR completed");
+        Ok(result)
+    }
+
+    /// 输入有效的截图区域，使用生产阈值与 padding 裁剪单行文字。
+    /// 区域内没有文字像素时返回 `None`，有像素但未识别出文字时返回空结果。
+    pub(crate) fn recognize_region(
+        &mut self,
+        screenshot: &RgbaImage,
+        region: Region2D<u32>,
+    ) -> Result<Option<Recognition>> {
+        let cropped = imageops::crop_imm(
+            screenshot,
+            region.x0(),
+            region.y0(),
+            region.width(),
+            region.height(),
+        )
+        .to_image();
+        let rgb = image::DynamicImage::ImageRgba8(cropped).to_rgb8();
+        let Some(text_region) =
+            text_detection::detect_single_line(&rgb, 128, ThresholdType::Binary, 6)
+        else {
+            return Ok(None);
+        };
+        let cropped = imageops::crop_imm(
+            &rgb,
+            text_region.x0(),
+            text_region.y0(),
+            text_region.width(),
+            text_region.height(),
+        )
+        .to_image();
+        self.recognize(&cropped).map(Some)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rapidocr_core::config::PipelineConfig;
 
-    /// 模型缺失（用户最常遇到的 setup 失败场景）时，错误链必须带可读的上下文：
-    /// 说明是"初始化 OCR 模型"失败，并给出模型目录路径，便于用户 / 开发者排查。
     #[test]
     fn model_missing_error_has_context() {
-        let missing_dir = std::env::temp_dir().join("oea-test-missing-models");
-        let err = match OcrEngine::new(PipelineConfig::recognition_only(), &missing_dir) {
-            Ok(_) => panic!("模型缺失时应返回错误"),
-            Err(e) => e,
-        };
+        let dir = tempfile::tempdir().unwrap();
+        let err = OcrEngine::new(&dir.path().join("missing-models"), Config::default())
+            .err()
+            .unwrap();
         let chain = format!("{err:#}");
-        assert!(
-            chain.contains("初始化 OCR 模型失败"),
-            "错误链应包含 OCR 初始化上下文，实际: {chain}"
-        );
-        assert!(
-            chain.contains("missing-models"),
-            "错误链应包含模型目录路径，实际: {chain}"
-        );
+        assert!(chain.contains("初始化 OCR 模型失败"), "{chain}");
+        assert!(chain.contains("missing-models"), "{chain}");
     }
 }

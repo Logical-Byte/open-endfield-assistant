@@ -12,7 +12,6 @@ use std::fs;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use rapidocr_core::config::PipelineConfig;
 use tauri::Manager;
 use tracing::{error, info, warn};
 
@@ -203,8 +202,8 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
     platform::webview::register_zoom_changed_listener(&main_window);
 
     // 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
-    let pipeline_config = PipelineConfig::recognition_only();
-    let ocr_engine = vision::ocr::OcrEngine::new(pipeline_config, &app_paths.models_dir())?;
+    let ocr_engine =
+        vision::ocr::OcrEngine::new(&app_paths.models_dir(), vision::ocr::Config::default())?;
     let ocr = Arc::new(Mutex::new(ocr_engine));
 
     // 加载静态数据文件
