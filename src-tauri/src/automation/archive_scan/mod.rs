@@ -11,6 +11,9 @@ mod simulation_worker;
 mod worker;
 mod workflow;
 
+#[cfg(feature = "cli")]
+pub(crate) use constants::OCR_ROI;
+
 pub(crate) use reporting::ScannedItem;
 pub(crate) use simulation_worker::SimulatedArchiveScanWorker;
 pub(crate) use worker::ArchiveScanWorker;

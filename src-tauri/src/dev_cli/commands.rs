@@ -27,6 +27,27 @@ impl From<anyhow::Error> for Error {
 
 pub(super) fn execute(command: &Command) -> Result<Output, Error> {
     match command {
+        Command::Ocr {
+            input,
+            models,
+            region,
+            archive_title,
+            threads,
+            warmup,
+            repeat,
+        } => super::ocr::recognize(
+            input,
+            models,
+            *region,
+            *archive_title,
+            *threads,
+            *warmup,
+            *repeat,
+        )
+        .map_err(Error::from),
+        Command::OcrCompare { before, after } => {
+            super::ocr::compare(before, after).map_err(Error::from)
+        }
         Command::MatchImage {
             image,
             template,

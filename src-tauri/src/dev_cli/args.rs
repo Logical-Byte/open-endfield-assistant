@@ -32,6 +32,33 @@ fn application_version() -> &'static str {
 
 #[derive(Debug, Subcommand)]
 pub(super) enum Command {
+    /// Recognize one image or a directory with the compiled OCR backend; emit a reusable JSON report
+    Ocr {
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long)]
+        models: PathBuf,
+        /// Detect a single text line inside this region at original image size
+        #[arg(long, conflicts_with = "archive_title")]
+        region: Option<Rect>,
+        /// Use production 720p normalization and archive title region
+        #[arg(long)]
+        archive_title: bool,
+        #[arg(long, default_value_t = 8, value_parser = clap::value_parser!(u32).range(1..))]
+        threads: u32,
+        #[arg(long, default_value_t = 5)]
+        warmup: u32,
+        /// Timed calls per image, including line detection, preprocessing and CTC decoding
+        #[arg(long, default_value_t = 50, value_parser = clap::value_parser!(u32).range(1..))]
+        repeat: u32,
+    },
+    /// Compare JSON reports from separately compiled OCR backends, without loading a model
+    OcrCompare {
+        #[arg(long)]
+        before: PathBuf,
+        #[arg(long)]
+        after: PathBuf,
+    },
     /// Probe the production game session without capturing or sending input
     Connect,
     /// Navigate using production recognition, input, waits and retries
@@ -73,6 +100,8 @@ pub(super) enum Command {
 impl Command {
     pub(super) fn name(&self) -> &'static str {
         match self {
+            Self::Ocr { .. } => "ocr",
+            Self::OcrCompare { .. } => "ocr-compare",
             Self::Connect => "connect",
             Self::Navigate { .. } => "navigate",
             Self::Screenshot { .. } => "screenshot",
@@ -82,7 +111,7 @@ impl Command {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub(super) struct Rect {
     pub left: u32,
     pub top: u32,
