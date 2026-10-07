@@ -108,7 +108,7 @@ const acquisitionIcons: Record<string, string> = {
           color="neutral"
           size="xs"
           target="_blank"
-          :to="entry.oemUrl"
+          :to="entry.acquisitionMethod === 'map' ? entry.oemUrl : entry.intelUrl"
           variant="outline"
         >
           <span class="inline-flex items-center justify-center gap-1.5 text-sm font-normal">
