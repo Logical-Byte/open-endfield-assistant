@@ -1,7 +1,7 @@
 import { computed, ref, watch, type Ref, type ComputedRef } from 'vue';
 import { prtsData } from '@/features/gameData/prtsData';
 import { methodByArchiveId } from '@/features/gameData/archiveContract';
-import type { PrtsData } from '@/features/gameData/types/prts';
+import type { PrtsData, PrtsCategory } from '@/features/gameData/types/prts';
 import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
 import {
   scannedItems,
@@ -30,16 +30,6 @@ const liveSource: ArchiveScanSource = {
   restore: restoreScannedItemCorrection,
 };
 export type MatchingFilter = 'unmatched' | 'matched' | 'all';
-export function filterOptions(
-  total: number,
-  matched: number,
-): { label: string; value: MatchingFilter; count: number }[] {
-  return [
-    { label: '未匹配', value: 'unmatched', count: total - matched },
-    { label: '有匹配', value: 'matched', count: matched },
-    { label: '全部', value: 'all', count: total },
-  ];
-}
 function acceptsMatch(filter: MatchingFilter, matched: boolean): boolean {
   return filter === 'all' || (filter === 'matched' ? matched : !matched);
 }
@@ -48,6 +38,12 @@ const ALL_CATEGORIES = 'all';
 interface CategoryOption {
   label: string;
   value: string;
+}
+export interface ScanCorrection {
+  readonly key: number;
+  readonly before: Readonly<ScannedItemRecord>;
+  readonly after: Readonly<ScannedItemRecord>;
+  undone: boolean;
 }
 interface ArchiveScanResultsState {
   archives: ComputedRef<readonly ArchiveEntryView[]>;
@@ -64,15 +60,15 @@ interface ArchiveScanResultsState {
   archiveCategory: Ref<string>;
   scanCategory: Ref<string>;
   mapOnly: Ref<boolean>;
-  lastEdit: Ref<Readonly<ScannedItemRecord> | null>;
-  correct: (id: ScannedItemId, title: string) => number;
-  undo: () => void;
+  corrections: Ref<ScanCorrection[]>;
+  correct: (id: ScannedItemId, title: string) => ScanCorrection;
+  undo: (correction: ScanCorrection) => void;
   clear: () => void;
   revealScan: () => void;
   revealArchive: () => void;
 }
 /**
- * 每次调用持有独立的筛选和单步撤销状态，默认连接共享的真实扫描数据。
+ * 每次调用持有独立的筛选和编辑撤销状态，默认连接共享的真实扫描数据。
  * 两栏数据从同一匹配结果派生，筛选只影响显示，不影响关联与导出。
  * 滚动和临时高亮由页面负责。
  */
@@ -82,32 +78,36 @@ export function useArchiveScanResults(
   const view = computed((): ReturnType<typeof deriveArchiveScanView> =>
     deriveArchiveScanView(source.data.value, source.methods.value, source.scans.value),
   );
-  const archiveFilter: Ref<MatchingFilter> = ref<MatchingFilter>('unmatched');
+  const archiveFilter: Ref<MatchingFilter> = ref<MatchingFilter>('all');
   const scanFilter: Ref<MatchingFilter> = ref<MatchingFilter>('unmatched');
   const archiveSearch: Ref<string> = ref('');
   const scanSearch: Ref<string> = ref('');
   const archiveCategory: Ref<string> = ref(ALL_CATEGORIES);
   const scanCategory: Ref<string> = ref(ALL_CATEGORIES);
   const mapOnly: Ref<boolean> = ref(false);
-  const lastEdit: Ref<Readonly<ScannedItemRecord> | null> = ref(null);
+  const corrections: Ref<ScanCorrection[]> = ref([]);
+  let nextCorrection = 0;
   const archives = computed((): readonly ArchiveEntryView[] => view.value.archives);
   const scans = computed((): readonly ScannedItemView[] => view.value.scans);
   const matchedArchives = computed(
-    (): number => archives.value.filter((a): boolean => a.scans.length > 0).length,
+    (): number =>
+      archives.value.filter((a: ArchiveEntryView): boolean => a.scans.length > 0).length,
   );
   const matchedScans = computed(
-    (): number => scans.value.filter((s): boolean => s.archives.length > 0).length,
+    (): number => scans.value.filter((s: ScannedItemView): boolean => s.archives.length > 0).length,
   );
   const categories = computed((): CategoryOption[] => [
     { label: '全部分类', value: ALL_CATEGORIES },
-    ...Object.values(source.data.value?.PrtsCategory ?? {}).map((category): CategoryOption => ({
-      label: category.name,
-      value: category.categoryId,
-    })),
+    ...Object.values(source.data.value?.PrtsCategory ?? {}).map(
+      (category: PrtsCategory): CategoryOption => ({
+        label: category.name,
+        value: category.categoryId,
+      }),
+    ),
   ]);
   const visibleArchives = computed((): ArchiveEntryView[] =>
     archives.value.filter(
-      (a): boolean =>
+      (a: ArchiveEntryView): boolean =>
         acceptsMatch(archiveFilter.value, a.scans.length > 0) &&
         (!mapOnly.value || a.acquisitionMethod === 'map') &&
         (archiveCategory.value === ALL_CATEGORIES || a.category === archiveCategory.value) &&
@@ -116,42 +116,54 @@ export function useArchiveScanResults(
   );
   const visibleScans = computed((): ScannedItemView[] =>
     scans.value.filter(
-      (s): boolean =>
+      (s: ScannedItemView): boolean =>
         acceptsMatch(scanFilter.value, s.archives.length > 0) &&
         (scanCategory.value === ALL_CATEGORIES || s.foundInSubCategory === scanCategory.value) &&
-        [s.ocrResult, s.correctedTitle ?? ''].some((title): boolean =>
+        [s.ocrResult, s.correctedTitle ?? ''].some((title: string): boolean =>
           title.includes(scanSearch.value),
         ),
     ),
   );
-  // 新一轮扫描或清空后，旧纠错不再可撤销。
+  // 扫描记录消失时同时作废撤销历史，避免旧通知改动新一轮扫描。
   watch(
     source.scans,
     (items: readonly Readonly<ScannedItemRecord>[]): void => {
-      if (
-        lastEdit.value &&
-        !items.some((s): boolean => s.scannedItemId === lastEdit.value!.scannedItemId)
-      )
-        lastEdit.value = null;
+      const ids = new Set(
+        items.map((item: Readonly<ScannedItemRecord>): ScannedItemId => item.scannedItemId),
+      );
+      corrections.value = corrections.value.filter((edit: ScanCorrection): boolean =>
+        ids.has(edit.before.scannedItemId),
+      );
     },
     { flush: 'sync' },
   );
-  /** 返回纠错后的关联档案数量，供页面提示使用。 */
-  function correct(id: ScannedItemId, title: string): number {
-    const previous = source.scans.value.find((s): boolean => s.scannedItemId === id);
-    if (!previous) return 0;
-    lastEdit.value = previous;
+  function correct(id: ScannedItemId, title: string): ScanCorrection {
+    const before = source.scans.value.find(
+      (item: Readonly<ScannedItemRecord>): boolean => item.scannedItemId === id,
+    )!;
     source.correct(id, title);
-    return view.value.scans.find((s): boolean => s.scannedItemId === id)?.archives.length ?? 0;
+    const after = source.scans.value.find(
+      (item: Readonly<ScannedItemRecord>): boolean => item.scannedItemId === id,
+    )!;
+    const correction: ScanCorrection = { key: ++nextCorrection, before, after, undone: false };
+    corrections.value.push(correction);
+    return correction;
   }
-  function undo(): void {
-    if (!lastEdit.value) return;
-    source.restore(lastEdit.value);
-    lastEdit.value = null;
+  function undo(correction: ScanCorrection): void {
+    const history = corrections.value.filter(
+      (edit: ScanCorrection): boolean =>
+        edit.before.scannedItemId === correction.before.scannedItemId,
+    );
+    const edit = history.find((entry: ScanCorrection): boolean => entry.key === correction.key);
+    if (!edit || edit.undone) return;
+    edit.undone = true;
+    // 撤销较早的编辑时保留后续编辑。全部撤销才恢复第一次编辑前的结果。
+    const remaining = history.filter((entry: ScanCorrection): boolean => !entry.undone);
+    source.restore(remaining[remaining.length - 1]?.after ?? history[0]!.before);
   }
   function clear(): void {
     source.clear();
-    lastEdit.value = null;
+    corrections.value = [];
   }
   // 定位前解除目标栏筛选，避免关联记录被当前条件隐藏。
   function revealScan(): void {
@@ -180,7 +192,7 @@ export function useArchiveScanResults(
     archiveCategory,
     scanCategory,
     mapOnly,
-    lastEdit,
+    corrections,
     correct,
     undo,
     clear,

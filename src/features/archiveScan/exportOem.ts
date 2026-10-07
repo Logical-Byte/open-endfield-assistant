@@ -47,10 +47,10 @@ function bytesToBase64Url(bytes: Uint8Array): string {
 }
 
 /** 导出扫描结果到地图集：在系统浏览器中打开导入链接。 */
-export async function exportToOem(): Promise<void> {
+export async function exportToOem(): Promise<boolean> {
   if (prtsData.value === null) {
     logError('导出到地图集失败：档案库数据尚未加载');
-    return;
+    return false;
   }
   try {
     // 构建上传数据
@@ -65,9 +65,11 @@ export async function exportToOem(): Promise<void> {
     const url = `${OEM_IMPORT_URL_PREFIX}OEA-0-${base64Url}`;
     logDebug(`导出到地图集数据：${json}`);
     logDebug(`导出到地图集链接：${url}`);
-    openUrl(url);
+    await openUrl(url);
     logInfo(`导出到地图集成功：${json.length} 字节 → ${base64Url.length} 字节`);
+    return true;
   } catch (error) {
     logError(`导出到地图集失败: ${String(error)}`);
+    return false;
   }
 }

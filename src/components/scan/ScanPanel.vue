@@ -1,15 +1,6 @@
-<script setup lang="ts">
-import { exportToOem } from '@/features/archiveScan/exportOem';
-</script>
-
 <template>
-  <UContainer class="h-full py-4">
-    <div class="flex h-full min-h-0 flex-col gap-4">
-      <div class="flex flex-wrap gap-2">
-        <ArchiveScanButton />
-        <UButton class="ms-auto" icon="i-lucide-map" label="导出到地图集" @click="exportToOem" />
-      </div>
-
+  <UContainer class="h-full py-3">
+    <div class="flex h-full min-h-0 flex-col gap-2">
       <ArchiveScanErrorAlert />
       <ArchiveScanResults />
     </div>

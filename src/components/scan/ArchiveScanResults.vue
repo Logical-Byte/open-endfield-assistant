@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, type Ref } from 'vue';
+import { computed, nextTick, onUnmounted, ref, watch, type Ref } from 'vue';
 import { useResizeObserver } from '@vueuse/core';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import {
   useArchiveScanResults,
-  filterOptions,
   type ArchiveScanSource,
+  type ScanCorrection,
 } from '@/features/archiveScan/useArchiveScanResults';
 import type { ArchiveId, ScannedItemId } from '@/features/archiveScan/types/scannedItem';
 import ArchiveEntryCard from './ArchiveEntryCard.vue';
 import ScannedItemCard from './ScannedItemCard.vue';
+import type { ArchiveEntryView, ScannedItemView } from '@/features/archiveScan/resultView';
+import ArchiveVirtualList from './ArchiveVirtualList.vue';
+import type { Virtualizer } from '@tanstack/vue-virtual';
+type ScrollList = { virtualizer: Virtualizer<HTMLElement, Element> };
+import { createScanCardState, type ScanCardState } from './scanCardState';
 
 const props = defineProps<{ source?: ArchiveScanSource }>();
 const {
@@ -27,7 +32,7 @@ const {
   archiveCategory,
   scanCategory,
   mapOnly,
-  lastEdit,
+  corrections,
   correct: correctTitle,
   undo,
   clear: clearRecords,
@@ -38,14 +43,11 @@ const { isActive } = useAutomationTask('archiveScan');
 const toast = useToast();
 const selectedArchiveId: Ref<ArchiveId | null> = ref(null);
 const selectedScanId: Ref<ScannedItemId | null> = ref(null);
-// Nuxt UI 暴露的 virtualizer 负责将尚未挂载的记录滚入可见区。
-interface ScrollList {
-  virtualizer?: { scrollToIndex: (index: number, options: { align: 'auto' }) => void };
-}
 const archiveList: Ref<ScrollList | null> = ref(null);
 const scanList: Ref<ScrollList | null> = ref(null);
+
 const splitContainer: Ref<HTMLElement | null> = ref(null);
-const leftWidth: Ref<number> = ref(46.5);
+const leftWidth: Ref<number> = ref(55.5);
 const resizing: Ref<boolean> = ref(false);
 const splitStyle = computed((): Record<string, string> => ({
   '--left-pane': `${leftWidth.value}fr`,
@@ -54,9 +56,9 @@ const splitStyle = computed((): Record<string, string> => ({
 // 下限与 CSS 的两栏最小宽度一致，拖动时保留标题和操作区所需空间。
 function resizeLimits(): { min: number; max: number } {
   const width = (splitContainer.value?.clientWidth ?? 0) - 16;
-  const archiveMin = window.innerWidth >= 1200 ? 560 : 360;
-  return width >= archiveMin + 420
-    ? { min: (archiveMin / width) * 100, max: ((width - 420) / width) * 100 }
+  const archiveMin = 300;
+  return width >= archiveMin + 340
+    ? { min: (archiveMin / width) * 100, max: ((width - 340) / width) * 100 }
     : { min: 28, max: 72 };
 }
 function clampSplit(value: number): number {
@@ -92,28 +94,80 @@ function clearScanHighlight(): void {
 function clearArchiveHighlight(): void {
   selectedArchiveId.value = null;
 }
+// 每张卡片的草稿由列表持有，虚拟滚动卸载组件不会放弃编辑。
+const cardStates = ref<Record<number, ScanCardState>>({});
+const editToasts = new Map<number, string | number>();
+watch(
+  scans,
+  (items: readonly ScannedItemView[]): void => {
+    const states: Record<number, ScanCardState> = {};
+    for (const item of items) {
+      const state = cardStates.value[item.scannedItemId] ?? createScanCardState(item);
+      if (!state.editing) state.draft = item.correctedTitle ?? item.ocrResult;
+      states[item.scannedItemId] = state;
+    }
+    cardStates.value = states;
+  },
+  { immediate: true, flush: 'sync' },
+);
+watch(corrections, (edits: readonly ScanCorrection[]): void => {
+  const valid = new Set(edits.map((edit: ScanCorrection): number => edit.key));
+  for (const [key, id] of editToasts) {
+    if (!valid.has(key)) {
+      toast.remove(id);
+      editToasts.delete(key);
+    }
+  }
+});
+onUnmounted((): void => {
+  for (const id of editToasts.values()) toast.remove(id);
+});
 function correct(id: ScannedItemId, title: string): void {
-  const count = correctTitle(id, title);
-  toast.add({
-    title: count ? `已关联 ${count} 份档案` : '标题仍未匹配',
-    description: title,
-    color: count ? 'success' : 'warning',
+  const correction = correctTitle(id, title);
+  const matched =
+    scans.value.find((item: ScannedItemView): boolean => item.scannedItemId === id)!.archives
+      .length > 0;
+  const notification = toast.add({
+    title: `将第 ${id} 个识别结果编辑为“${title}”。`,
+    description: matched ? undefined : '标题仍未匹配到已知档案。',
+    duration: 20000,
+    color: 'neutral',
+    close: { color: 'neutral', variant: 'outline' },
+    actions: [
+      {
+        label: '撤销编辑',
+        color: 'neutral',
+        variant: 'outline',
+        onClick: (): void => {
+          undo(correction);
+          const state = cardStates.value[id];
+          if (state) state.expanded = undefined;
+          toast.remove(notification.id);
+        },
+      },
+    ],
   });
+  editToasts.set(correction.key, notification.id);
 }
 // 解除筛选后先等虚拟列表收到新 items，再按索引定位未挂载的记录。
 async function locateScan(id: ScannedItemId): Promise<void> {
   revealScan();
   selectedScanId.value = id;
+  cardStates.value[id]!.expanded = true;
   await nextTick();
-  const index = visibleScans.value.findIndex((scan): boolean => scan.scannedItemId === id);
-  if (index >= 0) scanList.value?.virtualizer?.scrollToIndex(index, { align: 'auto' });
+  const index = visibleScans.value.findIndex(
+    (scan: ScannedItemView): boolean => scan.scannedItemId === id,
+  );
+  if (index >= 0) scanList.value?.virtualizer?.scrollToIndex(index, { align: 'start' });
 }
 async function locateArchive(id: ArchiveId): Promise<void> {
   revealArchive();
   selectedArchiveId.value = id;
   await nextTick();
-  const index = visibleArchives.value.findIndex((archive): boolean => archive.id === id);
-  if (index >= 0) archiveList.value?.virtualizer?.scrollToIndex(index, { align: 'auto' });
+  const index = visibleArchives.value.findIndex(
+    (archive: ArchiveEntryView): boolean => archive.id === id,
+  );
+  if (index >= 0) archiveList.value?.virtualizer?.scrollToIndex(index, { align: 'start' });
 }
 function clearScans(): void {
   clearRecords();
@@ -121,7 +175,11 @@ function clearScans(): void {
   selectedScanId.value = null;
 }
 watch(scans, (): void => {
-  if (!scans.value.some((scan): boolean => scan.scannedItemId === selectedScanId.value))
+  if (
+    !scans.value.some(
+      (scan: ScannedItemView): boolean => scan.scannedItemId === selectedScanId.value,
+    )
+  )
     selectedScanId.value = null;
   if (!scans.value.length) selectedArchiveId.value = null;
 });
@@ -131,31 +189,46 @@ watch(scans, (): void => {
   <div class="matching-workspace flex min-h-0 w-full flex-1 flex-col">
     <div
       ref="splitContainer"
-      class="resizable-columns grid min-h-0"
+      class="grid min-h-0 gap-3 min-[848px]:flex-1 min-[848px]:grid-cols-[minmax(300px,var(--left-pane))_16px_minmax(340px,var(--right-pane))] min-[848px]:gap-0"
       :class="resizing && 'select-none'"
       :style="splitStyle"
     >
       <section
-        aria-label="档案目录"
-        class="matching-pane min-w-0 rounded-xl border border-default bg-elevated/20"
+        aria-label="全部档案"
+        class="min-w-0 rounded-xl border border-default bg-elevated/20 min-[848px]:flex min-[848px]:min-h-0 min-[848px]:flex-col"
       >
-        <div class="shrink-0 border-b border-default px-3 pt-2 pb-2">
-          <div class="mb-1.5 flex min-h-7 items-center justify-between">
-            <h2 class="text-sm font-semibold text-highlighted">
-              档案目录
-              <span class="ml-1 text-xs font-normal text-muted">{{ archives.length }} 份</span>
+        <header class="space-y-2 border-b border-default p-3">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-lg font-semibold whitespace-nowrap">
+              全部档案 <span class="font-normal text-muted">{{ archives.length }}</span>
             </h2>
+            <ArchiveExportButton
+              :collected="matchedArchives"
+              :total="archives.length"
+              :unmatched="scans.length - matchedScans"
+            />
           </div>
-          <div class="mb-1.5 flex flex-wrap gap-1">
+          <div class="flex items-center gap-1">
             <UButton
-              v-for="option in filterOptions(archives.length, matchedArchives)"
+              v-for="option in [
+                { value: 'all' as const, label: '全部', count: archives.length },
+                {
+                  value: 'unmatched' as const,
+                  label: '无记录',
+                  count: archives.length - matchedArchives,
+                },
+                { value: 'matched' as const, label: '有记录', count: matchedArchives },
+              ]"
               :key="option.value"
               :color="archiveFilter === option.value ? 'primary' : 'neutral'"
-              :label="`${option.label} ${option.count}`"
               size="xs"
-              :variant="archiveFilter === option.value ? 'soft' : 'ghost'"
+              :variant="archiveFilter === option.value ? 'subtle' : 'outline'"
               @click="archiveFilter = option.value"
-            />
+              >{{ option.label }} {{ option.count }}</UButton
+            >
+            <UTooltip text="有记录：存在匹配的扫描证据。无记录不代表游戏中一定未收集。"
+              ><UIcon class="ml-auto text-muted" name="i-lucide-circle-help" tabindex="0"
+            /></UTooltip>
           </div>
           <div class="flex gap-2">
             <UInput
@@ -165,36 +238,30 @@ watch(scans, (): void => {
               icon="i-lucide-search"
               placeholder="搜索档案标题"
               size="sm"
-            /><USelect
-              v-model="archiveCategory"
-              aria-label="档案目录分类"
-              class="w-28"
-              :items="categories"
-              size="sm"
-            />
+            /><UPopover
+              ><UButton
+                aria-label="目录筛选"
+                :color="mapOnly || archiveCategory !== 'all' ? 'primary' : 'neutral'"
+                icon="i-lucide-list-filter"
+                size="sm"
+                variant="outline" /><template #content
+                ><div class="w-64 space-y-3 p-3">
+                  <USelect
+                    v-model="archiveCategory"
+                    aria-label="档案分类"
+                    class="w-full"
+                    :items="categories"
+                  /><UCheckbox v-model="mapOnly" label="仅显示可在地图拾取的档案" /></div></template
+            ></UPopover>
           </div>
-          <UCheckbox
-            v-model="mapOnly"
-            class="mt-1.5"
-            color="info"
-            label="隐藏无法在大世界中获取的档案"
-            size="sm"
-          />
-        </div>
-        <UScrollArea
+        </header>
+        <ArchiveVirtualList
           v-if="visibleArchives.length"
           ref="archiveList"
           v-slot="{ item: archive }"
-          class="column-list min-h-0 flex-1 p-2"
+          archive-rows
+          class="max-h-[65vh] min-h-0 flex-1 min-[848px]:max-h-none"
           :items="visibleArchives"
-          :virtualize="{
-            estimateSize: 88,
-            paddingStart: 8,
-            paddingEnd: 8,
-            gap: 6,
-            overscan: 8,
-            getItemKey: (index: number): string => visibleArchives[index]!.id,
-          }"
         >
           <ArchiveEntryCard
             :entry="archive"
@@ -202,7 +269,7 @@ watch(scans, (): void => {
             @clear-highlight="clearScanHighlight"
             @locate-scan="locateScan"
           />
-        </UScrollArea>
+        </ArchiveVirtualList>
         <p v-if="!visibleArchives.length" class="flex-1 py-14 text-center text-sm text-muted">
           当前筛选下没有档案
         </p>
@@ -212,7 +279,7 @@ watch(scans, (): void => {
       </section>
 
       <div
-        aria-label="调整档案目录与扫描记录宽度"
+        aria-label="调整全部档案与扫描结果宽度"
         aria-orientation="vertical"
         :aria-valuemax="Math.round(resizeLimits().max)"
         :aria-valuemin="Math.round(resizeLimits().min)"
@@ -236,95 +303,87 @@ watch(scans, (): void => {
         /></span>
       </div>
       <section
-        aria-label="扫描记录"
-        class="matching-pane min-w-0 rounded-xl border border-default bg-elevated/20"
+        aria-label="扫描结果"
+        class="min-w-0 rounded-xl border border-default bg-elevated/20 min-[848px]:flex min-[848px]:min-h-0 min-[848px]:flex-col"
       >
-        <div class="shrink-0 border-b border-default px-3 pt-2 pb-2">
-          <div class="mb-1.5 flex min-h-7 items-center justify-between">
-            <h2 class="text-sm font-semibold text-highlighted">
-              扫描记录
-              <span class="ml-1 text-xs font-normal text-muted">{{ scans.length }} 条</span>
+        <header class="space-y-2 border-b border-default p-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">
+              扫描结果 <span class="font-normal text-muted">{{ scans.length }}</span>
             </h2>
-            <div class="flex items-center gap-1">
-              <UButton
-                v-if="lastEdit"
+            <ArchiveScanButton size="sm" />
+          </div>
+          <div class="flex items-center gap-1">
+            <UButton
+              v-for="option in [
+                {
+                  value: 'unmatched' as const,
+                  label: '待核对',
+                  count: scans.length - matchedScans,
+                },
+                { value: 'matched' as const, label: '已匹配', count: matchedScans },
+                { value: 'all' as const, label: '全部', count: scans.length },
+              ]"
+              :key="option.value"
+              :color="scanFilter === option.value ? 'primary' : 'neutral'"
+              size="xs"
+              :variant="scanFilter === option.value ? 'subtle' : 'outline'"
+              @click="scanFilter = option.value"
+              >{{ option.label }} {{ option.count }}</UButton
+            ><UTooltip text="清空扫描结果"
+              ><UButton
+                aria-label="清空扫描结果"
+                class="ml-auto"
                 color="neutral"
-                icon="i-lucide-undo-2"
-                label="撤销纠错"
-                size="xs"
-                variant="ghost"
-                @click="undo"
-              />
-              <UButton
-                color="error"
                 :disabled="isActive"
                 icon="i-lucide-trash-2"
                 label="清空"
                 size="xs"
-                variant="ghost"
+                variant="outline"
                 @click="clearScans"
-              />
-            </div>
-          </div>
-          <div class="mb-1.5 flex flex-wrap gap-1">
-            <UButton
-              v-for="option in filterOptions(scans.length, matchedScans)"
-              :key="option.value"
-              :color="scanFilter === option.value ? 'primary' : 'neutral'"
-              :label="`${option.label} ${option.count}`"
-              size="xs"
-              :variant="scanFilter === option.value ? 'soft' : 'ghost'"
-              @click="scanFilter = option.value"
-            />
+            /></UTooltip>
           </div>
           <div class="flex gap-2">
             <UInput
               v-model="scanSearch"
-              aria-label="搜索扫描记录"
+              aria-label="搜索扫描结果"
               class="min-w-0 flex-1"
               icon="i-lucide-search"
               placeholder="搜索识别或修正标题"
               size="sm"
             /><USelect
               v-model="scanCategory"
-              aria-label="扫描记录分类"
+              aria-label="扫描分类"
               class="w-28"
               :items="categories"
               size="sm"
             />
           </div>
-        </div>
-        <UScrollArea
+        </header>
+        <ArchiveVirtualList
           v-if="visibleScans.length"
           ref="scanList"
           v-slot="{ item }"
-          class="column-list min-h-0 flex-1 p-2"
+          class="max-h-[65vh] min-h-0 flex-1 p-2 min-[848px]:max-h-none"
           :items="visibleScans"
-          :virtualize="{
-            estimateSize: 124,
-            paddingStart: 8,
-            paddingEnd: 8,
-            gap: 6,
-            overscan: 8,
-            getItemKey: (index: number): number => visibleScans[index]!.scannedItemId,
-          }"
         >
           <ScannedItemCard
+            v-model:state="cardStates[item.scannedItemId]!"
             :item="item"
             :selected="selectedScanId === item.scannedItemId"
             @clear-highlight="clearArchiveHighlight"
             @correct="correct(item.scannedItemId, $event)"
             @locate-archive="locateArchive"
           />
-        </UScrollArea>
+        </ArchiveVirtualList>
         <div v-if="!visibleScans.length" class="flex-1 py-14 text-center">
           <p class="text-sm text-muted">
             {{
               !scans.length
-                ? '暂无扫描记录，开始扫描后将在这里显示'
+                ? '开始扫描后，结果会出现在这里'
                 : scanFilter === 'unmatched' && matchedScans === scans.length
-                  ? '所有扫描记录都有匹配'
-                  : '当前筛选下没有扫描记录'
+                  ? '所有扫描结果都已匹配'
+                  : '当前筛选下没有扫描结果'
             }}
           </p>
         </div>
@@ -335,41 +394,3 @@ watch(scans, (): void => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.matching-workspace {
-  --matching-matched-background: hsl(142 71% 30%);
-  --matching-unknown-background: hsl(215 16% 47%);
-}
-:global(.dark .matching-workspace) {
-  --matching-matched-background: hsl(142 71% 45%);
-}
-.column-list {
-  max-height: 65vh;
-}
-.resizable-columns {
-  gap: 12px;
-}
-@media (min-width: 848px) {
-  .resizable-columns {
-    flex: 1;
-    grid-template-columns: minmax(360px, var(--left-pane)) 16px minmax(420px, var(--right-pane));
-    gap: 0;
-  }
-  .matching-pane {
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .column-list {
-    flex: 1;
-    min-height: 0;
-    max-height: none;
-  }
-}
-@media (min-width: 1200px) {
-  .resizable-columns {
-    grid-template-columns: minmax(560px, var(--left-pane)) 16px minmax(420px, var(--right-pane));
-  }
-}
-</style>

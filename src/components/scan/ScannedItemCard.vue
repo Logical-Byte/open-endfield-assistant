@@ -1,39 +1,50 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useEvidencePopover } from './useEvidencePopover';
+import type { ScanCardState } from './scanCardState';
 import type { ScannedItemView } from '@/features/archiveScan/resultView';
 import type { ArchiveId } from '@/features/archiveScan/types/scannedItem';
 import { openImagePreview } from '@/composables/image-preview';
-import type { CSSProperties, Ref } from 'vue';
-const props = defineProps<{
-  item: ScannedItemView;
-  selected?: boolean;
-}>();
+import type { CSSProperties } from 'vue';
+const props = defineProps<{ item: ScannedItemView; selected?: boolean }>();
+const state = defineModel<ScanCardState>('state', { required: true });
 const emit = defineEmits<{
   correct: [title: string];
   locateArchive: [id: ArchiveId];
   clearHighlight: [];
 }>();
-const draft: Ref<string> = ref(props.item.correctedTitle ?? props.item.ocrResult);
-const editing: Ref<boolean> = ref(false);
 const {
   open: floatingMatchesOpen,
   cancelClose,
   scheduleClose,
 } = useEvidencePopover((): void => emit('clearHighlight'));
-
-watch(
-  () => props.item.correctedTitle,
-  (): void => {
-    draft.value = props.item.correctedTitle ?? props.item.ocrResult;
-  },
+const expanded = computed((): boolean => state.value.expanded ?? !props.item.archives.length);
+const currentTitle = computed((): string => props.item.correctedTitle ?? props.item.ocrResult);
+const changed = computed(
+  (): boolean =>
+    state.value.editing &&
+    !!state.value.draft.trim() &&
+    state.value.draft.trim() !== currentTitle.value,
 );
-const options = computed((): string[] => [...props.item.candidates]);
-function submit(): void {
-  emit('correct', draft.value);
-  editing.value = false;
+function beginEdit(): void {
+  state.value = { ...state.value, editing: true };
 }
-// 与原扫描卡片一致，缩略图裁剪标题区域，点击查看完整截图。
+function cancelEdit(): void {
+  state.value = { ...state.value, editing: false, draft: currentTitle.value };
+}
+function submit(): void {
+  if (!changed.value) return;
+  const title = state.value.draft.trim();
+  state.value = {
+    ...state.value,
+    editing: false,
+    expanded: undefined,
+    showOcr: false,
+    draft: title,
+  };
+  emit('correct', title);
+}
+// 后端截图统一为 1280×720，缩略图只裁出标题区域，完整原图仍可打开。
 const cropContainerStyle: CSSProperties = { aspectRatio: '516 / 86' };
 const cropImageStyle: CSSProperties = {
   width: 'calc(100% * 1280 / 516)',
@@ -42,58 +53,52 @@ const cropImageStyle: CSSProperties = {
   top: 'calc(100% * -48 / 86)',
 };
 </script>
-
 <template>
   <article
-    class="scan-card relative isolate overflow-hidden rounded-lg border px-3 py-2.5 transition-colors"
-    :class="[
-      selected ? 'border-primary bg-primary/5' : 'border-default bg-default',
-      'gradient-surface',
-    ]"
-    :style="{
-      '--matching-tint': item.archives.length
-        ? 'var(--matching-matched-background)'
-        : 'var(--matching-unknown-background)',
-    }"
+    class="scan-card overflow-hidden rounded-lg border border-default bg-default"
+    :class="selected && !state.editing && 'ring-2 ring-primary'"
   >
-    <div>
-      <div class="scan-heading mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <UBadge :color="item.archives.length ? 'success' : 'neutral'" size="sm" variant="soft">{{
-          item.archives.length ? '有匹配' : '未匹配'
-        }}</UBadge>
-        <span class="font-mono text-xs text-muted"
-          >#{{ String(item.scannedItemId).padStart(3, '0') }}</span
-        ><span class="text-xs text-muted">{{ item.categoryLabel }}</span
-        ><span
-          v-if="!item.archives.length"
-          class="text-xs"
-          :class="item.status === 'failed' ? 'text-error' : 'text-warning'"
-          >{{ item.status === 'failed' ? 'OCR 未识别到文字' : '标题未命中目录' }}</span
-        >
+    <UButton
+      :aria-controls="`scan-body-${item.scannedItemId}`"
+      :aria-expanded="expanded"
+      class="w-full justify-start rounded-none py-2"
+      :class="state.editing && 'bg-primary/25 hover:bg-primary/30'"
+      :color="state.editing ? 'primary' : 'neutral'"
+      :icon="item.archives.length ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'"
+      :ui="{ leadingIcon: item.archives.length ? 'text-success' : 'text-warning' }"
+      :variant="state.editing ? 'soft' : 'subtle'"
+      @click="state = { ...state, expanded: !expanded }"
+    >
+      <span class="shrink-0 text-xs text-muted">#{{ item.scannedItemId }}</span>
+      <span class="truncate">{{ currentTitle || 'OCR 未识别到文字' }}</span>
+      <span
+        v-if="state.editing"
+        class="ml-auto shrink-0 text-xs font-semibold text-primary"
+        role="status"
+        >编辑中</span
+      >
+      <UIcon
+        class="ml-auto shrink-0"
+        :name="expanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+      />
+    </UButton>
+    <div v-show="expanded" :id="`scan-body-${item.scannedItemId}`" class="space-y-2 p-2">
+      <div>
+        <p class="mb-1 text-xs text-muted">截图的标题区域（点击以查看全图）</p>
         <UButton
-          v-if="item.archives.length && !editing"
-          class="ml-auto shrink-0"
+          aria-label="查看完整档案截图"
+          class="mx-auto block w-[290px] overflow-hidden rounded p-0"
           color="neutral"
-          icon="i-lucide-pencil"
-          label="修改"
-          size="xs"
-          variant="ghost"
-          @click="editing = true"
-        />
-      </div>
-      <div class="scan-layout scan-left">
-        <div class="scan-crop flex items-center rounded">
-          <ImagePreviewContainer
-            class="relative w-full overflow-hidden rounded"
-            :style="cropContainerStyle"
-            @click="
-              openImagePreview({
-                url: item.image,
-                name: '档案详情截图',
-                downloadName: `档案详情截图 - ${item.correctedTitle ?? item.ocrResult}.png`,
-              })
-            "
-          >
+          variant="outline"
+          @click="
+            openImagePreview({
+              url: item.image,
+              name: '档案详情截图',
+              downloadName: `档案详情截图 - ${currentTitle}.png`,
+            })
+          "
+        >
+          <ImagePreviewContainer class="h-[48px] w-[288px] bg-elevated" :style="cropContainerStyle">
             <img
               alt="档案详情截图"
               class="absolute max-w-none"
@@ -101,43 +106,83 @@ const cropImageStyle: CSSProperties = {
               :style="cropImageStyle"
             />
           </ImagePreviewContainer>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-xs leading-5 break-words text-muted" :title="item.ocrResult">
-            OCR：{{ item.ocrResult || '无文字' }}
-          </p>
-          <form
-            v-if="!item.archives.length || editing"
-            class="mt-1 flex items-center gap-1.5"
-            @submit.prevent="submit"
+        </UButton>
+      </div>
+      <div
+        v-if="!item.archives.length || state.editing"
+        class="flex items-start gap-3 rounded border border-default bg-elevated/50 px-3 py-2 text-sm"
+      >
+        <span class="shrink-0 text-xs leading-5 text-muted">OCR 结果</span>
+        <p class="min-w-0 break-words">{{ item.ocrResult || '未识别到文字' }}</p>
+      </div>
+      <p v-if="!item.archives.length" class="flex gap-1.5 text-xs text-warning">
+        <UIcon class="mt-0.5 shrink-0" name="i-lucide-triangle-alert" />
+        {{
+          item.ocrResult
+            ? '标题未命中当前分类，请对照截图补全或选择标题。'
+            : 'OCR 没有读出标题，请根据截图选择对应档案。'
+        }}
+      </p>
+      <form
+        v-if="!item.archives.length || state.editing"
+        class="space-y-2 p-2 transition-colors"
+        :class="state.editing ? 'rounded-md bg-primary/20' : 'border-t border-default'"
+        @submit.prevent="submit"
+      >
+        <label
+          class="flex items-center gap-1 text-xs font-medium"
+          :for="`title-${item.scannedItemId}`"
+        >
+          匹配到目录中的标题
+          <UTooltip text="输入或选择与这个截图匹配的档案标题"
+            ><UIcon name="i-lucide-circle-help" tabindex="0"
+          /></UTooltip>
+        </label>
+        <UInputMenu
+          :id="`title-${item.scannedItemId}`"
+          class="w-full"
+          :content="{ side: 'top' }"
+          :items="[...item.candidates]"
+          mode="autocomplete"
+          :model-value="state.draft"
+          placeholder="输入或选择正确标题"
+          :ui="{ content: 'max-h-48' }"
+          @focus="beginEdit"
+          @update:model-value="state = { ...state, draft: $event, editing: true }"
+        >
+          <template #empty>没有找到对应标题，可继续输入</template>
+        </UInputMenu>
+        <div class="flex items-center justify-end gap-2">
+          <UButton color="neutral" :disabled="!state.editing" variant="outline" @click="cancelEdit"
+            >放弃编辑</UButton
           >
-            <UInputMenu
-              v-model="draft"
-              aria-label="正确档案标题"
-              class="min-w-0 flex-1"
-              :items="options"
-              mode="autocomplete"
-              placeholder="正确标题"
-              size="sm"
-            /><UButton
-              class="shrink-0"
-              icon="i-lucide-check"
-              label="确认"
-              size="sm"
-              type="submit"
-            />
-          </form>
-          <div v-else class="mt-0.5 flex items-center justify-between gap-1">
-            <span
-              class="min-w-0 flex-1 text-sm font-medium break-words"
-              :title="item.correctedTitle ?? item.ocrResult"
-              >{{ item.correctedTitle ?? item.ocrResult }}</span
-            >
-          </div>
-          <div v-if="item.archives.length" class="mt-1 flex items-center justify-between gap-1">
-            <span class="text-[11px] text-muted">{{
-              item.manuallyCorrected ? '人工纠正' : '自动匹配'
-            }}</span>
+          <UButton
+            :color="changed ? 'primary' : 'neutral'"
+            :disabled="!changed"
+            icon="i-lucide-check"
+            type="submit"
+            :variant="changed ? 'solid' : 'outline'"
+            >确认编辑</UButton
+          >
+        </div>
+      </form>
+      <div v-else class="space-y-3 border-t border-default pt-3">
+        <div class="rounded border border-success/30 bg-success/5 p-3">
+          <UButton
+            aria-label="编辑匹配标题"
+            class="float-right"
+            color="neutral"
+            icon="i-lucide-pencil"
+            size="xs"
+            variant="outline"
+            @click="beginEdit"
+          />
+          <p class="mb-1 text-xs text-muted">
+            {{ item.manuallyCorrected ? '被人工纠正的结果' : '由 OCR 自动匹配的结果' }}
+          </p>
+          <p class="text-base font-medium break-words">{{ currentTitle }}</p>
+          <div class="mt-2 flex items-center justify-between gap-1">
+            <span class="text-xs text-muted">{{ item.categoryLabel }}</span>
             <UPopover
               v-model:open="floatingMatchesOpen"
               :content="{ side: 'bottom', align: 'end', sideOffset: 5 }"
@@ -151,12 +196,12 @@ const cropImageStyle: CSSProperties = {
                 :label="`${item.archives.length} 份关联档案`"
                 size="xs"
                 trailing-icon="i-lucide-chevron-down"
-                variant="ghost"
+                variant="outline"
                 @mouseenter="cancelClose"
                 @mouseleave="scheduleClose" /><template #content
                 ><div @mouseenter="cancelClose" @mouseleave="scheduleClose">
                   <p class="mb-2 text-xs text-muted">
-                    扫描 #{{ item.scannedItemId }} · 关联 {{ item.archives.length }} 份档案
+                    扫描 #{{ item.scannedItemId }} 关联了 {{ item.archives.length }} 份档案
                   </p>
                   <div class="max-h-64 space-y-1.5 overflow-y-auto">
                     <div
@@ -173,7 +218,7 @@ const cropImageStyle: CSSProperties = {
                         icon="i-lucide-arrow-left"
                         label="定位档案"
                         size="xs"
-                        variant="ghost"
+                        variant="outline"
                         @click="emit('locateArchive', archive.id)"
                       />
                     </div>
@@ -181,41 +226,24 @@ const cropImageStyle: CSSProperties = {
             ></UPopover>
           </div>
         </div>
+        <UButton
+          :aria-expanded="state.showOcr"
+          color="neutral"
+          size="xs"
+          :trailing-icon="state.showOcr ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+          variant="outline"
+          @click="state = { ...state, showOcr: !state.showOcr }"
+        >
+          {{ state.showOcr ? '收起 OCR 结果' : '查看 OCR 结果' }}
+        </UButton>
+        <div
+          v-if="state.showOcr"
+          class="rounded border border-default bg-elevated/50 p-3 text-sm break-words"
+        >
+          <p class="mb-1 text-xs text-muted">OCR 结果</p>
+          {{ item.ocrResult || '未识别到文字' }}
+        </div>
       </div>
-      <p v-if="item.manuallyCorrected && !item.archives.length" class="mt-1.5 text-xs text-warning">
-        输入的标题未命中当前分类，请重新选择。
-      </p>
     </div>
   </article>
 </template>
-
-<style scoped>
-.scan-layout {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-.scan-crop {
-  width: 128px;
-  flex-shrink: 0;
-  min-height: 72px;
-  background: var(--ui-bg-accented);
-}
-.gradient-surface {
-  background-image: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--matching-tint) 7%, transparent) 12%,
-    transparent 45%
-  );
-}
-@media (max-width: 847px) {
-  .scan-left {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .scan-left .scan-crop {
-    width: auto;
-  }
-}
-</style>
