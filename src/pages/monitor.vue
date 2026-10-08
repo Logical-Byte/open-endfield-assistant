@@ -126,9 +126,9 @@ onBeforeUnmount(stopMonitor);
       <UButton v-else color="error" icon="i-lucide-square" label="停止监控" @click="stopMonitor" />
 
       <span v-if="running" class="text-sm text-muted">
-        {{ fps }} FPS<template v-if="lastCaptureAt">
-          · 最近更新 {{ formatTime(lastCaptureAt) }}</template
-        >
+        正以 {{ fps }} FPS 监控<template v-if="lastCaptureAt"
+          >，最近更新于 {{ formatTime(lastCaptureAt) }}</template
+        >。
       </span>
     </div>
 

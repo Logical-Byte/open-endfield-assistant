@@ -75,12 +75,12 @@ const etaText = computed<string | null>(() => {
   }
   const seconds = Math.ceil((totalSize - downloadedSize) / speed);
   if (seconds < 60) {
-    return ` · 约 ${seconds} 秒`;
+    return `，还需约 ${seconds} 秒`;
   }
   if (seconds < 3600) {
-    return ` · 约 ${Math.ceil(seconds / 60)} 分钟`;
+    return `，还需约 ${Math.ceil(seconds / 60)} 分钟`;
   }
-  return ` · 约 ${(seconds / 3600).toFixed(1)} 小时`;
+  return `，还需约 ${(seconds / 3600).toFixed(1)} 小时`;
 });
 
 /** 字节数格式化为人类可读单位。 */
@@ -185,8 +185,8 @@ function formatSpeed(bytesPerSecond: number): string {
           <UProgress size="sm" :value="visibleProgress.progress" />
           <div class="flex items-center justify-between text-xs text-dimmed">
             <span class="tabular-nums"
-              >{{ visibleProgress.progress.toFixed(1) }}% · {{ formatSpeed(visibleProgress.speed)
-              }}{{ etaText }}</span
+              >已下载 {{ visibleProgress.progress.toFixed(1) }}%，速度为
+              {{ formatSpeed(visibleProgress.speed) }}{{ etaText }}。</span
             >
             <UButton
               color="neutral"

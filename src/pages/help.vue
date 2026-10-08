@@ -156,11 +156,11 @@ onBeforeUnmount(() => {
             </li>
             <li class="flex items-baseline gap-3">
               <span class="w-6 flex-none text-end text-primary tabular-nums">4.</span>
-              <span>点击左上角<strong class="text-primary">开始扫描</strong></span>
+              <span>点击扫描结果栏的<strong class="text-primary">开始扫描</strong></span>
             </li>
             <li class="flex items-baseline gap-3">
               <span class="w-6 flex-none text-end text-primary tabular-nums">5.</span>
-              <span>扫完点击右上角<strong class="text-primary">导出到地图集</strong></span>
+              <span>扫完点击全部档案栏的<strong class="text-primary">导出收集状态</strong></span>
             </li>
           </ol>
         </UCard>

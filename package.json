@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@nuxt/ui": "^4.10.0",
+    "@tanstack/vue-virtual": "^3.13.39",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-opener": "~2.5.4",
     "@unhead/vue": "^2.1.16",

@@ -1,3 +1,7 @@
+/** 档案目录 ID 与扫描记录 ID 在类型层面互不混用。 */
+export type ArchiveId = string & { readonly __brand: 'ArchiveId' };
+export type ScannedItemId = number & { readonly __brand: 'ScannedItemId' };
+
 /** 当前扫描记录的匹配状态。 */
 export type ScannedItemStatus = 'success' | 'unrecognized' | 'failed';
 
@@ -17,4 +21,11 @@ export interface ScannedItem {
   correctedTitle: string | null;
   /** 纠错命中的档案 id（allItems 的 id，当前小分类下同标题多条时返回全部） */
   correctedMatchItemIds: readonly string[];
+}
+
+/** 前端会话内的扫描记录，ID 在清空后也不复用。 */
+export interface ScannedItemRecord extends ScannedItem {
+  scannedItemId: ScannedItemId;
+  /** 后端自动纠错也会设置 correctedTitle，人工来源单独记录。 */
+  manuallyCorrected: boolean;
 }

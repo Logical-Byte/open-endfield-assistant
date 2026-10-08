@@ -84,7 +84,7 @@ void initApp();
 
 <template>
   <Suspense>
-    <UApp>
+    <UApp :toaster="{ position: 'bottom-right', max: 8, expand: true }">
       <div class="flex h-full flex-col">
         <TitleBar />
         <AppHeader class="static z-auto backdrop-blur-none" />
