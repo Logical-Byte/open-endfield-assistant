@@ -48,22 +48,32 @@ async function submit(): Promise<void> {
             <dt class="mb-2 text-sm text-toned">未收集</dt>
             <dd class="flex items-center gap-2 text-3xl font-semibold tabular-nums">
               {{ total - collected
-              }}<UIcon
+              }}<UPopover
                 v-if="unmatched > 0"
-                class="size-4 text-warning"
-                name="i-lucide-triangle-alert"
-              />
+                :content="{ side: 'top', align: 'center' }"
+                mode="hover"
+                :ui="{ content: 'w-80 max-w-[calc(100vw-24px)] overflow-hidden' }"
+              >
+                <UButton
+                  aria-label="查看未匹配扫描结果的导出提醒"
+                  class="p-0"
+                  color="warning"
+                  icon="i-lucide-triangle-alert"
+                  size="xs"
+                  variant="link"
+                />
+                <template #content>
+                  <UAlert
+                    color="warning"
+                    :description="`有 ${unmatched} 条扫描结果尚未匹配到已知档案。继续核对可能减少“未收集”的数量，让导出结果更准确。`"
+                    icon="i-lucide-triangle-alert"
+                    variant="soft"
+                  />
+                </template>
+              </UPopover>
             </dd>
           </div>
         </dl>
-        <UAlert
-          v-if="unmatched > 0"
-          color="warning"
-          :description="`有 ${unmatched} 条扫描结果尚未匹配到已知档案。继续核对可能减少“未收集”的数量，让导出结果更准确。`"
-          icon="i-lucide-triangle-alert"
-          variant="soft"
-        />
-        <p class="text-sm text-muted">点击后将在浏览器中打开 OEM 导入页面，带入以上收集状态。</p>
         <UButton
           class="w-full justify-center"
           icon="i-lucide-external-link"
