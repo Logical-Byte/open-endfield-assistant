@@ -3,8 +3,7 @@
 use std::{thread, time::Duration};
 
 use anyhow::Result;
-use image::{DynamicImage, RgbaImage, imageops};
-use imageproc::contrast::ThresholdType;
+use image::RgbaImage;
 
 use crate::{
     automation::{
@@ -13,7 +12,7 @@ use crate::{
     },
     platform::input::Contact,
     utils::region::Region2D,
-    vision::{ocr::text_detection, template_matching},
+    vision::template_matching,
 };
 
 use super::Session;
@@ -79,37 +78,12 @@ impl Ocr for Session {
         screenshot: &RgbaImage,
         region: Region2D<u32>,
     ) -> Result<Option<String>> {
-        let cropped = imageops::crop_imm(
-            screenshot,
-            region.x0(),
-            region.y0(),
-            region.width(),
-            region.height(),
-        )
-        .to_image();
-        let rgb = DynamicImage::ImageRgba8(cropped).to_rgb8();
-        let Some(text_region) =
-            text_detection::detect_single_line(&rgb, 128, ThresholdType::Binary, 6)
-        else {
-            return Ok(None);
-        };
-        let cropped = imageops::crop_imm(
-            &rgb,
-            text_region.x0(),
-            text_region.y0(),
-            text_region.width(),
-            text_region.height(),
-        )
-        .to_image();
-        let output = self.ocr.lock().unwrap().ocr(&cropped)?;
-        Ok(Some(
-            output
-                .lines
-                .iter()
-                .map(|line| line.text.as_str())
-                .collect::<Vec<_>>()
-                .join("\n"),
-        ))
+        Ok(self
+            .ocr
+            .lock()
+            .unwrap()
+            .recognize_region(screenshot, region)?
+            .map(|result| result.text))
     }
 }
 

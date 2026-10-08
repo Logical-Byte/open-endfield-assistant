@@ -135,7 +135,7 @@ fn setup_app(app: &mut tauri::App) -> Result<()> {
 
     // 加载后端资源。
     let settings_store = settings::SettingsStore::at(app_paths.oea_settings_file());
-    let ocr = vision::ocr::OcrEngine::recognition_only(&app_paths.models_dir())?;
+    let ocr = vision::ocr::OcrEngine::new(&app_paths.models_dir(), vision::ocr::Config::default())?;
     let app_data = data::AppData::load(&app_paths)?;
     let navigator = navigation::Navigator::new();
     let frontend_event_sink = Arc::new(automation_events::TauriEventSink::start(

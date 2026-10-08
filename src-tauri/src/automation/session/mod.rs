@@ -24,6 +24,13 @@ use crate::{
 
 use self::resolution::{Resolution, ResolutionTransform};
 
+/// 本地截图验证复用游戏会话的分辨率校验和缩放规则。
+#[cfg(feature = "cli")]
+pub(crate) fn normalize_screenshot(image: image::RgbaImage) -> anyhow::Result<image::RgbaImage> {
+    ResolutionTransform::new(Resolution::new(image.width(), image.height())?)?
+        .to_canonical_image(image)
+}
+
 /// # Send 安全性
 /// `Session` 持有非拥有型窗口句柄，不自动 `Send`。
 /// 窗口句柄在 OS 层面对线程无亲和性，且本类型始终由调用方以 `&mut`

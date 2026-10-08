@@ -20,6 +20,8 @@ mod runtime;
 mod session;
 #[cfg(feature = "cli")]
 pub(crate) use session::Session;
+#[cfg(feature = "cli")]
+pub(crate) use session::normalize_screenshot;
 mod stats;
 
 pub(crate) use cancellation::new_stop_token;

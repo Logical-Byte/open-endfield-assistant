@@ -27,6 +27,27 @@ impl From<anyhow::Error> for Error {
 
 pub(super) fn execute(command: &Command) -> Result<Output, Error> {
     match command {
+        Command::Ocr {
+            input,
+            models,
+            region,
+            archive_title,
+            threads,
+            warmup,
+            repeat,
+        } => super::ocr::recognize(
+            input,
+            models,
+            *region,
+            *archive_title,
+            *threads,
+            *warmup,
+            *repeat,
+        )
+        .map_err(Error::from),
+        Command::OcrCompare { before, after } => {
+            super::ocr::compare(before, after).map_err(Error::from)
+        }
         Command::MatchImage {
             image,
             template,
@@ -111,7 +132,7 @@ fn connect() -> Result<automation::Session, Error> {
         use std::sync::{Arc, Mutex};
         platform::window::set_thread_dpi_awareness_context();
         let paths = app_paths::AppPaths::new().map_err(anyhow::Error::msg)?;
-        let ocr = vision::ocr::OcrEngine::recognition_only(&paths.models_dir())?;
+        let ocr = vision::ocr::OcrEngine::new(&paths.models_dir(), vision::ocr::Config::default())?;
         automation::Session::connect(&Arc::new(Mutex::new(ocr)), automation::new_stop_token())
             .map_err(Error::from)
     }
