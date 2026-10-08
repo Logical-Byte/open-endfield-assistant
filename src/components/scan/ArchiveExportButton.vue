@@ -59,7 +59,7 @@ async function submit(): Promise<void> {
         <UAlert
           v-if="unmatched > 0"
           color="warning"
-          :description="`有 ${unmatched} 条扫描结果尚未匹配到已知档案。继续核对可能减少‘未收集’的数量，让导出结果更准确。`"
+          :description="`有 ${unmatched} 条扫描结果尚未匹配到已知档案。继续核对可能减少“未收集”的数量，让导出结果更准确。`"
           icon="i-lucide-triangle-alert"
           variant="soft"
         />
