@@ -61,8 +61,11 @@ const cropImageStyle: CSSProperties = {
     <UButton
       :aria-controls="`scan-body-${item.scannedItemId}`"
       :aria-expanded="expanded"
-      class="w-full justify-start rounded-none py-2"
-      :class="state.editing && 'bg-primary/25 hover:bg-primary/30'"
+      class="w-full justify-start rounded-none py-2 ring-0"
+      :class="[
+        state.editing && 'bg-primary/25 hover:bg-primary/30',
+        expanded && 'border-b border-default',
+      ]"
       :color="state.editing ? 'primary' : 'neutral'"
       :icon="item.archives.length ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'"
       :ui="{ leadingIcon: item.archives.length ? 'text-success' : 'text-warning' }"
