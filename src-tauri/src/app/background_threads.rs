@@ -16,7 +16,7 @@ use tracing_appender::non_blocking::WorkerGuard;
 
 use crate::{logger::LogEntry, platform};
 
-use super::{frontend_forwarders, hotkeys};
+use super::{automation_events, frontend_forwarders, hotkeys};
 
 /// Tauri 托管的应用常驻线程所有者。
 pub(super) struct BackgroundThreads {
@@ -24,6 +24,7 @@ pub(super) struct BackgroundThreads {
 }
 
 struct Inner {
+    frontend_event_sink: Arc<automation_events::TauriEventSink>,
     stop: Arc<AtomicBool>,
     keyboard_hook: platform::hotkey::KeyboardHookGuard,
     hotkey_thread: JoinHandle<()>,
@@ -32,9 +33,12 @@ struct Inner {
 }
 
 impl BackgroundThreads {
-    /// 启动键盘监听、热键分发和前端事件转发线程。
+    /// 接管已启动的自动化事件线程，并启动键盘监听、热键分发和日志转发。
+    ///
+    /// 事件线程先用于组装自动化运行时。至此所有常驻线程及保活资源统一归本对象管理。
     pub(super) fn start(
         app_handle: &AppHandle,
+        frontend_event_sink: Arc<automation_events::TauriEventSink>,
         logger_guard: WorkerGuard,
         log_rx: mpsc::Receiver<LogEntry>,
     ) -> Result<Self> {
@@ -50,6 +54,7 @@ impl BackgroundThreads {
 
         Ok(Self {
             inner: Mutex::new(Some(Inner {
+                frontend_event_sink,
                 stop,
                 keyboard_hook,
                 hotkey_thread,
@@ -70,6 +75,8 @@ impl BackgroundThreads {
             return;
         };
 
+        // 保持原退出顺序：先排空自动化事件，再停止热键和日志转发，最后刷新文件日志。
+        inner.frontend_event_sink.shutdown();
         inner.stop.store(true, Ordering::Relaxed);
 
         if let Err(error) = inner.keyboard_hook.shutdown() {

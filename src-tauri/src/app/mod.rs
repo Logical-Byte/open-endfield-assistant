@@ -6,46 +6,22 @@ mod commands;
 mod frontend_forwarders;
 mod hooks;
 mod hotkeys;
+mod main_window;
 mod tray;
 
-use std::fs;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use tauri::Manager;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use crate::{
-    app_paths::AppPaths, automation, controller::Controller, data::AppData, logger,
-    navigation::Navigator, platform, settings, update, vision,
+    app_paths::AppPaths, automation, controller, data, logger, navigation, platform, settings,
+    update, vision,
 };
 
 use self::hooks::{crash, portable};
 use background_threads::BackgroundThreads;
-
-#[cfg(target_os = "windows")]
-fn configure_main_window<'a, R, M>(
-    builder: tauri::WebviewWindowBuilder<'a, R, M>,
-    app_paths: &AppPaths,
-) -> tauri::WebviewWindowBuilder<'a, R, M>
-where
-    R: tauri::Runtime,
-    M: tauri::Manager<R>,
-{
-    builder.data_directory(app_paths.webview_data_dir())
-}
-
-#[cfg(unix)]
-fn configure_main_window<'a, R, M>(
-    builder: tauri::WebviewWindowBuilder<'a, R, M>,
-    _app_paths: &AppPaths,
-) -> tauri::WebviewWindowBuilder<'a, R, M>
-where
-    R: tauri::Runtime,
-    M: tauri::Manager<R>,
-{
-    builder.incognito(true)
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -102,7 +78,7 @@ pub fn run() {
                     api.prevent_close();
                     return;
                 }
-                let controller = app_handle.state::<Controller>();
+                let controller = app_handle.state::<controller::Controller>();
                 if controller.settings_snapshot().minimize_to_tray {
                     api.prevent_close();
                     if let Some(window) = app_handle.get_webview_window("main") {
@@ -124,11 +100,6 @@ pub fn run() {
         .expect("error while running tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
-                if let Some(frontend_event_sink) =
-                    app_handle.try_state::<Arc<automation_events::TauriEventSink>>()
-                {
-                    frontend_event_sink.shutdown();
-                }
                 if let Some(background_threads) = app_handle.try_state::<BackgroundThreads>() {
                     background_threads.shutdown();
                 }
@@ -138,97 +109,54 @@ pub fn run() {
 
 /// `setup` 主体：任何一步失败都会返回 `Err`，由 [`crash::report_fatal`] 统一兜底。
 fn setup_app(app: &mut tauri::App) -> Result<()> {
-    app.manage(update::UpdateManager::default());
-
     // 解析资源目录（`resources/models/logs`），不依赖运行时工作目录
     let app_paths = AppPaths::new().map_err(anyhow::Error::msg)?;
 
-    // 压缩包内直接运行检测：命中则弹原生框提示解压并退出。
-    // 必须在建窗口 / 写 `cache` / 初始化日志之前调用（只读临时目录里这些步骤没有意义）。
+    // 检测是否未解压。必须在一切剩余的副作用操作前进行。
     portable::ensure_extracted(&app_paths);
 
-    // 更新事务可能在正常应用初始化前失败，因此先启用文件日志。早期日志会暂存在通道中，
-    // 等 BackgroundThreads 启动转发线程后再推送给前端。
+    // 更新事务可能在正常应用初始化前失败，因此先启用文件日志。
+    // 前端会在 BackgroundThreads 启动转发线程后收到在这期间缓存的日志。
     let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
 
-    // 在初始化 Tauri 窗口和资源消费者前完成 v2 的 resources 提交。helper 副本、
-    // candidate 和 transaction 的生命周期都由 install core 管理，前端只消费结果。
-    let target = update::install::InstallTarget::for_current_executable(&app_paths)
-        .map_err(|error| anyhow::anyhow!("无法确定更新 executable name: {error}"))?;
-    let startup_update_result =
-        update::install::complete_startup_transaction(&target).map_err(|error| {
-            error!(
-                operation = "startup_transaction",
-                error = %error,
-                "启动时完成更新事务失败"
-            );
-            #[cfg(target_os = "macos")]
-            platform::update::show_update_error("OEA 更新失败", &error);
-            anyhow::anyhow!("启动时完成更新事务失败: {error}")
-        })?;
-    update::install::record_startup_update_result(startup_update_result);
+    // 必须在应用初始化前完成更新。
+    update::install::initialize_at_startup(&app_paths)?;
+
+    // 开始应用初始化。
 
     // 设置线程 DPI 感知上下文，确保截图器获取的窗口客户区坐标与实际像素一致。
     platform::window::set_thread_dpi_awareness_context();
 
-    // WebView2 缺失时自动下载引导程序并安装。
-    platform::webview::ensure_installed(&app_paths.cache_dir()).inspect_err(|e| warn!("{e:#}"))?;
+    // 窗口关闭处理和前端更新命令需要此状态，必须在创建窗口之前托管。
+    app.manage(update::UpdateManager::default());
 
-    // 加载用户设置
-    let settings_store = Arc::new(settings::SettingsStore::at(app_paths.oea_settings_file()));
+    // 创建 Webview 窗口。
+    main_window::create(app, &app_paths)?;
 
-    // 绿色便携：WebView2 用户数据目录放在应用目录内（默认会写入 `%LOCALAPPDATA%\<identifier>`），保证所有磁盘写入都限定在应用目录内。
-    fs::create_dir_all(app_paths.webview_data_dir()).with_context(|| {
-        format!(
-            "创建 WebView2 数据目录 {} 失败",
-            app_paths.webview_data_dir().display()
-        )
-    })?;
-    // 在 Rust 里动态创建 webview 窗口，而不在 `tauri.conf.json` 里声明窗口，否则无法更改 WebView2 用户数据目录。
-    let main_window_builder =
-        tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
-            .title("OEA")
-            .inner_size(1024.0, 640.0)
-            .min_inner_size(864.0, 540.0)
-            .resizable(true)
-            .decorations(false) // 移除系统标题栏
-            .shadow(true)
-            .data_directory(app_paths.webview_data_dir())
-            .zoom_hotkeys_enabled(true); // 允许 Ctrl+滚轮 / Ctrl++ / Ctrl+- 原生缩放
-
-    let main_window_builder = configure_main_window(main_window_builder, &app_paths);
-
-    let main_window = main_window_builder.build()?;
-    platform::webview::register_zoom_changed_listener(&main_window);
-
-    // 初始化 OCR 引擎（不依赖游戏窗口，任务开始时复用）
-    let ocr_engine =
-        vision::ocr::OcrEngine::new(&app_paths.models_dir(), vision::ocr::Config::default())?;
-    let ocr = Arc::new(Mutex::new(ocr_engine));
-
-    // 加载静态数据文件
-    let app_data = AppData::load(&app_paths)?;
-
-    let navigator = Arc::new(Navigator::new());
-
+    // 加载后端资源。
+    let settings_store = settings::SettingsStore::at(app_paths.oea_settings_file());
+    let ocr = vision::ocr::OcrEngine::new(&app_paths.models_dir(), vision::ocr::Config::default())?;
+    let app_data = data::AppData::load(&app_paths)?;
+    let navigator = navigation::Navigator::new();
     let frontend_event_sink = Arc::new(automation_events::TauriEventSink::start(
         app.handle().clone(),
     )?);
-    let automation_events: Arc<dyn automation::EventSink> =
-        Arc::<automation_events::TauriEventSink>::clone(&frontend_event_sink);
-    let automation_runtime = Arc::new(automation::Runtime::new(automation_events));
-
-    app.manage(frontend_event_sink);
-
-    // 组装应用控制器并托管为 `State`。
-    let controller = Controller::new(settings_store, ocr, navigator, automation_runtime, app_data);
+    let automation_runtime = automation::Runtime::new(Arc::clone(&frontend_event_sink));
+    let controller = controller::Controller::new(
+        Arc::new(settings_store),
+        Arc::new(Mutex::new(ocr)),
+        Arc::new(navigator),
+        Arc::new(automation_runtime),
+        app_data,
+    );
     app.manage(controller);
 
-    // 初始化系统托盘（依赖已托管的 `Controller`，托盘菜单事件直接驱动它）
+    // 初始化系统托盘，依赖已托管的 `Controller`。
     tray::init_tray(app.handle())?;
 
-    // 托管应用常驻线程；此后 `setup` 不再执行可能失败的初始化步骤。
-    let background_threads = BackgroundThreads::start(app.handle(), logger_guard, log_rx)?;
+    // 统一管理后台线程。
+    let background_threads =
+        BackgroundThreads::start(app.handle(), frontend_event_sink, logger_guard, log_rx)?;
     app.manage(background_threads);
 
     info!("OEA 后端初始化完成");

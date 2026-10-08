@@ -27,7 +27,7 @@ use candidate::{PackageKind, extract_package_zip, prepare};
 use helper::spawn_helper;
 pub use helper::{helper_request_from_args, run_helper_request, run_helper_request_with_logging};
 pub use startup::StartupUpdateResult;
-pub(crate) use startup::complete_startup_transaction;
+pub(crate) use startup::initialize_at_startup;
 pub(crate) use workspace::InstallTarget;
 use workspace::InstallWorkspace;
 
