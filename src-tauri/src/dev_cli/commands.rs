@@ -111,10 +111,7 @@ fn connect() -> Result<automation::Session, Error> {
         use std::sync::{Arc, Mutex};
         platform::window::set_thread_dpi_awareness_context();
         let paths = app_paths::AppPaths::new().map_err(anyhow::Error::msg)?;
-        let ocr = vision::ocr::OcrEngine::new(
-            rapidocr_core::config::PipelineConfig::recognition_only(),
-            &paths.models_dir(),
-        )?;
+        let ocr = vision::ocr::OcrEngine::recognition_only(&paths.models_dir())?;
         automation::Session::connect(&Arc::new(Mutex::new(ocr)), automation::new_stop_token())
             .map_err(Error::from)
     }

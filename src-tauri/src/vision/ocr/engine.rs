@@ -14,12 +14,17 @@ pub(crate) struct OcrEngine {
 }
 
 impl OcrEngine {
+    /// 使用应用的纯识别管线加载模型。调用方无需依赖 `rapidocr_core` 的配置类型。
+    pub(crate) fn recognition_only(models_dir: &Path) -> Result<Self> {
+        Self::new(PipelineConfig::recognition_only(), models_dir)
+    }
+
     /// 创建 OCR 引擎。
     ///
     /// # 参数
     /// - `pipeline_config`: 识别管线配置
     /// - `models_dir`: OCR 模型目录（如 [`crate::app_paths::AppPaths::models_dir()`]）
-    pub(crate) fn new(pipeline_config: PipelineConfig, models_dir: &Path) -> Result<Self> {
+    fn new(pipeline_config: PipelineConfig, models_dir: &Path) -> Result<Self> {
         let model_dir = models_dir;
         let model_set = PPOCRV6_TINY;
 
