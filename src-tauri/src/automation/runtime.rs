@@ -112,7 +112,8 @@ impl RuntimeState {
 }
 
 impl Runtime {
-    pub(crate) fn new(events: Arc<dyn EventSink>) -> Self {
+    /// 接受具体的事件 adapter，在内部擦除类型，调用方可保留其生命周期句柄。
+    pub(crate) fn new(events: Arc<impl EventSink>) -> Self {
         Self {
             state: Mutex::new(RuntimeState {
                 status: Status::Idle { last_run: None },
@@ -282,8 +283,7 @@ mod tests {
     #[test]
     fn publishes_lifecycle_events_without_tauri() {
         let events = Arc::new(RecordingEventSink::default());
-        let event_sink: Arc<dyn EventSink> = Arc::<RecordingEventSink>::clone(&events);
-        let runtime = Arc::new(Runtime::new(event_sink));
+        let runtime = Arc::new(Runtime::new(Arc::clone(&events)));
 
         runtime.start(TaskKind::ArchiveScan, || Box::new(CompletingWorker));
 
