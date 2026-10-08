@@ -226,9 +226,6 @@ watch(scans, (): void => {
               @click="archiveFilter = option.value"
               >{{ option.label }} {{ option.count }}</UButton
             >
-            <UTooltip text="有记录：存在匹配的扫描证据。无记录不代表游戏中一定未收集。"
-              ><UIcon class="ml-auto text-muted" name="i-lucide-circle-help" tabindex="0"
-            /></UTooltip>
           </div>
           <div class="flex gap-2">
             <UInput
