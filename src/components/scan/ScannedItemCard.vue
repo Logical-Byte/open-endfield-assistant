@@ -84,7 +84,6 @@ const cropImageStyle: CSSProperties = {
     </UButton>
     <div v-show="expanded" :id="`scan-body-${item.scannedItemId}`" class="space-y-2 p-2">
       <div>
-        <p class="mb-1 text-xs text-muted">截图的标题区域（点击以查看全图）</p>
         <UButton
           aria-label="查看完整档案截图"
           class="mx-auto block w-[290px] overflow-hidden rounded p-0"
@@ -115,31 +114,20 @@ const cropImageStyle: CSSProperties = {
         <span class="shrink-0 text-xs leading-5 text-muted">OCR 结果</span>
         <p class="min-w-0 break-words">{{ item.ocrResult || '未识别到文字' }}</p>
       </div>
-      <p v-if="!item.archives.length" class="flex gap-1.5 text-xs text-warning">
-        <UIcon class="mt-0.5 shrink-0" name="i-lucide-triangle-alert" />
-        {{
-          item.ocrResult
-            ? '标题未命中当前分类，请对照截图补全或选择标题。'
-            : 'OCR 没有读出标题，请根据截图选择对应档案。'
-        }}
-      </p>
       <form
         v-if="!item.archives.length || state.editing"
         class="space-y-2 p-2 transition-colors"
         :class="state.editing ? 'rounded-md bg-primary/20' : 'border-t border-default'"
         @submit.prevent="submit"
       >
-        <label
-          class="flex items-center gap-1 text-xs font-medium"
-          :for="`title-${item.scannedItemId}`"
-        >
-          匹配到目录中的标题
-          <UTooltip text="输入或选择与这个截图匹配的档案标题"
-            ><UIcon name="i-lucide-circle-help" tabindex="0"
+        <div class="flex justify-end">
+          <UTooltip :content="{ side: 'top' }" text="输入或选择与这个截图匹配的档案标题"
+            ><UIcon class="size-4 shrink-0" name="i-lucide-circle-help" tabindex="0"
           /></UTooltip>
-        </label>
+        </div>
         <UInputMenu
           :id="`title-${item.scannedItemId}`"
+          aria-label="匹配到目录中的标题"
           class="w-full"
           :content="{ side: 'top' }"
           :items="[...item.candidates]"
