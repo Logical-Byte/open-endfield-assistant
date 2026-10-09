@@ -18,9 +18,20 @@ export class ArchiveCatalog {
   private readonly archivesByTitle: Map<Category, Map<string, ArchiveId[]>> = new Map();
 
   constructor(readonly catalog: DeepReadonly<Catalog>) {
-    this.archivesById = new Map(catalog.archives.map((row) => [row.id, row]));
-    this.categoriesById = new Map(catalog.categories.map((row) => [row.id, row]));
-    this.pagesById = new Map(catalog.pages.map((row) => [row.id, row]));
+    this.archivesById = new Map(
+      catalog.archives.map((row: Readonly<ArchiveEntry>): [ArchiveId, Readonly<ArchiveEntry>] => [
+        row.id,
+        row,
+      ]),
+    );
+    this.categoriesById = new Map(
+      catalog.categories.map(
+        (row: Readonly<CategoryEntry>): [Category, Readonly<CategoryEntry>] => [row.id, row],
+      ),
+    );
+    this.pagesById = new Map(
+      catalog.pages.map((row: Readonly<PageEntry>): [Page, Readonly<PageEntry>] => [row.id, row]),
+    );
     for (const archive of catalog.archives) {
       const titles = this.archivesByTitle.get(archive.category) ?? new Map<string, ArchiveId[]>();
       const ids = titles.get(archive.title) ?? [];
