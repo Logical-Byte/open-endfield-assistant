@@ -40,6 +40,7 @@ jobs:
               - 'rust-toolchain'
               - 'rust-toolchain.toml'
               - 'src-tauri/**'
+              - 'src/shared/types/generated/**'
 
   frontend-ci:
     name: Frontend CI
@@ -110,6 +111,16 @@ jobs:
         continue-on-error: true
         working-directory: src-tauri
         run: cargo test --features cli
+
+      - name: Check generated TypeScript types
+        shell: pwsh
+        run: |
+          $changes = git status --porcelain -- src/shared/types/generated/
+          if ($changes) {
+            $changes
+            git diff -- src/shared/types/generated/
+            throw "Generated TypeScript types are out of date. Run pnpm generate:types and commit the generated files."
+          }
 
       - name: Backend clippy
         working-directory: src-tauri

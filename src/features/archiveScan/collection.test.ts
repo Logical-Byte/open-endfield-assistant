@@ -1,46 +1,37 @@
-import type { PrtsAllItem } from '@/features/gameData/types/prts';
+import type { ArchiveEntry, ArchiveId } from '@/shared/types/archive';
 import type { ScannedItem } from '@/features/archiveScan/types/scannedItem';
 import { describe, expect, it } from 'vitest';
 import { deriveArchiveCollection } from './collection';
 
-const allItems: Record<string, PrtsAllItem> = {
-  paperNote: {
-    categoryId: 'paper',
-    firstLvId: 'paper-notes',
-    id: 'paperNote',
-    name: '研究人员的笔记',
-    order: 1,
+const allItems: ArchiveEntry[] = [
+  {
+    category: 'paper',
+    id: 'paperNote' as ArchiveId,
+    acquisitionMethod: 'map',
     title: '研究人员的笔记',
-    type: 'document',
   },
-  unrelated: {
-    categoryId: 'paper',
-    firstLvId: 'paper-notes',
-    id: 'unrelated',
-    name: '值班记录',
-    order: 2,
+  {
+    category: 'paper',
+    id: 'unrelated' as ArchiveId,
+    acquisitionMethod: 'map',
     title: '值班记录',
-    type: 'document',
   },
-  digitalNote: {
-    categoryId: 'digital',
-    firstLvId: 'digital-notes',
-    id: 'digitalNote',
-    name: '研究人员的笔记',
-    order: 1,
+  {
+    category: 'digital',
+    id: 'digitalNote' as ArchiveId,
+    acquisitionMethod: 'map',
     title: '研究人员的笔记',
-    type: 'text',
   },
-};
+];
 
 const successfulScan: ScannedItem = {
   status: 'success',
-  foundInCategory: 'document',
-  foundInSubCategory: 'paper',
+  foundInPage: 'document',
+  foundInCategory: 'paper',
   image: '',
   ocrResult: '研究人员的笔记',
   correctedTitle: '研究人员的笔记',
-  correctedMatchItemIds: ['paperNote'],
+  correctedMatchItemIds: ['paperNote' as ArchiveId],
 };
 
 describe('deriveArchiveCollection', () => {
@@ -55,12 +46,12 @@ describe('deriveArchiveCollection', () => {
     const failedScan: ScannedItem = {
       ...successfulScan,
       status: 'failed',
-      correctedMatchItemIds: ['paperNote'],
+      correctedMatchItemIds: ['paperNote' as ArchiveId],
     };
     const unrecognizedScan: ScannedItem = {
       ...successfulScan,
       status: 'unrecognized',
-      correctedMatchItemIds: ['unrelated'],
+      correctedMatchItemIds: ['unrelated' as ArchiveId],
     };
 
     expect(deriveArchiveCollection(allItems, [failedScan, unrecognizedScan])).toEqual({

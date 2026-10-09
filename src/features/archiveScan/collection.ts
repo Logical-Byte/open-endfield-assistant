@@ -1,6 +1,6 @@
-import type { PrtsAllItem } from '@/features/gameData/types/prts';
-import type { ArchiveId, ScannedItem } from '@/features/archiveScan/types/scannedItem';
-import { deriveArchiveMatching, type ArchiveMatching } from './matching';
+import type { ArchiveEntry, ArchiveId } from '@/shared/types/archive';
+import type { ScannedItemRecord } from '@/features/archiveScan/types/scannedItem';
+import { deriveArchiveMatching } from './matching';
 
 export interface ArchiveCollection {
   collectedIds: ArchiveId[];
@@ -14,11 +14,11 @@ export interface ArchiveCollection {
  * 返回的 ID 保持档案全集的展示顺序。
  */
 export function deriveArchiveCollection(
-  allItems: Record<string, PrtsAllItem>,
-  scannedItems: readonly ScannedItem[],
+  archives: readonly ArchiveEntry[],
+  scannedItems: readonly Pick<ScannedItemRecord, 'status' | 'correctedMatchItemIds'>[],
 ): ArchiveCollection {
-  const matching: ArchiveMatching<ScannedItem> = deriveArchiveMatching(allItems, scannedItems);
-  const allIds = Object.keys(allItems) as ArchiveId[];
+  const matching = deriveArchiveMatching(archives, scannedItems);
+  const allIds = archives.map((archive): ArchiveId => archive.id);
   return {
     collectedIds: allIds.filter(
       (id: ArchiveId): boolean => (matching.scansByArchiveId.get(id)?.length ?? 0) > 0,

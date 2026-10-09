@@ -2,7 +2,7 @@
  * 生成档案库运行时契约（resources/data/archive_contract.json）。
  *
  * 由 scripts/export_archive_contract.mjs 用 TypeScript 重写而来，利用
- * scripts/models 下各解包数据表模型与 src/features/gameData/types/archiveContract 的契约类型，
+ * scripts/models 下各解包数据表模型与 scripts/models/resources/archiveContract.ts 的契约类型，
  * 将全部数据读取与档案获取方式推断逻辑类型化。
  *
  * ## 输入（ENDFIELD_DATA_DIR 指向的解包数据，全部只读）
@@ -13,7 +13,7 @@
  * - Json/MissionRuntimeAsset/ Json/LevelData/ Json/LevelScriptData/（递归）
  *
  * ## 输出
- * `ArchiveContract`（类型见 src/features/gameData/types/archiveContract.ts），由 makeAllData 写入
+ * `ArchiveContract`（类型见 scripts/models/resources/archiveContract.ts），由 makeAllData 写入
  * `resources/data/archive_contract.json`（打包运行时数据）。
  */
 import fs from 'node:fs';
@@ -26,7 +26,7 @@ import type {
   ArchiveMissionAcquisition,
   ArchiveMissionSpecial,
   ArchiveShopAcquisition,
-} from '../../src/features/gameData/types/archiveContract';
+} from '../models/resources/archiveContract';
 import { endfieldDataDir, parseJSONWithBigInt } from '../gameData';
 import type {
   ComponentProperties,
@@ -47,7 +47,7 @@ import type {
   WorldEntityRegistry,
 } from '../models';
 
-/** 档案分类 id（与 src/features/gameData/types/archiveContract 保持一致） */
+/** 档案分类 id（与 scripts/models/resources/archiveContract.ts 保持一致） */
 const CATEGORY_IDS = [
   'paper',
   'digital',

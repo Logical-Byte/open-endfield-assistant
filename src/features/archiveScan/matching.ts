@@ -1,25 +1,29 @@
-import type { PrtsAllItem } from '@/features/gameData/types/prts';
-import type { ArchiveId, ScannedItem } from './types/scannedItem';
+import type { ArchiveEntry, ArchiveId } from '@/shared/types/archive';
+import type { ScannedItem } from './types/scannedItem';
 
-export interface ArchiveMatching<T extends ScannedItem> {
+type ScanEvidence = Pick<ScannedItem, 'status'> & {
+  readonly correctedMatchItemIds: readonly ArchiveId[];
+};
+
+export interface ArchiveMatching<T extends ScanEvidence> {
   readonly scansByArchiveId: ReadonlyMap<ArchiveId, readonly T[]>;
-  // 以输入记录对象为键，让导出逻辑复用匹配规则时无需依赖前端扫描 ID。
+  // 以输入记录对象为键，导出复用匹配规则时无需依赖前端扫描 ID。
   readonly archiveIdsByScan: ReadonlyMap<T, readonly ArchiveId[]>;
 }
 
-/** 同小分类、同标题共享成功扫描证据，保留全部记录及双向关系。 */
-export function deriveArchiveMatching<T extends ScannedItem>(
-  allItems: Record<string, PrtsAllItem>,
+/** 同分类、同标题共享成功扫描证据，保留全部记录及双向关系。 */
+export function deriveArchiveMatching<T extends ScanEvidence>(
+  archives: readonly ArchiveEntry[],
   scannedItems: readonly T[],
 ): ArchiveMatching<T> {
+  const byId = new Map(archives.map((archive) => [archive.id, archive]));
   const scansByGroup = new Map<string, T[]>();
   for (const scan of scannedItems) {
     if (scan.status !== 'success') continue;
-    // 同一条扫描可能命中多个同名 ID，在共享分组中只计一次证据。
     const groups = new Set<string>();
     for (const id of scan.correctedMatchItemIds) {
-      const archive = allItems[id];
-      if (archive) groups.add(JSON.stringify([archive.categoryId, archive.title]));
+      const archive = byId.get(id);
+      if (archive) groups.add(JSON.stringify([archive.category, archive.title]));
     }
     for (const group of groups) {
       const scans = scansByGroup.get(group) ?? [];
@@ -31,11 +35,10 @@ export function deriveArchiveMatching<T extends ScannedItem>(
   const scansByArchiveId = new Map<ArchiveId, readonly T[]>();
   const archiveIdsByScan = new Map<T, ArchiveId[]>();
   for (const scan of scannedItems) archiveIdsByScan.set(scan, []);
-  for (const [key, archive] of Object.entries(allItems)) {
-    const id = key as ArchiveId;
-    const scans = scansByGroup.get(JSON.stringify([archive.categoryId, archive.title])) ?? [];
-    scansByArchiveId.set(id, scans);
-    for (const scan of scans) archiveIdsByScan.get(scan)!.push(id);
+  for (const archive of archives) {
+    const scans = scansByGroup.get(JSON.stringify([archive.category, archive.title])) ?? [];
+    scansByArchiveId.set(archive.id, scans);
+    for (const scan of scans) archiveIdsByScan.get(scan)!.push(archive.id);
   }
   return { scansByArchiveId, archiveIdsByScan };
 }

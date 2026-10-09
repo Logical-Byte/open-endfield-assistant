@@ -13,29 +13,61 @@ use crate::{
         EventSink, StopToken, is_stop_requested,
         runtime::{FinishReason, Worker, WorkerExit},
     },
-    data::AppData,
+    data::{AppData, archive},
 };
 
 use super::{
     correction::{DEFAULT_CORRECTION_OVERRIDES, match_with_correction},
-    reporting::{ScanReporter, encode_png_data_url},
+    reporting::{ScanReporter, ScannedItemStatus, encode_png_data_url},
 };
 
 pub(crate) struct SimulatedArchiveScanWorker {
     app_data: Arc<AppData>,
 }
 
-const SAMPLES: &[(&str, &str, &str)] = &[
-    ("multi_media", "media", "受困者的录音"),
-    ("text", "paper", "工团成员关于偷拍者的证词"),
-    ("text", "paper", "工团大会预算申报宣讲草稿（第八"),
-    ("text", "digital", "挂在竹子上的"),
-    ("text", "digital", ""),
-    ("text", "digital", "弩箭残片的记录"),
-    ("text", "collection", "布龙泽的工具包"),
-    ("document", "document", "泰拉"),
-    ("document", "document", "中枢档案残片"),
-    ("document", "report", "有关多桩裂地者遇袭事件的调查报告"),
+const SAMPLES: &[(archive::Page, archive::Category, &str)] = &[
+    (
+        archive::Page::MultiMedia,
+        archive::Category::Media,
+        "受困者的录音",
+    ),
+    (
+        archive::Page::Text,
+        archive::Category::Paper,
+        "工团成员关于偷拍者的证词",
+    ),
+    (
+        archive::Page::Text,
+        archive::Category::Paper,
+        "工团大会预算申报宣讲草稿（第八",
+    ),
+    (
+        archive::Page::Text,
+        archive::Category::Digital,
+        "挂在竹子上的",
+    ),
+    (archive::Page::Text, archive::Category::Digital, ""),
+    (
+        archive::Page::Text,
+        archive::Category::Digital,
+        "弩箭残片的记录",
+    ),
+    (
+        archive::Page::Text,
+        archive::Category::Collection,
+        "布龙泽的工具包",
+    ),
+    (archive::Page::Document, archive::Category::Document, "泰拉"),
+    (
+        archive::Page::Document,
+        archive::Category::Document,
+        "中枢档案残片",
+    ),
+    (
+        archive::Page::Document,
+        archive::Category::Report,
+        "有关多桩裂地者遇袭事件的调查报告",
+    ),
 ];
 
 impl SimulatedArchiveScanWorker {
@@ -98,19 +130,19 @@ impl Worker for SimulatedArchiveScanWorker {
             sequence += 1;
 
             let corrected = match_with_correction(
-                self.app_data.archive_titles(),
+                self.app_data.archives(),
                 sub_category,
                 &ocr_result,
-                Some(DEFAULT_CORRECTION_OVERRIDES),
+                Some(&DEFAULT_CORRECTION_OVERRIDES),
             );
             let status = if ocr_result.is_empty() {
-                "failed"
+                ScannedItemStatus::Failed
             } else if corrected.is_some() {
-                "success"
+                ScannedItemStatus::Success
             } else {
-                "unrecognized"
+                ScannedItemStatus::Unrecognized
             };
-            tracing::debug!(sequence, status, "上报模拟档案扫描结果");
+            tracing::debug!(sequence, ?status, "上报模拟档案扫描结果");
             reporter.report(
                 status,
                 category,

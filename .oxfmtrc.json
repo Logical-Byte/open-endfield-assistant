@@ -23,6 +23,7 @@
     "src/route-map.d.ts",
     "pnpm-lock.yaml",
     "auto-imports.d.ts",
-    "components.d.ts"
+    "components.d.ts",
+    "src/shared/types/generated/"
   ]
 }

@@ -72,7 +72,7 @@ impl ArchiveScanWorker {
         // 启动检查通过、任务真正开始执行前播放 enable 提示音。
         self.play_scan_sound(ScanSound::Enable);
 
-        let scanner = ArchiveScanner::new(reporter, self.app_data.archive_titles());
+        let scanner = ArchiveScanner::new(reporter, self.app_data.archives());
         let mut captured = Capture::new(&mut session);
         let result = scanner.run(&mut captured, &self.navigator);
         let capture = captured.finish();

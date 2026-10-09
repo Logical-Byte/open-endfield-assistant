@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useTheme } from '@/composables/useTheme';
 import { initAutomationState } from '@/features/automation/state';
-import { initArchiveContract } from '@/features/gameData/archiveContract';
+import { initArchiveCatalog } from '@/features/gameData/archiveCatalog';
 import {
   settingsSaveError,
   initOeaSettings,
@@ -10,7 +10,6 @@ import {
   settingsState,
 } from '@/features/settings/settings';
 import { initLogState } from '@/features/log/logState';
-import { initPrtsData } from '@/features/gameData/prtsData';
 import { initScannedItems } from '@/features/archiveScan/scannedItems';
 import { initUpdateState } from '@/features/update/update';
 import { initUiScale } from '@/features/appearance/uiScale';
@@ -70,8 +69,7 @@ async function initApp(): Promise<void> {
     return;
   }
   await initAutomationState();
-  await initPrtsData();
-  await initArchiveContract();
+  await initArchiveCatalog();
   await initLogState();
   await initOeaSettings();
   await initScannedItems();

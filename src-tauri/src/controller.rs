@@ -12,7 +12,7 @@ use tracing::{info, warn};
 
 use crate::{
     automation::{self, archive_scan},
-    data::{AppData, ArchiveContract, PrtsData},
+    data::{AppData, archive},
     navigation::Navigator,
     settings, vision,
 };
@@ -27,7 +27,7 @@ pub struct Controller {
     navigator: Arc<Navigator>,
     /// 全局唯一自动化任务运行时
     automation_runtime: Arc<automation::Runtime>,
-    /// 静态数据（prts.json / 档案获取契约 / 纠错索引，启动时统一加载）
+    /// 各领域的只读运行时数据，启动时统一加载
     app_data: Arc<AppData>,
 }
 
@@ -63,14 +63,9 @@ impl Controller {
         self.automation_runtime.status()
     }
 
-    /// 返回 prts.json 完整数据（供前端查询分类中文名 / 自动补全候选）。
-    pub fn prts_data(&self) -> &PrtsData {
-        self.app_data.prts()
-    }
-
-    /// 返回档案获取契约完整数据（供前端按档案 id 查询获取方式）。
-    pub fn archive_contract_data(&self) -> &ArchiveContract {
-        self.app_data.archive_contract()
+    /// 前端需要的有序精简档案目录。
+    pub fn archive_catalog(&self) -> &archive::Catalog {
+        self.app_data.archives().catalog()
     }
 
     // ========== 启动 / 停止 / 退出 ==========

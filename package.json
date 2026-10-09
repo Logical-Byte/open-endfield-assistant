@@ -25,7 +25,8 @@
     "bump:version": "jiti scripts/bumpVersion.ts",
     "r2:publish": "jiti scripts/publishR2.ts publish",
     "r2:promote": "jiti scripts/publishR2.ts promote",
-    "test:r2-release": "vitest run scripts/publishR2Core.test.ts"
+    "test:r2-release": "vitest run scripts/publishR2Core.test.ts",
+    "generate:types": "cargo test --manifest-path src-tauri/Cargo.toml --lib export_bindings"
   },
   "dependencies": {
     "@nuxt/ui": "^4.10.0",

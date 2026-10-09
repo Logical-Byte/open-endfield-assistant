@@ -1,5 +1,6 @@
 //! 六个档案库子界面的扫描顺序和数据分类映射。
 
+use crate::data::archive;
 use crate::navigation::{ArchiveSubscene, CentralPage, RecordsPage};
 
 /// 六个档案库子界面的完整扫描顺序。
@@ -13,23 +14,23 @@ pub const SCAN_PLAN: &[ArchiveSubscene] = &[
 ];
 
 /// 子界面所属的档案库大类 ID（`pageType`：`multi_media` / `text` / `document`）。
-pub fn page_type_of(subscene: ArchiveSubscene) -> &'static str {
+pub fn page_type_of(subscene: ArchiveSubscene) -> archive::Page {
     match subscene {
-        ArchiveSubscene::Media => "multi_media",
-        ArchiveSubscene::Records(_) => "text",
-        ArchiveSubscene::Central(_) => "document",
+        ArchiveSubscene::Media => archive::Page::MultiMedia,
+        ArchiveSubscene::Records(_) => archive::Page::Text,
+        ArchiveSubscene::Central(_) => archive::Page::Document,
     }
 }
 
 /// 子界面所属的小类 ID（`categoryId`，与 `prts.json` 中 `allItems` 的
 /// `categoryId` 一致）。
-pub fn category_id_of(subscene: ArchiveSubscene) -> &'static str {
+pub fn category_id_of(subscene: ArchiveSubscene) -> archive::Category {
     match subscene {
-        ArchiveSubscene::Media => "media",
-        ArchiveSubscene::Records(RecordsPage::Paper) => "paper",
-        ArchiveSubscene::Records(RecordsPage::Digital) => "digital",
-        ArchiveSubscene::Records(RecordsPage::Collection) => "collection",
-        ArchiveSubscene::Central(CentralPage::Archive) => "document",
-        ArchiveSubscene::Central(CentralPage::Report) => "report",
+        ArchiveSubscene::Media => archive::Category::Media,
+        ArchiveSubscene::Records(RecordsPage::Paper) => archive::Category::Paper,
+        ArchiveSubscene::Records(RecordsPage::Digital) => archive::Category::Digital,
+        ArchiveSubscene::Records(RecordsPage::Collection) => archive::Category::Collection,
+        ArchiveSubscene::Central(CentralPage::Archive) => archive::Category::Document,
+        ArchiveSubscene::Central(CentralPage::Report) => archive::Category::Report,
     }
 }

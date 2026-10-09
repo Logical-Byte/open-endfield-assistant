@@ -7,7 +7,8 @@ import {
   type ArchiveScanSource,
   type ScanCorrection,
 } from '@/features/archiveScan/useArchiveScanResults';
-import type { ArchiveId, ScannedItemId } from '@/features/archiveScan/types/scannedItem';
+import type { ArchiveId } from '@/shared/types/archive';
+import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
 import ArchiveEntryCard from './ArchiveEntryCard.vue';
 import ScannedItemCard from './ScannedItemCard.vue';
 import type { ArchiveEntryView, ScannedItemView } from '@/features/archiveScan/resultView';

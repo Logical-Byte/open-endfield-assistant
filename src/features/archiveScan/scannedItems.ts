@@ -5,7 +5,7 @@ import type {
 } from '@/features/archiveScan/types/scannedItem';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import type { RunOutcome } from '@/features/automation/types';
-import { getItemIdsByTitle } from '@/features/gameData/archiveQueries';
+import { archiveCatalog } from '@/features/gameData/archiveCatalog';
 import { onScannedItem } from './ipc';
 import { whenever } from '@vueuse/core';
 import { readonly, ref, type DeepReadonly, type Ref } from 'vue';
@@ -35,7 +35,7 @@ export function correctScannedItem(scannedItemId: ScannedItemId, title: string):
   if (index === -1) return;
 
   const item = items.value[index]!;
-  const correctedMatchItemIds = getItemIdsByTitle(item.foundInSubCategory, title);
+  const correctedMatchItemIds = archiveCatalog.value?.idsByTitle(item.foundInCategory, title) ?? [];
   items.value[index] = {
     ...item,
     correctedTitle: title,
