@@ -22,6 +22,7 @@ pnpm check
 - 定义有名字的函数用 `function` 关键字，回调/匿名函数用箭头函数。
 - 本项目启用 TypeScript：所有函数参数与返回值都要有类型注解（返回 `void` 的除外）。
 - 拒绝写 `anotherFunction(args)` 的简单包装函数。
+- 新增或迁移后端共享类型时，通过 [ts-rs 管线](data-pipeline.md#ts-rs-编写与管理约定) 生成并从手写 barrel 导入。生成文件禁止手改，前端展示状态与运行时选项继续放在所属 feature。
 
 ## Vue 与 Nuxt UI 编码风格
 

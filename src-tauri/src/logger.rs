@@ -18,14 +18,40 @@ use tracing_subscriber::{
     registry::LookupSpan,
     util::SubscriberInitExt,
 };
+use ts_rs::TS;
+
+/// 推送给前端的日志等级。
+#[derive(Debug, Clone, Copy, Serialize, TS)]
+#[serde(rename_all = "UPPERCASE")]
+#[ts(export, export_to = "log/")]
+pub enum LogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl From<tracing::Level> for LogLevel {
+    fn from(level: tracing::Level) -> Self {
+        match level {
+            tracing::Level::TRACE => Self::Trace,
+            tracing::Level::DEBUG => Self::Debug,
+            tracing::Level::INFO => Self::Info,
+            tracing::Level::WARN => Self::Warn,
+            tracing::Level::ERROR => Self::Error,
+        }
+    }
+}
 
 /// 推送给前端的日志条目（时间 + 等级 + 格式化文本）。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "log/")]
 pub struct LogEntry {
     /// 时间（本地时间，ISO 8601 字符串，含微秒与时区偏移，如 `2026-08-06T12:34:56.123456+08:00`）
     pub time: String,
     /// 日志等级：TRACE / DEBUG / INFO / WARN / ERROR
-    pub level: String,
+    pub level: LogLevel,
     /// 格式化后的日志文本（事件字段，不含时间 / 等级 / 调用者）
     pub message: String,
 }
@@ -117,7 +143,7 @@ where
 
         let _ = self.tx.send(LogEntry {
             time,
-            level: event.metadata().level().to_string(),
+            level: (*event.metadata().level()).into(),
             message,
         });
     }

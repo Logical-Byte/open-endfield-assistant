@@ -12,6 +12,8 @@
 //! - [`capabilities`] 的 adapter。
 //! - 具体的自动化任务工作流实现。
 
+use ts_rs::TS;
+
 pub(crate) mod archive_scan;
 mod cancellation;
 mod capabilities;
@@ -35,14 +37,16 @@ pub(crate) use runtime::Runtime;
 pub use runtime::{LastRun, RunOutcome, Status};
 
 /// 用户可以启动的自动化任务种类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "automation/")]
 pub enum TaskKind {
     ArchiveScan,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, TS)]
 #[serde(tag = "taskKind", rename_all = "camelCase")]
+#[ts(export, export_to = "automation/")]
 pub(crate) enum StartRequest {
     ArchiveScan {
         #[serde(rename = "workerType")]

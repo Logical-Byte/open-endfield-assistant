@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
-import { UpdateProxyMode } from '@/features/settings/types/settings';
 import {
   settingsSaveError,
   editSettings,
@@ -396,7 +395,7 @@ const stopScrollToHash = router.afterEach((to) => {
           </SettingsItem>
 
           <SettingsItem
-            v-if="draftSettings?.updateProxyMode === UpdateProxyMode.Custom"
+            v-if="draftSettings?.updateProxyMode === 'custom'"
             description="自定义代理服务器地址，例如 http://127.0.0.1:7890"
             icon="i-lucide-link"
             title="代理地址"

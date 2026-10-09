@@ -10,6 +10,7 @@ use anyhow::{Result, bail};
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
+use ts_rs::TS;
 
 use super::check::AvailableUpdateMetadata;
 
@@ -49,16 +50,18 @@ impl UpdateOperation {
 }
 
 /// 前端可见的更新展示信息。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "update/")]
 pub struct UpdateInfo {
     pub(super) version_name: String,
     pub(super) release_note: String,
 }
 
 /// 前端可见的更新操作状态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "update/")]
 pub enum UpdateOperationStatus {
     Idle,
     Checking,
@@ -67,8 +70,9 @@ pub enum UpdateOperationStatus {
 }
 
 /// 一次加锁取得的更新状态快照。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "update/")]
 pub struct UpdateStatus {
     operation: UpdateOperationStatus,
     available_update: Option<UpdateInfo>,

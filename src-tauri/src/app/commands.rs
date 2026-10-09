@@ -7,14 +7,16 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use image::{ImageFormat, imageops};
 use serde::Deserialize;
 use tracing::{debug, error, info, trace, warn};
+use ts_rs::TS;
 
 use crate::{
     app_paths::AppPaths, automation, controller::Controller, data::archive, platform, settings,
 };
 
 /// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "monitor/")]
 pub enum ScreenshotFormat {
     Png,
     Jpeg,

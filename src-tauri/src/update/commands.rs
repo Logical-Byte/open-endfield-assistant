@@ -2,6 +2,7 @@
 
 use serde::Serialize;
 use tracing::{debug, error, info, warn};
+use ts_rs::TS;
 
 use crate::{controller::Controller, settings::UpdateProxyMode};
 
@@ -12,19 +13,27 @@ use super::{
 };
 
 /// 更新可用性。第三方下载元数据只保留在后端缓存中。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(tag = "status", rename_all = "camelCase")]
+#[ts(export, export_to = "update/")]
 pub enum UpdateAvailability {
     UpToDate,
     Available { update: UpdateInfo },
 }
 
 /// 一次高层更新下载的进度。
-#[derive(Debug, Clone, Serialize)]
+///
+/// Tauri JSON 以 `number` 传输字节数与速度，采用 JavaScript 安全整数范围
+/// （不超过 `2^53 - 1`），因此覆盖 `ts-rs` 对 `u64` 的默认 `bigint` 映射。
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "update/")]
 pub struct DownloadProgress {
+    #[ts(type = "number")]
     pub(super) downloaded_size: u64,
+    #[ts(type = "number")]
     pub(super) total_size: u64,
+    #[ts(type = "number")]
     pub(super) speed: u64,
     pub(super) progress: f64,
 }
