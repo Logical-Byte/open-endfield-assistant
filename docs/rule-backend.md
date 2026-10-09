@@ -20,6 +20,8 @@ cargo test
 
 macOS 上的开发、测试和打包不属于验收范围。可以使用 `cargo xwin` 检查 Windows 编译、Clippy 和构建结果。测试以 Windows/CI 结果为准。
 
+进行 vision 开发、ROI 标定等工作时，可以考虑利用 [`resources/dev/`](../resources/dev/README.md) 中的截图资源进行初步验证。
+
 ## 编码风格
 
 - 使用 `Arc::clone(&value)` 克隆原子引用计数指针。

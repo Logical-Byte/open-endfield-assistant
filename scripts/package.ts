@@ -47,8 +47,11 @@ const bundleName = `${productName}-windows-${arch}-v${version}`;
 const outDir = path.join(rootDir, 'releases');
 const zipPath = path.join(outDir, `${bundleName}.zip`);
 const stagingDir = path.join(outDir, bundleName);
-// Tauri 构建时已将平台图标嵌入可执行文件；Windows 绿色包无需重复携带。
-const WINDOWS_PACKAGE_EXCLUDED_PATHS = new Set([path.join(rootDir, 'resources', 'icons')]);
+// 图标已嵌入可执行文件，dev 下的截图等开发资源也无需随包发布。
+const WINDOWS_PACKAGE_EXCLUDED_PATHS = new Set([
+  path.join(rootDir, 'resources', 'icons'),
+  path.join(rootDir, 'resources', 'dev'),
+]);
 
 async function main() {
   // 定位 release 主程序：--no-bundle 构建时二进制沿用 Cargo 包名（如 oea.exe），
