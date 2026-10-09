@@ -8,16 +8,16 @@ import type {
   PageEntry,
 } from '@/shared/types/archive';
 import { getArchiveCatalog } from './ipc';
-import { shallowRef } from 'vue';
+import { shallowRef, type DeepReadonly } from 'vue';
 
 /** 静态目录及其只读查询，索引只在加载时构建一次。 */
 export class ArchiveCatalog {
-  private readonly archivesById: Map<ArchiveId, ArchiveEntry>;
-  private readonly categoriesById: Map<Category, CategoryEntry>;
-  private readonly pagesById: Map<Page, PageEntry>;
+  private readonly archivesById: Map<ArchiveId, Readonly<ArchiveEntry>>;
+  private readonly categoriesById: Map<Category, Readonly<CategoryEntry>>;
+  private readonly pagesById: Map<Page, Readonly<PageEntry>>;
   private readonly archivesByTitle: Map<Category, Map<string, ArchiveId[]>> = new Map();
 
-  constructor(readonly catalog: Catalog) {
+  constructor(readonly catalog: DeepReadonly<Catalog>) {
     this.archivesById = new Map(catalog.archives.map((row) => [row.id, row]));
     this.categoriesById = new Map(catalog.categories.map((row) => [row.id, row]));
     this.pagesById = new Map(catalog.pages.map((row) => [row.id, row]));
@@ -30,15 +30,15 @@ export class ArchiveCatalog {
     }
   }
 
-  archive(id: ArchiveId): ArchiveEntry | undefined {
+  archive(id: ArchiveId): Readonly<ArchiveEntry> | undefined {
     return this.archivesById.get(id);
   }
 
-  category(id: Category): CategoryEntry | undefined {
+  category(id: Category): Readonly<CategoryEntry> | undefined {
     return this.categoriesById.get(id);
   }
 
-  page(id: Page): PageEntry | undefined {
+  page(id: Page): Readonly<PageEntry> | undefined {
     return this.pagesById.get(id);
   }
 
