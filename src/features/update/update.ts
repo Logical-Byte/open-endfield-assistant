@@ -1,14 +1,14 @@
-import {
+import type {
   DownloadProgress,
   DownloadState,
   UpdateCheckState,
   UpdateCompleteInfo,
   UpdateInfo,
   UpdateInstallStage,
-  UpdateInstallStatus,
   UpdateOperation,
   UpdateStatus,
 } from '@/features/update/types/update';
+import { UpdateInstallStatus } from '@/features/update/types/update';
 import { automationStatus } from '@/features/automation/state';
 import { settingsState } from '@/features/settings/settings';
 import type { DraftSettings } from '@/features/settings/settingsStore';
@@ -132,11 +132,11 @@ export const updateOperationBusy = computed<boolean>(
 
 /** 安装阶段 → 用户可读文案。 */
 const INSTALL_STAGE_LABELS: Record<UpdateInstallStage, string> = {
-  [UpdateInstallStage.Preparing]: '准备更新文件',
-  [UpdateInstallStage.Extracting]: '解压更新包',
-  [UpdateInstallStage.ApplyingIncremental]: '应用增量更新',
-  [UpdateInstallStage.ApplyingFull]: '应用全量更新',
-  [UpdateInstallStage.CleaningUp]: '清理临时文件',
+  preparing: '准备更新文件',
+  extracting: '解压更新包',
+  applying_incremental: '应用增量更新',
+  applying_full: '应用全量更新',
+  cleaning_up: '清理临时文件',
 };
 
 /** 安装阶段文案（供弹窗展示）。 */

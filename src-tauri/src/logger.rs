@@ -18,13 +18,17 @@ use tracing_subscriber::{
     registry::LookupSpan,
     util::SubscriberInitExt,
 };
+use ts_rs::TS;
 
 /// 推送给前端的日志条目（时间 + 等级 + 格式化文本）。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "log/")]
 pub struct LogEntry {
     /// 时间（本地时间，ISO 8601 字符串，含微秒与时区偏移，如 `2026-08-06T12:34:56.123456+08:00`）
     pub time: String,
     /// 日志等级：TRACE / DEBUG / INFO / WARN / ERROR
+    // 生产路径只使用 `tracing::Level` 的五个等级，JSON 中保留其大写字符串。
+    #[ts(type = "'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'")]
     pub level: String,
     /// 格式化后的日志文本（事件字段，不含时间 / 等级 / 调用者）
     pub message: String,

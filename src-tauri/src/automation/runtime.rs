@@ -7,6 +7,7 @@ use std::thread;
 
 use serde::{Deserialize, Serialize};
 use tracing::{error, info, warn};
+use ts_rs::TS;
 
 use crate::automation::{
     Event, EventSink, StopToken, TaskKind, new_stop_token, request_stop,
@@ -14,8 +15,9 @@ use crate::automation::{
 };
 
 /// 当前自动化任务的生命周期状态。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "state", rename_all = "camelCase")]
+#[ts(export, export_to = "automation/")]
 pub enum Status {
     Idle {
         /// 最近一次运行的结束信息；初始状态为空，成功启动新任务后移除。
@@ -39,8 +41,9 @@ impl Status {
 }
 
 /// 自动化运行的终态。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "status", rename_all = "camelCase")]
+#[ts(export, export_to = "automation/")]
 pub enum RunOutcome {
     Completed,
     Stopped,
@@ -48,8 +51,9 @@ pub enum RunOutcome {
 }
 
 /// 空闲状态中保留的最近一次运行结束信息。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "automation/")]
 pub struct LastRun {
     task_kind: TaskKind,
     outcome: RunOutcome,

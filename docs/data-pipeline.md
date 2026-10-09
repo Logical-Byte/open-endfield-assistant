@@ -4,7 +4,7 @@
 
 - 从解包数据到 `resources` 文件：由 `scripts/` 脚本负责。会影响安装包体积。
 - 从 `resources` 文件到后端内存：后端单独维护一份 `resources` 的文件 schema，然后投影为后端内存中经过类型检查的数据类型。
-- 从后端到前端：主要通过 tauri IPC 传输。`ts-rs` 为这些传输接口提供了统一的 schema 转换，从而避免维护两份类型、枚举等定义。
+- 从后端到前端：主要通过 Tauri IPC 传输。命令参数、返回值、事件和 Channel 的共享数据类型由 `ts-rs` 从 Rust 生成 TypeScript 类型，维护规则见下文。
 
 相关 schema 和类型定义位置：
 
@@ -79,19 +79,58 @@ flowchart TB
 
 ## 类型生成流
 
-部分前端、后端共用的类型通过 `ts-rs` 统一从 rust 类型编译为 ts 类型。这些生成的文件进入 Git 版本管理。
+前后端共用的数据类型统一由 `ts-rs` 从 Rust 类型生成 TypeScript 类型。这些生成的文件进入 Git 版本管理。
 
 ```mermaid
 flowchart LR
     rust["类型、枚举定义<br/>Rust 侧"]
     generate{{"cargo test<br/>或 pnpm generate:types<br/>通过 ts-rs 导出测试"}}
-    ts["静态生成文件，需要提交<br/>src/shared/types/generated/archive/"]
+    ts["静态生成文件，需要提交<br/>src/shared/types/generated/<domain>/"]
     use("前端编译时使用")
 
     rust --> generate --> ts --> use
 ```
 
 运行 `cargo test` 命令时，ts-rs 导出测试将会运行，以副作用直接更新生成文件。[package.json](../package.json) 中的 `pnpm generate:types` 直接调用 `cargo test --lib export_bindings`，可以单独运行这些导出测试。默认输出的根目录位置目前由 [.cargo/config.toml](../.cargo/config.toml) 指定。
+
+## ts-rs 编写与管理约定
+
+### Rust 定义与目录
+
+共享类型直接写在对应的 Rust 领域模块里。
+统一使用 `use ts_rs::TS;` 导入，然后为类型及其嵌套依赖加上 `TS` derive。使用 `export_to` 指定导出到哪个领域目录。例如：
+
+```rust
+use serde::Serialize;
+use ts_rs::TS;
+
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "automation/")]
+pub struct ExampleStatus {
+    pub task_name: String,
+    pub last_error: Option<String>,
+}
+```
+
+生成根目录由 [.cargo/config.toml](../.cargo/config.toml) 里的 `TS_RS_EXPORT_DIR` 指定。`export_to` 填写以 `/` 结尾的领域目录，最终路径将会相对于该根目录。引用其他领域的类型时直接复用原类型，生成器会自行处理 import。
+
+### 序列化契约
+
+注意整数类型的映射：ts-rs 默认把 `u64` 等类型生成为 `bigint`，而它们经 JSON 传输后在前端实际是普通数字，两种表示并不一致。可以用 `#[ts(type = "number")]` 之类的字段属性覆盖生成类型。选择哪种表示要结合业务取值范围、精度需求和序列化方式，并留意 JavaScript 的安全整数范围。
+
+### TS 文件组织
+
+生成文件位于 `src/shared/types/generated/<domain>/`，需要提交到 Git，不要手工修改。再由 `src/shared/types/<domain>.ts` 手写 barrel 重导出，业务代码和 feature 的 `ipc.ts` 通过 `import type` 从 barrel 导入。
+
+### 生成与验证
+
+1. 修改 Rust 定义及其 serde / ts-rs 属性，运行 `pnpm generate:types`。
+2. 检查生成的 diff，重点核对字段名、tag、null、optional、整数映射和跨领域 import。删除、重命名或移动类型后要手动删除旧的生成文件并更新 barrel，导出过程不会自动清理。
+3. 运行 `pnpm build` 和 `pnpm check` 验证前端使用方，同时完成 [后端检查](rule-backend.md#编译检查与测试)。导出需要编译并执行 Rust 测试，以 Windows 环境为准；macOS 上可用 `cargo xwin clippy` 检查 Windows 编译，但无法执行导出测试。
+4. 把 Rust 定义、生成文件、barrel 和相关的调用方改动一起提交。升级 ts-rs 时同样要重新生成并审阅输出。
+
+[CI](../.github/workflows/ci.yml) 会在 Windows 上运行后端测试，然后检查 `src/shared/types/generated/` 下是否有未提交的变更。新增类型只要带上 `#[ts(export)]` 就会纳入这项检查，不需要再额外写测试去镜像这些字段定义。
 
 ## 增加其他数据领域
 

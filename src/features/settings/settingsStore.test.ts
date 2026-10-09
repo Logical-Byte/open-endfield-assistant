@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { UpdateProxyMode, UpdateSource, type Settings } from '@/features/settings/types/settings';
+import type { Settings } from '@/features/settings/types/settings';
 import { createSettingsStore, type SettingsState } from './settingsStore';
 
 type ReadySettingsState = Extract<SettingsState, { status: 'ready' }>;
@@ -11,9 +11,9 @@ function createSettingsFixture(overrides: Partial<Settings> = {}): Settings {
     minorVersion: 0,
     minimizeToTray: false,
     soundVolume: 0.5,
-    updateSource: UpdateSource.Mirrorchyan,
+    updateSource: 'mirrorchyan',
     mirrorchyanCdkEncrypted: '',
-    updateProxyMode: UpdateProxyMode.System,
+    updateProxyMode: 'system',
     updateProxyUrl: '',
     autoDownloadUpdates: true,
     autoInstallUpdates: true,

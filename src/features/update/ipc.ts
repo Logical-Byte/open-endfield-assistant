@@ -1,5 +1,6 @@
 //! Tauri 后端接口封装：类型安全地调用 Rust 命令、监听后端事件。
 
+import type { StartupUpdateResult as StartupTransactionResult } from '@/shared/types/update';
 import type {
   DownloadProgress,
   UpdateAvailability,
@@ -10,8 +11,8 @@ import type {
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen, type Event } from '@tauri-apps/api/event';
 
-/** Rust 启动恢复的最小返回值：完成一次资源事务，或没有已完成的事务。 */
-export type StartupUpdateResult = 'completed' | null;
+/** Rust 启动事务结果，没有已完成的事务时返回 null。 */
+export type StartupUpdateResult = StartupTransactionResult | null;
 
 export async function getUpdateStatus(): Promise<UpdateStatus> {
   return await invoke<UpdateStatus>('get_update_status');

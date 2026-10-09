@@ -6,6 +6,7 @@ use std::{
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
+use ts_rs::TS;
 
 use crate::storage::CachedJsonFile;
 
@@ -15,8 +16,9 @@ pub const CURRENT_MAJOR_VERSION: u32 = 0;
 pub const CURRENT_MINOR_VERSION: u32 = 0;
 
 /// 更新源。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "settings/")]
 pub enum UpdateSource {
     #[default]
     Mirrorchyan,
@@ -25,8 +27,9 @@ pub enum UpdateSource {
 }
 
 /// 代理模式。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "settings/")]
 pub enum UpdateProxyMode {
     None,
     #[default]
@@ -35,8 +38,9 @@ pub enum UpdateProxyMode {
 }
 
 /// OEA 用户设置。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(default, rename_all = "camelCase")]
+#[ts(export, export_to = "settings/")]
 pub struct OeaSettings {
     /// 设置文件主要版本号，产生不兼容变更（改变字段结构或者删除字段）时，增加 `majorVersion` 的值
     pub major_version: u32,

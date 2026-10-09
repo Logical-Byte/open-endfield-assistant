@@ -13,6 +13,7 @@ use std::{
 use serde::Serialize;
 use tauri::Emitter;
 use tracing::{debug, error, info, warn};
+use ts_rs::TS;
 
 use crate::app_paths::AppPaths;
 
@@ -55,8 +56,9 @@ pub fn consume_startup_update_result() -> Option<StartupUpdateResult> {
         .take()
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "update/")]
 enum InstallStage {
     Preparing,
     Extracting,
@@ -65,7 +67,8 @@ enum InstallStage {
     CleaningUp,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, TS)]
+#[ts(export, export_to = "update/")]
 struct InstallStageEvent {
     stage: InstallStage,
 }

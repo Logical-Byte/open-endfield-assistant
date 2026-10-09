@@ -1,6 +1,7 @@
 //! v2 启动期的事务 adapter。
 
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::platform::update::UpdatePrompt;
 use tracing::{error, info};
@@ -13,8 +14,9 @@ use super::{
 };
 
 /// 启动阶段对更新事务的结果。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "update/")]
 pub enum StartupUpdateResult {
     NoTransaction,
     WaitingForHelper,

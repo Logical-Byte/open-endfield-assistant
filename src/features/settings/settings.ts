@@ -1,20 +1,20 @@
-import { UpdateProxyMode, UpdateSource } from '@/features/settings/types/settings';
+import type { UpdateProxyMode, UpdateSource } from '@/features/settings/types/settings';
 import { cdkDecrypt, cdkEncrypt, loadOeaSettings, saveOeaSettings } from '@/features/settings/ipc';
 import { computed } from 'vue';
 import { createSettingsStore } from './settingsStore';
 
 /** 更新源选项 */
-export const updateSourceItems = [
-  { label: 'Mirror酱', value: UpdateSource.Mirrorchyan },
-  { label: 'OEM', value: UpdateSource.Oem },
-  { label: 'GitHub', value: UpdateSource.Github },
+export const updateSourceItems: { label: string; value: UpdateSource }[] = [
+  { label: 'Mirror酱', value: 'mirrorchyan' },
+  { label: 'OEM', value: 'oem' },
+  { label: 'GitHub', value: 'github' },
 ];
 
 /** 更新代理模式选项 */
-export const proxyModeItems = [
-  { label: '不使用代理', value: UpdateProxyMode.None },
-  { label: '系统代理', value: UpdateProxyMode.System },
-  { label: '自定义代理', value: UpdateProxyMode.Custom },
+export const proxyModeItems: { label: string; value: UpdateProxyMode }[] = [
+  { label: '不使用代理', value: 'none' },
+  { label: '系统代理', value: 'system' },
+  { label: '自定义代理', value: 'custom' },
 ];
 
 /** 应用内唯一的设置 store。完整初始值只由 Rust 后端返回。 */
