@@ -273,7 +273,7 @@ export async function initUpdateState(): Promise<void> {
   await refreshUpdateStatus();
   writeUpdateLog(
     logDebug,
-    `更新前端：初始化更新投影（startup=${startupUpdateResult ?? 'none'}, backend=${updateOperation.value}, pending=${pendingUpdate.value !== null}）`,
+    `更新前端：初始化更新投影（startup=${startupUpdateResult}, backend=${updateOperation.value}, pending=${pendingUpdate.value !== null}）`,
   );
   if (startupUpdateResult === 'completed') {
     installStatus.value = UpdateInstallStatus.Completed;
@@ -306,7 +306,7 @@ async function consumeStartupUpdateResult(): Promise<StartupUpdateResult> {
     return await takeStartupUpdateResult();
   } catch (error) {
     writeUpdateLog(logWarn, `更新前端：读取启动更新结果失败: ${String(error)}`);
-    return null;
+    return 'no_transaction';
   }
 }
 
