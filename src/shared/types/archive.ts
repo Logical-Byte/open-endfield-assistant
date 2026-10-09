@@ -1,0 +1,8 @@
+export type { AcquisitionMethod } from './generated/archive/AcquisitionMethod';
+export type { ArchiveEntry } from './generated/archive/ArchiveEntry';
+export type { ArchiveId } from './generated/archive/ArchiveId';
+export type { Catalog } from './generated/archive/Catalog';
+export type { Category } from './generated/archive/Category';
+export type { CategoryEntry } from './generated/archive/CategoryEntry';
+export type { Page } from './generated/archive/Page';
+export type { PageEntry } from './generated/archive/PageEntry';

@@ -22,4 +22,4 @@ OEA 是一个 [Tauri](https://tauri.app/) 2 桌面应用，前端使用 [Vue](ht
 
 - [打包与发版](docs/releasing.md)：便携包构建、发版与回滚流程。
 - [档案库自动化](docs/archive-automation.md)：界面识别、导航与扫描流程。
-- [游戏数据](docs/game-data.md)：数据生成、解包数据表与档案标题差异。
+- [数据与共享类型管线](docs/data-pipeline.md)：资源生成、后端投影与前端共享类型。

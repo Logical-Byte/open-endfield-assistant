@@ -4,7 +4,7 @@
 //! `https://oem.re/i/<base64>`（由 opener 插件交给系统浏览器）。
 
 import type { UploadData } from '@/features/archiveScan/types/upload';
-import { prtsData } from '@/features/gameData/prtsData';
+import { archiveCatalog } from '@/features/gameData/archiveCatalog';
 import { scannedItems } from '@/features/archiveScan/scannedItems';
 import { deriveArchiveCollection } from '@/features/archiveScan/collection';
 import { logDebug, logError, logInfo } from '@/features/log/ipc';
@@ -21,11 +21,11 @@ const OEM_IMPORT_URL_PREFIX = 'https://oem.re/i/';
  * - 已收集 = 全部成功扫描（含人工纠错）命中的档案 id；
  * - 同一小分类下的同标题档案：只要有一个已收集，该组全部视为已收集；
  * - 未收集 = 所有档案去掉已收集。
- * 两个列表均按 allItems 的展示顺序排列。
+ * 两个列表均按 目录的展示顺序排列。
  */
 function buildUploadData(): UploadData {
-  const allItems = prtsData.value?.allItems ?? {};
-  const collection = deriveArchiveCollection(allItems, scannedItems.value);
+  const archives = archiveCatalog.value?.catalog.archives ?? [];
+  const collection = deriveArchiveCollection(archives, scannedItems.value);
   return {
     majorVersion: 0,
     minorVersion: 0,
@@ -48,7 +48,7 @@ function bytesToBase64Url(bytes: Uint8Array): string {
 
 /** 导出扫描结果到地图集：在系统浏览器中打开导入链接。 */
 export async function exportToOem(): Promise<boolean> {
-  if (prtsData.value === null) {
+  if (archiveCatalog.value === null) {
     logError('导出到地图集失败：档案库数据尚未加载');
     return false;
   }

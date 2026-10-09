@@ -1,8 +1,6 @@
+import type { Category } from '@/shared/types/archive';
 import { computed, ref, watch, type Ref, type ComputedRef } from 'vue';
-import { prtsData } from '@/features/gameData/prtsData';
-import { methodByArchiveId } from '@/features/gameData/archiveContract';
-import type { PrtsData, PrtsCategory } from '@/features/gameData/types/prts';
-import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
+import { archiveCatalog, type ArchiveCatalog } from '@/features/gameData/archiveCatalog';
 import {
   scannedItems,
   correctScannedItem,
@@ -14,16 +12,14 @@ import type { ScannedItemId, ScannedItemRecord } from './types/scannedItem';
 
 /** 页面只观察这一数据源，写入通过指定操作完成。也可供独立预览使用。 */
 export interface ArchiveScanSource {
-  readonly data: Readonly<Ref<PrtsData | null>>;
-  readonly methods: Readonly<Ref<ReadonlyMap<string, ArchiveAcquisitionMethod>>>;
+  readonly data: Readonly<Ref<ArchiveCatalog | null>>;
   readonly scans: Readonly<Ref<readonly Readonly<ScannedItemRecord>[]>>;
   correct: (id: ScannedItemId, title: string) => void;
   clear: () => void;
   restore: (previous: Readonly<ScannedItemRecord>) => void;
 }
 const liveSource: ArchiveScanSource = {
-  data: prtsData,
-  methods: methodByArchiveId,
+  data: archiveCatalog,
   scans: scannedItems,
   correct: correctScannedItem,
   clear: clearScannedItems,
@@ -35,9 +31,10 @@ function acceptsMatch(filter: MatchingFilter, matched: boolean): boolean {
 }
 // Reka Select 将空字符串用于清除选择，选项本身必须有非空值。
 const ALL_CATEGORIES = 'all';
+type CategoryFilter = Category | typeof ALL_CATEGORIES;
 interface CategoryOption {
   label: string;
-  value: string;
+  value: CategoryFilter;
 }
 export interface ScanCorrection {
   readonly key: number;
@@ -57,8 +54,8 @@ interface ArchiveScanResultsState {
   scanFilter: Ref<MatchingFilter>;
   archiveSearch: Ref<string>;
   scanSearch: Ref<string>;
-  archiveCategory: Ref<string>;
-  scanCategory: Ref<string>;
+  archiveCategory: Ref<CategoryFilter>;
+  scanCategory: Ref<CategoryFilter>;
   mapOnly: Ref<boolean>;
   corrections: Ref<ScanCorrection[]>;
   correct: (id: ScannedItemId, title: string) => ScanCorrection;
@@ -76,14 +73,14 @@ export function useArchiveScanResults(
   source: ArchiveScanSource = liveSource,
 ): ArchiveScanResultsState {
   const view = computed((): ReturnType<typeof deriveArchiveScanView> =>
-    deriveArchiveScanView(source.data.value, source.methods.value, source.scans.value),
+    deriveArchiveScanView(source.data.value, source.scans.value),
   );
   const archiveFilter: Ref<MatchingFilter> = ref<MatchingFilter>('all');
   const scanFilter: Ref<MatchingFilter> = ref<MatchingFilter>('unmatched');
   const archiveSearch: Ref<string> = ref('');
   const scanSearch: Ref<string> = ref('');
-  const archiveCategory: Ref<string> = ref(ALL_CATEGORIES);
-  const scanCategory: Ref<string> = ref(ALL_CATEGORIES);
+  const archiveCategory: Ref<CategoryFilter> = ref<CategoryFilter>(ALL_CATEGORIES);
+  const scanCategory: Ref<CategoryFilter> = ref<CategoryFilter>(ALL_CATEGORIES);
   const mapOnly: Ref<boolean> = ref(false);
   const corrections: Ref<ScanCorrection[]> = ref([]);
   let nextCorrection = 0;
@@ -98,12 +95,10 @@ export function useArchiveScanResults(
   );
   const categories = computed((): CategoryOption[] => [
     { label: '全部分类', value: ALL_CATEGORIES },
-    ...Object.values(source.data.value?.PrtsCategory ?? {}).map(
-      (category: PrtsCategory): CategoryOption => ({
-        label: category.name,
-        value: category.categoryId,
-      }),
-    ),
+    ...(source.data.value?.catalog.categories ?? []).map((category): CategoryOption => ({
+      label: category.name,
+      value: category.id,
+    })),
   ]);
   const visibleArchives = computed((): ArchiveEntryView[] =>
     archives.value.filter(
@@ -118,7 +113,7 @@ export function useArchiveScanResults(
     scans.value.filter(
       (s: ScannedItemView): boolean =>
         acceptsMatch(scanFilter.value, s.archives.length > 0) &&
-        (scanCategory.value === ALL_CATEGORIES || s.foundInSubCategory === scanCategory.value) &&
+        (scanCategory.value === ALL_CATEGORIES || s.foundInCategory === scanCategory.value) &&
         [s.ocrResult, s.correctedTitle ?? ''].some((title: string): boolean =>
           title.includes(scanSearch.value),
         ),

@@ -49,6 +49,7 @@ tracing = "0.1.44"
 tracing-appender = "0.2.5"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.23", features = ["chrono"] }
+ts-rs = "11"
 zip = "7.2.0"
 
 

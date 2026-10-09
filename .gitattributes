@@ -1,1 +1,4 @@
 * text=auto eol=lf
+
+# Preserve ts-rs output without applying hand-written code whitespace rules.
+src/shared/types/generated/** -whitespace

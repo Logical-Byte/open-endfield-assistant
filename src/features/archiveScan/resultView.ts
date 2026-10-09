@@ -1,15 +1,15 @@
-import type { ArchiveAcquisitionMethod } from '@/features/gameData/types/archiveContract';
-import type { PrtsData } from '@/features/gameData/types/prts';
-import type { ArchiveId, ScannedItemRecord } from './types/scannedItem';
+import type { AcquisitionMethod, ArchiveId, Category, Page } from '@/shared/types/archive';
+import type { ArchiveCatalog } from '@/features/gameData/archiveCatalog';
+import type { ScannedItemRecord } from './types/scannedItem';
 import { deriveArchiveMatching } from './matching';
 
 export interface ArchiveDetails {
   readonly id: ArchiveId;
   readonly title: string;
-  readonly category: string;
+  readonly category: Category;
   readonly categoryLabel: string;
-  readonly acquisitionMethod: ArchiveAcquisitionMethod | null;
-  readonly acquisitionLabel: string | null;
+  readonly acquisitionMethod: AcquisitionMethod;
+  readonly acquisitionLabel: string;
   readonly oemUrl: string;
   readonly intelUrl: string;
 }
@@ -29,7 +29,7 @@ export interface ArchiveScanView {
   readonly scans: readonly ScannedItemView[];
 }
 
-const acquisitionLabels: Record<ArchiveAcquisitionMethod, string> = {
+const acquisitionLabels: Record<AcquisitionMethod, string> = {
   map: '地图拾取',
   mission: '跟随任务',
   auto: '自动解锁',
@@ -37,43 +37,37 @@ const acquisitionLabels: Record<ArchiveAcquisitionMethod, string> = {
   invstgt: '报告摘要',
 };
 
-/** 两种展示数据共享一次匹配计算，档案目录始终来自 ground truth。 */
+/** 两种展示数据共享一次匹配计算，档案目录始终来自真实目录。 */
 export function deriveArchiveScanView(
-  data: PrtsData | null,
-  methodByArchiveId: ReadonlyMap<string, ArchiveAcquisitionMethod>,
+  data: ArchiveCatalog | null,
   scans: readonly Readonly<ScannedItemRecord>[],
 ): ArchiveScanView {
-  const allItems = data?.allItems ?? {};
-  const matching = deriveArchiveMatching(allItems, scans);
-  const titlesByCategory = new Map<string, Set<string>>();
+  const archives = data?.catalog.archives ?? [];
+  const matching = deriveArchiveMatching(archives, scans);
   const archiveById = new Map<ArchiveId, ArchiveEntryView>();
-  function categoryLabel(page: string, category: string): string {
-    return `${data?.PrtsPage[page]?.name ?? page}/${data?.PrtsCategory[category]?.name ?? category}`;
+  function categoryLabel(page: Page, category: Category): string {
+    return `${data?.page(page)?.name ?? page}/${data?.category(category)?.name ?? category}`;
   }
-  for (const [key, archive] of Object.entries(allItems)) {
-    const id = key as ArchiveId;
-    const method = methodByArchiveId.get(id) ?? null;
-    const titles = titlesByCategory.get(archive.categoryId) ?? new Set<string>();
-    titles.add(archive.title);
-    titlesByCategory.set(archive.categoryId, titles);
-    archiveById.set(id, {
-      id,
+  for (const archive of archives) {
+    const category = data!.category(archive.category)!;
+    archiveById.set(archive.id, {
+      id: archive.id,
       title: archive.title,
-      category: archive.categoryId,
-      categoryLabel: categoryLabel(archive.type, archive.categoryId),
-      acquisitionMethod: method,
-      acquisitionLabel: method === null ? null : acquisitionLabels[method],
-      oemUrl: `https://oem.re/?type=${encodeURIComponent(id)}`,
-      intelUrl: `https://opendfieldmap.org/intel/?type=${encodeURIComponent(id)}`,
-      scans: matching.scansByArchiveId.get(id) ?? [],
+      category: archive.category,
+      categoryLabel: categoryLabel(category.page, archive.category),
+      acquisitionMethod: archive.acquisitionMethod,
+      acquisitionLabel: acquisitionLabels[archive.acquisitionMethod],
+      oemUrl: `https://oem.re/?type=${encodeURIComponent(archive.id)}`,
+      intelUrl: `https://opendfieldmap.org/intel/?type=${encodeURIComponent(archive.id)}`,
+      scans: matching.scansByArchiveId.get(archive.id) ?? [],
     });
   }
   return {
     archives: [...archiveById.values()],
     scans: scans.map((scan): ScannedItemView => ({
       ...scan,
-      categoryLabel: categoryLabel(scan.foundInCategory, scan.foundInSubCategory),
-      candidates: [...(titlesByCategory.get(scan.foundInSubCategory) ?? [])],
+      categoryLabel: categoryLabel(scan.foundInPage, scan.foundInCategory),
+      candidates: data?.titles(scan.foundInCategory) ?? [],
       archives: (matching.archiveIdsByScan.get(scan) ?? []).map((id): ArchiveDetails =>
         archiveById.get(id)!,
       ),

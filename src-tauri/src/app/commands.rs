@@ -9,11 +9,7 @@ use serde::Deserialize;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::{
-    app_paths::AppPaths,
-    automation,
-    controller::Controller,
-    data::{ArchiveContract, PrtsData},
-    platform, settings,
+    app_paths::AppPaths, automation, controller::Controller, data::archive, platform, settings,
 };
 
 /// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
@@ -59,16 +55,10 @@ pub fn get_automation_status(state: tauri::State<Controller>) -> automation::Sta
     state.automation_status()
 }
 
-/// 返回 `prts.json` 完整数据（前端用于分类中文名映射与自动补全候选）。
+/// 返回前端展示、纠错与导出需要的精简档案目录。
 #[tauri::command]
-pub fn get_prts_data<'a>(state: tauri::State<'a, Controller>) -> &'a PrtsData {
-    state.inner().prts_data()
-}
-
-/// 返回 `archive_contract.json` 完整数据（前端用于按档案 `id` 查询获取方式）。
-#[tauri::command]
-pub fn get_archive_contract<'a>(state: tauri::State<'a, Controller>) -> &'a ArchiveContract {
-    state.inner().archive_contract_data()
+pub fn get_archive_catalog<'a>(state: tauri::State<'a, Controller>) -> &'a archive::Catalog {
+    state.inner().archive_catalog()
 }
 
 /// 退出程序。

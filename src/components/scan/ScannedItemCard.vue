@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { useEvidencePopover } from './useEvidencePopover';
 import type { ScanCardState } from './scanCardState';
 import type { ScannedItemView } from '@/features/archiveScan/resultView';
-import type { ArchiveId } from '@/features/archiveScan/types/scannedItem';
+import type { ArchiveId } from '@/shared/types/archive';
 import { openImagePreview } from '@/composables/image-preview';
 import type { CSSProperties } from 'vue';
 const props = defineProps<{ item: ScannedItemView; selected?: boolean }>();

@@ -88,7 +88,7 @@ export interface ArchiveContractRow {
 
 /**
  * resources/data/archive_contract.json（makeAllData 的 exportArchiveContract 输出）
- * 的运行时契约，供前端按档案 id 查询获取方式。
+ * 的生成侧类型定义。后端读取该资源并投影为档案目录。
  */
 export interface ArchiveContract {
   version: 1;

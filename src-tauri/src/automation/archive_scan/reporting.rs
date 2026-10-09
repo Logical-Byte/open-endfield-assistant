@@ -6,23 +6,39 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
+use crate::data::archive;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use image::{DynamicImage, RgbaImage, imageops};
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::automation::{Event, EventSink};
 
+/// 单份扫描的识别状态，不表示自动化任务本身是否成功。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "archiveScan/")]
+pub(crate) enum ScannedItemStatus {
+    /// 已匹配到档案候选。
+    Success,
+    /// 有 OCR 文本，但未匹配到可靠候选。
+    Unrecognized,
+    /// OCR 文本为空或识别失败。
+    Failed,
+}
+
 /// 单份档案的扫描结果。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "archiveScan/")]
 pub(crate) struct ScannedItem {
     /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
     /// `failed`（OCR 结果为空）
-    pub status: String,
+    pub status: ScannedItemStatus,
     /// 扫描时所在的档案库大类 id（pageType：multi_media / text / document）
-    pub found_in_category: String,
+    pub found_in_page: archive::Page,
     /// 扫描时所在的档案库小类 id（categoryId）
-    pub found_in_sub_category: String,
+    pub found_in_category: archive::Category,
     /// 档案详情页面截图（base64 PNG data URL，已缩小以控制事件体积）
     pub image: String,
     /// 原始 OCR 识别结果（人工纠错时保留）
@@ -30,7 +46,7 @@ pub(crate) struct ScannedItem {
     /// 纠错后的档案标题（无法识别时为 `None`）
     pub corrected_title: Option<String>,
     /// 纠错命中的档案 id（allItems 的 id，当前小分类下同标题多条时返回全部）
-    pub corrected_match_item_ids: Vec<String>,
+    pub corrected_match_item_ids: Vec<archive::ArchiveId>,
 }
 
 /// 截图编码为 data URL 前的最大宽度（等比缩小，控制事件体积与内存占用）。
@@ -74,9 +90,9 @@ impl ScanReporter {
     /// 上报一份扫描结果。
     pub(super) fn report(
         &self,
-        status: &str,
-        found_in_category: &str,
-        found_in_sub_category: &str,
+        status: ScannedItemStatus,
+        found_in_page: archive::Page,
+        found_in_category: archive::Category,
         image: String,
         ocr_result: String,
         corrected: Option<super::correction::Corrected>,
@@ -86,9 +102,9 @@ impl ScanReporter {
             None => (None, Vec::new()),
         };
         self.events.publish(Event::ArchiveItemScanned(ScannedItem {
-            status: status.to_string(),
-            found_in_category: found_in_category.to_string(),
-            found_in_sub_category: found_in_sub_category.to_string(),
+            status,
+            found_in_page,
+            found_in_category,
             image,
             ocr_result,
             corrected_title,

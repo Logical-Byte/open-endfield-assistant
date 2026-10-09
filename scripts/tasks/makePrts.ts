@@ -9,7 +9,7 @@
  * - `richContentTable`：富文本内容（用于解析文档 / 文本条目的标题）
  *
  * ## 输出
- * `PrtsData`（类型见 src/lib/prts.ts）：四个部分，均为「以 id 为键、
+ * `PrtsData`（类型见 scripts/models/resources/prts.ts）：四个部分，均为「以 id 为键、
  * 写入顺序即展示顺序」的 Record，构成 页面 → 分类 → 一级条目 → 条目 的四级树。
  *
  * ## 关键逻辑
@@ -29,7 +29,7 @@ import type {
   PrtsFirstLv,
   PrtsPage,
   PrtsPageType,
-} from '../../src/features/gameData/types/prts';
+} from '../models/resources/prts';
 import {
   getTranslation,
   prtsAllItemTable,

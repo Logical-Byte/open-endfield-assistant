@@ -9,5 +9,5 @@
 - [releasing.md](docs/releasing.md)：打包、发版与回滚流程
 - [r2-release.md](docs/r2-release.md)：R2 发布基础设施及 Cloudflare、GitHub 配置
 - [archive-automation.md](docs/archive-automation.md)：档案库界面识别、导航与扫描流程
-- [game-data.md](docs/game-data.md)：解包数据表、档案标题映射与数据生成
+- [data-pipeline.md](docs/data-pipeline.md)：资源生成、后端投影与前端共享类型管线
 - [third-party-notices.md](docs/third-party-notices.md)：第三方文件来源

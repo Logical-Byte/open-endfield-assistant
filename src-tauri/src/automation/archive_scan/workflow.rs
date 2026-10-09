@@ -5,7 +5,7 @@ use tracing::info;
 
 use crate::{
     automation::{Clock, Input, Ocr, ScreenCapture, TemplateMatching},
-    data::ArchiveTitleIndex,
+    data::archive,
     navigation::{ArchiveState, Navigator, UiState},
 };
 
@@ -21,17 +21,17 @@ use super::{
 /// 扫描结果上报器与档案标题索引由工作者注入。
 pub(super) struct ArchiveScanner<'a> {
     reporter: ScanReporter,
-    archive_titles: &'a ArchiveTitleIndex,
+    archives: &'a archive::Database,
     correction_overrides: Option<&'a [CorrectionOverride<'a>]>,
 }
 
 impl<'a> ArchiveScanner<'a> {
     /// 创建扫描工作流。
-    pub(super) fn new(reporter: ScanReporter, archive_titles: &'a ArchiveTitleIndex) -> Self {
+    pub(super) fn new(reporter: ScanReporter, archives: &'a archive::Database) -> Self {
         Self {
             reporter,
-            archive_titles,
-            correction_overrides: Some(DEFAULT_CORRECTION_OVERRIDES),
+            archives,
+            correction_overrides: Some(&DEFAULT_CORRECTION_OVERRIDES),
         }
     }
 
@@ -58,7 +58,7 @@ impl<'a> ArchiveScanner<'a> {
                 cx,
                 navigator,
                 subscene,
-                self.archive_titles,
+                self.archives,
                 self.correction_overrides,
                 &self.reporter,
             )?;
