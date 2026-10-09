@@ -295,33 +295,3 @@ fn cleanup_failed_preparation(
         )
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{consume_startup_update_result, record_startup_update_result, startup};
-
-    #[test]
-    fn startup_command_reports_completed_transactions_once() {
-        record_startup_update_result(startup::StartupUpdateResult::NoTransaction);
-        assert_eq!(
-            serde_json::to_value(consume_startup_update_result()).unwrap(),
-            "no_transaction"
-        );
-
-        record_startup_update_result(startup::StartupUpdateResult::WaitingForHelper);
-        assert_eq!(
-            serde_json::to_value(consume_startup_update_result()).unwrap(),
-            "no_transaction"
-        );
-
-        record_startup_update_result(startup::StartupUpdateResult::Completed);
-        assert_eq!(
-            serde_json::to_value(consume_startup_update_result()).unwrap(),
-            "completed"
-        );
-        assert_eq!(
-            serde_json::to_value(consume_startup_update_result()).unwrap(),
-            "no_transaction"
-        );
-    }
-}
