@@ -115,6 +115,7 @@ pub fn load_oea_settings(state: tauri::State<Controller>) -> settings::OeaSettin
 /// 保存 OEA 用户设置。
 #[tauri::command]
 pub fn save_oea_settings(
+    app: tauri::AppHandle,
     state: tauri::State<Controller>,
     oea_settings: settings::OeaSettings,
 ) -> Result<(), String> {
@@ -127,6 +128,7 @@ pub fn save_oea_settings(
         error!("保存设置文件失败: {e:#}");
         format!("{e:#}")
     })?;
+    super::tray::refresh_locale(&app);
     info!("已成功保存设置到 {}", store.path().display());
     Ok(())
 }
