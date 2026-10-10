@@ -17,15 +17,22 @@ import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';
 import { computed, watch } from 'vue';
-import { zh_cn } from '@nuxt/ui/locale';
-import { useAppI18n } from '@/shared/i18n';
+import { en, zh_cn } from '@nuxt/ui/locale';
+import { i18n, useAppI18n } from '@/shared/i18n';
 import { bindTranslatedToasts, useTranslatedToast } from '@/shared/i18n/toast';
 import { useRoute, useRouter } from 'vue-router';
 
 const { t, locale } = useAppI18n();
 const toast = useTranslatedToast();
 bindTranslatedToasts();
-const componentLocale = zh_cn;
+watch(
+  settingsState,
+  (state) => {
+    if (state.status === 'ready') void i18n.changeLanguage(state.effective.uiLocale);
+  },
+  { immediate: true },
+);
+const componentLocale = computed(() => (locale.value === 'zh-CN' ? zh_cn : en));
 const route = useRoute();
 const router = useRouter();
 // 扫描提示也能触发设置保存，失败通知放在应用层以覆盖设置页以外的操作。
