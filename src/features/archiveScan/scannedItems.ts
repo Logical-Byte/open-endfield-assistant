@@ -7,6 +7,7 @@ import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import type { RunOutcome } from '@/features/automation/types';
 import { archiveCatalog } from '@/features/gameData/archiveCatalog';
 import { onScannedItem } from './ipc';
+import { normalizeBackendError, type ErrorFacts } from '@/shared/errors';
 import { whenever } from '@vueuse/core';
 import { readonly, ref, type DeepReadonly, type Ref } from 'vue';
 
@@ -18,8 +19,8 @@ let nextScannedItemId: number = 1;
 export const scannedItems: DeepReadonly<Ref<ScannedItemRecord[]>> = readonly(items);
 
 /** 最近一次档案扫描失败的原因，新扫描启动时清除。 */
-const error: Ref<string | null> = ref(null);
-export const scanError: Readonly<Ref<string | null>> = readonly(error);
+const error: Ref<ErrorFacts | null> = ref(null);
+export const scanError: Readonly<Ref<ErrorFacts | null>> = readonly(error);
 
 /** 清空扫描结果列表。 */
 export function clearScannedItems(): void {
@@ -73,7 +74,8 @@ export async function initScannedItems(): Promise<void> {
   whenever(
     task.outcome,
     (outcome: Readonly<RunOutcome>) => {
-      if (outcome.status === 'failed') error.value = outcome.error;
+      if (outcome.status === 'failed')
+        error.value = normalizeBackendError(outcome.error, 'archiveScan');
     },
     { flush: 'sync' },
   );

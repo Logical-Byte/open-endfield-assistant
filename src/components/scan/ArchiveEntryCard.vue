@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import { useEvidencePopover } from './useEvidencePopover';
 import type { ArchiveEntryView } from '@/features/archiveScan/resultView';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
@@ -6,6 +7,8 @@ defineProps<{ entry: ArchiveEntryView; selected?: boolean }>();
 function iconStroke(svg: string): string {
   return svg.replace(/stroke-width="2"/g, 'stroke-width="1.5"');
 }
+const { t } = useAppI18n();
+
 const emit = defineEmits<{ locateScan: [id: ScannedItemId]; clearHighlight: [] }>();
 const { open, cancelClose, scheduleClose } = useEvidencePopover((): void => emit('clearHighlight'));
 const acquisitionIcons: Record<string, string> = {
@@ -49,7 +52,7 @@ const acquisitionIcons: Record<string, string> = {
           :aria-expanded="open"
           class="w-full justify-center group-data-[compact=true]/archive:h-6 group-data-[compact=true]/archive:py-0"
           color="success"
-          :label="`${entry.scans.length} 个匹配`"
+          :label="t('scan.matches', { count: entry.scans.length })"
           size="xs"
           trailing-icon="i-lucide-chevron-down"
           variant="subtle"
@@ -59,7 +62,9 @@ const acquisitionIcons: Record<string, string> = {
         <template #content
           ><div @mouseenter="cancelClose" @mouseleave="scheduleClose">
             <p class="mb-1 text-sm font-medium">{{ entry.title }}</p>
-            <p class="mb-2 text-xs text-muted">{{ entry.scans.length }} 条关联扫描证据</p>
+            <p class="mb-2 text-xs text-muted">
+              {{ t('scan.evidenceCount', { count: entry.scans.length }) }}
+            </p>
             <div class="max-h-64 space-y-2 overflow-auto">
               <div
                 v-for="scan in entry.scans"
@@ -69,10 +74,10 @@ const acquisitionIcons: Record<string, string> = {
                 <div class="min-w-0 flex-1">
                   <p class="text-xs">
                     #{{ scan.scannedItemId }}
-                    {{ scan.manuallyCorrected ? '被人工纠正的结果' : '由 OCR 自动匹配的结果' }}
+                    {{ scan.manuallyCorrected ? t('scan.manual') : t('scan.automatic') }}
                   </p>
                   <p class="mt-1 truncate text-xs text-muted">
-                    OCR 结果：{{ scan.ocrResult || '无文字' }}
+                    {{ t('scan.ocrValue', { text: scan.ocrResult || t('scan.noTextShort') }) }}
                   </p>
                 </div>
                 <UButton
@@ -81,28 +86,28 @@ const acquisitionIcons: Record<string, string> = {
                   trailing-icon="i-lucide-arrow-right"
                   variant="outline"
                   @click="emit('locateScan', scan.scannedItemId)"
-                  >定位记录</UButton
+                  >{{ t('scan.locateScan') }}</UButton
                 >
               </div>
             </div>
           </div></template
         >
       </UPopover>
-      <UTooltip v-else text="暂无扫描证据，尚不能判断游戏中的收集状态">
+      <UTooltip v-else :text="t('scan.noEvidence')">
         <span
           class="flex h-6 w-full items-center justify-center rounded border border-default bg-elevated text-xs text-toned"
           tabindex="0"
-          >未匹配</span
+          >{{ t('scan.unmatched') }}</span
         >
       </UTooltip>
     </div>
     <div
       class="group-data-[compact=true]/archive:col-start-3 group-data-[compact=true]/archive:row-start-2"
     >
-      <UTooltip v-if="entry.acquisitionMethod" text="在OEM中查看">
+      <UTooltip v-if="entry.acquisitionMethod" :text="t('scan.viewOem')">
         <UButton
           :aria-label="
-            entry.acquisitionMethod === 'map' ? '查看位置' : entry.acquisitionLabel || '查看详情'
+            entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
           "
           class="w-full justify-center group-data-[compact=true]/archive:h-6 group-data-[compact=true]/archive:py-0"
           color="neutral"
@@ -113,7 +118,7 @@ const acquisitionIcons: Record<string, string> = {
         >
           <span class="inline-flex items-center justify-center gap-1.5 text-sm font-normal">
             <span>{{
-              entry.acquisitionMethod === 'map' ? '查看位置' : entry.acquisitionLabel || '查看详情'
+              entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
             }}</span>
             <UIcon
               class="shrink-0"
@@ -125,9 +130,9 @@ const acquisitionIcons: Record<string, string> = {
           </span>
         </UButton>
       </UTooltip>
-      <span v-else class="flex h-7 items-center justify-center text-xs text-muted"
-        >获取方式未知</span
-      >
+      <span v-else class="flex h-7 items-center justify-center text-xs text-muted">{{
+        t('scan.unknownAcquisition')
+      }}</span>
     </div>
   </article>
 </template>

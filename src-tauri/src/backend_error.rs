@@ -1,15 +1,16 @@
 //! 对外错误只携带失败事实。原始诊断由命令边界记录到日志。
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "operation", content = "reason", rename_all = "camelCase")]
 #[ts(export, export_to = "errors/")]
 pub enum BackendError {
     Screenshot(ScreenshotError),
+    ArchiveScan(ArchiveScanError),
 }
 
-#[derive(Debug, Clone, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[ts(export, export_to = "errors/")]
 pub enum ScreenshotError {
@@ -19,7 +20,7 @@ pub enum ScreenshotError {
 }
 
 /// 扫描与截图共用的可行动游戏环境事实，可作为 `anyhow` 错误链的类型化来源。
-#[derive(Debug, Clone, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[ts(export, export_to = "errors/")]
 pub enum GameEnvironmentError {
@@ -58,3 +59,21 @@ impl std::fmt::Display for GameEnvironmentError {
     }
 }
 impl std::error::Error for GameEnvironmentError {}
+
+/// 扫描失败只保存稳定原因，底层诊断留在工作线程日志中。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[ts(export, export_to = "errors/")]
+pub enum ArchiveScanError {
+    GameEnvironment { reason: GameEnvironmentError },
+    ThreadStartFailed,
+    CaptureFailed,
+    NavigationFailed,
+    ExecutionFailed,
+}
+impl std::fmt::Display for ArchiveScanError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "档案扫描失败: {self:?}")
+    }
+}
+impl std::error::Error for ArchiveScanError {}

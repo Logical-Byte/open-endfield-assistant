@@ -18,6 +18,7 @@ use crate::{
         session::Session,
         stats::counts::{Capture, CaptureSummary},
     },
+    backend_error,
     data::{AppData, archive},
     navigation::{ArchiveState, ArchiveSubscene, CentralPage, Navigator, RecordsPage, UiState},
     platform, settings,
@@ -61,7 +62,22 @@ impl runtime::Worker for Worker {
                 Err(error) if error.downcast_ref::<AutomationStopped>().is_some() => {
                     FinishReason::Stopped
                 }
-                Err(error) => FinishReason::Failed(format!("{error:#}")),
+                Err(error) => {
+                    tracing::error!(error = ?error, "档案扫描失败");
+                    let reason = if let Some(reason) =
+                        error.downcast_ref::<backend_error::GameEnvironmentError>()
+                    {
+                        backend_error::ArchiveScanError::GameEnvironment {
+                            reason: reason.clone(),
+                        }
+                    } else {
+                        error
+                            .downcast_ref::<backend_error::ArchiveScanError>()
+                            .cloned()
+                            .unwrap_or(backend_error::ArchiveScanError::ExecutionFailed)
+                    };
+                    FinishReason::Failed(backend_error::BackendError::ArchiveScan(reason))
+                }
             },
             capture,
         };
@@ -121,7 +137,9 @@ where
 
     // 避免鼠标 hover 样式变化干扰首次 UI 状态识别和导航。
     cx.move_mouse_to_safe_position()?;
-    navigator.navigate_to(UiState::Archive(ArchiveState::Main), cx)?;
+    navigator
+        .navigate_to(UiState::Archive(ArchiveState::Main), cx)
+        .context(backend_error::ArchiveScanError::NavigationFailed)?;
 
     for (index, &subscene) in SCAN_PLAN.iter().enumerate() {
         info!(
@@ -130,7 +148,9 @@ where
             SCAN_PLAN.len(),
             subscene
         );
-        navigator.navigate_to(UiState::archive_subscene(subscene), cx)?;
+        navigator
+            .navigate_to(UiState::archive_subscene(subscene), cx)
+            .context(backend_error::ArchiveScanError::NavigationFailed)?;
         scan_subscene(cx, navigator, subscene, archives, reporter)?;
         info!("完成扫描 {subscene}");
     }
@@ -151,7 +171,9 @@ fn scan_subscene<C>(
 where
     C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
 {
-    navigator.navigate_to(UiState::Archive(ArchiveState::Detail), cx)?;
+    navigator
+        .navigate_to(UiState::Archive(ArchiveState::Detail), cx)
+        .context(backend_error::ArchiveScanError::NavigationFailed)?;
     let page = page_type_of(subscene);
     let category = category_id_of(subscene);
     let mut count = 0u32;
@@ -163,7 +185,9 @@ where
         }
     }
     debug!("「下一篇」和「档案详情右箭头」均未找到，扫描完毕（共 {count} 份）");
-    navigator.navigate_to(UiState::archive_subscene(subscene), cx)?;
+    navigator
+        .navigate_to(UiState::archive_subscene(subscene), cx)
+        .context(backend_error::ArchiveScanError::NavigationFailed)?;
     Ok(())
 }
 

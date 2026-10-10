@@ -2,7 +2,7 @@
 
 use std::{thread, time::Duration};
 
-use anyhow::Result;
+use anyhow::Context;
 use image::RgbaImage;
 
 use crate::{
@@ -21,15 +21,18 @@ use super::Session;
 const SAFE_MOUSE_POSITION: Point720p = Point720p { x: 640, y: 360 };
 
 impl ScreenCapture for Session {
-    fn screenshot(&mut self) -> Result<RgbaImage> {
+    fn screenshot(&mut self) -> anyhow::Result<RgbaImage> {
         self.check_stop()?;
-        let raw = self.screencap.screencap()?;
+        let raw = self
+            .screencap
+            .screencap()
+            .context(crate::backend_error::ArchiveScanError::CaptureFailed)?;
         self.resolution_transform.to_canonical_image(raw)
     }
 }
 
 impl Input for Session {
-    fn click(&mut self, point: Point720p) -> Result<()> {
+    fn click(&mut self, point: Point720p) -> anyhow::Result<()> {
         self.check_stop()?;
         let point = self.resolution_transform.to_physical(point);
         self.input.click(Contact::Left, point)?;
@@ -37,7 +40,7 @@ impl Input for Session {
         self.move_mouse_to_safe_position()
     }
 
-    fn press_key(&mut self, key: Key) -> Result<()> {
+    fn press_key(&mut self, key: Key) -> anyhow::Result<()> {
         self.check_stop()?;
         let vk_code = match key {
             Key::Escape => 0x1B,
@@ -45,7 +48,7 @@ impl Input for Session {
         self.input.press_key(vk_code)
     }
 
-    fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+    fn move_mouse_to_safe_position(&mut self) -> anyhow::Result<()> {
         let point = self.resolution_transform.to_physical(SAFE_MOUSE_POSITION);
         self.input.touch_move(Contact::Left, point)
     }
@@ -56,7 +59,7 @@ impl TemplateMatching for Session {
         &mut self,
         screenshot: &RgbaImage,
         target: &TemplateTarget,
-    ) -> Result<Option<TemplateMatch>> {
+    ) -> anyhow::Result<Option<TemplateMatch>> {
         let matched = template_matching::find(
             &ImageRegion::new(screenshot, target.roi)?,
             target.template_name,
@@ -76,7 +79,7 @@ impl Ocr for Session {
         &mut self,
         screenshot: &RgbaImage,
         region: Region2D<u32>,
-    ) -> Result<Option<String>> {
+    ) -> anyhow::Result<Option<String>> {
         Ok(self
             .ocr
             .lock()

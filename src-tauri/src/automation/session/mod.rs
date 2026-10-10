@@ -8,7 +8,7 @@ mod resolution;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, bail};
 use tracing::{info, warn};
 
 use crate::{
@@ -71,13 +71,16 @@ impl Session {
     /// 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）；
     /// 4. 创建截图器与输入器；
     /// 5. 组装会话（复用共享 OCR 引擎与模板目录）。
-    pub(crate) fn connect(ocr: &Arc<Mutex<ocr::OcrEngine>>, stop: StopToken) -> Result<Self> {
+    pub(crate) fn connect(
+        ocr: &Arc<Mutex<ocr::OcrEngine>>,
+        stop: StopToken,
+    ) -> anyhow::Result<Self> {
         // 1. 获取游戏窗口（仅确保窗口在屏幕上，不抢占前台）
         let hwnd = platform::window::get_window_by_title(
             Some(platform::window::ENDFIELD_WINDOW_CLASS),
             Some(platform::window::ENDFIELD_WINDOW_TITLE),
         )
-        .context("未找到终末地窗口，请先打开游戏")?;
+        .context(crate::backend_error::GameEnvironmentError::WindowUnavailable)?;
         // 若窗口被最小化则先恢复，否则 `ensure_window_on_screen` 会跳过调整
         let _ = platform::window::restore_window_if_minimized(hwnd)
             .inspect_err(|e| warn!("恢复窗口失败: {e:#}"));
@@ -85,7 +88,8 @@ impl Session {
             .inspect_err(|e| warn!("确保窗口在屏幕上失败: {e:#}"));
 
         // 2. 检测分辨率
-        let client_rect = platform::window::get_client_rect(hwnd)?;
+        let client_rect = platform::window::get_client_rect(hwnd)
+            .context(crate::backend_error::GameEnvironmentError::WindowUnavailable)?;
         let resolution = Resolution::new(
             u32::try_from(client_rect.width()).context("游戏窗口宽度无效")?,
             u32::try_from(client_rect.height()).context("游戏窗口高度无效")?,
@@ -96,7 +100,7 @@ impl Session {
         // 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）
         match platform::window::hdr::is_hdr_enabled_on_window_monitor(hwnd) {
             Ok(true) => {
-                bail!("终末地所在显示器已开启 HDR，截图颜色会失真导致识别异常，请关闭 HDR 后重试")
+                bail!(crate::backend_error::GameEnvironmentError::HdrEnabled)
             }
             Ok(false) => {}
             Err(e) => warn!("检查显示器 HDR 状态失败: {e:#}，继续执行任务"),
@@ -146,7 +150,7 @@ impl Session {
     /// 检查是否收到停止信号，收到则返回 [`AutomationStopped`] 中断执行。
     ///
     /// 停止不是"任务出错"：上层用 `downcast_ref::<AutomationStopped>()` 区分。
-    pub(super) fn check_stop(&self) -> Result<()> {
+    pub(super) fn check_stop(&self) -> anyhow::Result<()> {
         if is_stop_requested(&self.stop) {
             Err(AutomationStopped.into())
         } else {

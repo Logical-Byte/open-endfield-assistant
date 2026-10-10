@@ -1,3 +1,4 @@
+import { t } from '@/shared/i18n';
 import type { Category } from '@/shared/types/archive';
 import { computed, ref, watch, type Ref, type ComputedRef } from 'vue';
 import { archiveCatalog, type ArchiveCatalog } from '@/features/gameData/archiveCatalog';
@@ -94,7 +95,7 @@ export function useArchiveScanResults(
     (): number => scans.value.filter((s: ScannedItemView): boolean => s.archives.length > 0).length,
   );
   const categories = computed((): CategoryOption[] => [
-    { label: '全部分类', value: ALL_CATEGORIES },
+    { label: t('scan.allCategories'), value: ALL_CATEGORIES },
     ...(source.data.value?.catalog.categories ?? []).map((category): CategoryOption => ({
       label: category.name['zh-CN'],
       value: category.id,
