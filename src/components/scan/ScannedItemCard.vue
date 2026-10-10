@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useEvidencePopover } from './useEvidencePopover';
 import type { ScanCardState } from './scanCardState';
 import type { ScannedItemView } from '@/features/archiveScan/resultView';
@@ -8,6 +8,12 @@ import type { ArchiveId } from '@/shared/types/archive';
 import { openImagePreview } from '@/composables/image-preview';
 import type { CSSProperties } from 'vue';
 const { t } = useAppI18n();
+const candidatesOpen = ref(false);
+const candidatesTrigger = ref<HTMLSpanElement | null>(null);
+// 候选按钮属于输入菜单，点击时由按钮切换开关，避免外部点击先关闭菜单。
+function onCandidatePointerOutside(event: Event): void {
+  if (candidatesTrigger.value?.contains(event.target as Node | null)) event.preventDefault();
+}
 
 const props = defineProps<{ item: ScannedItemView; selected?: boolean }>();
 const state = defineModel<ScanCardState>('state', { required: true });
@@ -131,21 +137,35 @@ const cropImageStyle: CSSProperties = {
             ><UIcon class="size-4 shrink-0" name="i-lucide-circle-help" tabindex="0"
           /></UTooltip>
         </div>
-        <UInputMenu
-          :id="`title-${item.scannedItemId}`"
-          :aria-label="t('scan.matchTitle')"
-          class="w-full"
-          :content="{ side: 'top' }"
-          :items="[...item.candidates]"
-          mode="autocomplete"
-          :model-value="state.draft"
-          :placeholder="t('scan.chooseTitle')"
-          :ui="{ content: 'max-h-48' }"
-          @focus="beginEdit"
-          @update:model-value="state = { ...state, draft: $event, editing: true }"
-        >
-          <template #empty>{{ t('scan.noTitle') }}</template>
-        </UInputMenu>
+        <div class="flex items-center gap-1">
+          <UInputMenu
+            :id="`title-${item.scannedItemId}`"
+            v-model:open="candidatesOpen"
+            :aria-label="t('scan.matchTitle')"
+            class="min-w-0 flex-1"
+            :content="{ side: 'top', onPointerDownOutside: onCandidatePointerOutside }"
+            :items="[...item.candidates]"
+            mode="autocomplete"
+            :model-value="state.draft"
+            :placeholder="t('scan.chooseTitle')"
+            trailing-icon=""
+            :ui="{ content: 'max-h-48' }"
+            @focus="beginEdit"
+            @update:model-value="state = { ...state, draft: $event, editing: true }"
+          >
+            <template #empty>{{ t('scan.noTitle') }}</template>
+          </UInputMenu>
+          <span ref="candidatesTrigger">
+            <UButton
+              :aria-expanded="candidatesOpen"
+              :aria-label="t('scan.showCandidates')"
+              color="neutral"
+              icon="i-lucide-chevron-down"
+              variant="outline"
+              @click="candidatesOpen = !candidatesOpen"
+            />
+          </span>
+        </div>
         <div class="flex items-center justify-end gap-2">
           <UButton
             color="neutral"

@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::app_paths::AppPaths;
-use crate::backend_error::{BackendError, UpdateError};
+use crate::backend_error;
 use crate::update::failure::UpdateFailure;
 use tracing::{debug, error, info, warn};
 
@@ -17,7 +17,7 @@ use tracing::{debug, error, info, warn};
 pub fn developer_install_update(
     manager: tauri::State<'_, super::super::UpdateManager>,
     app: tauri::AppHandle,
-) -> Result<bool, BackendError> {
+) -> Result<bool, backend_error::BackendError> {
     let install_lease = manager.start_developer_install().map_err(|install_error| {
         warn!(
             operation = "install",
@@ -25,7 +25,7 @@ pub fn developer_install_update(
             error = %install_error,
             "开发者更新安装请求被状态机拒绝"
         );
-        BackendError::UpdateInstall(install_error.reason())
+        backend_error::BackendError::UpdateInstall(install_error.reason())
     })?;
     debug!(
         operation = "install",
@@ -43,7 +43,9 @@ pub fn developer_install_update(
                 error = %install_error,
                 "开发者更新包选择或暂存失败"
             );
-            return Err(BackendError::UpdateInstall(install_error.reason()));
+            return Err(backend_error::BackendError::UpdateInstall(
+                install_error.reason(),
+            ));
         }
     };
     if let Err(install_error) = super::install_update_inner(app, &package_path) {
@@ -53,7 +55,9 @@ pub fn developer_install_update(
             error = %install_error,
             "开发者更新安装失败"
         );
-        return Err(BackendError::UpdateInstall(install_error.reason()));
+        return Err(backend_error::BackendError::UpdateInstall(
+            install_error.reason(),
+        ));
     }
     install_lease.complete();
     Ok(true)
@@ -62,7 +66,7 @@ pub fn developer_install_update(
 fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, UpdateFailure> {
     if cfg!(debug_assertions) {
         return Err(UpdateFailure::failed(
-            UpdateError::DebugBuild,
+            backend_error::UpdateError::DebugBuild,
             "开发构建禁止执行真实自更新，请使用 release 构建验证",
         ));
     }
@@ -87,8 +91,9 @@ fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, UpdateFailure
         info!("已取消安装开发者更新包");
         return Ok(None);
     };
-    let staged = stage_developer_package(&paths, &selected)
-        .map_err(|error| UpdateFailure::failed(UpdateError::InvalidPackage, error))?;
+    let staged = stage_developer_package(&paths, &selected).map_err(|error| {
+        UpdateFailure::failed(backend_error::UpdateError::InvalidPackage, error)
+    })?;
     debug!(
         operation = "install",
         install_kind = "developer_package",

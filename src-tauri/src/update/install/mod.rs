@@ -17,7 +17,7 @@ use ts_rs::TS;
 
 use super::failure::UpdateFailure;
 use crate::app_paths::AppPaths;
-use crate::backend_error::{BackendError, UpdateError};
+use crate::backend_error;
 
 mod candidate;
 pub(crate) mod extra;
@@ -126,14 +126,14 @@ fn validate_download_package(paths: &AppPaths, package_path: &Path) -> Result<Pa
 pub fn install_update(
     manager: tauri::State<'_, super::UpdateManager>,
     app: tauri::AppHandle,
-) -> Result<(), BackendError> {
+) -> Result<(), backend_error::BackendError> {
     let install_lease = manager.start_install().map_err(|install_error| {
         warn!(
             operation = "install",
             error = %install_error,
             "更新安装请求被状态机拒绝"
         );
-        BackendError::UpdateInstall(install_error.reason())
+        backend_error::BackendError::UpdateInstall(install_error.reason())
     })?;
     debug!(
         operation = "install",
@@ -147,7 +147,9 @@ pub fn install_update(
             error = %install_error,
             "更新安装失败"
         );
-        return Err(BackendError::UpdateInstall(install_error.reason()));
+        return Err(backend_error::BackendError::UpdateInstall(
+            install_error.reason(),
+        ));
     }
     install_lease.complete();
     Ok(())
@@ -160,15 +162,16 @@ pub fn install_update(
 fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<(), UpdateFailure> {
     if cfg!(debug_assertions) {
         return Err(UpdateFailure::failed(
-            UpdateError::DebugBuild,
+            backend_error::UpdateError::DebugBuild,
             "开发构建禁止执行真实自更新，请使用临时目录集成测试",
         ));
     }
 
     emit_install_stage(&app, InstallStage::Preparing);
     let paths = AppPaths::new()?;
-    let package_zip = validate_download_package(&paths, package_path)
-        .map_err(|error| UpdateFailure::failed(UpdateError::InvalidPackage, error))?;
+    let package_zip = validate_download_package(&paths, package_path).map_err(|error| {
+        UpdateFailure::failed(backend_error::UpdateError::InvalidPackage, error)
+    })?;
     let target = InstallTarget::for_current_executable(&paths)
         .map_err(|error| format!("无法确定应用 executable name: {error}"))?;
     let workspace = InstallWorkspace::new(&target);
@@ -183,12 +186,15 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
     if let Err(error) = transaction::ensure_inactive(&target) {
         let message = format!("开始安装前检查更新事务失败: {error}");
         return match fs::remove_file(&package_zip) {
-            Ok(()) => Err(UpdateFailure::failed(UpdateError::Preparation, message)),
-            Err(remove_error) if remove_error.kind() == std::io::ErrorKind::NotFound => {
-                Err(UpdateFailure::failed(UpdateError::Preparation, message))
-            }
+            Ok(()) => Err(UpdateFailure::failed(
+                backend_error::UpdateError::Preparation,
+                message,
+            )),
+            Err(remove_error) if remove_error.kind() == std::io::ErrorKind::NotFound => Err(
+                UpdateFailure::failed(backend_error::UpdateError::Preparation, message),
+            ),
             Err(remove_error) => Err(UpdateFailure::failed(
-                UpdateError::Preparation,
+                backend_error::UpdateError::Preparation,
                 format!(
                     "{message}；删除下载文件 [{}] 也失败: {remove_error}",
                     package_zip.display()
@@ -199,12 +205,15 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
     if let Err(error) = workspace.cleanup_inactive_material() {
         let message = format!("开始安装前清理旧更新文件失败: {error}");
         return match fs::remove_file(&package_zip) {
-            Ok(()) => Err(UpdateFailure::failed(UpdateError::Preparation, message)),
-            Err(remove_error) if remove_error.kind() == std::io::ErrorKind::NotFound => {
-                Err(UpdateFailure::failed(UpdateError::Preparation, message))
-            }
+            Ok(()) => Err(UpdateFailure::failed(
+                backend_error::UpdateError::Preparation,
+                message,
+            )),
+            Err(remove_error) if remove_error.kind() == std::io::ErrorKind::NotFound => Err(
+                UpdateFailure::failed(backend_error::UpdateError::Preparation, message),
+            ),
             Err(remove_error) => Err(UpdateFailure::failed(
-                UpdateError::Preparation,
+                backend_error::UpdateError::Preparation,
                 format!(
                     "{message}；删除下载文件 [{}] 也失败: {remove_error}",
                     package_zip.display()
@@ -217,7 +226,7 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
     emit_install_stage(&app, InstallStage::Extracting);
     if let Err(error) = extract_package_zip(&package_zip, &package_dir) {
         return Err(UpdateFailure::failed(
-            UpdateError::Preparation,
+            backend_error::UpdateError::Preparation,
             cleanup_failed_preparation(&target, &package_zip, error),
         ));
     }
@@ -234,14 +243,14 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
         Ok(prepared) => prepared,
         Err(error) => {
             return Err(UpdateFailure::failed(
-                UpdateError::Preparation,
+                backend_error::UpdateError::Preparation,
                 cleanup_failed_preparation(&target, &package_zip, error),
             ));
         }
     };
     let begun = transaction::begin(prepared).map_err(|error| {
         UpdateFailure::failed(
-            UpdateError::Preparation,
+            backend_error::UpdateError::Preparation,
             cleanup_failed_preparation(&target, &package_zip, error),
         )
     })?;
@@ -250,9 +259,12 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
     if let Err(error) = fs::remove_file(&package_zip) {
         let message = format!("删除已消费的更新包失败: {error}");
         return match begun.cancel() {
-            Ok(()) => Err(UpdateFailure::failed(UpdateError::Preparation, message)),
+            Ok(()) => Err(UpdateFailure::failed(
+                backend_error::UpdateError::Preparation,
+                message,
+            )),
             Err(cleanup_error) => Err(UpdateFailure::failed(
-                UpdateError::FileAccess,
+                backend_error::UpdateError::FileAccess,
                 format!("{message}；清理事务也失败: {cleanup_error}"),
             )),
         };
@@ -282,9 +294,12 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
         Ok(helper) => helper,
         Err(error) => {
             return match begun.cancel() {
-                Ok(()) => Err(UpdateFailure::failed(UpdateError::HelperStart, error)),
+                Ok(()) => Err(UpdateFailure::failed(
+                    backend_error::UpdateError::HelperStart,
+                    error,
+                )),
                 Err(cleanup) => Err(UpdateFailure::failed(
-                    UpdateError::HelperStart,
+                    backend_error::UpdateError::HelperStart,
                     format!("{error}；清理事务也失败: {cleanup}"),
                 )),
             };

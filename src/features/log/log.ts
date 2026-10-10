@@ -20,11 +20,13 @@ export const levelLabels: Record<LogLevel, MessageKey> = {
   WARN: 'log.level.warn',
   ERROR: 'log.level.error',
 };
-export const levelOptions = computed(() =>
-  (Object.keys(levelLabels) as LogLevel[]).map((value) => ({
-    value,
-    label: t(levelLabels[value]),
-  })),
+export const levelOptions = computed((): { value: LogLevel; label: string }[] =>
+  (Object.keys(levelLabels) as LogLevel[]).map(
+    (value: LogLevel): { value: LogLevel; label: string } => ({
+      value,
+      label: t(levelLabels[value]),
+    }),
+  ),
 );
 
 /** 界面当前过滤的日志等级（显示该等级及以上） */

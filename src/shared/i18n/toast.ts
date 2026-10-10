@@ -13,23 +13,29 @@ export function bindTranslatedToasts(): void {
   const toast = useToast();
   watch(i18n.global.locale, () => {
     for (const [id, source] of textSources) {
-      const current = toast.toasts.value.find((item) => item.id === id) ?? source.queued;
+      const current =
+        toast.toasts.value.find((item: Toast): boolean => item.id === id) ?? source.queued;
       if (current.open === false) continue;
       const text = source.render();
       current.title = text.title;
       current.description = text.description;
       if (current.actions && text.actions) {
-        current.actions = current.actions.map((action, index) => ({
-          ...action,
-          label: text.actions?.[index]?.label ?? action.label,
-        }));
+        current.actions = current.actions.map(
+          (
+            action: NonNullable<Toast['actions']>[number],
+            index: number,
+          ): NonNullable<Toast['actions']>[number] => ({
+            ...action,
+            label: text.actions?.[index]?.label ?? action.label,
+          }),
+        );
       }
     }
   });
   watch(
     toast.toasts,
-    (visible) => {
-      const ids = new Set(visible.map((item) => item.id));
+    (visible: Toast[]) => {
+      const ids = new Set(visible.map((item: Toast): Toast['id'] => item.id));
       for (const [id, source] of textSources) {
         if (ids.has(id)) source.seen = true;
         // Nuxt add 先进入异步队列，尚未展示的翻译来源需要保留。

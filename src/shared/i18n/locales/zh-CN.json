@@ -212,6 +212,7 @@
   "scan.searchArchive": "搜索档案标题",
   "scan.searchResults": "搜索扫描结果",
   "scan.searchTitle": "搜索识别或修正标题",
+  "scan.showCandidates": "显示标题候选",
   "scan.start": "开始扫描（引号键）",
   "scan.startHint": "开始扫描后，结果会出现在这里",
   "scan.startSimulation": "开始模拟扫描",
