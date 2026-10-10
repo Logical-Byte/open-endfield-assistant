@@ -1,10 +1,10 @@
 use std::{path::Path, time::Instant};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use image::{RgbImage, RgbaImage, imageops};
 use imageproc::contrast::ThresholdType;
 
-use crate::utils::region::Region2D;
+use crate::vision::ImageRegion;
 
 use super::{Config, Recognition, inference, text_detection};
 
@@ -14,7 +14,7 @@ pub(crate) struct OcrEngine {
 
 impl OcrEngine {
     /// 加载 PP-OCRv6 tiny 模型和字典，初始化可复用的识别引擎。
-    pub(crate) fn new(models_dir: &Path, config: Config) -> Result<Self> {
+    pub(crate) fn new(models_dir: &Path, config: Config) -> anyhow::Result<Self> {
         let inference = inference::Inference::new(models_dir, config).with_context(|| {
             format!(
                 "初始化 OCR 模型失败（模型目录: {}），请确认识别模型和字典完整",
@@ -25,7 +25,7 @@ impl OcrEngine {
     }
 
     /// 输入一张已裁剪的 RGB 单行图像，返回文字与平均字符置信度。
-    pub(crate) fn recognize(&mut self, image: &RgbImage) -> Result<Recognition> {
+    pub(crate) fn recognize(&mut self, image: &RgbImage) -> anyhow::Result<Recognition> {
         let start = Instant::now();
         let result = self.inference.recognize(image)?;
         tracing::trace!(backend = super::BACKEND_NAME, elapsed = ?start.elapsed(), text = %result.text, score = result.score, "OCR completed");
@@ -36,17 +36,9 @@ impl OcrEngine {
     /// 区域内没有文字像素时返回 `None`，有像素但未识别出文字时返回空结果。
     pub(crate) fn recognize_region(
         &mut self,
-        screenshot: &RgbaImage,
-        region: Region2D<u32>,
-    ) -> Result<Option<Recognition>> {
-        let cropped = imageops::crop_imm(
-            screenshot,
-            region.x0(),
-            region.y0(),
-            region.width(),
-            region.height(),
-        )
-        .to_image();
+        region: &ImageRegion<'_, RgbaImage>,
+    ) -> anyhow::Result<Option<Recognition>> {
+        let cropped = region.view().to_image();
         let rgb = image::DynamicImage::ImageRgba8(cropped).to_rgb8();
         let Some(text_region) =
             text_detection::detect_single_line(&rgb, 128, ThresholdType::Binary, 6)

@@ -1,7 +1,10 @@
 use super::args::{Command, Rect};
 use crate::automation::ScreenCapture;
-use crate::{automation, navigation, vision::template_matching};
-use anyhow::{Context, Result};
+use crate::{
+    automation, navigation,
+    vision::{ImageRegion, template_matching},
+};
+use anyhow::Context;
 use clap::ValueEnum;
 use serde_json::{Value, json};
 use std::path::Path;
@@ -25,7 +28,7 @@ impl From<anyhow::Error> for Error {
     }
 }
 
-pub(super) fn execute(command: &Command) -> Result<Output, Error> {
+pub(super) fn execute(command: &Command) -> std::result::Result<Output, Error> {
     match command {
         Command::Ocr {
             input,
@@ -125,7 +128,7 @@ pub(super) fn execute(command: &Command) -> Result<Output, Error> {
     }
 }
 
-fn connect() -> Result<automation::Session, Error> {
+fn connect() -> std::result::Result<automation::Session, Error> {
     #[cfg(windows)]
     {
         use crate::{app_paths, platform, vision};
@@ -154,7 +157,7 @@ fn match_image(
     input: Value,
     template: &Path,
     region: Rect,
-) -> Result<Output> {
+) -> anyhow::Result<Output> {
     let search = region
         .validate(image.width(), image.height())
         .context("invalid --region for matching input")?;
@@ -171,7 +174,7 @@ fn match_image(
         .to_rgb8();
     let template = json!({"path":template_path.to_string_lossy(), "width":template_image.width(), "height":template_image.height()});
     let matched =
-        template_matching::pure::match_template_in_region(image, &template_image, Some(search))
+        template_matching::pure::match_template(&ImageRegion::new(image, search)?, &template_image)
             .with_context(|| {
                 format!(
                     "failed to match template {} ({}x{}) in region ({region}) of {}x{} input",

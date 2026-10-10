@@ -3,10 +3,8 @@
 //! 档案库标题、关闭按钮和分类水印先缩小候选集合，侧边栏颜色再区分见闻辑录和中枢
 //! 档案的具体子界面。状态组之间的静态引用表达当前采用的固定执行计划。
 
-use anyhow::Result;
-
 use crate::utils::region::{Region2D, ltwh};
-use crate::vision::region::mean_luma;
+use crate::vision::{ImageRegion, statistics::mean_luma};
 
 use super::{RecognitionContext, Refinement, UiStateGroup};
 use crate::navigation::state::{ArchiveState, ArchiveSubscene, CentralPage, RecordsPage, UiState};
@@ -47,11 +45,11 @@ const TAB_ROIS: [Region2D<u32>; 3] = [
 /// 判定侧边栏页签呈深色的平均灰度上限，取值范围为 `0..=255`。
 const DARK_THRESHOLD: u8 = 128;
 
-pub(super) fn recognizes_archive_title(cx: &mut RecognitionContext<'_>) -> Result<bool> {
+pub(super) fn recognizes_archive_title(cx: &mut RecognitionContext<'_>) -> anyhow::Result<bool> {
     cx.matches(&ARCHIVE_TITLE)
 }
 
-pub(super) fn recognize_archive_detail(cx: &mut RecognitionContext<'_>) -> Result<bool> {
+pub(super) fn recognize_archive_detail(cx: &mut RecognitionContext<'_>) -> anyhow::Result<bool> {
     if !cx.matches(&ARCHIVE_DETAIL_DECORATION)? {
         return Ok(false);
     }
@@ -69,7 +67,7 @@ impl UiStateGroup for ArchivePages {
         "档案库导航页"
     }
 
-    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> Result<Refinement> {
+    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> anyhow::Result<Refinement> {
         if cx.matches(&ARCHIVE_SUBSCENE_CLOSE)? {
             return Ok(Refinement::StillVague(&ARCHIVE_SUBSCENES));
         }
@@ -101,7 +99,7 @@ impl UiStateGroup for ArchiveSubscenes {
         "档案库子界面"
     }
 
-    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> Result<Refinement> {
+    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> anyhow::Result<Refinement> {
         if cx.matches(&ARCHIVE_MEDIA_WATERMARK)? {
             return Ok(Refinement::Determined(UiState::archive_subscene(
                 ArchiveSubscene::Media,
@@ -129,8 +127,8 @@ impl UiStateGroup for RecordsSubscenes {
         "见闻辑录子界面"
     }
 
-    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> Result<Refinement> {
-        let dark = tab_darkness(cx, 3);
+    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> anyhow::Result<Refinement> {
+        let dark = tab_darkness(cx, 3)?;
         let page = if dark[0] {
             RecordsPage::Paper
         } else if dark[1] {
@@ -157,8 +155,8 @@ impl UiStateGroup for CentralSubscenes {
         "中枢档案子界面"
     }
 
-    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> Result<Refinement> {
-        let dark = tab_darkness(cx, 2);
+    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> anyhow::Result<Refinement> {
+        let dark = tab_darkness(cx, 2)?;
         let page = if dark[0] {
             CentralPage::Archive
         } else if dark[1] {
@@ -172,11 +170,11 @@ impl UiStateGroup for CentralSubscenes {
     }
 }
 
-fn tab_darkness(cx: &RecognitionContext<'_>, count: usize) -> [bool; 3] {
+fn tab_darkness(cx: &RecognitionContext<'_>, count: usize) -> anyhow::Result<[bool; 3]> {
     let mut result = [false; 3];
     for (index, roi) in TAB_ROIS.iter().take(count).enumerate() {
-        result[index] =
-            mean_luma(cx.screenshot, *roi).is_some_and(|luma| luma < f32::from(DARK_THRESHOLD));
+        let region = ImageRegion::new(cx.screenshot, *roi)?;
+        result[index] = mean_luma(&region) < f32::from(DARK_THRESHOLD);
     }
-    result
+    Ok(result)
 }

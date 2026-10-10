@@ -1,12 +1,15 @@
 //! 同一份 CLI 在每个后端分别产出报告，比较阶段只读取报告。
 use std::{collections::BTreeMap, path::Path, time::Instant};
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, ensure};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use super::{args::Rect, commands::Output};
-use crate::{automation, vision::ocr};
+use crate::{
+    automation,
+    vision::{ImageRegion, ocr},
+};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct Settings {
@@ -46,7 +49,7 @@ pub(super) fn recognize(
     threads: u32,
     warmup: u32,
     repeat: u32,
-) -> Result<Output> {
+) -> anyhow::Result<Output> {
     let settings = Settings {
         region,
         archive_title,
@@ -98,9 +101,12 @@ pub(super) fn recognize(
                 .transpose()?
         };
         let rgb = image::DynamicImage::ImageRgba8(image.clone()).to_rgb8();
+        let region = region
+            .map(|bounds| ImageRegion::new(&image, bounds))
+            .transpose()?;
         let mut recognize = || {
-            if let Some(region) = region {
-                engine.recognize_region(&image, region)
+            if let Some(region) = &region {
+                engine.recognize_region(region)
             } else {
                 engine.recognize(&rgb).map(Some)
             }
@@ -164,12 +170,12 @@ pub(super) fn recognize(
     })
 }
 
-pub(super) fn compare(before: &Path, after: &Path) -> Result<Output> {
+pub(super) fn compare(before: &Path, after: &Path) -> anyhow::Result<Output> {
     #[derive(Deserialize)]
     struct Envelope {
         report: Report,
     }
-    let read = |path: &Path| -> Result<Report> {
+    let read = |path: &Path| -> anyhow::Result<Report> {
         let bytes = std::fs::read(path).with_context(|| format!("读取报告 {}", path.display()))?;
         Ok(serde_json::from_slice::<Envelope>(&bytes)
             .with_context(|| format!("解析报告 {}", path.display()))?
@@ -178,12 +184,12 @@ pub(super) fn compare(before: &Path, after: &Path) -> Result<Output> {
     compare_reports(read(before)?, read(after)?)
 }
 
-fn compare_reports(before: Report, after: Report) -> Result<Output> {
+fn compare_reports(before: Report, after: Report) -> anyhow::Result<Output> {
     ensure!(
         before.settings == after.settings,
         "两个报告的区域、线程或计时配置不一致"
     );
-    let index = |images: Vec<ImageResult>| -> Result<BTreeMap<String, ImageResult>> {
+    let index = |images: Vec<ImageResult>| -> anyhow::Result<BTreeMap<String, ImageResult>> {
         let mut indexed = BTreeMap::new();
         for image in images {
             ensure!(
