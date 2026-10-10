@@ -1,3 +1,4 @@
+import { t, type MessageKey } from '@/shared/i18n';
 import type { LogEntry, LogLevel } from '@/features/log/types/log';
 import { logLines } from '@/features/log/logState';
 import { computed, ref } from 'vue';
@@ -11,14 +12,20 @@ const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
   ERROR: 4,
 };
 
-/** 日志等级过滤选项（显示该等级及以上）。 */
-export const levelOptions: { label: string; value: LogLevel }[] = [
-  { label: 'TRACE', value: 'TRACE' },
-  { label: 'DEBUG', value: 'DEBUG' },
-  { label: 'INFO', value: 'INFO' },
-  { label: 'WARN', value: 'WARN' },
-  { label: 'ERROR', value: 'ERROR' },
-] as const;
+/** 展示标签与过滤使用的日志等级事实分离。 */
+export const levelLabels: Record<LogLevel, MessageKey> = {
+  TRACE: 'log.level.trace',
+  DEBUG: 'log.level.debug',
+  INFO: 'log.level.info',
+  WARN: 'log.level.warn',
+  ERROR: 'log.level.error',
+};
+export const levelOptions = computed(() =>
+  (Object.keys(levelLabels) as LogLevel[]).map((value) => ({
+    value,
+    label: t(levelLabels[value]),
+  })),
+);
 
 /** 界面当前过滤的日志等级（显示该等级及以上） */
 export const logLevelFilter = ref<LogLevel>('INFO');
