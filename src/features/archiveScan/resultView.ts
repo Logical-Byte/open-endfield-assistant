@@ -46,13 +46,13 @@ export function deriveArchiveScanView(
   const matching = deriveArchiveMatching(archives, scans);
   const archiveById = new Map<ArchiveId, ArchiveEntryView>();
   function categoryLabel(page: Page, category: Category): string {
-    return `${data?.page(page)?.name ?? page}/${data?.category(category)?.name ?? category}`;
+    return `${data?.page(page)?.name['zh-CN'] ?? page}/${data?.category(category)?.name['zh-CN'] ?? category}`;
   }
   for (const archive of archives) {
     const category = data!.category(archive.category)!;
     archiveById.set(archive.id, {
       id: archive.id,
-      title: archive.title,
+      title: archive.title['zh-CN'],
       category: archive.category,
       categoryLabel: categoryLabel(category.page, archive.category),
       acquisitionMethod: archive.acquisitionMethod,

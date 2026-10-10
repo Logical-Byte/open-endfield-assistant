@@ -1,4 +1,3 @@
-import dotenv from 'dotenv';
 import * as fs from 'node:fs';
 import path from 'node:path';
 import type {
@@ -39,14 +38,8 @@ import type {
   WorldEnergyPointTable,
 } from './models';
 
-// 从环境变量加载数据目录，避免硬编码路径
-dotenv.config();
-if (!process.env.ENDFIELD_DATA_DIR) {
-  throw new Error(
-    '请设置环境变量 ENDFIELD_DATA_DIR，指向数据的根目录（即 TableCfg 文件夹的父目录）。',
-  );
-}
-export const endfieldDataDir: string = process.env.ENDFIELD_DATA_DIR;
+export { endfieldDataDir, parseJSONWithBigInt, readJSONWithBigInt } from './readGameData';
+import { endfieldDataDir, readJSONWithBigInt } from './readGameData';
 
 export type I18nLanguage = (typeof i18nLanguages)[number];
 export type Locale = (typeof languageToLocaleMap)[I18nLanguage];
@@ -55,20 +48,6 @@ export type Locale = (typeof languageToLocaleMap)[I18nLanguage];
 export function getI18nTextTablePath(language: I18nLanguage): string {
   const I18nDir = path.join(endfieldDataDir, 'TableCfg');
   return path.join(I18nDir, `I18nTextTable_${language}.json`);
-}
-
-/** 解析带有大整数的 JSON 的辅助函数 */
-export function parseJSONWithBigInt<T>(text: string): T {
-  // 将看起来像 ID 的数值（长整数）替换为字符串，避免 JSON.parse 时丢失精度
-  // 目前的实现方法是简单地将所有 "id": <number> 替换为 "id": "<number>"
-  const stringified = text.replace(/"id":\s*(-?\d+)/g, '"id": "$1"');
-  return JSON.parse(stringified);
-}
-
-export function readJSONWithBigInt<T>(relativePath: string): T {
-  const fullPath = path.join(endfieldDataDir, relativePath);
-  const text = fs.readFileSync(fullPath, 'utf8');
-  return parseJSONWithBigInt<T>(text);
 }
 
 /**

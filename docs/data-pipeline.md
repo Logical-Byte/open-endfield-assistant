@@ -1,6 +1,6 @@
 # 数据与共享类型管线
 
-档案数据经过解包、`resources` 生成、后端投影后供业务使用。Rust 到 TypeScript 的类型生成是独立的开发流程。相关类型定义位置见下文。
+档案数据经过解包、`resources` 生成、后端投影后供业务使用。页面、分类、一级条目名称和档案名称／标题使用字段内嵌的 `zh-CN`、`en-US` 必需文本。层级、身份、顺序和获取契约共享。Rust 到 TypeScript 的类型生成是独立的开发流程。相关类型定义位置见下文。
 
 - 从解包数据到 `resources` 文件：由 `scripts/` 脚本负责。会影响安装包体积。
 - 从 `resources` 文件到后端内存：后端单独维护一份 `resources` 的文件 schema，然后投影为后端内存中经过类型检查的数据类型。
@@ -11,6 +11,8 @@
 - 解包数据 schema 定义：[scripts/models/tableCfg/](../scripts/models/tableCfg/)、[scripts/models/json/](../scripts/models/json/)（TS）
 - `resources` 文件 schema 定义：生成侧 [scripts/models/resources/](../scripts/models/resources/)（TS），接收侧 [archive/source.rs](../src-tauri/src/data/archive/source.rs)（Rust，只声明读取所需字段）
 - 后端数据类型与生成的前端数据类型：[archive/model.rs](../src-tauri/src/data/archive/model.rs)（Rust）、[src/shared/types/generated/archive/](../src/shared/types/generated/archive/)（TS）
+
+后端与前端一次加载双语 Catalog。Catalog 只携带页面／分类名称与档案标题，不携带 TranslationKey、一级条目、上游名称或获取参数。`LocalizedText` 描述资源译文，`GameLocale` 当前只允许 `zh-CN`。中文标题索引、OCR correction、人工纠正、结果展示与关联始终显式读取中文，不随应用语言改变。每条扫描证据保存识别时的 `GameLocale`，纠正保留原始 OCR 与此语境，OEM 仍只使用稳定档案身份。
 
 前端通过 [src/shared/types/archive.ts](../src/shared/types/archive.ts) 的手写 barrel 导入档案类型，生成文件单独放在 `generated/` 下。
 

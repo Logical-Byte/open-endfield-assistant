@@ -75,6 +75,24 @@ pub enum AcquisitionMethod {
     Investigate,
 }
 
+/// 资源携带的双语文本，当前游戏消费固定使用中文。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "archive/")]
+pub struct LocalizedText {
+    #[serde(rename = "zh-CN")]
+    pub zh_cn: String,
+    #[serde(rename = "en-US")]
+    pub en_us: String,
+}
+
+/// 扫描证据的游戏语言语境，当前只支持简体中文。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "archive/")]
+pub enum GameLocale {
+    #[serde(rename = "zh-CN")]
+    ZhCn,
+}
+
 /// 页面目录条目。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "archive/")]
@@ -82,7 +100,7 @@ pub struct PageEntry {
     /// 页面身份，与名称和分类 ID 无关。
     pub id: Page,
     /// 页面显示名称。
-    pub name: String,
+    pub name: LocalizedText,
 }
 
 /// 分类目录条目。
@@ -94,7 +112,7 @@ pub struct CategoryEntry {
     /// 所属页面。
     pub page: Page,
     /// 分类显示名称。
-    pub name: String,
+    pub name: LocalizedText,
 }
 
 /// 具体档案条目，同标题的不同 ID 仍是不同档案。
@@ -107,7 +125,7 @@ pub struct ArchiveEntry {
     /// 匹配标题时使用的分类范围。
     pub category: Category,
     /// 档案详情的完整标题，用于展示和 OCR 候选匹配。
-    pub title: String,
+    pub title: LocalizedText,
     /// 获取途径，用于显示和地图拾取筛选。
     pub acquisition_method: AcquisitionMethod,
 }
