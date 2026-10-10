@@ -207,6 +207,7 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
 
 function toDraft(settings: Settings, mirrorchyanCdk: string | null): DraftSettings {
   return {
+    uiLocale: settings.uiLocale,
     minimizeToTray: settings.minimizeToTray,
     soundVolume: settings.soundVolume,
     updateSource: settings.updateSource,

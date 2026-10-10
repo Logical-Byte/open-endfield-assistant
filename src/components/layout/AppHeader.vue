@@ -68,6 +68,15 @@ const navigationMenuItems: NavigationMenuItem[] = [
 
     <template #right>
       <div class="flex items-center gap-1">
+        <UTooltip text="语言设置 / Language">
+          <UButton
+            aria-label="语言设置 / Language"
+            color="neutral"
+            icon="i-lucide-languages"
+            to="/settings#language"
+            variant="ghost"
+          />
+        </UTooltip>
         <UpdatePopover />
         <ThemePicker />
         <UTooltip text="切换颜色模式">
