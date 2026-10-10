@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import {
   settingsSaveError,
@@ -15,6 +16,7 @@ import { oeaVersion } from '@/version';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+const { t } = useAppI18n();
 const toast = useToast();
 const route = useRoute();
 const router = useRouter();
@@ -36,7 +38,7 @@ const settingsInitializeError = computed(() =>
     : null,
 );
 const unavailableLabel = computed(() =>
-  settingsUnsupported.value ? '浏览器中不可用' : '设置暂不可用',
+  settingsUnsupported.value ? t('settings.unsupported.label') : t('settings.unavailable'),
 );
 const settingsCanCheckUpdate = computed(
   () => readySettings.value !== null || settingsInitializeError.value !== null,
@@ -84,15 +86,16 @@ async function manualCheckUpdate(): Promise<void> {
 }
 
 /** 设置分类目录：`id` 同时用作滚动锚点。 */
-const sections = [
+const sections = computed(() => [
+  { id: 'language', icon: 'i-lucide-languages', title: t('settings.language.section') },
   { id: 'interface', icon: 'i-lucide-layout-panel-left', title: '界面设置' },
   { id: 'sound', icon: 'i-lucide-headphones', title: '声音设置' },
   { id: 'update', icon: 'i-lucide-download', title: '更新设置' },
   { id: 'developer', icon: 'i-lucide-code-2', title: '开发者选项' },
-];
+]);
 
 /** 当前高亮的设置分类 id。 */
-const activeSectionId = ref<string>('interface');
+const activeSectionId = ref<string>('language');
 
 /** 点击目录触发程序化滚动期间，暂停滚动监听，避免平滑滚动途中高亮抖动。 */
 let isProgrammaticScroll = false;
@@ -103,8 +106,8 @@ function updateActiveSection(): void {
     return;
   }
   const offset = 120;
-  let current = sections[0].id;
-  for (const section of sections) {
+  let current = sections.value[0].id;
+  for (const section of sections.value) {
     const el = document.getElementById(section.id);
     if (el !== null && el.getBoundingClientRect().top <= offset) {
       current = section.id;
@@ -126,7 +129,7 @@ function scrollToSection(id: string): void {
 /** 支持从更新弹窗直接定位到更新设置，也支持在本页再次点击该入口。 */
 function scrollToHashSection(): void {
   const sectionId = route.hash.slice(1);
-  if (sections.some((section) => section.id === sectionId)) {
+  if (sections.value.some((section) => section.id === sectionId)) {
     scrollToSection(sectionId);
   }
 }
@@ -179,28 +182,56 @@ const stopScrollToHash = router.afterEach((to) => {
       <UPageBody>
         <UAlert
           v-if="settingsInitializeError"
-          :actions="[{ label: '重新初始化', onClick: initOeaSettings }]"
+          :actions="[{ label: t('settings.initialize.retry'), onClick: initOeaSettings }]"
           color="error"
-          description="无法从后端初始化设置。界面缩放和开发者功能仍可使用。"
+          :description="t('settings.initialize.failed.pageDescription')"
           icon="i-lucide-circle-alert"
-          title="设置初始化失败"
+          :title="t('settings.initialize.failed.title')"
           variant="subtle"
         />
         <UAlert
           v-else-if="settingsUnsupported"
           color="neutral"
-          description="纯浏览器模式只用于预览页面壳。请运行桌面开发模式来读取和修改设置。"
+          :description="t('settings.unsupported.description')"
           icon="i-lucide-monitor-off"
-          title="浏览器模式不支持应用设置"
+          :title="t('settings.unsupported.title')"
           variant="subtle"
         />
         <UAlert
           v-if="settingsSaveError"
-          :actions="[{ label: '重试保存', onClick: retrySettingsSave }]"
+          :actions="[{ label: t('common.retrySave'), onClick: retrySettingsSave }]"
           color="error"
-          description="已保留当前编辑，应用仍使用最近一次成功保存的设置。"
-          title="设置未保存"
+          :description="t('settings.save.failed.description')"
+          :title="t('settings.save.failed.title')"
         />
+        <section id="language" class="grid scroll-mt-8 gap-4 md:grid-cols-2">
+          <SettingsCard icon="i-lucide-languages" :title="t('settings.language.application.title')">
+            <p class="text-sm text-muted">{{ t('settings.language.application.description') }}</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <UButton
+                :disabled="!draftSettings"
+                label="简体中文"
+                :variant="draftSettings?.uiLocale === 'zh-CN' ? 'solid' : 'outline'"
+                @click="editSettings({ uiLocale: 'zh-CN' })"
+              />
+              <UButton
+                :disabled="!draftSettings"
+                label="English"
+                :variant="draftSettings?.uiLocale === 'en-US' ? 'solid' : 'outline'"
+                @click="editSettings({ uiLocale: 'en-US' })"
+              />
+            </div>
+          </SettingsCard>
+          <SettingsCard icon="i-lucide-gamepad-2" :title="t('settings.language.game.title')">
+            <p class="text-sm text-muted">{{ t('settings.language.game.description') }}</p>
+            <UBadge
+              class="mt-4"
+              color="neutral"
+              :label="t('settings.language.game.fixed')"
+              variant="subtle"
+            />
+          </SettingsCard>
+        </section>
         <SettingsCard
           id="interface"
           class="scroll-mt-8"

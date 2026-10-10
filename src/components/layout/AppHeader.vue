@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import { oeaVersion } from '@/version';
 import { NavigationMenuItem } from '@nuxt/ui';
 
+const { t } = useAppI18n();
 const navigationMenuItems: NavigationMenuItem[] = [
   {
     label: '档案扫描',
@@ -68,6 +70,15 @@ const navigationMenuItems: NavigationMenuItem[] = [
 
     <template #right>
       <div class="flex items-center gap-1">
+        <UTooltip :text="t('settings.language.shortcut')">
+          <UButton
+            :aria-label="t('settings.language.shortcut')"
+            color="neutral"
+            icon="i-lucide-languages"
+            to="/settings#language"
+            variant="ghost"
+          />
+        </UTooltip>
         <UpdatePopover />
         <ThemePicker />
         <UTooltip text="切换颜色模式">

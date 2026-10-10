@@ -1,4 +1,5 @@
 import App from '@/App.vue';
+import { i18n } from '@/shared/i18n';
 import '@/assets/css/main.css';
 import ui from '@nuxt/ui/vue-plugin';
 import { createHead } from '@unhead/vue/client';
@@ -14,6 +15,7 @@ const router = createRouter({
   history: createWebHistory(),
 });
 
+app.use(i18n);
 app.use(head);
 app.use(router);
 app.use(ui);
