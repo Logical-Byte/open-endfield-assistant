@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import type { ScreenshotFormat } from '@/features/monitor/types/screenshot';
 import { screenshot } from '@/features/monitor/ipc';
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useAppI18n } from '@/shared/i18n';
+import { formatBackendError, normalizeBackendError } from '@/shared/errors';
+import type { ErrorFacts } from '@/shared/errors';
+
+const { t, d, n } = useAppI18n();
 
 /** 监控截图分辨率（720p）。 */
 const SCREENSHOT_WIDTH = 1280;
@@ -29,16 +34,19 @@ const format = ref<ScreenshotFormat>('jpeg');
 const running = ref(false);
 const imageUrl = ref<string | null>(null);
 const lastCaptureAt = ref<Date | null>(null);
-const error = ref<string | null>(null);
+const error = ref<ErrorFacts | null>(null);
+const errorSummary = computed(() => (error.value ? formatBackendError(error.value) : null));
+const monitoringSummary = computed(() =>
+  lastCaptureAt.value
+    ? t('monitor.updated', {
+        fps: n(fps.value, 'quantity'),
+        time: d(lastCaptureAt.value, 'dateTime'),
+      })
+    : t('monitor.running', { fps: n(fps.value, 'quantity') }),
+);
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let capturing = false;
-
-/** 把时间格式化为 `HH:MM:SS`。 */
-function formatTime(date: Date): string {
-  const pad = (value: number): string => String(value).padStart(2, '0');
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
 
 /** 截图一次并更新画面（重入保护：上一帧未完成时跳过本轮，避免积压）。 */
 async function captureOnce(): Promise<void> {
@@ -52,7 +60,7 @@ async function captureOnce(): Promise<void> {
     lastCaptureAt.value = new Date();
     error.value = null;
   } catch (err) {
-    error.value = typeof err === 'string' ? err : '截图失败';
+    error.value = normalizeBackendError(err, 'screenshot');
   } finally {
     capturing = false;
   }
@@ -113,30 +121,47 @@ onBeforeUnmount(stopMonitor);
 <template>
   <UContainer class="flex h-full flex-col gap-4 py-4">
     <div class="flex flex-wrap items-center gap-2">
-      <USelect v-model="fps" class="w-32" :items="fpsOptions" />
-      <USelect v-model="format" class="w-28" :items="formatOptions" />
+      <USelect
+        v-model="fps"
+        :aria-label="t('monitor.frameRate')"
+        class="w-32"
+        :items="fpsOptions"
+      />
+      <USelect
+        v-model="format"
+        :aria-label="t('monitor.format')"
+        class="w-28"
+        :items="formatOptions"
+      />
 
       <UButton
         v-if="!running"
         color="success"
         icon="i-lucide-play"
-        label="开始监控"
+        :label="t('monitor.start')"
         @click="startMonitor"
       />
-      <UButton v-else color="error" icon="i-lucide-square" label="停止监控" @click="stopMonitor" />
+      <UButton
+        v-else
+        color="error"
+        icon="i-lucide-square"
+        :label="t('monitor.stop')"
+        @click="stopMonitor"
+      />
 
       <span v-if="running" class="text-sm text-muted">
-        正以 {{ fps }} FPS 监控<template v-if="lastCaptureAt"
-          >，最近更新于 {{ formatTime(lastCaptureAt) }}</template
-        >。
+        {{ monitoringSummary }}
       </span>
     </div>
 
     <UAlert
-      v-if="error"
+      v-if="errorSummary"
+      :actions="[
+        { label: t('monitor.openLogs'), to: '/logs', icon: 'i-lucide-file-text', variant: 'link' },
+      ]"
       color="error"
       icon="i-lucide-circle-alert"
-      :title="error"
+      :title="errorSummary"
       variant="subtle"
     />
 
@@ -144,11 +169,11 @@ onBeforeUnmount(stopMonitor);
       <div class="flex h-full items-center justify-center">
         <img
           v-if="imageUrl"
-          alt="游戏画面监控"
+          :alt="t('monitor.imageAlt')"
           class="max-h-full max-w-full object-contain"
           :src="imageUrl"
         />
-        <p v-else class="text-muted">尚未开始监控，请先启动游戏</p>
+        <p v-else class="text-muted">{{ t('monitor.empty') }}</p>
       </div>
     </UCard>
   </UContainer>
