@@ -8,6 +8,8 @@ use std::{
 };
 
 use crate::app_paths::AppPaths;
+use crate::backend_error::{BackendError, UpdateError};
+use crate::update::failure::UpdateFailure;
 use tracing::{debug, error, info, warn};
 
 /// 选择、暂存并安装本地 ZIP，不向 WebView 暴露文件路径。
@@ -15,7 +17,7 @@ use tracing::{debug, error, info, warn};
 pub fn developer_install_update(
     manager: tauri::State<'_, super::super::UpdateManager>,
     app: tauri::AppHandle,
-) -> Result<bool, String> {
+) -> Result<bool, BackendError> {
     let install_lease = manager.start_developer_install().map_err(|install_error| {
         warn!(
             operation = "install",
@@ -23,7 +25,7 @@ pub fn developer_install_update(
             error = %install_error,
             "开发者更新安装请求被状态机拒绝"
         );
-        install_error.to_string()
+        BackendError::UpdateInstall(install_error.reason())
     })?;
     debug!(
         operation = "install",
@@ -41,7 +43,7 @@ pub fn developer_install_update(
                 error = %install_error,
                 "开发者更新包选择或暂存失败"
             );
-            return Err(install_error);
+            return Err(BackendError::UpdateInstall(install_error.reason()));
         }
     };
     if let Err(install_error) = super::install_update_inner(app, &package_path) {
@@ -51,15 +53,18 @@ pub fn developer_install_update(
             error = %install_error,
             "开发者更新安装失败"
         );
-        return Err(install_error);
+        return Err(BackendError::UpdateInstall(install_error.reason()));
     }
     install_lease.complete();
     Ok(true)
 }
 
-fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, String> {
+fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, UpdateFailure> {
     if cfg!(debug_assertions) {
-        return Err("开发构建禁止执行真实自更新，请使用 release 构建验证".to_string());
+        return Err(UpdateFailure::failed(
+            UpdateError::DebugBuild,
+            "开发构建禁止执行真实自更新，请使用 release 构建验证",
+        ));
     }
 
     debug!(
@@ -82,7 +87,8 @@ fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, String> {
         info!("已取消安装开发者更新包");
         return Ok(None);
     };
-    let staged = stage_developer_package(&paths, &selected)?;
+    let staged = stage_developer_package(&paths, &selected)
+        .map_err(|error| UpdateFailure::failed(UpdateError::InvalidPackage, error))?;
     debug!(
         operation = "install",
         install_kind = "developer_package",
@@ -157,7 +163,9 @@ mod tests {
     #[cfg(debug_assertions)]
     #[test]
     fn developer_update_command_rejects_debug_build() {
-        let error = choose_and_stage_developer_package().unwrap_err();
+        let error = choose_and_stage_developer_package()
+            .unwrap_err()
+            .to_string();
 
         assert_eq!(
             error,

@@ -8,6 +8,9 @@ use ts_rs::TS;
 pub enum BackendError {
     Screenshot(ScreenshotError),
     ArchiveScan(ArchiveScanError),
+    UpdateCheck(UpdateError),
+    UpdateDownload(UpdateError),
+    UpdateInstall(UpdateError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -77,3 +80,33 @@ impl std::fmt::Display for ArchiveScanError {
     }
 }
 impl std::error::Error for ArchiveScanError {}
+
+/// 更新来源提供可行动原因，底层诊断只写日志。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[ts(export, export_to = "errors/")]
+pub enum UpdateError {
+    Busy,
+    NoUpdate,
+    ProxyConfiguration,
+    Network,
+    InvalidMetadata,
+    Service {
+        #[ts(type = "number")]
+        code: i64,
+    },
+    VersionMismatch {
+        expected: String,
+        actual: String,
+    },
+    PackageUnavailable {
+        version: String,
+    },
+    Integrity,
+    FileAccess,
+    DebugBuild,
+    InvalidPackage,
+    Preparation,
+    HelperStart,
+    Failed,
+}

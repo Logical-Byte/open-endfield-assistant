@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
+import { formatBackendError } from '@/shared/errors';
 import { DownloadProgress } from '@/features/update/types/update';
 import { automationStatus } from '@/features/automation/state';
 import {
@@ -14,6 +16,8 @@ import { updatePopoverOpen } from '@/features/update/updatePopover';
 import { oeaVersion } from '@/version';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+
+const { t, n } = useAppI18n();
 
 const router = useRouter();
 
@@ -37,17 +41,17 @@ const maybeStatusChipColor = computed<string | null>(() => {
 const statusText = computed<string>(() => {
   switch (updateCheckState.value.status) {
     case 'unknown':
-      return '检查更新';
+      return t('update.check.action');
     case 'checking':
-      return '正在检查更新';
+      return t('update.check.checking');
     case 'available':
-      return '发现新版本';
+      return t('update.check.available');
     case 'upToDate':
-      return '当前已是最新版本';
+      return t('update.check.upToDate');
     case 'error':
-      return '检查更新失败';
+      return t('update.check.failed');
     default:
-      return '检查更新';
+      return t('update.check.action');
   }
 });
 
@@ -74,13 +78,9 @@ const etaText = computed<string | null>(() => {
     return null;
   }
   const seconds = Math.ceil((totalSize - downloadedSize) / speed);
-  if (seconds < 60) {
-    return `，还需约 ${seconds} 秒`;
-  }
-  if (seconds < 3600) {
-    return `，还需约 ${Math.ceil(seconds / 60)} 分钟`;
-  }
-  return `，还需约 ${(seconds / 3600).toFixed(1)} 小时`;
+  if (seconds < 60) return t('update.download.etaSeconds', { count: seconds });
+  if (seconds < 3600) return t('update.download.etaMinutes', { count: Math.ceil(seconds / 60) });
+  return t('update.download.etaHours', { count: Math.ceil(seconds / 3600) });
 });
 
 /** 字节数格式化为人类可读单位。 */
@@ -91,7 +91,7 @@ function formatBytes(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB'];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** index;
-  return `${value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
+  return `${n(value, { maximumFractionDigits: value >= 100 || index === 0 ? 0 : 1 })} ${units[index]}`;
 }
 
 /** 速度格式化为人类可读单位。 */
@@ -130,26 +130,27 @@ function formatSpeed(bytesPerSecond: number): string {
       <template v-if="updateCheckState.status === 'checking'">
         <div class="flex items-center justify-center gap-2 py-2">
           <UIcon class="size-5 animate-spin text-primary" name="i-lucide-loader-circle" />
-          <p class="text-sm font-medium text-toned">正在检查更新…</p>
+          <p class="text-sm font-medium text-toned">{{ t('update.check.checking') }}</p>
         </div>
       </template>
 
       <template v-else-if="updateCheckState.status === 'error'">
         <div class="flex items-center gap-2">
           <UIcon class="size-5 text-error" name="i-lucide-circle-alert" />
-          <p class="font-semibold">检查更新失败</p>
+          <p class="font-semibold">{{ t('update.check.failed') }}</p>
         </div>
         <p class="text-sm whitespace-pre-wrap text-toned">
-          {{ updateCheckState.error.message }}
+          {{ formatBackendError(updateCheckState.error) }}
         </p>
-        <UButton block icon="i-lucide-rotate-cw" label="重试" @click="checkUpdate" />
+        <UButton color="neutral" :label="t('update.viewLogs')" to="/log" variant="link" />
+        <UButton block icon="i-lucide-rotate-cw" :label="t('update.retry')" @click="checkUpdate" />
       </template>
 
       <template v-else-if="updateCheckState.status === 'available'">
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <UIcon class="text-xl text-primary" name="i-lucide-circle-arrow-up" />
-            <p class="font-semibold">发现新版本</p>
+            <p class="font-semibold">{{ t('update.check.available') }}</p>
           </div>
           <div class="flex items-center gap-1.5">
             <UBadge color="neutral" variant="subtle">v{{ oeaVersion }}</UBadge>
@@ -161,11 +162,13 @@ function formatSpeed(bytesPerSecond: number): string {
         </div>
 
         <div class="flex min-h-0 flex-col gap-2 rounded-md bg-muted p-3 pr-1 ring ring-default">
-          <p class="text-xs font-medium text-toned">更新日志</p>
+          <p class="text-xs font-medium text-toned">{{ t('update.releaseNotes.title') }}</p>
           <!-- eslint-disable vue/no-v-html 渲染结果经 DOMPurify 消毒 -->
           <div
             class="markdown-body max-h-128 min-h-0 scrollbar-gutter-stable overflow-y-auto pr-1"
-            v-html="renderMarkdown(updateCheckState.update.releaseNote || '暂无更新日志')"
+            v-html="
+              renderMarkdown(updateCheckState.update.releaseNote || t('update.releaseNotes.empty'))
+            "
           />
           <!-- eslint-enable vue/no-v-html -->
         </div>
@@ -177,20 +180,26 @@ function formatSpeed(bytesPerSecond: number): string {
         >
           <div class="flex items-center justify-between text-xs text-toned">
             <span class="flex items-center gap-1.5">
-              <UIcon class="size-3.5 animate-spin" name="i-lucide-loader-circle" />
-              正在下载
-            </span>
+              <UIcon class="size-3.5 animate-spin" name="i-lucide-loader-circle" />{{
+                t('update.download.downloading')
+              }}</span
+            >
             <span class="tabular-nums">{{ progressText }}</span>
           </div>
           <UProgress size="sm" :value="visibleProgress.progress" />
           <div class="flex items-center justify-between text-xs text-dimmed">
             <span class="tabular-nums"
-              >已下载 {{ visibleProgress.progress.toFixed(1) }}%，速度为
-              {{ formatSpeed(visibleProgress.speed) }}{{ etaText }}。</span
+              >{{
+                t('update.download.progress', {
+                  percent: n(visibleProgress.progress / 100, 'percent'),
+                  speed: formatSpeed(visibleProgress.speed),
+                })
+              }}
+              {{ etaText }}</span
             >
             <UButton
               color="neutral"
-              label="取消"
+              :label="t('update.cancel')"
               size="xs"
               variant="ghost"
               @click="cancelDownload"
@@ -202,22 +211,25 @@ function formatSpeed(bytesPerSecond: number): string {
           v-else-if="downloadState.status === 'cancelling'"
           class="flex items-center gap-2 rounded-md bg-muted p-3 text-sm text-toned"
         >
-          <UIcon class="size-4 animate-spin text-primary" name="i-lucide-loader-circle" />
-          正在取消…
+          <UIcon class="size-4 animate-spin text-primary" name="i-lucide-loader-circle" />{{
+            t('update.download.cancelling')
+          }}
         </div>
 
         <div v-else-if="downloadState.status === 'completed'" class="space-y-2">
-          <div class="rounded-md bg-success/10 p-3 text-sm text-success">下载完成</div>
+          <div class="rounded-md bg-success/10 p-3 text-sm text-success">
+            {{ t('update.download.completed') }}
+          </div>
           <UButton
             block
             color="primary"
             :disabled="automationStatus.state !== 'idle'"
             icon="i-lucide-package-check"
-            label="立即安装"
+            :label="t('update.install.action')"
             @click="startInstall"
           />
           <p v-if="automationStatus.state !== 'idle'" class="text-xs text-dimmed">
-            扫描任务运行中，扫描结束后将自动安装
+            {{ t('update.install.afterTask') }}
           </p>
         </div>
 
@@ -225,15 +237,21 @@ function formatSpeed(bytesPerSecond: number): string {
           v-else-if="downloadState.status === 'failed'"
           class="flex items-center justify-between gap-2 rounded-md bg-error/10 p-3"
         >
-          <p class="text-sm text-error">下载失败</p>
-          <UButton color="error" label="重试" size="xs" variant="soft" @click="startDownload" />
+          <p class="text-sm text-error">{{ formatBackendError(downloadState.error) }}</p>
+          <UButton
+            color="error"
+            :label="t('update.retry')"
+            size="xs"
+            variant="soft"
+            @click="startDownload"
+          />
         </div>
 
         <!-- 仅下载前（Idle）显示「立即更新」与前往唯一编辑入口的设置按钮。 -->
         <div v-if="downloadState.status === 'idle'" class="flex w-full gap-2">
-          <UButton block icon="i-lucide-download" label="立即更新" @click="startDownload" />
+          <UButton block icon="i-lucide-download" :label="t('update.now')" @click="startDownload" />
           <UButton
-            aria-label="更新设置"
+            aria-:label="t('update.settings')"
             icon="i-lucide-settings-2"
             variant="subtle"
             @click="navigateToUpdateSettings"

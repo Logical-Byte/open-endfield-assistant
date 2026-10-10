@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTranslatedToast } from '@/shared/i18n/toast';
 import { I18nT } from 'vue-i18n';
 import { useAppI18n, type MessageKey } from '@/shared/i18n';
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
@@ -18,7 +19,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const { t, n } = useAppI18n();
-const toast = useToast();
 const route = useRoute();
 const router = useRouter();
 
@@ -77,12 +77,10 @@ const updateProxyUrl = computed<string>({
 async function manualCheckUpdate(): Promise<void> {
   await checkUpdate();
   if (updateCheckState.value.status === 'upToDate') {
-    toast.add({
-      title: '当前已是最新版本',
+    useTranslatedToast().add({ icon: 'i-lucide-check-circle', color: 'success' }, () => ({
+      title: t('update.check.upToDate'),
       description: `v${oeaVersion}`,
-      icon: 'i-lucide-check-circle',
-      color: 'success',
-    });
+    }));
   }
 }
 

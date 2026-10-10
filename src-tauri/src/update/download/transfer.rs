@@ -1,3 +1,5 @@
+use crate::backend_error::UpdateError;
+use crate::update::failure::UpdateFailure;
 use std::{
     io::Write,
     path::{Path, PathBuf},
@@ -30,13 +32,15 @@ pub(super) async fn download_to_target(
     target: DownloadTarget,
     session: Arc<DownloadSession>,
     expected_sha256: Option<&str>,
-) -> Result<DownloadSummary, String> {
+) -> Result<DownloadSummary, UpdateFailure> {
     let transfer = response_to_file(response, target.staging_path(), Arc::clone(&session)).await?;
     verify_sha256(&transfer.sha256, expected_sha256)?;
     if session.cancellation().is_cancelled() {
-        return Err("下载已取消".to_string());
+        return Err(UpdateFailure::Cancelled);
     }
-    let path = target.publish()?;
+    let path = target
+        .publish()
+        .map_err(|error| UpdateFailure::failed(UpdateError::FileAccess, error))?;
 
     Ok(DownloadSummary {
         path,
@@ -50,22 +54,22 @@ async fn response_to_file(
     response: reqwest::Response,
     output_path: &Path,
     session: Arc<DownloadSession>,
-) -> Result<TransferSummary, String> {
+) -> Result<TransferSummary, UpdateFailure> {
     let (tx, rx) = tokio::sync::mpsc::channel::<bytes::Bytes>(64);
     let output_path = output_path.to_path_buf();
     let writer_task = tokio::task::spawn_blocking(move || write_file(&output_path, rx));
     let cancellation = session.cancellation();
 
     let transfer_result = stream_response(response, tx, session).await;
-    let writer_result = writer_task
-        .await
-        .map_err(|error| format!("写入任务异常: {error}"))?;
+    let writer_result = writer_task.await.map_err(|error| {
+        UpdateFailure::failed(UpdateError::FileAccess, format!("写入任务异常: {error}"))
+    })?;
 
     // 磁盘已满等具体 I/O 错误优先于同时发生的响应流错误。
     writer_result?;
     let transfer = transfer_result?;
     if cancellation.is_cancelled() {
-        return Err("下载已取消".to_string());
+        return Err(UpdateFailure::Cancelled);
     }
     Ok(transfer)
 }
@@ -74,7 +78,7 @@ async fn stream_response(
     response: reqwest::Response,
     tx: tokio::sync::mpsc::Sender<bytes::Bytes>,
     session: Arc<DownloadSession>,
-) -> Result<TransferSummary, String> {
+) -> Result<TransferSummary, UpdateFailure> {
     let mut hasher = Sha256::new();
     let mut stream = response.bytes_stream();
     let mut downloaded = 0u64;
@@ -84,21 +88,23 @@ async fn stream_response(
         let chunk = tokio::select! {
             biased;
             chunk = stream.next() => chunk,
-            _ = cancellation.cancelled() => return Err("下载已取消".to_string()),
+            _ = cancellation.cancelled() => return Err(UpdateFailure::Cancelled),
         };
         let Some(chunk) = chunk else {
             break;
         };
-        let chunk = chunk.map_err(|error| format!("下载数据失败: {error}"))?;
+        let chunk = chunk.map_err(|error| {
+            UpdateFailure::failed(UpdateError::Network, format!("下载数据失败: {error}"))
+        })?;
 
         hasher.update(&chunk);
         let chunk_size = chunk.len() as u64;
         tokio::select! {
             biased;
             result = tx.send(chunk) => {
-                result.map_err(|_| "磁盘写入线程异常退出".to_string())?;
+                result.map_err(|_| UpdateFailure::failed(UpdateError::FileAccess, "磁盘写入线程异常退出"))?;
             }
-            _ = cancellation.cancelled() => return Err("下载已取消".to_string()),
+            _ = cancellation.cancelled() => return Err(UpdateFailure::Cancelled),
         }
         downloaded += chunk_size;
         session.set_downloaded_bytes(downloaded);
@@ -113,22 +119,28 @@ async fn stream_response(
 fn write_file(
     output_path: &Path,
     mut rx: tokio::sync::mpsc::Receiver<bytes::Bytes>,
-) -> Result<(), String> {
-    let file =
-        std::fs::File::create(output_path).map_err(|error| format!("无法创建输出文件: {error}"))?;
+) -> Result<(), UpdateFailure> {
+    let file = std::fs::File::create(output_path).map_err(|error| {
+        UpdateFailure::failed(
+            UpdateError::FileAccess,
+            format!("无法创建输出文件: {error}"),
+        )
+    })?;
     let mut writer = std::io::BufWriter::with_capacity(512 * 1024, file);
     while let Some(chunk) = rx.blocking_recv() {
-        writer
-            .write_all(&chunk)
-            .map_err(|error| format!("写入文件失败: {error}"))?;
+        writer.write_all(&chunk).map_err(|error| {
+            UpdateFailure::failed(UpdateError::FileAccess, format!("写入文件失败: {error}"))
+        })?;
     }
-    writer
-        .flush()
-        .map_err(|error| format!("刷新写入缓冲区失败: {error}"))?;
-    writer
-        .get_ref()
-        .sync_all()
-        .map_err(|error| format!("同步文件失败: {error}"))?;
+    writer.flush().map_err(|error| {
+        UpdateFailure::failed(
+            UpdateError::FileAccess,
+            format!("刷新写入缓冲区失败: {error}"),
+        )
+    })?;
+    writer.get_ref().sync_all().map_err(|error| {
+        UpdateFailure::failed(UpdateError::FileAccess, format!("同步文件失败: {error}"))
+    })?;
     Ok(())
 }
 
@@ -142,7 +154,7 @@ fn hex_encode(bytes: &[u8]) -> String {
     output
 }
 
-fn verify_sha256(actual: &str, expected: Option<&str>) -> Result<(), String> {
+fn verify_sha256(actual: &str, expected: Option<&str>) -> Result<(), UpdateFailure> {
     let Some(expected) = expected else {
         return Ok(());
     };
@@ -151,7 +163,10 @@ fn verify_sha256(actual: &str, expected: Option<&str>) -> Result<(), String> {
         .trim_start_matches("sha256:")
         .to_ascii_lowercase();
     if !expected.is_empty() && actual != expected {
-        return Err(format!("sha256 校验失败：期望 {expected}，实际 {actual}"));
+        return Err(UpdateFailure::failed(
+            UpdateError::Integrity,
+            format!("sha256 校验失败：期望 {expected}，实际 {actual}"),
+        ));
     }
     Ok(())
 }

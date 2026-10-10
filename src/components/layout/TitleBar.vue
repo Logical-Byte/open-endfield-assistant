@@ -65,12 +65,12 @@ onUnmounted(() => {
       />
       <button
         v-if="availableVersion"
-        :aria-label="`检测到新版本：${availableVersion}`"
+        :aria-label="t('update.notice', { version: availableVersion })"
         class="titlebar-update-notice text-xs font-bold"
         data-tauri-drag-region="false"
         @click="startDownload"
       >
-        检测到新版本：{{ availableVersion }}
+        {{ t('update.notice', { version: availableVersion }) }}
       </button>
       <span class="pointer-events-none font-ui text-xs text-toned">
         OEA<span v-if="oeaVersion"> v{{ oeaVersion }}</span>

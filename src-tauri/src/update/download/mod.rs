@@ -1,5 +1,7 @@
 //! 文件下载、进度上报、取消与 sha256 校验。
 
+use crate::backend_error::UpdateError;
+use crate::update::failure::UpdateFailure;
 mod progress;
 mod target;
 mod transfer;
@@ -29,9 +31,13 @@ pub(super) async fn download_update_plan(
     settings: &OeaSettings,
     user_agent: &str,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
-) -> Result<PathBuf, String> {
-    let download_url = reqwest::Url::parse(&plan.url)
-        .map_err(|url_error| format!("更新包下载地址无效: {url_error}"))?;
+) -> Result<PathBuf, UpdateFailure> {
+    let download_url = reqwest::Url::parse(&plan.url).map_err(|url_error| {
+        UpdateFailure::failed(
+            UpdateError::InvalidMetadata,
+            format!("更新包下载地址无效: {url_error}"),
+        )
+    })?;
     let download_host = download_url.host_str().unwrap_or("<unknown-host>");
     let expected_sha256 = plan
         .expected_sha256
@@ -66,11 +72,14 @@ pub(super) async fn download_update_plan(
     let cancellation = session.cancellation();
     let response = tokio::select! {
         biased;
-        response = request.send() => response.map_err(|error| format!("下载请求失败: {error}"))?,
-        _ = cancellation.cancelled() => return Err("下载已取消".to_string()),
+        response = request.send() => response.map_err(|error| UpdateFailure::failed(UpdateError::Network, format!("下载请求失败: {error}")))?,
+        _ = cancellation.cancelled() => return Err(UpdateFailure::Cancelled),
     };
     if !response.status().is_success() {
-        return Err(format!("HTTP 错误: {}", response.status()));
+        return Err(UpdateFailure::failed(
+            UpdateError::Network,
+            format!("HTTP 错误: {}", response.status()),
+        ));
     }
 
     let download_dir = ensure_download_dir()?;
@@ -85,7 +94,8 @@ pub(super) async fn download_update_plan(
         .filter(|size| *size > 0)
         .or_else(|| response.content_length())
         .unwrap_or(0);
-    let target = DownloadTarget::new(actual_path, session_id)?;
+    let target = DownloadTarget::new(actual_path, session_id)
+        .map_err(|error| UpdateFailure::failed(UpdateError::FileAccess, error))?;
     let mut progress = ProgressReporter::start_channel(on_progress, Arc::clone(&session), total);
     let download = download_to_target(response, target, session, expected_sha256).await;
     progress.stop().await;
@@ -123,9 +133,13 @@ pub(super) async fn download_update_plan(
 }
 
 /// 返回文件下载目录（`<root>/cache/downloads`），不存在时创建。
-fn ensure_download_dir() -> Result<PathBuf, String> {
+fn ensure_download_dir() -> Result<PathBuf, UpdateFailure> {
     let dir = crate::app_paths::AppPaths::new()?.downloads_dir();
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("无法创建下载目录 {}: {e}", dir.display()))?;
+    std::fs::create_dir_all(&dir).map_err(|e| {
+        UpdateFailure::failed(
+            UpdateError::FileAccess,
+            format!("无法创建下载目录 {}: {e}", dir.display()),
+        )
+    })?;
     Ok(dir)
 }
