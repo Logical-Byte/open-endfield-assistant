@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import { startDownload, updateCheckState } from '@/features/update/update';
 import { oeaVersion } from '@/version';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+
+const { t } = useAppI18n();
 
 // 应用图标：使用 /favicon.ico（dev 由 vite 中间件提供，构建后位于 dist 根目录）。
 // 用动态绑定避免 Vite 把它当作模块导入解析。
@@ -62,12 +65,12 @@ onUnmounted(() => {
       />
       <button
         v-if="availableVersion"
-        :aria-label="`检测到新版本：${availableVersion}`"
+        :aria-label="t('update.notice', { version: availableVersion })"
         class="titlebar-update-notice text-xs font-bold"
         data-tauri-drag-region="false"
         @click="startDownload"
       >
-        检测到新版本：{{ availableVersion }}
+        {{ t('update.notice', { version: availableVersion }) }}
       </button>
       <span class="pointer-events-none font-ui text-xs text-toned">
         OEA<span v-if="oeaVersion"> v{{ oeaVersion }}</span>

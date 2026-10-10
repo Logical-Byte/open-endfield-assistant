@@ -5,6 +5,7 @@ pub mod install;
 
 mod check;
 mod download;
+mod failure;
 mod http;
 mod manager;
 mod response;

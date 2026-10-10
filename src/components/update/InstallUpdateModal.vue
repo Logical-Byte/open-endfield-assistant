@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import { UpdateInstallStatus } from '@/features/update/types/update';
 import {
   closeInstallModal,
@@ -12,6 +13,8 @@ import {
 } from '@/features/update/update';
 import { renderMarkdown } from '@/shared/markdown';
 import { computed } from 'vue';
+
+const { t } = useAppI18n();
 
 /** 是否正在安装（弹窗不可关闭）。 */
 const isInstalling = computed(() => installStatus.value === UpdateInstallStatus.Installing);
@@ -42,29 +45,29 @@ const canClose = computed(() => isFailed.value);
       <template v-if="isJustUpdatedMode">
         <UIcon class="size-8 shrink-0 text-success" name="i-lucide-circle-check" />
         <div class="shrink-0 space-y-1">
-          <p class="font-semibold">更新完成</p>
+          <p class="font-semibold">{{ t('update.install.completed') }}</p>
           <p v-if="hasUpdateDetails" class="text-sm text-toned">
             v{{ justUpdatedInfo?.previousVersion }} → {{ justUpdatedInfo?.newVersion }}
           </p>
-          <p v-else class="text-sm text-toned">更新已成功安装，可以继续使用 OEA。</p>
+          <p v-else class="text-sm text-toned">{{ t('update.install.success') }}</p>
         </div>
         <!-- eslint-disable vue/no-v-html 渲染结果经 DOMPurify 消毒 -->
         <div
           v-if="hasUpdateDetails"
           class="markdown-body min-h-0 w-full flex-1 overflow-y-auto rounded-md bg-muted p-3 text-left text-sm"
-          v-html="renderMarkdown(justUpdatedInfo?.releaseNote ?? '暂无更新日志')"
+          v-html="renderMarkdown(justUpdatedInfo?.releaseNote ?? t('update.releaseNotes.empty'))"
         />
         <!-- eslint-enable vue/no-v-html -->
-        <UButton label="知道了" @click="closeInstallModal" />
+        <UButton :label="t('update.dismiss')" @click="closeInstallModal" />
       </template>
 
       <!-- 安装中（不可关闭） -->
       <template v-else-if="isInstalling">
         <UIcon class="size-12 animate-spin text-primary" name="i-lucide-loader-circle" />
         <div class="space-y-1">
-          <p class="font-semibold">正在安装更新</p>
+          <p class="font-semibold">{{ t('update.install.installing') }}</p>
           <p class="text-sm text-toned">
-            {{ installStage ? installStageLabel(installStage) : '准备中…' }}
+            {{ installStage ? installStageLabel(installStage) : t('update.install.preparing') }}
           </p>
         </div>
         <UProgress class="w-full" size="sm" :value="null" />
@@ -74,15 +77,21 @@ const canClose = computed(() => isFailed.value);
       <template v-else-if="isFailed">
         <UIcon class="size-12 text-error" name="i-lucide-circle-alert" />
         <div class="space-y-1">
-          <p class="font-semibold">安装失败</p>
+          <p class="font-semibold">{{ t('update.install.failed') }}</p>
           <p class="text-sm whitespace-pre-wrap text-error">{{ installError }}</p>
         </div>
-        <div class="flex gap-2">
-          <UButton color="neutral" label="关闭" variant="soft" @click="closeInstallModal" />
+        <UButton color="neutral" :label="t('update.viewLogs')" to="/log" variant="link" />
+        <div class="flex flex-wrap justify-center gap-2">
+          <UButton
+            color="neutral"
+            :label="t('update.close')"
+            variant="soft"
+            @click="closeInstallModal"
+          />
           <UButton
             color="primary"
             icon="i-lucide-download"
-            label="重新下载"
+            :label="t('update.install.redownload')"
             @click="retryInstall"
           />
         </div>

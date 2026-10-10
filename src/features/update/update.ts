@@ -1,3 +1,6 @@
+import { t, type MessageKey } from '@/shared/i18n';
+import { useTranslatedToast } from '@/shared/i18n/toast';
+import { normalizeBackendError, formatBackendError, type ErrorFacts } from '@/shared/errors';
 import type {
   DownloadProgress,
   DownloadState,
@@ -71,7 +74,7 @@ const effectiveOperation = computed<UpdateOperation>(
 
 /** 当前 WebView 生命周期内的检查展示状态。 */
 const lastCheckedAt = ref<number | null>(null);
-const checkError = ref<Error | null>(null);
+const checkError = ref<ErrorFacts | null>(null);
 export const updateCheckState = computed<UpdateCheckState>(() => {
   if (effectiveOperation.value === 'checking') {
     return { status: 'checking', lastCheckedAt: lastCheckedAt.value };
@@ -95,7 +98,7 @@ export const updateCheckState = computed<UpdateCheckState>(() => {
 /** 下载进度、取消请求和错误都是本次 WebView 调用的展示状态。 */
 const downloadProgress = ref<DownloadProgress>(EMPTY_DOWNLOAD_PROGRESS);
 const downloadCancelling = ref<boolean>(false);
-const downloadFailed = ref<boolean>(false);
+const downloadError = ref<ErrorFacts | null>(null);
 export const downloadState = computed<DownloadState>(() => {
   if (effectiveOperation.value === 'downloading') {
     return downloadCancelling.value
@@ -105,8 +108,8 @@ export const downloadState = computed<DownloadState>(() => {
   if (pendingUpdate.value) {
     return { status: 'completed', update: pendingUpdate.value };
   }
-  if (downloadFailed.value) {
-    return { status: 'failed' };
+  if (downloadError.value) {
+    return { status: 'failed', error: downloadError.value };
   }
   return { status: 'idle' };
 });
@@ -116,7 +119,10 @@ export const installStatus = ref<UpdateInstallStatus>(UpdateInstallStatus.Idle);
 /** 安装流程当前阶段（驱动弹窗进度文案）。 */
 export const installStage = ref<UpdateInstallStage | null>(null);
 /** 安装失败原因。 */
-export const installError = ref<string | null>(null);
+const installErrorFacts = ref<ErrorFacts | null>(null);
+export const installError = computed<string | null>(() =>
+  installErrorFacts.value ? formatBackendError(installErrorFacts.value) : null,
+);
 /** 重启后展示的「更新完成」信息。 */
 export const justUpdatedInfo = ref<UpdateCompleteInfo | null>(null);
 /** 安装弹窗是否打开。 */
@@ -131,17 +137,17 @@ export const updateOperationBusy = computed<boolean>(
 );
 
 /** 安装阶段 → 用户可读文案。 */
-const INSTALL_STAGE_LABELS: Record<UpdateInstallStage, string> = {
-  preparing: '准备更新文件',
-  extracting: '解压更新包',
-  applying_incremental: '应用增量更新',
-  applying_full: '应用全量更新',
-  cleaning_up: '清理临时文件',
+const INSTALL_STAGE_LABELS: Record<UpdateInstallStage, MessageKey> = {
+  preparing: 'update.stage.preparing',
+  extracting: 'update.stage.extracting',
+  applying_incremental: 'update.stage.incremental',
+  applying_full: 'update.stage.full',
+  cleaning_up: 'update.stage.cleanup',
 };
 
 /** 安装阶段文案（供弹窗展示）。 */
 export function installStageLabel(stage: UpdateInstallStage): string {
-  return INSTALL_STAGE_LABELS[stage];
+  return t(INSTALL_STAGE_LABELS[stage]);
 }
 
 /** 用一次 IPC 替换完整后端状态投影。 */
@@ -179,11 +185,11 @@ export async function checkUpdate(): Promise<void> {
       shouldAutoDownload = settings?.autoDownloadUpdates === true;
     }
   } catch (error) {
-    checkError.value = error instanceof Error ? error : new Error(String(error));
+    checkError.value = normalizeBackendError(error, 'updateCheck');
     updatePopoverOpen.value = true;
     writeUpdateLog(
       logError,
-      `更新前端：check_update 调用失败，显示检查错误: ${checkError.value.message}`,
+      `更新前端：check_update 调用失败，显示检查错误: ${JSON.stringify(error)}`,
     );
   } finally {
     await refreshUpdateStatus();
@@ -212,7 +218,7 @@ export async function startDownload(): Promise<void> {
   requestedOperation.value = 'downloading';
   downloadProgress.value = EMPTY_DOWNLOAD_PROGRESS;
   downloadCancelling.value = false;
-  downloadFailed.value = false;
+  downloadError.value = null;
   updatePopoverOpen.value = true;
 
   const onProgress = createDownloadProgressChannel((progress) => {
@@ -220,17 +226,18 @@ export async function startDownload(): Promise<void> {
   });
   let completed = false;
   try {
-    const update = await downloadUpdate(onProgress);
-    completed = true;
-    writeUpdateLog(logDebug, `更新前端：download_update 调用完成（version=${update.versionName}）`);
+    const result = await downloadUpdate(onProgress);
+    completed = result.status === 'completed';
+    writeUpdateLog(logDebug, `更新前端：download_update 调用完成（status=${result.status}）`);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message === '下载已取消') {
-      writeUpdateLog(logDebug, '更新前端：download_update 已确认取消');
-    } else {
-      downloadFailed.value = true;
-      handleDownloadFailure(error, '下载失败');
-    }
+    const facts = normalizeBackendError(error, 'updateDownload');
+    downloadError.value = facts;
+    writeUpdateLog(logError, `更新前端：download_update 调用失败: ${JSON.stringify(error)}`);
+    useTranslatedToast().add({ icon: 'i-lucide-triangle-alert', color: 'error' }, () => ({
+      title: t('update.download.failed'),
+      description: formatBackendError(facts),
+      actions: [{ label: t('update.viewLogs'), to: '/log' }],
+    }));
   } finally {
     await refreshUpdateStatus();
     requestedOperation.value = null;
@@ -277,7 +284,7 @@ export async function initUpdateState(): Promise<void> {
   );
   if (startupUpdateResult === 'completed') {
     installStatus.value = UpdateInstallStatus.Completed;
-    installError.value = null;
+    installErrorFacts.value = null;
     installStage.value = null;
     justUpdatedInfo.value = { timestamp: Date.now() };
     showInstallModal.value = true;
@@ -343,12 +350,10 @@ export async function startInstall(): Promise<InstallStartResult> {
   }
   if (automationStatus.value.state !== 'idle') {
     writeUpdateLog(logDebug, '更新前端：自动化任务运行中，安装请求留待任务结束后重试');
-    useToast().add({
-      title: '扫描任务运行中',
-      description: '扫描结束后将自动安装更新',
-      icon: 'i-lucide-info',
-      color: 'info',
-    });
+    useTranslatedToast().add({ icon: 'i-lucide-info', color: 'info' }, () => ({
+      title: t('update.install.taskRunning'),
+      description: t('update.install.afterTask'),
+    }));
     return 'skipped';
   }
 
@@ -383,7 +388,7 @@ export async function startDeveloperInstall(
   }
 
   requestedOperation.value = 'installing';
-  installError.value = null;
+  installErrorFacts.value = null;
   let installationStarted = false;
   let unlisten: (() => void) | null = null;
   try {
@@ -402,7 +407,7 @@ export async function startDeveloperInstall(
     if (installationStarted) {
       handleInstallFailure(error);
     } else {
-      installError.value = error instanceof Error ? error.message : String(error);
+      installErrorFacts.value = normalizeBackendError(error, 'updateInstall');
     }
     return 'failed';
   } finally {
@@ -418,10 +423,10 @@ export async function retryInstall(): Promise<void> {
     return;
   }
   installStatus.value = UpdateInstallStatus.Idle;
-  installError.value = null;
+  installErrorFacts.value = null;
   installStage.value = null;
   showInstallModal.value = false;
-  downloadFailed.value = false;
+  downloadError.value = null;
 
   if (availableUpdate.value) {
     await startDownload();
@@ -435,7 +440,7 @@ export function closeInstallModal(): void {
   showInstallModal.value = false;
   if (installStatus.value === UpdateInstallStatus.Failed) {
     installStatus.value = UpdateInstallStatus.Idle;
-    installError.value = null;
+    installErrorFacts.value = null;
     installStage.value = null;
   }
   if (justUpdatedInfo.value) {
@@ -446,7 +451,7 @@ export function closeInstallModal(): void {
 
 function beginInstallPresentation(): void {
   installStatus.value = UpdateInstallStatus.Installing;
-  installError.value = null;
+  installErrorFacts.value = null;
   installStage.value = null;
   showInstallModal.value = true;
   updatePopoverOpen.value = false;
@@ -455,17 +460,6 @@ function beginInstallPresentation(): void {
 function handleInstallFailure(error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
   installStatus.value = UpdateInstallStatus.Failed;
-  installError.value = message;
+  installErrorFacts.value = normalizeBackendError(error, 'updateInstall');
   writeUpdateLog(logError, `更新前端：install_update 调用失败，显示安装错误: ${message}`);
-}
-
-function handleDownloadFailure(error: unknown, fallbackTitle: string): void {
-  const message = error instanceof Error ? error.message : String(error);
-  writeUpdateLog(logError, `更新前端：download_update 调用失败，显示下载错误: ${message}`);
-  useToast().add({
-    title: fallbackTitle,
-    description: message,
-    icon: 'i-lucide-triangle-alert',
-    color: 'error',
-  });
 }

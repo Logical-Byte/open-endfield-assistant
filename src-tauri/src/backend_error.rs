@@ -1,15 +1,18 @@
 //! 对外错误只携带失败事实。原始诊断由命令边界记录到日志。
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(tag = "operation", content = "reason", rename_all = "camelCase")]
 #[ts(export, export_to = "errors/")]
 pub enum BackendError {
     Screenshot(ScreenshotError),
+    UpdateCheck(UpdateError),
+    UpdateDownload(UpdateError),
+    UpdateInstall(UpdateError),
 }
 
-#[derive(Debug, Clone, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[ts(export, export_to = "errors/")]
 pub enum ScreenshotError {
@@ -19,7 +22,7 @@ pub enum ScreenshotError {
 }
 
 /// 扫描与截图共用的可行动游戏环境事实，可作为 `anyhow` 错误链的类型化来源。
-#[derive(Debug, Clone, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[ts(export, export_to = "errors/")]
 pub enum GameEnvironmentError {
@@ -58,3 +61,33 @@ impl std::fmt::Display for GameEnvironmentError {
     }
 }
 impl std::error::Error for GameEnvironmentError {}
+
+/// 更新来源提供可行动原因，底层诊断只写日志。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[ts(export, export_to = "errors/")]
+pub enum UpdateError {
+    Busy,
+    NoUpdate,
+    ProxyConfiguration,
+    Network,
+    InvalidMetadata,
+    Service {
+        #[ts(type = "number")]
+        code: i64,
+    },
+    VersionMismatch {
+        expected: String,
+        actual: String,
+    },
+    PackageUnavailable {
+        version: String,
+    },
+    Integrity,
+    FileAccess,
+    DebugBuild,
+    InvalidPackage,
+    Preparation,
+    HelperStart,
+    Failed,
+}
