@@ -5,6 +5,56 @@
   "common": {
     "retrySave": "Retry saving"
   },
+  "errors": {
+    "automation": {
+      "captureFailed": "Unable to capture the game. Check the game window and try again.",
+      "failed": "Automation failed. Please check the logs.",
+      "navigationFailed": "Unable to navigate to the required game screen. Check the game screen and try again.",
+      "stoppedByUser": "Automation was stopped by the user.",
+      "threadStartFailed": "Unable to start the automation worker. Please try again."
+    },
+    "game": {
+      "hdrEnabled": "HDR is enabled on the game display. Turn off HDR and try again.",
+      "unsupportedResolution": "The game resolution {{width}}×{{height}} is unsupported. Use a 16:9 resolution.",
+      "windowSizeChanged": "The game window changed from {{expectedWidth}}×{{expectedHeight}} to {{actualWidth}}×{{actualHeight}}. Start the task again.",
+      "windowUnavailable": "The game window was not found. Open the game first."
+    },
+    "screenshot": {
+      "captureFailed": "The game image could not be captured. Check the logs for more information.",
+      "encodingFailed": "The screenshot could not be encoded. Check the logs for more information.",
+      "failed": "The screenshot failed. Check the logs for more information."
+    },
+    "update": {
+      "busy": "Another update operation is in progress. Try again later.",
+      "cancelled": "The update operation was cancelled.",
+      "checkFailed": "Could not check for updates. See the logs for details.",
+      "debugBuild": "Self-update is unavailable in development builds. Use a release build.",
+      "downloadFailed": "Could not download the update. See the logs for details.",
+      "failed": "The update operation failed. See the logs for details.",
+      "fileAccess": "Could not read or write update files. Check disk space and file permissions.",
+      "helperStart": "Could not start the update installer. See the logs and try again.",
+      "installFailed": "Could not install the update. See the logs for details.",
+      "integrity": "The update package failed the integrity check. Download it again.",
+      "invalidMetadata": "The update service returned invalid data. Try again later.",
+      "invalidPackage": "The update package is invalid or inaccessible. Download it again or choose a valid ZIP package.",
+      "network": "The update request failed. Check your network or proxy settings and try again.",
+      "noUpdate": "No update is ready. Check for or download an update first.",
+      "packageUnavailable": "No update package was found for version {{version}}. Choose another download source.",
+      "preparation": "Could not prepare the update files. See the logs and download the update again.",
+      "proxyConfiguration": "The proxy configuration is invalid. Check your update settings.",
+      "service": {
+        "banned": "Your MirrorChyan CDK has been banned.",
+        "cdkType": "Your MirrorChyan CDK type does not match this update resource.",
+        "expired": "Your MirrorChyan CDK has expired.",
+        "invalidCdk": "Your MirrorChyan CDK is invalid. Check the entered value.",
+        "limit": "Your MirrorChyan CDK has reached its daily download limit.",
+        "parameters": "The MirrorChyan request parameters are invalid. Contact the maintainer.",
+        "resource": "MirrorChyan has no resource for this system and architecture. Contact the maintainer.",
+        "unknown": "The update service returned error code {{code}}. See the logs for details."
+      },
+      "versionMismatch": "The download source version {{actual}} does not match the expected version {{expected}}. Try again later."
+    }
+  },
   "footer": {
     "poweredBy": "Powered by"
   },

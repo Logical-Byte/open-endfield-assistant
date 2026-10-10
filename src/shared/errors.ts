@@ -8,6 +8,7 @@ import type {
   UpdateErrorReason,
 } from '@/shared/types/errors';
 import { logError } from '@/features/log/ipc';
+import { t } from '@/shared/i18n';
 
 export type UpdateStage = 'check' | 'download' | 'install';
 
@@ -148,21 +149,127 @@ export function normalizeBackendError(value: unknown, context: ErrorContext): Er
   return { ...context, error: null };
 }
 
-/** 先适配结构化错误契约，详细原因翻译在下一层接入。 */
+export function formatGameEnvironmentError(reason: GameEnvironmentError): string {
+  switch (reason.kind) {
+    case 'windowUnavailable':
+      return t('errors.game.windowUnavailable');
+    case 'hdrEnabled':
+      return t('errors.game.hdrEnabled');
+    case 'unsupportedResolution':
+      return t('errors.game.unsupportedResolution', { width: reason.width, height: reason.height });
+    case 'windowSizeChanged':
+      return t('errors.game.windowSizeChanged', {
+        expectedWidth: reason.expected_width,
+        expectedHeight: reason.expected_height,
+        actualWidth: reason.actual_width,
+        actualHeight: reason.actual_height,
+      });
+  }
+}
+/** 在展示时格式化事实，持续错误随 UiLocale 更新。 */
 export function formatBackendError(facts: ErrorFacts): string {
-  switch (facts.operation) {
-    case 'automation':
-      return '自动化任务失败，请查看日志。';
-    case 'screenshot':
-      return '截图失败，请查看日志。';
-    case 'update':
-      switch (facts.stage) {
-        case 'check':
-          return '检查更新失败，请查看日志。';
-        case 'download':
-          return '下载更新失败，请查看日志。';
-        case 'install':
-          return '安装更新失败，请查看日志。';
+  if (!facts.error) {
+    switch (facts.operation) {
+      case 'automation':
+        return t('errors.automation.failed');
+      case 'screenshot':
+        return t('errors.screenshot.failed');
+      case 'update': {
+        const keys = {
+          check: 'errors.update.checkFailed',
+          download: 'errors.update.downloadFailed',
+          install: 'errors.update.installFailed',
+        } as const;
+        return t(keys[facts.stage]);
       }
+    }
+  }
+  switch (facts.operation) {
+    case 'automation': {
+      const error = facts.error;
+      if (error.scope === 'runtime') return t('errors.automation.threadStartFailed');
+      switch (error.kind) {
+        case 'capability':
+          switch (error.reason.kind) {
+            case 'gameEnvironment':
+              return formatGameEnvironmentError(error.reason.reason);
+            case 'captureFailed':
+              return t('errors.automation.captureFailed');
+            case 'executionFailed':
+              return t('errors.automation.failed');
+            case 'stoppedByUser':
+              return t('errors.automation.stoppedByUser');
+          }
+        case 'custom':
+          return error.message;
+        case 'navigationFailed':
+          return t('errors.automation.navigationFailed');
+      }
+    }
+    case 'update':
+      return formatUpdateError(facts.error.reason);
+    case 'screenshot':
+      switch (facts.error.kind) {
+        case 'gameEnvironment':
+          return formatGameEnvironmentError(facts.error.reason);
+        case 'captureFailed':
+          return t('errors.screenshot.captureFailed');
+        case 'encodingFailed':
+          return t('errors.screenshot.encodingFailed');
+      }
+  }
+}
+
+function formatUpdateError(reason: UpdateErrorReason): string {
+  switch (reason.kind) {
+    case 'cancelled':
+      return t('errors.update.cancelled');
+    case 'service': {
+      const keys: Partial<Record<number, import('@/shared/i18n').MessageKey>> = {
+        1001: 'errors.update.service.parameters',
+        7001: 'errors.update.service.expired',
+        7002: 'errors.update.service.invalidCdk',
+        7003: 'errors.update.service.limit',
+        7004: 'errors.update.service.cdkType',
+        7005: 'errors.update.service.banned',
+        8001: 'errors.update.service.resource',
+        8002: 'errors.update.service.parameters',
+        8003: 'errors.update.service.parameters',
+        8004: 'errors.update.service.parameters',
+      };
+      const key = keys[reason.code];
+      return key ? t(key) : t('errors.update.service.unknown', { code: reason.code });
+    }
+    case 'versionMismatch':
+      return t('errors.update.versionMismatch', {
+        expected: reason.expected,
+        actual: reason.actual,
+      });
+    case 'packageUnavailable':
+      return t('errors.update.packageUnavailable', { version: reason.version });
+    case 'busy':
+      return t('errors.update.busy');
+    case 'noUpdate':
+      return t('errors.update.noUpdate');
+    case 'proxyConfiguration':
+      return t('errors.update.proxyConfiguration');
+    case 'network':
+      return t('errors.update.network');
+    case 'invalidMetadata':
+      return t('errors.update.invalidMetadata');
+    case 'integrity':
+      return t('errors.update.integrity');
+    case 'fileAccess':
+      return t('errors.update.fileAccess');
+    case 'debugBuild':
+      return t('errors.update.debugBuild');
+    case 'invalidPackage':
+      return t('errors.update.invalidPackage');
+    case 'preparation':
+      return t('errors.update.preparation');
+    case 'helperStart':
+      return t('errors.update.helperStart');
+    case 'failed':
+      return t('errors.update.failed');
   }
 }
