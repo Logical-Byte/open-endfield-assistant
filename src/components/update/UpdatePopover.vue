@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
+import { formatBackendError } from '@/shared/errors';
 import { DownloadProgress } from '@/features/update/types/update';
 import { automationStatus } from '@/features/automation/state';
 import {
@@ -139,7 +140,7 @@ function formatSpeed(bytesPerSecond: number): string {
           <p class="font-semibold">{{ t('update.check.failed') }}</p>
         </div>
         <p class="text-sm whitespace-pre-wrap text-toned">
-          {{ updateCheckState.error.message }}
+          {{ formatBackendError(updateCheckState.error) }}
         </p>
         <UButton color="neutral" :label="t('update.viewLogs')" to="/log" variant="link" />
         <UButton block icon="i-lucide-rotate-cw" :label="t('update.retry')" @click="checkUpdate" />
@@ -236,6 +237,7 @@ function formatSpeed(bytesPerSecond: number): string {
           v-else-if="downloadState.status === 'failed'"
           class="flex items-center justify-between gap-2 rounded-md bg-error/10 p-3"
         >
+          <p class="text-sm text-error">{{ formatBackendError(downloadState.error) }}</p>
           <UButton
             color="error"
             :label="t('update.retry')"

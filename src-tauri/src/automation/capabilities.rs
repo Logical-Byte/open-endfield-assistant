@@ -2,7 +2,9 @@
 
 use std::time::Duration;
 
-use anyhow::Result;
+mod error;
+use crate::automation::capabilities;
+pub use error::Error;
 use image::RgbaImage;
 
 use crate::utils::{point::Point2D, region::Region2D};
@@ -55,17 +57,17 @@ pub struct TemplateMatch {
 /// 为需要显式获取识别帧的工作流提供截图能力。
 pub trait ScreenCapture {
     /// 获取一张缩放到 1280x720 基准分辨率的新截图。
-    fn screenshot(&mut self) -> Result<RgbaImage>;
+    fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error>;
 }
 
 /// 为工作流提供基于 720p 坐标和逻辑按键的输入能力。
 pub trait Input {
     /// 点击 720p 基准坐标，并执行生产输入器约定的鼠标归位。
-    fn click(&mut self, point: Point720p) -> Result<()>;
+    fn click(&mut self, point: Point720p) -> Result<(), capabilities::Error>;
     /// 按下并松开一个逻辑按键。
-    fn press_key(&mut self, key: Key) -> Result<()>;
+    fn press_key(&mut self, key: Key) -> Result<(), capabilities::Error>;
     /// 将鼠标移到不会干扰后续识别的安全位置。
-    fn move_mouse_to_safe_position(&mut self) -> Result<()>;
+    fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error>;
 }
 
 /// 在工作流提供的截图中查找模板。
@@ -77,7 +79,7 @@ pub trait TemplateMatching {
         &mut self,
         screenshot: &RgbaImage,
         target: &TemplateTarget,
-    ) -> Result<Option<TemplateMatch>>;
+    ) -> Result<Option<TemplateMatch>, capabilities::Error>;
 }
 
 /// 为需要读取界面文字的工作流提供 OCR 能力。
@@ -87,7 +89,7 @@ pub trait Ocr {
         &mut self,
         screenshot: &RgbaImage,
         region: Region2D<u32>,
-    ) -> Result<Option<String>>;
+    ) -> Result<Option<String>, capabilities::Error>;
 }
 
 /// 为声明式导航和业务工作流提供可替换的计时能力。

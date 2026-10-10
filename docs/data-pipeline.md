@@ -139,3 +139,11 @@ Tagged union 生成 TypeScript 时可能丢失分支或字段的注释；需要�
 ## 增加其他数据领域
 
 新增数据领域时，可以沿用 `resource` 生成、后端从 `resource` 投影、定义并生成前端契约的流程，分别拥有自己的 namespace 和生成文件目录。
+
+## 自动化契约归属
+
+`automation` 拥有任务生命周期、`WorkerType` 和线程启动失败事实。
+游戏会话拥有可复用的环境与捕获失败事实，具体任务负责将其转换成通用的 `automation::Error::Worker` 原因。
+`automation::archive_scan` 拥有档案扫描结果、扫描顺序和中文标题纠正规则。
+命令与事件使用所属领域的错误类型，不增加跨领域的统一错误包装。
+`UiLocale` 和 `GameLocale` 是共享语言类型，系统默认应用语言由设置模块通过平台能力选择。

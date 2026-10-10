@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use anyhow::Result;
+use crate::automation::capabilities;
 use image::RgbaImage;
 
 use crate::{
@@ -16,24 +16,24 @@ use crate::{
 use super::Capture;
 
 impl<C: Input + ?Sized> Input for Capture<'_, C> {
-    fn click(&mut self, point: Point720p) -> Result<()> {
+    fn click(&mut self, point: Point720p) -> Result<(), capabilities::Error> {
         self.calls.click += 1;
         self.inner.click(point)
     }
 
-    fn press_key(&mut self, key: Key) -> Result<()> {
+    fn press_key(&mut self, key: Key) -> Result<(), capabilities::Error> {
         self.calls.press_key += 1;
         self.inner.press_key(key)
     }
 
-    fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+    fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
         self.calls.move_mouse_to_safe_position += 1;
         self.inner.move_mouse_to_safe_position()
     }
 }
 
 impl<C: ScreenCapture + ?Sized> ScreenCapture for Capture<'_, C> {
-    fn screenshot(&mut self) -> Result<RgbaImage> {
+    fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
         self.calls.screenshot += 1;
         self.inner.screenshot()
     }
@@ -44,7 +44,7 @@ impl<C: TemplateMatching + ?Sized> TemplateMatching for Capture<'_, C> {
         &mut self,
         screenshot: &RgbaImage,
         target: &TemplateTarget,
-    ) -> Result<Option<TemplateMatch>> {
+    ) -> Result<Option<TemplateMatch>, capabilities::Error> {
         self.calls.find_template += 1;
         self.inner.find_template(screenshot, target)
     }
@@ -55,7 +55,7 @@ impl<C: Ocr + ?Sized> Ocr for Capture<'_, C> {
         &mut self,
         screenshot: &RgbaImage,
         region: Region2D<u32>,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<String>, capabilities::Error> {
         self.calls.recognize_text += 1;
         self.inner.recognize_text(screenshot, region)
     }

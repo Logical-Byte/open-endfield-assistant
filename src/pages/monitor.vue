@@ -3,6 +3,8 @@ import type { ScreenshotFormat } from '@/features/monitor/types/screenshot';
 import { screenshot } from '@/features/monitor/ipc';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useAppI18n } from '@/shared/i18n';
+import { formatBackendError, normalizeBackendError } from '@/shared/errors';
+import type { ErrorFacts } from '@/shared/errors';
 
 const { t, d, n } = useAppI18n();
 
@@ -32,8 +34,8 @@ const format = ref<ScreenshotFormat>('jpeg');
 const running = ref(false);
 const imageUrl = ref<string | null>(null);
 const lastCaptureAt = ref<Date | null>(null);
-const error = ref<string | null>(null);
-const errorSummary = computed(() => error.value);
+const error = ref<ErrorFacts | null>(null);
+const errorSummary = computed(() => (error.value ? formatBackendError(error.value) : null));
 const monitoringSummary = computed(() =>
   lastCaptureAt.value
     ? t('monitor.updated', {
@@ -58,7 +60,7 @@ async function captureOnce(): Promise<void> {
     lastCaptureAt.value = new Date();
     error.value = null;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err);
+    error.value = normalizeBackendError(err, { operation: 'screenshot' });
   } finally {
     capturing = false;
   }

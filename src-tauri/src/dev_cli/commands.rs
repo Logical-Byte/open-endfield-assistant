@@ -92,7 +92,7 @@ pub(super) fn execute(command: &Command) -> std::result::Result<Output, Error> {
         Command::Screenshot { output, crop } => {
             let mut session = connect()?;
             let (width, height) = session.client_size();
-            let mut image = session.screenshot()?;
+            let mut image = session.screenshot().map_err(anyhow::Error::new)?;
             let normalized_size = json!({"width":image.width(),"height":image.height()});
             if let Some(crop) = crop {
                 crop.validate(image.width(), image.height())
@@ -121,7 +121,7 @@ pub(super) fn execute(command: &Command) -> std::result::Result<Output, Error> {
         }
         Command::Match { template, region } => {
             let mut session = connect()?;
-            let image = session.screenshot()?;
+            let image = session.screenshot().map_err(anyhow::Error::new)?;
             let input = json!({"kind":"game", "width":image.width(),"height":image.height()});
             match_image(command.name(), &image, input, template, *region).map_err(Error::from)
         }
@@ -137,6 +137,7 @@ fn connect() -> std::result::Result<automation::Session, Error> {
         let paths = app_paths::AppPaths::new().map_err(anyhow::Error::msg)?;
         let ocr = vision::ocr::OcrEngine::new(&paths.models_dir(), vision::ocr::Config::default())?;
         automation::Session::connect(&Arc::new(Mutex::new(ocr)), automation::new_stop_token())
+            .map_err(anyhow::Error::new)
             .map_err(Error::from)
     }
     #[cfg(not(windows))]
