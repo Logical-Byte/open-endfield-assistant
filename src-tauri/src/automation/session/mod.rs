@@ -146,7 +146,7 @@ impl Session {
     /// 检查是否收到停止信号，收到则返回 [`AutomationStopped`] 中断执行。
     ///
     /// 停止不是"任务出错"：上层用 `downcast_ref::<AutomationStopped>()` 区分。
-    fn check_stop(&self) -> Result<()> {
+    pub(super) fn check_stop(&self) -> Result<()> {
         if is_stop_requested(&self.stop) {
             Err(AutomationStopped.into())
         } else {

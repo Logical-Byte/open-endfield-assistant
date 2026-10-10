@@ -4,21 +4,17 @@
 
 use ts_rs::TS;
 
-mod constants;
-mod correction;
-mod plan;
+mod ocr_correction;
 mod reporting;
-mod scan_loop;
 mod simulation_worker;
 mod worker;
-mod workflow;
 
 #[cfg(feature = "cli")]
-pub(crate) use constants::OCR_ROI;
+pub(crate) use worker::OCR_ROI;
 
 pub(crate) use reporting::ScannedItem;
-pub(crate) use simulation_worker::SimulatedArchiveScanWorker;
-pub(crate) use worker::ArchiveScanWorker;
+pub(crate) use simulation_worker::SimulationWorker;
+pub(crate) use worker::Worker;
 
 #[derive(serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
