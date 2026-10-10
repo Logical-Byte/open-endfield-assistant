@@ -9,6 +9,7 @@ pub use dev_cli::run_dev_cli;
 
 pub mod app_paths;
 pub mod automation;
+pub mod backend_error;
 pub mod controller;
 pub mod data;
 pub mod locale;

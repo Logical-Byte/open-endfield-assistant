@@ -5,7 +5,7 @@
 
 use std::sync::{Mutex, OnceLock};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use tauri::{
     AppHandle, Listener, Manager, Wry,
     menu::{MenuBuilder, MenuItem},
@@ -13,13 +13,37 @@ use tauri::{
 };
 use tracing::info;
 
-use crate::{automation, controller::Controller};
+use crate::{automation, controller::Controller, locale::UiLocale};
 
 /// 全局托盘图标引用，供后续动态更新图标 / tooltip。
 static TRAY_ICON: OnceLock<Mutex<Option<TrayIcon>>> = OnceLock::new();
 
-/// 全局"开始/停止扫描"菜单项引用，随扫描档案库任务运行状态动态切换文案。
-static TRAY_TOGGLE_ITEM: OnceLock<Mutex<Option<MenuItem<Wry>>>> = OnceLock::new();
+/// 菜单句柄统一保存，刷新只改变文字，不替换菜单操作。
+struct TrayItems {
+    show: MenuItem<Wry>,
+    toggle: MenuItem<Wry>,
+    quit: MenuItem<Wry>,
+}
+static TRAY_ITEMS: OnceLock<Mutex<Option<TrayItems>>> = OnceLock::new();
+
+fn menu_text(locale: UiLocale, running: bool) -> (&'static str, &'static str, &'static str) {
+    match locale {
+        UiLocale::ZhCn => (
+            "显示主窗口",
+            if running {
+                "停止扫描"
+            } else {
+                "开始扫描"
+            },
+            "退出",
+        ),
+        UiLocale::EnUs => (
+            "Show main window",
+            if running { "Stop scan" } else { "Start scan" },
+            "Quit",
+        ),
+    }
+}
 
 /// 显示并聚焦主窗口（最小化时先还原）。
 fn show_main_window(app_handle: &AppHandle) {
@@ -30,30 +54,43 @@ fn show_main_window(app_handle: &AppHandle) {
     }
 }
 
-/// 更新"开始/停止扫描"菜单项文案，使其与扫描档案库任务运行状态同步。
-fn update_toggle_item(running: bool) {
-    let text = if running {
-        "停止扫描"
-    } else {
-        "开始扫描"
-    };
-    let Some(toggle) = TRAY_TOGGLE_ITEM.get() else {
+/// 按有效应用语言刷新菜单，并让扫描菜单文案与任务运行状态同步。
+fn update_items(app: &AppHandle, running: bool) {
+    let Some(controller) = app.try_state::<Controller>() else {
         return;
     };
-    let Ok(guard) = toggle.lock() else {
+    let text = menu_text(controller.settings_snapshot().ui_locale, running);
+    let Some(items) = TRAY_ITEMS.get() else {
         return;
     };
-    if let Some(item) = guard.as_ref() {
-        let _ = item.set_text(text);
+    let Ok(guard) = items.lock() else {
+        return;
+    };
+    if let Some(items) = guard.as_ref() {
+        let _ = items.show.set_text(text.0);
+        let _ = items.toggle.set_text(text.1);
+        let _ = items.quit.set_text(text.2);
+    }
+}
+
+/// 设置成功提交后刷新托盘语言，自动化状态和菜单动作保持原样。
+pub(super) fn refresh_locale(app: &AppHandle) {
+    if let Some(controller) = app.try_state::<Controller>() {
+        update_items(app, controller.automation_status().is_active());
     }
 }
 
 /// 初始化系统托盘（在 `setup` 中、`Controller` 托管之后调用）。
-pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
+pub fn init_tray(app_handle: &AppHandle) -> anyhow::Result<()> {
+    let controller = app_handle.state::<Controller>();
+    let text = menu_text(
+        controller.settings_snapshot().ui_locale,
+        controller.automation_status().is_active(),
+    );
     // 托盘菜单项：开始/停止扫描合并为一个动态切换项
-    let show_item = MenuItem::with_id(app_handle, "show", "显示主窗口", true, None::<&str>)?;
-    let toggle_item = MenuItem::with_id(app_handle, "toggle", "开始扫描", true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app_handle, "quit", "退出", true, None::<&str>)?;
+    let show_item = MenuItem::with_id(app_handle, "show", text.0, true, None::<&str>)?;
+    let toggle_item = MenuItem::with_id(app_handle, "toggle", text.1, true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app_handle, "quit", text.2, true, None::<&str>)?;
 
     let menu = MenuBuilder::new(app_handle)
         .item(&show_item)
@@ -110,24 +147,25 @@ pub fn init_tray(app_handle: &AppHandle) -> Result<()> {
         *guard = Some(tray);
     }
 
-    // 保存"开始/停止扫描"菜单项引用，用于随运行状态切换文案。
-    // 注意：guard 必须在此作用域内释放，否则下方 update_toggle_item 在同一线程
-    // 重入 lock 同一个非重入 Mutex 会死锁（曾导致窗口打开即未响应）。
     {
-        let toggle_mutex = TRAY_TOGGLE_ITEM.get_or_init(|| Mutex::new(None));
-        let mut toggle_guard = toggle_mutex.lock().unwrap_or_else(|e| e.into_inner());
-        *toggle_guard = Some(toggle_item);
+        let items = TRAY_ITEMS.get_or_init(|| Mutex::new(None));
+        *items.lock().unwrap_or_else(|e| e.into_inner()) = Some(TrayItems {
+            show: show_item,
+            toggle: toggle_item,
+            quit: quit_item,
+        });
     }
 
     // 订阅运行状态事件：扫描档案库任务启动 / 结束都会推送，据此切换菜单文案
-    app_handle.listen("automation-status-changed", |event| {
+    let event_app = app_handle.clone();
+    app_handle.listen("automation-status-changed", move |event| {
         if let Ok(status) = serde_json::from_str::<automation::Status>(event.payload()) {
-            update_toggle_item(status.is_active());
+            update_items(&event_app, status.is_active());
         }
     });
-    // 同步初始状态（启动时未运行，菜单已显示"开始扫描"）
+    // 同步初始状态。
     if let Some(controller) = app_handle.try_state::<Controller>() {
-        update_toggle_item(controller.automation_status().is_active());
+        update_items(app_handle, controller.automation_status().is_active());
     }
 
     info!("系统托盘初始化完成");
