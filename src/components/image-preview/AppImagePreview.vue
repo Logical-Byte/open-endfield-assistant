@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import { useImagePreviewHost } from '@/composables/image-preview/useImagePreviewHost';
 import { useTemplateRef } from 'vue';
+
+const { t, n } = useAppI18n();
 
 const overlayRef = useTemplateRef('overlayRef');
 const imgRef = useTemplateRef('imgRef');
@@ -68,24 +71,38 @@ const {
             {{ naturalWidth }} × {{ naturalHeight }}
           </p>
           <div class="flex shrink-0 items-center gap-1">
-            <UTooltip :kbds="['-']" text="缩小">
-              <UButton color="neutral" icon="i-lucide-minus" variant="ghost" @click="zoomOut" />
-            </UTooltip>
-            <UTooltip :kbds="['0']" text="重置视图">
+            <UTooltip :kbds="['-']" :text="t('image.zoomOut')">
               <UButton
+                :aria-label="t('image.zoomOut')"
+                color="neutral"
+                icon="i-lucide-minus"
+                variant="ghost"
+                @click="zoomOut"
+              />
+            </UTooltip>
+            <UTooltip :kbds="['0']" :text="t('image.reset')">
+              <UButton
+                :aria-label="t('image.reset')"
                 class="min-w-16 justify-center text-sm"
                 color="neutral"
                 variant="ghost"
                 @click="resetView()"
               >
-                {{ Math.round(scale * 100) }}%
+                {{ n(scale, 'percent') }}
               </UButton>
             </UTooltip>
-            <UTooltip :kbds="['=']" text="放大">
-              <UButton color="neutral" icon="i-lucide-plus" variant="ghost" @click="zoomIn" />
-            </UTooltip>
-            <UTooltip :kbds="['R']" text="顺时针旋转 90°">
+            <UTooltip :kbds="['=']" :text="t('image.zoomIn')">
               <UButton
+                :aria-label="t('image.zoomIn')"
+                color="neutral"
+                icon="i-lucide-plus"
+                variant="ghost"
+                @click="zoomIn"
+              />
+            </UTooltip>
+            <UTooltip :kbds="['R']" :text="t('image.rotateClockwise')">
+              <UButton
+                :aria-label="t('image.rotateClockwise')"
                 color="neutral"
                 icon="i-lucide-rotate-cw"
                 variant="ghost"
@@ -94,15 +111,21 @@ const {
             </UTooltip>
             <div class="mx-1 h-5 w-px bg-accented" />
             <UPopover mode="click" :ui="{ content: 'p-4' }">
-              <UTooltip text="更改背景颜色">
-                <UButton color="neutral" icon="i-lucide-palette" variant="ghost" />
+              <UTooltip :text="t('image.background')">
+                <UButton
+                  :aria-label="t('image.background')"
+                  color="neutral"
+                  icon="i-lucide-palette"
+                  variant="ghost"
+                />
               </UTooltip>
               <template #content>
                 <UColorPicker v-model="backgroundColor" />
               </template>
             </UPopover>
-            <UTooltip :kbds="['O']" text="在新标签页中打开图像">
+            <UTooltip :kbds="['O']" :text="t('image.openTab')">
               <UButton
+                :aria-label="t('image.openTab')"
                 color="neutral"
                 icon="i-lucide-external-link"
                 rel="noopener noreferrer"
@@ -111,12 +134,19 @@ const {
                 variant="ghost"
               />
             </UTooltip>
-            <UTooltip :kbds="['meta', 'S']" text="下载">
-              <UButton color="neutral" icon="i-lucide-download" variant="ghost" @click="download" />
+            <UTooltip :kbds="['meta', 'S']" :text="t('image.download')">
+              <UButton
+                :aria-label="t('image.download')"
+                color="neutral"
+                icon="i-lucide-download"
+                variant="ghost"
+                @click="download"
+              />
             </UTooltip>
             <UPopover mode="click" :ui="{ content: 'w-80 p-4' }">
-              <UTooltip text="帮助">
+              <UTooltip :text="t('image.help')">
                 <UButton
+                  :aria-label="t('image.help')"
                   color="neutral"
                   icon="i-lucide-circle-question-mark"
                   size="lg"
@@ -127,8 +157,14 @@ const {
                 <ImagePreviewHelpMenu />
               </template>
             </UPopover>
-            <UTooltip :kbds="['escape']" text="关闭">
-              <UButton color="neutral" icon="i-lucide-x" variant="ghost" @click="close" />
+            <UTooltip :kbds="['escape']" :text="t('image.close')">
+              <UButton
+                :aria-label="t('image.close')"
+                color="neutral"
+                icon="i-lucide-x"
+                variant="ghost"
+                @click="close"
+              />
             </UTooltip>
           </div>
         </div>
