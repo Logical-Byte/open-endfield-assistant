@@ -16,6 +16,7 @@ pub mod dialog;
 pub mod file;
 pub mod hotkey;
 pub mod input;
+pub mod locale;
 pub mod proxy;
 pub mod sound;
 pub mod update;

@@ -17,20 +17,31 @@ import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';
 import { computed, watch } from 'vue';
+import { en, zh_cn } from '@nuxt/ui/locale';
+import { i18n, t } from '@/shared/i18n';
+import { bindTranslatedToasts, useTranslatedToast } from '@/shared/i18n/toast';
 import { useRoute, useRouter } from 'vue-router';
 
-const toast = useToast();
+const toast = useTranslatedToast();
+bindTranslatedToasts();
+watch(
+  settingsState,
+  (state) => {
+    if (state.status === 'ready') i18n.global.locale.value = state.effective.uiLocale;
+  },
+  { immediate: true },
+);
+const componentLocale = computed(() => (i18n.global.locale.value === 'zh-CN' ? zh_cn : en));
 const route = useRoute();
 const router = useRouter();
 // 扫描提示也能触发设置保存，失败通知放在应用层以覆盖设置页以外的操作。
 watch(settingsSaveError, (error) => {
   if (error) {
-    toast.add({
-      title: '设置未保存',
-      description: '已保留当前编辑，应用仍使用最近一次成功保存的设置。',
-      color: 'error',
-      actions: [{ label: '重试保存', onClick: retrySettingsSave }],
-    });
+    toast.add({ color: 'error' }, () => ({
+      title: t('settings.save.failed.title'),
+      description: t('settings.save.failed.description'),
+      actions: [{ label: t('common.retrySave'), onClick: retrySettingsSave }],
+    }));
   }
 });
 
@@ -45,12 +56,11 @@ watch([settingsState, () => route.path], ([state, path]) => {
   if (path === '/settings' || settingsInitializeErrorNotified) return;
 
   settingsInitializeErrorNotified = true;
-  toast.add({
-    title: '设置初始化失败',
-    description: '自动更新和扫描提示暂时不会使用用户设置。',
-    color: 'error',
-    actions: [{ label: '前往设置', onClick: () => router.push('/settings') }],
-  });
+  toast.add({ color: 'error' }, () => ({
+    title: t('settings.initialize.failed.title'),
+    description: t('settings.initialize.failed.description'),
+    actions: [{ label: t('settings.initialize.open'), onClick: () => router.push('/settings') }],
+  }));
 });
 
 const colorMode = useColorMode();
@@ -58,6 +68,7 @@ const themeColor = computed(() => (colorMode.value === 'dark' ? '#18181b' : '#ff
 const { style, link } = useTheme();
 
 useHead({
+  htmlAttrs: { lang: i18n.global.locale },
   style,
   link,
   meta: [{ name: 'theme-color', content: themeColor }],
@@ -82,7 +93,7 @@ void initApp();
 
 <template>
   <Suspense>
-    <UApp :toaster="{ position: 'bottom-right', max: 8, expand: true }">
+    <UApp :locale="componentLocale" :toaster="{ position: 'bottom-right', max: 8, expand: true }">
       <div class="flex h-full flex-col">
         <TitleBar />
         <AppHeader class="static z-auto backdrop-blur-none" />

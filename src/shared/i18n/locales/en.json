@@ -1,0 +1,21 @@
+{
+  "common.retrySave": "Retry saving",
+  "settings.initialize.failed.description": "Automatic updates and scan guidance cannot use your settings yet.",
+  "settings.initialize.failed.pageDescription": "Could not load settings from the backend. Interface scaling and developer features remain available.",
+  "settings.initialize.failed.title": "Could not initialize settings",
+  "settings.initialize.open": "Open settings",
+  "settings.initialize.retry": "Retry initialization",
+  "settings.language.application.description": "Choose the language for the interface and notifications. Changes apply after saving automatically.",
+  "settings.language.application.title": "Application language",
+  "settings.language.game.description": "Used for game recognition and archive titles. Only Simplified Chinese is currently supported.",
+  "settings.language.game.fixed": "Simplified Chinese",
+  "settings.language.game.title": "Game language",
+  "settings.language.section": "Language",
+  "settings.language.shortcut": "Language / 语言设置",
+  "settings.save.failed.description": "Your edits are preserved. The application still uses the last successfully saved settings.",
+  "settings.save.failed.title": "Settings were not saved",
+  "settings.unavailable": "Settings unavailable",
+  "settings.unsupported.description": "Browser mode previews the interface. Run the desktop application to load and edit settings.",
+  "settings.unsupported.label": "Unavailable in browser",
+  "settings.unsupported.title": "Application settings are unavailable in browser mode"
+}

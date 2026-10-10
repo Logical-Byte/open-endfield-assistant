@@ -3,7 +3,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use ts_rs::TS;
@@ -13,7 +12,7 @@ use crate::storage::CachedJsonFile;
 /// 当前设置文件主要版本号
 pub const CURRENT_MAJOR_VERSION: u32 = 0;
 /// 当前设置文件次要版本号
-pub const CURRENT_MINOR_VERSION: u32 = 0;
+pub const CURRENT_MINOR_VERSION: u32 = 1;
 
 /// 更新源。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -42,6 +41,8 @@ pub enum UpdateProxyMode {
 #[serde(default, rename_all = "camelCase")]
 #[ts(export, export_to = "settings/")]
 pub struct OeaSettings {
+    /// 应用语言。缺失字段采用当前用户系统界面语言。
+    pub ui_locale: crate::locale::UiLocale,
     /// 设置文件主要版本号，产生不兼容变更（改变字段结构或者删除字段）时，增加 `majorVersion` 的值
     pub major_version: u32,
     /// 设置文件次要版本号，产生兼容变更（添加新字段但不改变原有字段的结构）时，增加 `minorVersion` 的值
@@ -77,6 +78,7 @@ pub struct OeaSettings {
 impl Default for OeaSettings {
     fn default() -> Self {
         Self {
+            ui_locale: crate::locale::UiLocale::default(),
             major_version: CURRENT_MAJOR_VERSION,
             minor_version: CURRENT_MINOR_VERSION,
             minimize_to_tray: false,
@@ -122,7 +124,7 @@ impl SettingsStore {
     }
 
     /// 保存完整设置。文件提交成功后才会发布新的内存快照。
-    pub fn save(&self, settings: OeaSettings) -> Result<()> {
+    pub fn save(&self, settings: OeaSettings) -> anyhow::Result<()> {
         self.file.replace(settings)
     }
 
@@ -156,6 +158,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("test_settings.json");
         let original_settings = OeaSettings {
+            ui_locale: crate::locale::UiLocale::EnUs,
             major_version: 1,
             minor_version: 0,
             minimize_to_tray: true,
