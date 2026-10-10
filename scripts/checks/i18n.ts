@@ -9,11 +9,20 @@ function error(message: string): void {
   failed = true;
 }
 for (const locale of locales) {
-  const path = new URL(`../src/shared/i18n/locales/${locale}.json`, import.meta.url);
+  const path = new URL(`../../src/shared/i18n/locales/${locale}.json`, import.meta.url);
   const dictionary: Record<string, string> = JSON.parse(await readFile(path, 'utf8'));
   dictionaries[locale] = dictionary;
   const keys = Object.keys(dictionary);
   const sorted = [...keys].sort();
+  // flatJson 会把点分隔的 key 展开为对象。同一路径不能既是消息又是父节点。
+  const keySet = new Set(keys);
+  for (const key of keys) {
+    const segments = key.split('.');
+    for (let index = 1; index < segments.length; index++) {
+      const parent = segments.slice(0, index).join('.');
+      if (keySet.has(parent)) error(`${locale}: message key ${parent} conflicts with ${key}`);
+    }
+  }
   if (process.argv.includes('--fix')) {
     await writeFile(
       path,

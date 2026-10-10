@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useTranslatedToast } from '@/shared/i18n/toast';
-import { useAppI18n } from '@/shared/i18n';
+import { I18nT } from 'vue-i18n';
+import { useAppI18n, type MessageKey } from '@/shared/i18n';
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import {
   settingsSaveError,
@@ -17,7 +18,7 @@ import { oeaVersion } from '@/version';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-const { t } = useAppI18n();
+const { t, n } = useAppI18n();
 const route = useRoute();
 const router = useRouter();
 
@@ -86,10 +87,10 @@ async function manualCheckUpdate(): Promise<void> {
 /** 设置分类目录：`id` 同时用作滚动锚点。 */
 const sections = computed(() => [
   { id: 'language', icon: 'i-lucide-languages', title: t('settings.language.section') },
-  { id: 'interface', icon: 'i-lucide-layout-panel-left', title: '界面设置' },
-  { id: 'sound', icon: 'i-lucide-headphones', title: '声音设置' },
-  { id: 'update', icon: 'i-lucide-download', title: '更新设置' },
-  { id: 'developer', icon: 'i-lucide-code-2', title: '开发者选项' },
+  { id: 'interface', icon: 'i-lucide-layout-panel-left', title: t('settings.interface.section') },
+  { id: 'sound', icon: 'i-lucide-headphones', title: t('settings.sound.section') },
+  { id: 'update', icon: 'i-lucide-download', title: t('settings.update.section') },
+  { id: 'developer', icon: 'i-lucide-code-2', title: t('settings.developer.section') },
 ]);
 
 /** 当前高亮的设置分类 id。 */
@@ -170,6 +171,7 @@ const stopScrollToHash = router.afterEach((to) => {
               :color="activeSectionId === section.id ? 'primary' : 'neutral'"
               :icon="section.icon"
               :label="section.title"
+              :ui="{ label: 'overflow-visible text-start text-clip whitespace-normal' }"
               :variant="activeSectionId === section.id ? 'soft' : 'ghost'"
               @click="scrollToSection(section.id)"
             />
@@ -234,36 +236,49 @@ const stopScrollToHash = router.afterEach((to) => {
           id="interface"
           class="scroll-mt-8"
           icon="i-lucide-layout-panel-left"
-          title="界面设置"
+          :title="t('settings.interface.section')"
         >
           <SettingsItem
-            description="设置应用窗口的缩放比例，影响所有界面元素的大小"
+            :description="t('settings.interface.scale.description')"
             icon="i-lucide-zoom-in"
-            title="缩放比例"
+            :title="t('settings.interface.scale.title')"
           >
             <div v-if="!settingsUnsupported" class="flex w-56 items-center gap-2">
               <div class="flex-1">
-                <USlider v-model="uiScaleNumber" :max="2" :min="0.5" :step="0.05" tooltip />
+                <USlider
+                  v-model="uiScaleNumber"
+                  :aria-label="t('settings.interface.scale.title')"
+                  :max="2"
+                  :min="0.5"
+                  :step="0.05"
+                  tooltip
+                />
                 <div class="mt-1 flex justify-between text-xs text-dimmed tabular-nums">
-                  <span>50%</span>
-                  <span>100%</span>
-                  <span>150%</span>
-                  <span>200%</span>
+                  <span>{{ n(0.5, 'percent') }}</span>
+                  <span>{{ n(1, 'percent') }}</span>
+                  <span>{{ n(1.5, 'percent') }}</span>
+                  <span>{{ n(2, 'percent') }}</span>
                 </div>
               </div>
-              <span class="w-12 shrink-0 text-end text-sm tabular-nums"
-                >{{ Math.round(uiScaleNumber * 100) }}%</span
-              >
+              <span class="w-12 shrink-0 text-end text-sm tabular-nums">{{
+                n(uiScaleNumber, 'percent')
+              }}</span>
             </div>
-            <UBadge v-else color="neutral" label="浏览器中不可用" variant="subtle" />
+            <UBadge
+              v-else
+              color="neutral"
+              :label="t('settings.unsupported.label')"
+              variant="subtle"
+            />
           </SettingsItem>
           <SettingsItem
-            description="点击窗口关闭按钮时隐藏到系统托盘而不是退出，可通过托盘菜单或 Alt+Delete 退出"
+            :description="t('settings.interface.tray.description')"
             icon="i-lucide-panel-bottom-close"
-            title="关闭时最小化到托盘"
+            :title="t('settings.interface.tray.title')"
           >
             <USwitch
               v-if="draftSettings"
+              :aria-label="t('settings.interface.tray.title')"
               :model-value="draftSettings.minimizeToTray"
               @update:model-value="editSettings({ minimizeToTray: $event })"
             />
@@ -271,12 +286,13 @@ const stopScrollToHash = router.afterEach((to) => {
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
           <SettingsItem
-            description="进入档案扫描页时显示操作指引，关闭后若无更新则不再提示，可随时重新开启"
+            :description="t('settings.interface.guide.description')"
             icon="i-lucide-circle-help"
-            title="显示新手操作提示"
+            :title="t('settings.interface.guide.title')"
           >
             <USwitch
               v-if="draftSettings"
+              :aria-label="t('settings.interface.guide.title')"
               :model-value="draftSettings.scanGuideEnabled"
               @update:model-value="editSettings({ scanGuideEnabled: $event })"
             />
@@ -285,14 +301,20 @@ const stopScrollToHash = router.afterEach((to) => {
           </SettingsItem>
         </SettingsCard>
 
-        <SettingsCard id="sound" class="scroll-mt-8" icon="i-lucide-headphones" title="声音设置">
+        <SettingsCard
+          id="sound"
+          class="scroll-mt-8"
+          icon="i-lucide-headphones"
+          :title="t('settings.sound.section')"
+        >
           <SettingsItem
-            description="扫描开始、完成、失败或被停止时播放提示音"
+            :description="t('settings.sound.volume.description')"
             icon="i-lucide-volume-2"
-            title="扫描提示音音量"
+            :title="t('settings.sound.volume.title')"
           >
             <div v-if="draftSettings" class="flex w-56 items-center gap-2">
               <USlider
+                :aria-label="t('settings.sound.volume.title')"
                 class="flex-1"
                 :max="1"
                 :min="0"
@@ -301,7 +323,7 @@ const stopScrollToHash = router.afterEach((to) => {
                 @update:model-value="updateSoundVolume"
               />
               <span class="w-10 text-end text-sm tabular-nums">
-                {{ Math.round(draftSettings.soundVolume * 100) }}%
+                {{ n(draftSettings.soundVolume, 'percent') }}
               </span>
             </div>
             <USkeleton v-else-if="settingsInitializing" class="h-5 w-56" />
@@ -309,14 +331,20 @@ const stopScrollToHash = router.afterEach((to) => {
           </SettingsItem>
         </SettingsCard>
 
-        <SettingsCard id="update" class="scroll-mt-8" icon="i-lucide-download" title="更新设置">
+        <SettingsCard
+          id="update"
+          class="scroll-mt-8"
+          icon="i-lucide-download"
+          :title="t('settings.update.section')"
+        >
           <SettingsItem
-            description="选择从哪个源下载新版本"
+            :description="t('settings.update.source.description')"
             icon="i-lucide-cloud-download"
-            title="更新源"
+            :title="t('settings.update.source.title')"
           >
             <USelect
               v-if="draftSettings"
+              :aria-label="t('settings.update.source.title')"
               class="w-56"
               :items="updateSourceItems"
               :model-value="draftSettings.updateSource"
@@ -327,12 +355,13 @@ const stopScrollToHash = router.afterEach((to) => {
           </SettingsItem>
 
           <SettingsItem
-            description="检查到新版本后自动开始下载"
+            :description="t('settings.update.autoDownload.description')"
             icon="i-lucide-cloud-download"
-            title="自动下载更新"
+            :title="t('settings.update.autoDownload.title')"
           >
             <USwitch
               v-if="draftSettings"
+              :aria-label="t('settings.update.autoDownload.title')"
               :model-value="draftSettings.autoDownloadUpdates"
               @update:model-value="editSettings({ autoDownloadUpdates: $event })"
             />
@@ -341,12 +370,13 @@ const stopScrollToHash = router.afterEach((to) => {
           </SettingsItem>
 
           <SettingsItem
-            description="更新包下载完成后自动安装"
+            :description="t('settings.update.autoInstall.description')"
             icon="i-lucide-rocket"
-            title="自动安装更新"
+            :title="t('settings.update.autoInstall.title')"
           >
             <USwitch
               v-if="draftSettings"
+              :aria-label="t('settings.update.autoInstall.title')"
               :model-value="draftSettings.autoInstallUpdates"
               @update:model-value="editSettings({ autoInstallUpdates: $event })"
             />
@@ -354,40 +384,53 @@ const stopScrollToHash = router.afterEach((to) => {
             <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
           </SettingsItem>
 
-          <SettingsItem icon="i-lucide-key-round" title="Mirror酱 CDK">
+          <SettingsItem icon="i-lucide-key-round" :title="t('settings.update.cdk.title')">
             <template #description>
-              <span class="text-sm text-dimmed"
-                ><ULink class="text-primary hover:text-primary/75" to="https://mirrorchyan.com/"
-                  >Mirror酱</ULink
+              <div class="space-y-1 text-sm text-dimmed">
+                <I18nT
+                  :keypath="'settings.update.mirror.service' satisfies MessageKey"
+                  scope="global"
+                  tag="p"
                 >
-                是独立的第三方加速下载服务，需要付费使用。
-                <br />
-                OEA 本身不收取任何费用，也提供免费的下载渠道。您可以前往
-                <ULink
-                  class="text-primary hover:text-primary/75"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
-                  >GitHub Release</ULink
+                  <template #service
+                    ><ULink class="text-primary hover:text-primary/75" to="https://mirrorchyan.com/"
+                      >MirrorChyan</ULink
+                    ></template
+                  >
+                </I18nT>
+                <I18nT
+                  :keypath="'settings.update.mirror.free' satisfies MessageKey"
+                  scope="global"
+                  tag="p"
                 >
-                免费下载和使用。</span
-              >
+                  <template #releases
+                    ><ULink
+                      class="text-primary hover:text-primary/75"
+                      rel="noopener noreferrer"
+                      target="_blank"
+                      to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
+                      >GitHub Releases</ULink
+                    ></template
+                  >
+                </I18nT>
+              </div>
             </template>
             <div v-if="draftSettings" class="flex flex-col items-center gap-1">
               <UInput
                 v-model.lazy="mirrorchyanCdk"
+                :aria-label="t('settings.update.cdk.title')"
                 class="w-56"
-                placeholder="未填写时使用 OEM 下载"
+                :placeholder="t('settings.update.cdk.placeholder')"
                 type="password"
                 @keydown.enter="($event.target as HTMLInputElement).blur()"
               />
               <template v-if="draftSettings.mirrorchyanCdk === null">
                 <p class="max-w-56 text-sm text-warning">
-                  已保存的 CDK 无法解密，可重新输入或清除。
+                  {{ t('settings.update.cdk.unreadable') }}
                 </p>
                 <UButton
                   color="neutral"
-                  label="清除已保存 CDK"
+                  :label="t('settings.update.cdk.clear')"
                   variant="link"
                   @click="editSettings({ mirrorchyanCdk: '' })"
                 />
@@ -399,7 +442,7 @@ const stopScrollToHash = router.afterEach((to) => {
                 to="https://mirrorchyan.com/?source=oea"
               >
                 <span class="flex items-center gap-1"
-                  >没有 CDK？立即订阅<UIcon name="i-lucide-external-link"
+                  >{{ t('settings.update.cdk.subscribe') }}<UIcon name="i-lucide-external-link"
                 /></span>
               </ULink>
             </div>
@@ -408,12 +451,13 @@ const stopScrollToHash = router.afterEach((to) => {
           </SettingsItem>
 
           <SettingsItem
-            description="下载更新包时使用的代理方式"
+            :description="t('settings.update.proxy.description')"
             icon="i-lucide-network"
-            title="网络代理"
+            :title="t('settings.update.proxy.title')"
           >
             <USelect
               v-if="draftSettings"
+              :aria-label="t('settings.update.proxy.title')"
               class="w-56"
               :items="proxyModeItems"
               :model-value="draftSettings.updateProxyMode"
@@ -425,28 +469,29 @@ const stopScrollToHash = router.afterEach((to) => {
 
           <SettingsItem
             v-if="draftSettings?.updateProxyMode === 'custom'"
-            description="自定义代理服务器地址，例如 http://127.0.0.1:7890"
+            :description="t('settings.update.proxyUrl.description')"
             icon="i-lucide-link"
-            title="代理地址"
+            :title="t('settings.update.proxyUrl.title')"
           >
             <UInput
               v-model.lazy="updateProxyUrl"
+              :aria-label="t('settings.update.proxyUrl.title')"
               class="w-56"
               placeholder="http://127.0.0.1:7890"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
           </SettingsItem>
           <SettingsItem
-            description="通过更新服务检查是否存在可用更新"
+            :description="t('settings.update.check.description')"
             icon="i-lucide-refresh-cw"
-            title="手动检查更新"
+            :title="t('settings.update.check.title')"
           >
             <USkeleton v-if="settingsInitializing" class="h-8 w-32" />
             <UButton
               v-else-if="settingsCanCheckUpdate"
               :disabled="updateOperationBusy"
               icon="i-lucide-refresh-cw"
-              label="检查更新"
+              :label="t('settings.update.check.button')"
               :loading="updateCheckState.status === 'checking'"
               @click="manualCheckUpdate"
             />

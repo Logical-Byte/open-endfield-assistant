@@ -68,10 +68,16 @@ const themeColor = computed(() => (colorMode.value === 'dark' ? '#18181b' : '#ff
 const { style, link } = useTheme();
 
 useHead({
+  title: computed(() => t('application.title')),
   htmlAttrs: { lang: i18n.global.locale },
   style,
   link,
-  meta: [{ name: 'theme-color', content: themeColor }],
+  meta: [
+    { name: 'theme-color', content: themeColor },
+    { name: 'description', content: computed(() => t('application.title')) },
+    { property: 'og:title', content: computed(() => t('application.title')) },
+    { property: 'og:description', content: computed(() => t('application.title')) },
+  ],
 });
 
 async function initApp(): Promise<void> {
