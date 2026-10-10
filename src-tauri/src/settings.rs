@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 use ts_rs::TS;
 
-use crate::storage::CachedJsonFile;
+use crate::{locale::UiLocale, platform, storage::CachedJsonFile};
 
 /// 当前设置文件主要版本号
 pub const CURRENT_MAJOR_VERSION: u32 = 0;
@@ -42,7 +42,7 @@ pub enum UpdateProxyMode {
 #[ts(export, export_to = "settings/")]
 pub struct OeaSettings {
     /// 应用语言。缺失字段采用当前用户系统界面语言。
-    pub ui_locale: crate::locale::UiLocale,
+    pub ui_locale: UiLocale,
     /// 设置文件主要版本号，产生不兼容变更（改变字段结构或者删除字段）时，增加 `majorVersion` 的值
     pub major_version: u32,
     /// 设置文件次要版本号，产生兼容变更（添加新字段但不改变原有字段的结构）时，增加 `minorVersion` 的值
@@ -134,11 +134,11 @@ impl SettingsStore {
 }
 
 /// 默认应用语言由系统界面语言选择，不改变已保存的语言设置。
-pub(crate) fn system_ui_locale() -> crate::locale::UiLocale {
-    crate::platform::locale::user_interface_language()
+pub(crate) fn system_ui_locale() -> UiLocale {
+    platform::locale::user_interface_language()
         .as_deref()
-        .map(crate::locale::UiLocale::from_language_tag)
-        .unwrap_or(crate::locale::UiLocale::EnUs)
+        .map(UiLocale::from_language_tag)
+        .unwrap_or(UiLocale::EnUs)
 }
 
 fn is_not_found(error: &anyhow::Error) -> bool {
@@ -166,7 +166,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("test_settings.json");
         let original_settings = OeaSettings {
-            ui_locale: crate::locale::UiLocale::EnUs,
+            ui_locale: UiLocale::EnUs,
             major_version: 1,
             minor_version: 0,
             minimize_to_tray: true,
