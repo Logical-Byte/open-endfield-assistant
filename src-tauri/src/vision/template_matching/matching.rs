@@ -38,7 +38,7 @@ pub(crate) fn find_best<'a, I, P>(
     search: &ImageRegion<'_, I>,
     template_names: &[&'a str],
     templates: &mut P,
-) -> Result<Option<(&'a str, MatchResult)>>
+) -> anyhow::Result<Option<(&'a str, MatchResult)>>
 where
     I: GenericImageView,
     I::Pixel: Pixel<Subpixel = u8>,
@@ -144,7 +144,7 @@ mod tests {
     }
 
     impl TemplateProvider for Templates {
-        fn get(&mut self, name: &str) -> Result<&RgbImage> {
+        fn get(&mut self, name: &str) -> anyhow::Result<&RgbImage> {
             match name {
                 "exact" | "same" => Ok(&self.exact),
                 "inverse" => Ok(&self.inverse),
