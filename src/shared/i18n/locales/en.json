@@ -1,0 +1,498 @@
+{
+  "application": {
+    "title": "OEA - Arknights: Endfield archive scanner"
+  },
+  "common": {
+    "retrySave": "Retry saving"
+  },
+  "footer": {
+    "poweredBy": "Powered by"
+  },
+  "help": {
+    "archive": {
+      "main": "archive library home screen"
+    },
+    "credits": {
+      "models": "RapidAI/RapidOCR models (ModelScope)",
+      "title": "Acknowledgements"
+    },
+    "disclaimer": {
+      "acceptance": "By using this tool, you agree to all of the above.",
+      "compliance": "You must ensure that your use complies with applicable laws and terms of service. Illegal activity and infringement are prohibited.",
+      "recognition": "Automated recognition may produce errors. Please report any errors you find.",
+      "risk": "You assume all risks, losses and liabilities arising from use of this tool.",
+      "title": "Disclaimer",
+      "updates": "Automatic updates delete files on disk. Back up important data before using automatic updates to avoid accidental loss.",
+      "warranty": "This tool is provided “as is”, “with all faults” and “as available”. The authors make no promises or warranties regarding availability, accuracy or results."
+    },
+    "export": "Export collection status",
+    "faq": {
+      "accuracy": {
+        "answer": "Correct results manually using the input field. Please report recognition errors to help us improve recognition.",
+        "question": "What if recognition results are inaccurate?"
+      },
+      "fee": {
+        "answer": "OEA is open source and free, with no fees of any kind. If someone charged you for OEA, you may have been misled by an unauthorized seller. Please let us know.",
+        "question": "Does OEA cost money?"
+      },
+      "mirror": {
+        "question": "How are OEA and MirrorChyan related?",
+        "service": "{service} is an independent third-party app distribution platform offering paid accelerated downloads."
+      },
+      "mobile": {
+        "answer": "No. OEA only supports Windows 10 / 11 (x86_64).",
+        "question": "Can I use OEA on a phone?"
+      },
+      "title": "Frequently asked questions"
+    },
+    "feedback": {
+      "group": "QQ feedback group: 954628501",
+      "issue": "Open a GitHub issue",
+      "logs": "Please send us issues and suggestions. Include log files from {directory} in the application directory to help diagnose problems.",
+      "title": "Feedback"
+    },
+    "hdr": {
+      "disable": "Disable HDR"
+    },
+    "issues": {
+      "sharedTitle": "Two different archives share the title “{title}”. OEA currently cannot distinguish them. Recognizing either one marks both as collected.",
+      "title": "Known issues"
+    },
+    "repository": "GitHub repository",
+    "scan": {
+      "start": "Start scan"
+    },
+    "shortcut": {
+      "quit": "Press {keys} to quit the application.",
+      "scan": "Press {key} (apostrophe) to start scanning the archive library. Press it again during scanning to stop."
+    },
+    "start": {
+      "archive": "Open the {archive} in Endfield.",
+      "export": "When scanning finishes, click {export} in the all archives panel.",
+      "hdr": "{hdr} and close performance monitoring software.",
+      "resolution": "Open Endfield and set the resolution to {resolution} and language to {language}.",
+      "scan": "Click {scan} in the scan results panel.",
+      "title": "Getting started"
+    },
+    "usage": {
+      "archive": "Scanning can currently start from any archive library screen, the protocol terminal or the open world. For reliable scanning, always start from the {archive}.",
+      "hdr": "{hdr} and close any software that obscures the Endfield window.",
+      "language": "Set the Endfield game language to {language}.",
+      "preparation": "Before scanning",
+      "resolution": "Any {ratio} resolution should work in principle. We recommend {resolution} in {windowed} for a balance of accuracy and performance.",
+      "shortcuts": "Keyboard shortcuts",
+      "title": "Instructions"
+    },
+    "website": "OEA website",
+    "windowed": "windowed mode"
+  },
+  "image": {
+    "background": "Change background color",
+    "close": "Close",
+    "download": "Download",
+    "guide": {
+      "accelerate": "Speed up panning, rotation and zoom",
+      "actionKey": "Action key",
+      "advanced": "Advanced controls",
+      "download": "Download image",
+      "drag": "Drag",
+      "inputMode": "Use an English keyboard input mode for shortcuts.",
+      "openTab": "Open in a new tab",
+      "panImage": "Pan image",
+      "panView": "Pan view",
+      "preset": "Zoom to preset size",
+      "rotateCounterclockwise": "Rotate 90° counterclockwise",
+      "rotation": "Rotation controls",
+      "smoothRotation": "Rotate smoothly",
+      "smoothZoom": "Zoom smoothly",
+      "title": "Keyboard shortcuts and controls",
+      "view": "View controls",
+      "wheel": "Scroll",
+      "zoom": "Zoom controls",
+      "zoomImage": "Zoom image"
+    },
+    "help": "Help",
+    "openTab": "Open image in a new tab",
+    "reset": "Reset view",
+    "rotateClockwise": "Rotate 90° clockwise",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out"
+  },
+  "log": {
+    "clear": "Clear logs",
+    "empty": "No logs yet",
+    "levelFilter": "Log level",
+    "openDirectory": "Open log folder"
+  },
+  "monitor": {
+    "empty": "No game image yet. Open the game first.",
+    "format": "Screenshot format",
+    "frameRate": "Capture frame rate",
+    "imageAlt": "Game window monitor",
+    "openLogs": "View logs",
+    "running": "Monitoring at {{fps}} FPS.",
+    "start": "Start monitoring",
+    "stop": "Stop monitoring",
+    "updated": "Monitoring at {{fps}} FPS. Last updated at {{time}}."
+  },
+  "navigation": {
+    "help": "Help",
+    "logs": "Logs",
+    "maps": "Maps",
+    "menu": {
+      "description": "Open scanning, logs, monitor, settings or help.",
+      "title": "Navigation menu"
+    },
+    "monitor": "Monitor",
+    "scan": "Archive scanning",
+    "settings": "Settings",
+    "yituliu": "Yituliu"
+  },
+  "scan": {
+    "acquisition": {
+      "auto": "Automatic unlock",
+      "invstgt": "Report summary",
+      "map": "Map pickup",
+      "mission": "Mission",
+      "shop": "Shop purchase"
+    },
+    "all": "All",
+    "allArchives": "All archives",
+    "allCategories": "All categories",
+    "allMatched": "All scan results are matched",
+    "archiveCategory": "Archive category",
+    "archiveCount": "Showing {{visible}} of {{total}} archives",
+    "automatic": "Automatically matched OCR result",
+    "blocked": "Another automation task is running",
+    "cancelEdit": "Discard edit",
+    "chooseTitle": "Enter or select the correct title",
+    "clear": "Clear",
+    "clearResults": "Clear scan results",
+    "collected": "Collected",
+    "confirmEdit": "Confirm edit",
+    "correction": "Changed scan #{{id}} to “{{title}}”.",
+    "editTitle": "Edit matched title",
+    "editing": "Editing",
+    "evidenceCount_one": "{{count}} linked scan",
+    "evidenceCount_other": "{{count}} linked scans",
+    "export": "Export collection",
+    "exportDescription": "Open the OEM import page in your browser with the current collection status.",
+    "exportFailedDescription": "Try again or check the logs for details.",
+    "exportFailedTitle": "Unable to open the OEM import page",
+    "exportSubmit": "Export to OEM",
+    "exportTitle": "Export collection status to OEM",
+    "exportTooltip": "Export current collection status to OEM",
+    "exportWarningLabel": "View export warning for unmatched scans",
+    "exportWarning_one": "{{count}} scan has no matching archive yet. Reviewing it may reduce the uncollected count and improve the export.",
+    "exportWarning_other": "{{count}} scans have no matching archive yet. Reviewing them may reduce the uncollected count and improve the export.",
+    "failed": "Scan failed",
+    "filters": "Catalog filters",
+    "gotIt": "Got it",
+    "guide": {
+      "archive": "Open the archive screen in Endfield.",
+      "export": "After scanning, select Export collection in the archive pane.",
+      "hdr": "Turn off HDR and performance monitoring software.",
+      "open": "Open Endfield and select 1280 × 720 resolution and Simplified Chinese.",
+      "scan": "Select Start scan in the scan results pane."
+    },
+    "hasRecords": "With evidence",
+    "hideGuide": "Hide until the next guide update",
+    "hideOcr": "Hide OCR result",
+    "linkedArchives_one": "{{count}} linked archive",
+    "linkedArchives_other": "{{count}} linked archives",
+    "linkedSummary_one": "Scan #{{id}} is linked to {{count}} archive",
+    "linkedSummary_other": "Scan #{{id}} is linked to {{count}} archives",
+    "locateArchive": "Locate archive",
+    "locateScan": "Locate scan",
+    "logs": "View details in logs",
+    "manual": "Manually corrected result",
+    "mapOnly": "Only archives found on the map",
+    "matchTitle": "Match a title in the catalog",
+    "matched": "Matched",
+    "matches_one": "{{count}} match",
+    "matches_other": "{{count}} matches",
+    "noArchives": "No archives match these filters",
+    "noEvidence": "No scan evidence yet. In-game collection status is unknown.",
+    "noRecords": "No evidence",
+    "noScans": "No scans match these filters",
+    "noText": "No text recognized",
+    "noTextShort": "No text",
+    "noTitle": "No matching title found. You can keep typing.",
+    "notCollected": "Not collected",
+    "ocr": "OCR result",
+    "ocrEmpty": "OCR recognized no text",
+    "ocrValue": "OCR result: {{text}}",
+    "resize": "Resize archive and scan panes",
+    "results": "Scan results",
+    "review": "Needs review",
+    "scanCategory": "Scan category",
+    "scanCount": "Showing {{visible}} of {{total}} scans",
+    "screenshot": "Archive screenshot",
+    "searchArchive": "Search archive titles",
+    "searchResults": "Search scan results",
+    "searchTitle": "Search recognized or corrected titles",
+    "showCandidates": "Show title candidates",
+    "start": "Start scan (quote key)",
+    "startHint": "Start a scan to see results here",
+    "startSimulation": "Start simulated scan",
+    "stop": "Stop scan (quote key)",
+    "stopping": "Stopping scan",
+    "titleHelp": "Enter or select the archive title matching this screenshot",
+    "titleUnmatched": "This title still does not match a known archive.",
+    "undo": "Undo edit",
+    "unknownAcquisition": "Unknown acquisition method",
+    "unmatched": "Unmatched",
+    "viewDetails": "View details",
+    "viewLocation": "View location",
+    "viewOcr": "View OCR result",
+    "viewOem": "View in OEM",
+    "viewScreenshot": "View full archive screenshot"
+  },
+  "settings": {
+    "developer": {
+      "close": "Hide developer options",
+      "description": "Show advanced tools for development and troubleshooting.",
+      "install": {
+        "button": "Select .zip update package (developer)",
+        "description": "Install a local .zip update package in place. Supports incremental and full packages.",
+        "title": "Install update package"
+      },
+      "open": "Show developer options",
+      "section": "Developer options",
+      "simulate": {
+        "description": "Debug archive scanning with fixed example results, without a game window. Takes about 20 seconds and can be stopped at any time. Disabled after restarting the app.",
+        "enable": "Use simulated scan results",
+        "title": "Simulate archive scanning"
+      },
+      "trace": {
+        "empty": "Installation logs"
+      },
+      "warning": "Only use these options if you understand what they do."
+    },
+    "initialize": {
+      "failed": {
+        "description": "Automatic updates and scan guidance cannot use your settings yet.",
+        "pageDescription": "Could not load settings from the backend. Interface scaling and developer features remain available.",
+        "title": "Could not initialize settings"
+      },
+      "open": "Open settings",
+      "retry": "Retry initialization"
+    },
+    "interface": {
+      "guide": {
+        "description": "Show instructions when opening archive scanning. Dismissed instructions stay hidden until updated. You can enable them again at any time.",
+        "title": "Show scanning instructions"
+      },
+      "scale": {
+        "description": "Set the application window scale to change the size of all interface elements.",
+        "title": "Interface scale"
+      },
+      "section": "Interface",
+      "tray": {
+        "description": "Hide the window in the system tray when closed. Use the tray menu or Alt+Delete to quit.",
+        "title": "Minimize to tray on close"
+      }
+    },
+    "language": {
+      "application": {
+        "description": "The language for OEA app interface",
+        "title": "App language"
+      },
+      "game": {
+        "description": "Configure the language that matches what the Endfield game is using. This will affect automation runs, and also affects some automation results shown in the OEA app.",
+        "fixed": "Simplified Chinese",
+        "title": "Game language",
+        "warning": "WIP: only simplified Chinese is supported for now"
+      },
+      "section": "Language",
+      "shortcut": "Language / 语言设置"
+    },
+    "save": {
+      "failed": {
+        "description": "Your edits are preserved. The application still uses the last successfully saved settings.",
+        "title": "Settings were not saved"
+      }
+    },
+    "sound": {
+      "section": "Sound",
+      "volume": {
+        "description": "Play a sound when scanning starts, completes, fails or stops.",
+        "title": "Scanning sound volume"
+      }
+    },
+    "unavailable": "Settings unavailable",
+    "unsupported": {
+      "description": "Browser mode previews the interface. Run the desktop application to load and edit settings.",
+      "label": "Unavailable in browser",
+      "title": "Application settings are unavailable in browser mode"
+    },
+    "update": {
+      "autoDownload": {
+        "description": "Start downloading automatically when a new version is found.",
+        "title": "Download updates automatically"
+      },
+      "autoInstall": {
+        "description": "Install updates automatically after downloading.",
+        "title": "Install updates automatically"
+      },
+      "cdk": {
+        "clear": "Clear saved CDK",
+        "placeholder": "Leave empty to download from OEM",
+        "subscribe": "Need a CDK? Subscribe now",
+        "title": "MirrorChyan CDK",
+        "unreadable": "The saved CDK could not be decrypted. Enter it again or clear it."
+      },
+      "check": {
+        "button": "Check for updates",
+        "description": "Check the update service for available updates.",
+        "title": "Check for updates manually"
+      },
+      "mirror": {
+        "free": "OEA is free and also provides free downloads. Download and use it for free from {releases}.",
+        "service": "{service} is an independent third-party accelerated download service that requires a paid subscription."
+      },
+      "proxy": {
+        "custom": "Custom proxy",
+        "description": "Choose the proxy used to download updates.",
+        "none": "No proxy",
+        "system": "System proxy",
+        "title": "Network proxy"
+      },
+      "proxyUrl": {
+        "description": "Custom proxy server address, for example http://127.0.0.1:7890.",
+        "title": "Proxy address"
+      },
+      "section": "Updates",
+      "source": {
+        "description": "Choose where to download new versions.",
+        "mirror": "MirrorChyan",
+        "title": "Update source"
+      }
+    }
+  },
+  "theme": {
+    "change": "Change theme",
+    "chineseFont": "Chinese font",
+    "color": {
+      "amber": "Amber",
+      "black": "Black",
+      "blue": "Blue",
+      "cyan": "Cyan",
+      "emerald": "Emerald",
+      "fuchsia": "Fuchsia",
+      "gray": "Gray",
+      "green": "Green",
+      "indigo": "Indigo",
+      "lime": "Lime",
+      "mauve": "Mauve",
+      "mist": "Mist",
+      "neutral": "Neutral",
+      "olive": "Olive",
+      "orange": "Orange",
+      "pink": "Pink",
+      "purple": "Purple",
+      "red": "Red",
+      "rose": "Rose",
+      "sky": "Sky",
+      "slate": "Slate",
+      "stone": "Stone",
+      "taupe": "Taupe",
+      "teal": "Teal",
+      "violet": "Violet",
+      "white": "White",
+      "yellow": "Yellow",
+      "zinc": "Zinc"
+    },
+    "colorMode": "Color mode",
+    "cornerShape": "Corner shape",
+    "englishFont": "English font",
+    "font": {
+      "browser": "Browser default",
+      "system": "System default",
+      "useChinese": "Use Chinese font"
+    },
+    "mode": {
+      "auto": "System",
+      "dark": "Dark",
+      "light": "Light"
+    },
+    "monospaceFont": "Monospace font",
+    "neutral": "Neutral color",
+    "primary": "Accent color",
+    "radius": {
+      "large": "Large",
+      "larger": "Larger",
+      "medium": "Medium",
+      "none": "None",
+      "small": "Small",
+      "title": "Corner radius"
+    },
+    "reset": "Reset theme",
+    "shape": {
+      "bevel": "Bevel",
+      "notch": "Notch",
+      "round": "Round",
+      "smooth": "Smooth",
+      "soft": "Soft"
+    },
+    "toggleMode": "Toggle color mode"
+  },
+  "update": {
+    "cancel": "Cancel",
+    "check": {
+      "action": "Check for updates",
+      "available": "New version available",
+      "checking": "Checking for updates…",
+      "failed": "Update check failed",
+      "upToDate": "You are up to date"
+    },
+    "close": "Close",
+    "dismiss": "Got it",
+    "download": {
+      "cancelling": "Cancelling…",
+      "completed": "Download complete",
+      "downloading": "Downloading",
+      "etaHours_one": "About {{count}} hour remaining.",
+      "etaHours_other": "About {{count}} hours remaining.",
+      "etaMinutes_one": "About {{count}} minute remaining.",
+      "etaMinutes_other": "About {{count}} minutes remaining.",
+      "etaSeconds_one": "About {{count}} second remaining.",
+      "etaSeconds_other": "About {{count}} seconds remaining.",
+      "failed": "Download failed",
+      "progress": "Downloaded {{percent}} at {{speed}}."
+    },
+    "install": {
+      "action": "Install now",
+      "afterTask": "The update will install automatically after the task finishes.",
+      "completed": "Update complete",
+      "failed": "Installation failed",
+      "installing": "Installing update",
+      "preparing": "Preparing…",
+      "redownload": "Download again",
+      "success": "The update was installed successfully. You can continue using OEA.",
+      "taskRunning": "Automation task in progress"
+    },
+    "notice": "New version available: {{version}}",
+    "now": "Update now",
+    "releaseNotes": {
+      "empty": "No release notes available.",
+      "title": "Release notes"
+    },
+    "retry": "Retry",
+    "settings": "Update settings",
+    "stage": {
+      "cleanup": "Cleaning up temporary files",
+      "extracting": "Extracting update package",
+      "full": "Applying full update",
+      "incremental": "Applying incremental update",
+      "preparing": "Preparing update files"
+    },
+    "viewLogs": "View logs"
+  },
+  "window": {
+    "close": "Close",
+    "maximize": "Maximize",
+    "minimize": "Minimize",
+    "restore": "Restore"
+  }
+}
