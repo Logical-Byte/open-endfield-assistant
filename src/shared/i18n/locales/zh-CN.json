@@ -5,6 +5,56 @@
   "common": {
     "retrySave": "重试保存"
   },
+  "errors": {
+    "automation": {
+      "captureFailed": "无法截取游戏画面，请检查游戏窗口后重试。",
+      "failed": "自动化任务失败，请查看日志。",
+      "navigationFailed": "无法导航到所需游戏界面，请检查游戏画面并重试。",
+      "stoppedByUser": "自动化任务已被用户停止。",
+      "threadStartFailed": "无法启动自动化任务线程，请重试。"
+    },
+    "game": {
+      "hdrEnabled": "游戏所在显示器已开启 HDR，请关闭 HDR 后重试。",
+      "unsupportedResolution": "游戏分辨率 {{width}}×{{height}} 不支持，请使用 16:9 分辨率。",
+      "windowSizeChanged": "游戏窗口尺寸由 {{expectedWidth}}×{{expectedHeight}} 变为 {{actualWidth}}×{{actualHeight}}，请重新开始任务。",
+      "windowUnavailable": "未找到游戏窗口，请先打开游戏。"
+    },
+    "screenshot": {
+      "captureFailed": "无法捕获游戏画面，请查看日志了解原因。",
+      "encodingFailed": "无法编码截图，请查看日志了解原因。",
+      "failed": "截图失败，请查看日志了解原因。"
+    },
+    "update": {
+      "busy": "已有更新操作正在进行，请稍后重试。",
+      "cancelled": "更新操作已取消。",
+      "checkFailed": "检查更新失败，请查看日志了解详情。",
+      "debugBuild": "开发构建无法执行真实自更新，请使用 release 构建。",
+      "downloadFailed": "下载更新失败，请查看日志了解详情。",
+      "failed": "更新操作失败，请查看日志了解详情。",
+      "fileAccess": "无法读写更新文件，请检查磁盘空间和文件权限。",
+      "helperStart": "无法启动更新安装程序，请查看日志后重试。",
+      "installFailed": "安装更新失败，请查看日志了解详情。",
+      "integrity": "更新包完整性校验失败，请重新下载。",
+      "invalidMetadata": "更新服务返回的数据无效，请稍后重试。",
+      "invalidPackage": "更新包无效或不可访问，请重新下载或选择有效的 ZIP 包。",
+      "network": "更新请求失败，请检查网络或代理设置后重试。",
+      "noUpdate": "没有可操作的更新，请先检查或下载更新。",
+      "packageUnavailable": "未找到版本 {{version}} 的更新包，请选择其他下载源。",
+      "preparation": "准备更新文件失败，请查看日志后重新下载。",
+      "proxyConfiguration": "代理配置无效，请检查更新设置。",
+      "service": {
+        "banned": "Mirror酱 CDK 已被封禁。",
+        "cdkType": "Mirror酱 CDK 类型与更新资源不匹配。",
+        "expired": "Mirror酱 CDK 已过期。",
+        "invalidCdk": "Mirror酱 CDK 无效，请检查输入。",
+        "limit": "Mirror酱 CDK 今日下载次数已达上限。",
+        "parameters": "Mirror酱请求参数无效，请联系维护者。",
+        "resource": "Mirror酱未提供对应系统和架构的资源，请联系维护者。",
+        "unknown": "更新服务返回错误代码 {{code}}，请查看日志了解详情。"
+      },
+      "versionMismatch": "下载源版本 {{actual}} 与预期版本 {{expected}} 不一致，请稍后重试。"
+    }
+  },
   "footer": {
     "poweredBy": "基于"
   },
