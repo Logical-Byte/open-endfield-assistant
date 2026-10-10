@@ -14,7 +14,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::{app_paths::AppPaths, platform};
+use crate::{app_paths::AppPaths, locale::UiLocale, platform, settings};
 
 /// 根目录运行状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -143,8 +143,15 @@ pub fn ensure_extracted(app_paths: &AppPaths) {
         &format!("{reason:?}, root = {}", app_paths.root_dir().display()),
     );
 
-    let (title, content) = match reason {
-        ZipReason::ReadOnly => (
+    let locale = settings::read_ui_locale(&app_paths.oea_settings_file());
+    let (title, content) = extraction_message(locale, reason);
+    let _ = platform::dialog::show_message(title, content, platform::dialog::DialogIcon::Error);
+    std::process::exit(1);
+}
+
+fn extraction_message(locale: UiLocale, reason: ZipReason) -> (&'static str, &'static str) {
+    match (locale, reason) {
+        (UiLocale::ZhCn, ZipReason::ReadOnly) => (
             "请先解压 OEA 再运行",
             "OEA 是绿色便携版，必须在解压后的文件夹中运行。
 
@@ -157,7 +164,7 @@ pub fn ensure_extracted(app_paths: &AppPaths) {
 
 解压后文件夹中应包含 OEA.exe 和 resources/ 文件夹。",
         ),
-        ZipReason::TempAndMissingResources => (
+        (UiLocale::ZhCn, ZipReason::TempAndMissingResources) => (
             "请先解压 OEA 再运行",
             "OEA 是绿色便携版，必须在完整解压后运行。
 
@@ -170,7 +177,7 @@ pub fn ensure_extracted(app_paths: &AppPaths) {
 
 解压后文件夹中应包含 OEA.exe 和 resources/ 文件夹。",
         ),
-        ZipReason::Temp => (
+        (UiLocale::ZhCn, ZipReason::Temp) => (
             "请在解压后的文件夹运行 OEA",
             "OEA 是绿色便携版，请在解压后的文件夹中运行。
 
@@ -183,8 +190,41 @@ pub fn ensure_extracted(app_paths: &AppPaths) {
 
 解压后文件夹中应包含 OEA.exe 和 resources/ 文件夹。",
         ),
-    };
+        (UiLocale::EnUs, ZipReason::ReadOnly) => (
+            "Extract OEA before running",
+            "OEA is a portable application and must run from an extracted folder.
 
-    let _ = platform::dialog::show_message(title, content, platform::dialog::DialogIcon::Error);
-    std::process::exit(1);
+The current folder is read-only, so OEA cannot save settings, logs, or cache files. This often happens when running directly from an archive.
+
+1. Right-click the archive and extract all files.
+2. Open the extracted folder.
+3. Run OEA.exe.
+
+The folder must contain OEA.exe and the resources/ folder.",
+        ),
+        (UiLocale::EnUs, ZipReason::TempAndMissingResources) => (
+            "Extract OEA before running",
+            "OEA is a portable application and requires all files to be extracted.
+
+OEA is running from a temporary folder and resource files are missing. The archive tool may have extracted only the executable.
+
+1. Right-click the archive and extract all files.
+2. Open the extracted folder.
+3. Run OEA.exe.
+
+The folder must contain OEA.exe and the resources/ folder.",
+        ),
+        (UiLocale::EnUs, ZipReason::Temp) => (
+            "Run OEA from the extracted folder",
+            "OEA is a portable application. Run it from an extracted folder.
+
+OEA is running from a temporary folder. Settings and logs may be lost after closing the application.
+
+1. Right-click the archive and extract all files.
+2. Open the extracted folder.
+3. Run OEA.exe.
+
+The folder must contain OEA.exe and the resources/ folder.",
+        ),
+    }
 }

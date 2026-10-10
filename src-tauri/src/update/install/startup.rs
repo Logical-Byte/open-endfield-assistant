@@ -3,7 +3,7 @@
 use crate::platform::update::UpdatePrompt;
 use tracing::{error, info};
 
-use crate::app_paths::AppPaths;
+use crate::{app_paths::AppPaths, locale::UiLocale, settings};
 
 use super::{
     transaction,
@@ -25,14 +25,25 @@ pub enum StartupUpdateResult {
 pub(crate) fn initialize_at_startup(paths: &AppPaths) -> anyhow::Result<()> {
     let target = InstallTarget::for_current_executable(paths)
         .map_err(|error| anyhow::anyhow!("无法确定更新 executable name: {error}"))?;
-    let result = complete_startup_transaction(&target).map_err(|error| {
+    let result = complete_startup_transaction(
+        &target,
+        settings::read_ui_locale(&paths.oea_settings_file()),
+    )
+    .map_err(|error| {
         error!(
             operation = "startup_transaction",
             error = %error,
             "启动时完成更新事务失败"
         );
         #[cfg(target_os = "macos")]
-        crate::platform::update::show_update_error("OEA 更新失败", &error);
+        {
+            let locale = settings::read_ui_locale(&paths.oea_settings_file());
+            let title = match locale {
+                UiLocale::ZhCn => "OEA 更新失败",
+                UiLocale::EnUs => "OEA update failed",
+            };
+            crate::platform::update::show_update_error(title, &error);
+        }
         anyhow::anyhow!("启动时完成更新事务失败: {error}")
     })?;
     super::record_startup_update_result(result);
@@ -42,10 +53,12 @@ pub(crate) fn initialize_at_startup(paths: &AppPaths) -> anyhow::Result<()> {
 /// 尝试在应用初始化前完成资源事务。
 pub(crate) fn complete_startup_transaction(
     target: &InstallTarget,
+    locale: UiLocale,
 ) -> Result<StartupUpdateResult, String> {
+    let (title, progress) = startup_messages(locale);
     let mut prompt = None;
     let result = transaction::complete_startup(target, || {
-        prompt = Some(UpdatePrompt::new("OEA 更新", "正在完成资源更新，请稍候…"));
+        prompt = Some(UpdatePrompt::new(title, progress));
     });
     match result {
         Ok(StartupUpdateResult::NoTransaction) => {
@@ -59,5 +72,12 @@ pub(crate) fn complete_startup_transaction(
             Ok(StartupUpdateResult::Completed)
         }
         other => other,
+    }
+}
+
+fn startup_messages(locale: UiLocale) -> (&'static str, &'static str) {
+    match locale {
+        UiLocale::ZhCn => ("OEA 更新", "正在完成资源更新，请稍候…"),
+        UiLocale::EnUs => ("OEA update", "Completing the resource update. Please wait…"),
     }
 }

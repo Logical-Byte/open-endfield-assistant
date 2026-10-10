@@ -543,7 +543,7 @@ mod tests {
         process::Command,
     };
 
-    use crate::app_paths::AppPaths;
+    use crate::{app_paths::AppPaths, locale::UiLocale};
 
     use super::super::{candidate, helper, startup};
     use super::*;
@@ -715,7 +715,7 @@ mod tests {
         let target = target(root.path());
 
         assert_eq!(
-            startup::complete_startup_transaction(&target).unwrap(),
+            startup::complete_startup_transaction(&target, UiLocale::EnUs).unwrap(),
             startup::StartupUpdateResult::NoTransaction
         );
         assert!(!root.path().join("cache/update").exists());
@@ -727,7 +727,7 @@ mod tests {
         let target = target(root.path());
         write_file(&root.path().join("cache/update/transaction.json"), "{");
 
-        let error = startup::complete_startup_transaction(&target).unwrap_err();
+        let error = startup::complete_startup_transaction(&target, UiLocale::EnUs).unwrap_err();
         assert!(error.contains("解析 transaction.json 失败"));
     }
 
@@ -740,7 +740,7 @@ mod tests {
             r#"{"schema_version":2}"#,
         );
 
-        let error = startup::complete_startup_transaction(&target).unwrap_err();
+        let error = startup::complete_startup_transaction(&target, UiLocale::EnUs).unwrap_err();
         assert!(error.contains("不支持的 transaction schema version: 2"));
     }
 
@@ -796,7 +796,12 @@ mod tests {
         let role = env::var("OEA_TEST_TRANSACTION_ROLE").unwrap();
         if role == "helper" {
             assert_eq!(
-                helper::run_helper_request(PathBuf::from(root), OsString::from("OEA")).unwrap(),
+                helper::run_helper_request(
+                    PathBuf::from(root),
+                    OsString::from("OEA"),
+                    UiLocale::EnUs
+                )
+                .unwrap(),
                 helper::HelperResult::ExecutableCommitted
             );
         } else {

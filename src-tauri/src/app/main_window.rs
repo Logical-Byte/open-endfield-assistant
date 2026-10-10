@@ -2,22 +2,28 @@
 
 use std::{fs, path::Path};
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, ensure};
 use tracing::warn;
 
-use crate::{app_paths::AppPaths, platform};
+use crate::{app_paths::AppPaths, locale::UiLocale, platform, settings};
 
 /// 确保 WebView 运行环境可用。安装被拒绝或失败时，禁止继续创建窗口。
-fn ensure_runtime(cache_dir: &Path) -> Result<()> {
+fn ensure_runtime(cache_dir: &Path, locale: UiLocale) -> anyhow::Result<()> {
     let installed =
-        platform::webview::ensure_installed(cache_dir).inspect_err(|e| warn!("{e:#}"))?;
+        platform::webview::ensure_installed(cache_dir, locale).inspect_err(|e| warn!("{e:#}"))?;
     ensure!(installed, "WebView2 不可用，安装被取消或失败，无法启动 OEA");
     Ok(())
 }
 
 /// 确认 WebView 可用后创建主窗口并注册缩放监听。调用方须先完成更新事务。
-pub(super) fn create(app: &tauri::App, app_paths: &AppPaths) -> Result<tauri::WebviewWindow> {
-    ensure_runtime(&app_paths.cache_dir())?;
+pub(super) fn create(
+    app: &tauri::App,
+    app_paths: &AppPaths,
+) -> anyhow::Result<tauri::WebviewWindow> {
+    ensure_runtime(
+        &app_paths.cache_dir(),
+        settings::read_ui_locale(&app_paths.oea_settings_file()),
+    )?;
 
     // 绿色便携：将 WebView2 用户数据保存在应用目录，避免默认写入 `%LOCALAPPDATA%`。
     fs::create_dir_all(app_paths.webview_data_dir()).with_context(|| {

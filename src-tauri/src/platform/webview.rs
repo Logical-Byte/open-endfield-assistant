@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use anyhow::Result;
+use crate::locale::UiLocale;
 
 #[cfg(target_os = "windows")]
 use super::windows;
@@ -11,21 +11,21 @@ use super::windows;
 ///
 /// 已安装或安装成功时返回 `true`；用户拒绝或安装失败时返回 `false`。
 /// macOS 开发外壳直接返回 `true`。
-pub fn ensure_installed(cache_dir: &Path) -> Result<bool> {
+pub fn ensure_installed(cache_dir: &Path, locale: UiLocale) -> anyhow::Result<bool> {
     #[cfg(target_os = "windows")]
     {
-        windows::webview2::ensure_installed(cache_dir)
+        windows::webview2::ensure_installed(cache_dir, locale)
     }
 
     #[cfg(unix)]
     {
-        let _ = cache_dir;
+        let _ = (cache_dir, locale);
         Ok(true)
     }
 }
 
 /// 读取 WebView 当前缩放因子；macOS 开发外壳返回 `1.0`。
-pub fn get_zoom(window: tauri::WebviewWindow) -> Result<f64> {
+pub fn get_zoom(window: tauri::WebviewWindow) -> anyhow::Result<f64> {
     #[cfg(target_os = "windows")]
     {
         windows::webview2::get_zoom(window)
