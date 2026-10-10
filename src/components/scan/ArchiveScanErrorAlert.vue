@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
+import { formatBackendError } from '@/shared/errors';
 import { scanError } from '@/features/archiveScan/scannedItems';
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
 
@@ -14,8 +15,8 @@ const showScanError: ComputedRef<boolean> = computed(
 );
 
 /** 当前扫描失败原因（无失败时为 undefined，用于提示文案） */
-const scanErrorMessage: ComputedRef<string | undefined> = computed(
-  (): string | undefined => scanError.value ?? undefined,
+const scanErrorMessage: ComputedRef<string | undefined> = computed((): string | undefined =>
+  scanError.value ? formatBackendError(scanError.value) : undefined,
 );
 
 // 失败原因变化（含重新失败）时恢复显示提示

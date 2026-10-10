@@ -6,7 +6,7 @@
 
 use std::{collections::HashMap, time::Duration};
 
-use anyhow::{Context, Result, bail};
+use crate::navigation;
 use tracing::{debug, warn};
 
 use crate::automation::{Clock, Input, ScreenCapture, TemplateMatching};
@@ -43,10 +43,12 @@ where
         }
     }
 
-    pub(super) fn run(mut self) -> Result<()> {
+    pub(super) fn run(mut self) -> Result<(), navigation::Error> {
         let mut current = match recognize(self.cx)? {
             Recognition::Determined(state) => state,
-            Recognition::Unrecognized => bail!("当前画面无法识别，无法开始导航"),
+            Recognition::Unrecognized => {
+                return Err(navigation::Error::failed("当前画面无法识别，无法开始导航"));
+            }
         };
 
         loop {
@@ -55,14 +57,16 @@ where
                 return Ok(());
             }
             let step = self.policy.step(current).ok_or_else(|| {
-                anyhow::anyhow!("无法保证从当前具体 UI 状态 {current:?} 抵达目的状态")
+                navigation::Error::failed(format!(
+                    "无法保证从当前具体 UI 状态 {current:?} 抵达目的状态"
+                ))
             })?;
 
             let attempts = self.action_attempts.entry(current).or_default();
             if *attempts == MAX_ACTIONS_PER_STATE {
-                bail!(
+                return Err(navigation::Error::failed(format!(
                     "导航未取得进展：具体 UI 状态 {current:?} 已执行策略动作 {MAX_ACTIONS_PER_STATE} 次"
-                );
+                )));
             }
             *attempts += 1;
             debug!(
@@ -72,8 +76,11 @@ where
                 "执行导航策略动作"
             );
 
-            execute_ops(step.transition.ops, self.cx)
-                .with_context(|| format!("执行具体 UI 状态 {current:?} 的导航动作失败"))?;
+            execute_ops(step.transition.ops, self.cx).inspect_err(|error| {
+                if !error.is_stopped_by_user() {
+                    debug!(state = ?current, error = ?error, "执行导航动作失败");
+                }
+            })?;
             let observed = observe_after_action(self.cx)?;
             if !step.transition.outcomes.contains(&observed) {
                 warn!("导航观测超出跳转声明，尝试从当前状态继续");
@@ -84,11 +91,10 @@ where
                     "导航模型违例详情"
                 );
                 if !self.policy.is_destination(observed) && self.policy.step(observed).is_none() {
-                    bail!(
+                    return Err(navigation::Error::failed(format!(
                         "导航模型违例：从 {current:?} 执行动作 {:?} 后观测到未被策略覆盖的 {observed:?}，声明结果为 {:?}",
-                        step.transition.ops,
-                        step.transition.outcomes,
-                    );
+                        step.transition.ops, step.transition.outcomes,
+                    )));
                 }
             }
             current = observed;
@@ -96,7 +102,7 @@ where
     }
 }
 
-fn observe_after_action<C>(cx: &mut C) -> Result<UiState>
+fn observe_after_action<C>(cx: &mut C) -> Result<UiState, navigation::Error>
 where
     C: ScreenCapture + TemplateMatching + Clock,
 {
@@ -106,26 +112,32 @@ where
             return Ok(state);
         }
     }
-    bail!("执行导航动作后连续 {MAX_UNRECOGNIZED_OBSERVATIONS} 次无法识别具体 UI 状态")
+    Err(navigation::Error::failed(format!(
+        "执行导航动作后连续 {MAX_UNRECOGNIZED_OBSERVATIONS} 次无法识别具体 UI 状态"
+    )))
 }
 
-fn execute_ops<C>(ops: &[Op], cx: &mut C) -> Result<()>
+fn execute_ops<C>(ops: &[Op], cx: &mut C) -> Result<(), navigation::Error>
 where
     C: ScreenCapture + Input + TemplateMatching + Clock,
 {
     for (index, op) in ops.iter().enumerate() {
-        execute_op(op, cx).with_context(|| format!("导航动作序列的第 {} 步失败", index + 1))?;
+        execute_op(op, cx).inspect_err(|error| {
+            if !error.is_stopped_by_user() {
+                debug!(step = index + 1, ?op, error = ?error, "导航动作失败");
+            }
+        })?;
     }
     Ok(())
 }
 
-fn execute_op<C>(op: &Op, cx: &mut C) -> Result<()>
+fn execute_op<C>(op: &Op, cx: &mut C) -> Result<(), navigation::Error>
 where
     C: ScreenCapture + Input + TemplateMatching + Clock,
 {
     match op {
-        Op::Click(point) => cx.click(*point),
-        Op::PressKey(key) => cx.press_key(*key),
+        Op::Click(point) => cx.click(*point).map_err(navigation::Error::from),
+        Op::PressKey(key) => cx.press_key(*key).map_err(navigation::Error::from),
         Op::Sleep(duration) => {
             cx.sleep(*duration);
             Ok(())
@@ -133,15 +145,17 @@ where
         Op::FindAndClickTemplate { target, fallback } => {
             let screenshot = cx.screenshot()?;
             if let Some(matched) = cx.find_template(&screenshot, target)? {
-                return cx.click(matched.region.center().into());
+                return cx
+                    .click(matched.region.center().into())
+                    .map_err(navigation::Error::from);
             }
             if let Some(point) = fallback {
-                return cx.click(*point);
+                return cx.click(*point).map_err(navigation::Error::from);
             }
-            bail!(
+            Err(navigation::Error::failed(format!(
                 "画面中没有找到与模板匹配的可点击区域: {}",
                 target.template_name
-            )
+            )))
         }
     }
 }

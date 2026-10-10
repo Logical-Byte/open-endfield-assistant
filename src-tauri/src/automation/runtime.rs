@@ -2,10 +2,11 @@
 //!
 //! 提供全局互斥的任务启动、停止和状态通知。具体任务通过 [`Worker`] adapter 接入。
 
+use crate::automation;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tracing::{error, info, warn};
 use ts_rs::TS;
 
@@ -15,7 +16,7 @@ use crate::automation::{
 };
 
 /// 当前自动化任务的生命周期状态。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(tag = "state", rename_all = "camelCase")]
 #[ts(export, export_to = "automation/")]
 pub enum Status {
@@ -40,18 +41,22 @@ impl Status {
     }
 }
 
-/// 自动化运行的终态。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+/// 自动化运行的终态，由 `status` 区分：
+/// - `completed`：工作流执行完毕。
+/// - `failed`：运行未完整完成，`error` 携带停止或失败的结构化原因。
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(tag = "status", rename_all = "camelCase")]
 #[ts(export, export_to = "automation/")]
 pub enum RunOutcome {
     Completed,
-    Stopped,
-    Failed { error: String },
+    Failed {
+        /// 生命周期或任务执行失败原因，前端按当前语言展示。
+        error: automation::Error,
+    },
 }
 
 /// 空闲状态中保留的最近一次运行结束信息。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "automation/")]
 pub struct LastRun {
@@ -59,16 +64,9 @@ pub struct LastRun {
     outcome: RunOutcome,
 }
 
-/// 工作者结束的原因；失败时保留供运行时记录和展示的错误信息。
-pub(crate) enum FinishReason {
-    Completed,
-    Stopped,
-    Failed(String),
-}
-
 /// [`Worker`] 交给 [`Runtime`] 的完整退出信息，不包含任务的领域结果。
 pub(crate) struct WorkerExit {
-    pub(crate) reason: FinishReason,
+    pub(crate) result: Result<(), automation::WorkerError>,
     pub(crate) capture: Option<CaptureSummary>,
 }
 
@@ -134,13 +132,13 @@ impl Runtime {
                 runtime.handle_worker_exit(task_kind, result);
             })
         {
-            self.handle_worker_exit(
+            error!(error = ?error, "启动自动化任务线程失败");
+            self.finish_run_and_emit(LastRun {
                 task_kind,
-                WorkerExit {
-                    reason: FinishReason::Failed(format!("启动自动化任务线程失败: {error}")),
-                    capture: None,
+                outcome: RunOutcome::Failed {
+                    error: automation::RuntimeError::ThreadStartFailed.into(),
                 },
-            );
+            });
         }
     }
 
@@ -192,8 +190,8 @@ impl Runtime {
     }
 
     /// 处理 worker 退出：记录统计，将结束信息写入空闲状态，再推送完整状态。
-    fn handle_worker_exit(&self, task_kind: TaskKind, result: WorkerExit) {
-        let WorkerExit { reason, capture } = result;
+    fn handle_worker_exit(&self, task_kind: TaskKind, exit: WorkerExit) {
+        let WorkerExit { result, capture } = exit;
         if let Some(summary) = capture {
             let calls = summary.calls;
             info!(
@@ -210,18 +208,20 @@ impl Runtime {
             );
         }
 
-        let outcome = match reason {
-            FinishReason::Completed => {
+        let outcome = match result {
+            Ok(()) => {
                 info!("========== 自动化任务执行完毕 ==========");
                 RunOutcome::Completed
             }
-            FinishReason::Stopped => {
-                info!("自动化任务已被用户停止");
-                RunOutcome::Stopped
-            }
-            FinishReason::Failed(message) => {
-                error!("{message}");
-                RunOutcome::Failed { error: message }
+            Err(error) => {
+                if error.is_stopped_by_user() {
+                    info!("自动化任务已被用户停止");
+                } else {
+                    error!("自动化任务失败：{error}");
+                }
+                RunOutcome::Failed {
+                    error: error.into(),
+                }
             }
         };
 
@@ -249,24 +249,21 @@ impl Runtime {
 mod tests {
     use std::sync::Arc;
 
+    use crate::automation;
     use crate::automation::{
-        Event, EventSink, TaskKind,
+        EventSink, StopToken, TaskKind,
         events::testing::RecordingEventSink,
-        runtime::{FinishReason, LastRun, RunOutcome, Status, Worker, WorkerExit},
+        runtime::{Worker, WorkerExit},
     };
 
     use super::Runtime;
 
-    struct CompletingWorker;
+    struct FinishingWorker(Result<(), automation::WorkerError>);
 
-    impl Worker for CompletingWorker {
-        fn run(
-            self: Box<Self>,
-            _stop: crate::automation::StopToken,
-            _events: Arc<dyn EventSink>,
-        ) -> WorkerExit {
+    impl Worker for FinishingWorker {
+        fn run(self: Box<Self>, _stop: StopToken, _events: Arc<dyn EventSink>) -> WorkerExit {
             WorkerExit {
-                reason: FinishReason::Completed,
+                result: self.0,
                 capture: None,
             }
         }
@@ -274,24 +271,40 @@ mod tests {
 
     #[test]
     fn publishes_lifecycle_events_without_tauri() {
-        let events = Arc::new(RecordingEventSink::default());
-        let runtime = Arc::new(Runtime::new(Arc::clone(&events)));
+        for (result, outcome) in [
+            (Ok(()), serde_json::json!({"status": "completed"})),
+            (
+                Err(automation::capabilities::Error::StoppedByUser.into()),
+                serde_json::json!({"status": "failed", "error": {"scope": "worker", "kind": "capability", "reason": {"kind": "stoppedByUser"}}}),
+            ),
+            (
+                Err(automation::capabilities::Error::ExecutionFailed.into()),
+                serde_json::json!({"status": "failed", "error": {"scope": "worker", "kind": "capability", "reason": {"kind": "executionFailed"}}}),
+            ),
+        ] {
+            let events = Arc::new(RecordingEventSink::default());
+            let runtime = Arc::new(Runtime::new(Arc::clone(&events)));
 
-        runtime.start(TaskKind::ArchiveScan, || Box::new(CompletingWorker));
+            runtime.start(TaskKind::ArchiveScan, || Box::new(FinishingWorker(result)));
 
-        assert_eq!(
-            events.wait_for_events(2),
-            vec![
-                Event::StatusChanged(Status::Running {
-                    task_kind: TaskKind::ArchiveScan,
-                }),
-                Event::StatusChanged(Status::Idle {
-                    last_run: Some(LastRun {
-                        task_kind: TaskKind::ArchiveScan,
-                        outcome: RunOutcome::Completed,
-                    }),
-                }),
-            ]
-        );
+            let statuses: Vec<_> = events
+                .wait_for_events(2)
+                .into_iter()
+                .map(|event| {
+                    let automation::Event::StatusChanged(status) = event else {
+                        panic!("生命周期只应发布状态事件");
+                    };
+                    serde_json::to_value(status).unwrap()
+                })
+                .collect();
+            assert_eq!(
+                statuses,
+                vec![
+                    serde_json::json!({"state": "running", "taskKind": "archiveScan"}),
+                    serde_json::json!({"state": "idle", "lastRun": {"taskKind": "archiveScan", "outcome": outcome}}),
+                ]
+            );
+            assert_eq!(serde_json::to_value(runtime.status()).unwrap(), statuses[1]);
+        }
     }
 }

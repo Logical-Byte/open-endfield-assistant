@@ -6,3 +6,4 @@ export type { UpdateAvailability } from './generated/update/UpdateAvailability';
 export type { UpdateInfo } from './generated/update/UpdateInfo';
 export type { UpdateOperationStatus } from './generated/update/UpdateOperationStatus';
 export type { UpdateStatus } from './generated/update/UpdateStatus';
+export type { DownloadOutcome } from './generated/update/DownloadOutcome';

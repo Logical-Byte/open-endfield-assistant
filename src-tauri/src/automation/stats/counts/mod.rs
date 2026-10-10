@@ -62,7 +62,7 @@ impl<C: ?Sized> Drop for Capture<'_, C> {
 mod tests {
     use std::time::Duration;
 
-    use anyhow::Result;
+    use crate::automation::capabilities;
     use image::RgbaImage;
 
     use crate::{
@@ -79,15 +79,15 @@ mod tests {
     struct InputOnly;
 
     impl Input for InputOnly {
-        fn click(&mut self, _point: Point720p) -> Result<()> {
+        fn click(&mut self, _point: Point720p) -> Result<(), capabilities::Error> {
             Ok(())
         }
 
-        fn press_key(&mut self, _key: Key) -> Result<()> {
+        fn press_key(&mut self, _key: Key) -> Result<(), capabilities::Error> {
             Ok(())
         }
 
-        fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+        fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
             Ok(())
         }
     }
@@ -115,21 +115,21 @@ mod tests {
     struct AllCapabilities;
 
     impl ScreenCapture for AllCapabilities {
-        fn screenshot(&mut self) -> Result<RgbaImage> {
+        fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
             Ok(RgbaImage::new(1, 1))
         }
     }
 
     impl Input for AllCapabilities {
-        fn click(&mut self, _point: Point720p) -> Result<()> {
+        fn click(&mut self, _point: Point720p) -> Result<(), capabilities::Error> {
             Ok(())
         }
 
-        fn press_key(&mut self, _key: Key) -> Result<()> {
+        fn press_key(&mut self, _key: Key) -> Result<(), capabilities::Error> {
             Ok(())
         }
 
-        fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+        fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
             Ok(())
         }
     }
@@ -139,7 +139,7 @@ mod tests {
             &mut self,
             _screenshot: &RgbaImage,
             _target: &TemplateTarget,
-        ) -> Result<Option<TemplateMatch>> {
+        ) -> Result<Option<TemplateMatch>, capabilities::Error> {
             Ok(None)
         }
     }
@@ -149,7 +149,7 @@ mod tests {
             &mut self,
             _screenshot: &RgbaImage,
             _region: Region2D<u32>,
-        ) -> Result<Option<String>> {
+        ) -> Result<Option<String>, capabilities::Error> {
             Ok(None)
         }
     }
@@ -196,8 +196,8 @@ mod tests {
     struct FailingScreenCapture;
 
     impl ScreenCapture for FailingScreenCapture {
-        fn screenshot(&mut self) -> Result<RgbaImage> {
-            anyhow::bail!("screenshot failed")
+        fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
+            Err(capabilities::Error::CaptureFailed)
         }
     }
 
@@ -219,15 +219,15 @@ mod tests {
     }
 
     impl Input for InputWithInternalMove {
-        fn click(&mut self, _point: Point720p) -> Result<()> {
+        fn click(&mut self, _point: Point720p) -> Result<(), capabilities::Error> {
             self.move_mouse_to_safe_position()
         }
 
-        fn press_key(&mut self, _key: Key) -> Result<()> {
+        fn press_key(&mut self, _key: Key) -> Result<(), capabilities::Error> {
             Ok(())
         }
 
-        fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+        fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
             self.safe_moves += 1;
             Ok(())
         }

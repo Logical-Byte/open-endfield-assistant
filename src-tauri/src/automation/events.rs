@@ -5,7 +5,7 @@
 use super::{archive_scan::ScannedItem, runtime::Status};
 
 /// 自动化模块能够向外发布的事件。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) enum Event {
     StatusChanged(Status),
     ArchiveItemScanned(ScannedItem),

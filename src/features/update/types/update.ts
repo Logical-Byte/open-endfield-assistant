@@ -1,3 +1,4 @@
+import type { ErrorFacts } from '@/shared/errors';
 import type { DownloadProgress, UpdateInfo } from '@/shared/types/update';
 
 export type {
@@ -16,7 +17,7 @@ export type UpdateCheckState =
   | { status: 'checking'; lastCheckedAt: number | null }
   | { status: 'upToDate'; lastCheckedAt: number }
   | { status: 'available'; lastCheckedAt: number | null; update: UpdateInfo }
-  | { status: 'error'; lastCheckedAt: number | null; error: Error };
+  | { status: 'error'; lastCheckedAt: number | null; error: ErrorFacts };
 
 /** 由后端 operation/pending 与 WebView 展示状态推导的下载状态。 */
 export type DownloadState =
@@ -24,7 +25,7 @@ export type DownloadState =
   | { status: 'downloading'; progress: DownloadProgress }
   | { status: 'cancelling'; progress: DownloadProgress }
   | { status: 'completed'; update: UpdateInfo }
-  | { status: 'failed' };
+  | { status: 'failed'; error: ErrorFacts };
 
 /** 安装阶段。 */
 export enum UpdateInstallStatus {

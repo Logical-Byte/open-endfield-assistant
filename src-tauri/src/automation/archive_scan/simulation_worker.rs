@@ -10,8 +10,8 @@ use image::{Rgba, RgbaImage};
 
 use crate::{
     automation::{
-        EventSink, StopToken, is_stop_requested,
-        runtime::{self, FinishReason, WorkerExit},
+        self, EventSink, StopToken, capabilities, is_stop_requested,
+        runtime::{self, WorkerExit},
     },
     data::{AppData, archive},
 };
@@ -83,14 +83,16 @@ impl runtime::Worker for SimulationWorker {
 
         let finish_at = Instant::now() + Duration::from_secs(20);
         let mut sequence = 0;
-        let finish_reason = loop {
+        let result = loop {
             let interval = Duration::from_millis(fastrand::u64(350..=650));
             let next_result_at = (Instant::now() + interval).min(finish_at);
             if !wait_until_or_stopped(next_result_at, &stop) {
-                break FinishReason::Stopped;
+                break Err(automation::WorkerError::from(
+                    capabilities::Error::StoppedByUser,
+                ));
             }
             if Instant::now() >= finish_at {
-                break FinishReason::Completed;
+                break Ok(());
             }
 
             let (page, category, ocr_result) = sample_ocr_result(sequence);
@@ -106,12 +108,15 @@ impl runtime::Worker for SimulationWorker {
             reporter.report(page, category, &image, ocr_result, corrected);
         };
 
-        if matches!(finish_reason, FinishReason::Stopped) {
+        if result
+            .as_ref()
+            .is_err_and(|error| error.is_stopped_by_user())
+        {
             // 模拟一秒收尾，让前端有时间展示“正在停止扫描”，期间不再产出结果。
             thread::sleep(Duration::from_secs(1));
         }
         WorkerExit {
-            reason: finish_reason,
+            result,
             capture: None,
         }
     }

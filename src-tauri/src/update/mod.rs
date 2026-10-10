@@ -5,9 +5,11 @@ pub mod install;
 
 mod check;
 mod download;
+pub mod error;
 mod http;
 mod manager;
 mod response;
 mod source;
 
+pub use error::Error;
 pub use manager::UpdateManager;

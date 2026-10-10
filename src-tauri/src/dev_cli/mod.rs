@@ -11,6 +11,7 @@ use std::{
     process::ExitCode,
     sync::{Arc, Mutex},
 };
+use tracing_subscriber::{Layer, layer::SubscriberExt};
 
 pub fn run_dev_cli(args: impl IntoIterator<Item = OsString>) -> ExitCode {
     match args::Dev::try_parse_from(args) {
@@ -19,11 +20,15 @@ pub fn run_dev_cli(args: impl IntoIterator<Item = OsString>) -> ExitCode {
             // changing application logging when this library entry is embedded.
             let diagnostics = Diagnostics::default();
             let writer = diagnostics.clone();
-            let subscriber = tracing_subscriber::fmt()
+            let layer = tracing_subscriber::fmt::layer()
                 .with_writer(move || writer.clone())
                 .with_ansi(false)
-                .with_max_level(tracing::Level::WARN)
-                .finish();
+                .with_filter(tracing_subscriber::filter::filter_fn(|metadata| {
+                    *metadata.level() <= tracing::Level::WARN
+                        || (*metadata.level() == tracing::Level::DEBUG
+                            && metadata.fields().field("error").is_some())
+                }));
+            let subscriber = tracing_subscriber::registry().with(layer);
             tracing::subscriber::with_default(subscriber, || {
                 let result = commands::execute(&cli.command);
                 write_result(
@@ -43,7 +48,7 @@ pub fn run_dev_cli(args: impl IntoIterator<Item = OsString>) -> ExitCode {
     }
 }
 
-// Buffer production warnings until the result is known, so a JSON failure can
+// Buffer warnings and error diagnostics until the result is known, so a JSON failure can
 // include them inside its error object without contaminating the stderr stream.
 #[derive(Clone, Default)]
 struct Diagnostics(Arc<Mutex<Vec<u8>>>);

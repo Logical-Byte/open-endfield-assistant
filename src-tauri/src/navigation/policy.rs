@@ -33,7 +33,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{Result, bail};
+use crate::navigation;
 
 use super::{graph::NavigationGraph, state::UiState, transition::Transition};
 
@@ -54,7 +54,10 @@ pub(super) struct NavigationPolicy {
 
 impl NavigationPolicy {
     /// 接受调用方的目的状态 `Iterator`；核心算法只处理收集后的具体集合。
-    pub(super) fn build<I>(graph: &NavigationGraph, destinations: I) -> Result<Self>
+    pub(super) fn build<I>(
+        graph: &NavigationGraph,
+        destinations: I,
+    ) -> Result<Self, navigation::Error>
     where
         I: Iterator<Item = UiState>,
     {
@@ -62,9 +65,12 @@ impl NavigationPolicy {
     }
 
     /// 在具体目的状态集合上运行模块文档描述的反向分层超图搜索。
-    fn build_for_set(graph: &NavigationGraph, destinations: HashSet<UiState>) -> Result<Self> {
+    fn build_for_set(
+        graph: &NavigationGraph,
+        destinations: HashSet<UiState>,
+    ) -> Result<Self, navigation::Error> {
         if destinations.is_empty() {
-            bail!("导航策略至少需要一个目的状态");
+            return Err(navigation::Error::failed("导航策略至少需要一个目的状态"));
         }
 
         let mut remaining_hops_by_state = destinations
@@ -97,7 +103,7 @@ impl NavigationPolicy {
                         .expect("导航图已保证 transition 至少有一个结果状态");
                     let remaining_hops = worst_outcome
                         .checked_add(1)
-                        .ok_or_else(|| anyhow::anyhow!("导航策略剩余步数溢出"))?;
+                        .ok_or_else(|| navigation::Error::failed("导航策略剩余步数溢出"))?;
                     let candidate = PolicyStep {
                         transition: *transition,
                         remaining_hops,

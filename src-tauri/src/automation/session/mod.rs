@@ -3,32 +3,38 @@
 //! 实现工作流所需的游戏操作能力，并封装游戏窗口、输入、截图与识别资源。
 
 mod capability_impls;
-mod resolution;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Context, Result, bail};
-use tracing::{info, warn};
+use tracing::debug;
 
 use crate::{
     app_paths::AppPaths,
-    automation::{AutomationStopped, StopToken, is_stop_requested},
+    automation::{
+        StopToken, capabilities,
+        game_environment::{self, ResolutionTransform},
+        is_stop_requested,
+    },
     platform::{
-        self, WindowHandle,
+        WindowHandle,
         capture::{PrintWindowScreencap, ScreencapBase},
         input::{InputBase, SeizeInput},
     },
     vision::{ocr, template_matching},
 };
 
-use self::resolution::{Resolution, ResolutionTransform};
-
 /// 本地截图验证复用游戏会话的分辨率校验和缩放规则。
 #[cfg(feature = "cli")]
-pub(crate) fn normalize_screenshot(image: image::RgbaImage) -> anyhow::Result<image::RgbaImage> {
-    ResolutionTransform::new(Resolution::new(image.width(), image.height())?)?
-        .to_canonical_image(image)
+pub(crate) fn normalize_screenshot(
+    image: image::RgbaImage,
+) -> Result<image::RgbaImage, capabilities::Error> {
+    ResolutionTransform::new(game_environment::Resolution::new(
+        image.width(),
+        image.height(),
+    )?)?
+    .to_canonical_image(image)
+    .map_err(capabilities::Error::from)
 }
 
 /// # Send 安全性
@@ -60,54 +66,27 @@ impl Session {
     #[cfg(feature = "cli")]
     pub(crate) fn client_size(&self) -> (u32, u32) {
         let physical = self.resolution_transform.physical();
-        (physical.width(), physical.height())
+        (physical.width, physical.height)
     }
 
     /// 连接游戏窗口并创建会话。
-    ///
-    /// # 流程
-    /// 1. 按标题/类名查找终末地窗口，若被最小化则恢复（仅确保在屏幕上，不抢占前台）；
-    /// 2. 检测客户端分辨率（仅支持 16:9）；
-    /// 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）；
-    /// 4. 创建截图器与输入器；
-    /// 5. 组装会话（复用共享 OCR 引擎与模板目录）。
-    pub(crate) fn connect(ocr: &Arc<Mutex<ocr::OcrEngine>>, stop: StopToken) -> Result<Self> {
-        // 1. 获取游戏窗口（仅确保窗口在屏幕上，不抢占前台）
-        let hwnd = platform::window::get_window_by_title(
-            Some(platform::window::ENDFIELD_WINDOW_CLASS),
-            Some(platform::window::ENDFIELD_WINDOW_TITLE),
-        )
-        .context("未找到终末地窗口，请先打开游戏")?;
-        // 若窗口被最小化则先恢复，否则 `ensure_window_on_screen` 会跳过调整
-        let _ = platform::window::restore_window_if_minimized(hwnd)
-            .inspect_err(|e| warn!("恢复窗口失败: {e:#}"));
-        let _ = platform::window::ensure_window_on_screen(hwnd)
-            .inspect_err(|e| warn!("确保窗口在屏幕上失败: {e:#}"));
+    pub(crate) fn connect(
+        ocr: &Arc<Mutex<ocr::OcrEngine>>,
+        stop: StopToken,
+    ) -> Result<Self, capabilities::Error> {
+        let environment = game_environment::connect(game_environment::Requirements::default())?;
+        let hwnd = environment.window;
+        let resolution_transform = ResolutionTransform::new(environment.resolution)?;
 
-        // 2. 检测分辨率
-        let client_rect = platform::window::get_client_rect(hwnd)?;
-        let resolution = Resolution::new(
-            u32::try_from(client_rect.width()).context("游戏窗口宽度无效")?,
-            u32::try_from(client_rect.height()).context("游戏窗口高度无效")?,
-        )?;
-        info!("游戏分辨率: {}×{}", resolution.width(), resolution.height());
-        let resolution_transform = ResolutionTransform::new(resolution)?;
-
-        // 3. 检查终末地所在显示器是否开启 HDR（开启会致截图颜色失真、影响识别，拒绝执行）
-        match platform::window::hdr::is_hdr_enabled_on_window_monitor(hwnd) {
-            Ok(true) => {
-                bail!("终末地所在显示器已开启 HDR，截图颜色会失真导致识别异常，请关闭 HDR 后重试")
-            }
-            Ok(false) => {}
-            Err(e) => warn!("检查显示器 HDR 状态失败: {e:#}，继续执行任务"),
-        }
-
-        // 4. 创建截图器与输入器
         let screencap = Box::new(PrintWindowScreencap::new(hwnd));
         let input = Box::new(SeizeInput::new(hwnd, false));
 
-        // 5. 组装 `Session`（复用共享 OCR 引擎与模板目录）
-        let templates_root = AppPaths::new().map_err(anyhow::Error::msg)?.templates_dir();
+        let templates_root = AppPaths::new()
+            .map_err(|error| {
+                debug!(%error, "解析自动化资源路径失败");
+                capabilities::Error::ExecutionFailed
+            })?
+            .templates_dir();
         Ok(Self::new(
             hwnd,
             screencap,
@@ -143,12 +122,10 @@ impl Session {
 
     // ========== 停止 ==========
 
-    /// 检查是否收到停止信号，收到则返回 [`AutomationStopped`] 中断执行。
-    ///
-    /// 停止不是"任务出错"：上层用 `downcast_ref::<AutomationStopped>()` 区分。
-    pub(super) fn check_stop(&self) -> Result<()> {
+    /// 检查停止信号，由工作流出口将 `StoppedByUser` 转换为正常终态。
+    pub(super) fn check_stop(&self) -> Result<(), capabilities::Error> {
         if is_stop_requested(&self.stop) {
-            Err(AutomationStopped.into())
+            Err(capabilities::Error::StoppedByUser)
         } else {
             Ok(())
         }

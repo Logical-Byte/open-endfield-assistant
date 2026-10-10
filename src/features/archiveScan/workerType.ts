@@ -1,4 +1,4 @@
-import type { WorkerType } from '@/shared/types/archiveScan';
+import type { WorkerType } from '@/shared/types/automation';
 import { computed, ref } from 'vue';
 
 export type ArchiveScanWorkerType = WorkerType;
