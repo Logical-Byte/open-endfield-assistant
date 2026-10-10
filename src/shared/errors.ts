@@ -1,4 +1,9 @@
-import type { BackendError, GameEnvironmentError, ScreenshotError } from '@/shared/types/errors';
+import type {
+  BackendError,
+  GameEnvironmentError,
+  ScreenshotError,
+  ArchiveScanError,
+} from '@/shared/types/errors';
 import { logError } from '@/features/log/ipc';
 import { t } from '@/shared/i18n';
 
@@ -43,9 +48,23 @@ function screenshotReason(value: unknown): value is ScreenshotError {
       return false;
   }
 }
+function archiveScanReason(value: unknown): value is ArchiveScanError {
+  if (!record(value)) return false;
+  if (value.kind === 'gameEnvironment') return gameEnvironment(value.reason);
+  return (
+    typeof value.kind === 'string' &&
+    ['threadStartFailed', 'captureFailed', 'navigationFailed', 'executionFailed'].includes(
+      value.kind,
+    )
+  );
+}
 /** IPC 拒绝值只有验证形状与类型后才进入展示契约。未知值保留到日志。 */
 export function normalizeBackendError(value: unknown, operation: BackendOperation): ErrorFacts {
-  if (record(value) && value.operation === operation && screenshotReason(value.reason)) {
+  if (
+    record(value) &&
+    value.operation === operation &&
+    (operation === 'screenshot' ? screenshotReason(value.reason) : archiveScanReason(value.reason))
+  ) {
     return { operation, error: value as BackendError };
   }
   console.error('未知后端错误', { operation, error: value });
@@ -80,7 +99,19 @@ export function formatGameEnvironmentError(reason: GameEnvironmentError): string
 }
 /** 在展示时格式化事实，持续错误随 UiLocale 更新。 */
 export function formatBackendError(facts: ErrorFacts): string {
-  if (!facts.error) return t('errors.screenshot.failed');
+  if (!facts.error)
+    return t(facts.operation === 'archiveScan' ? 'errors.scan.failed' : 'errors.screenshot.failed');
+  if (facts.error.operation === 'archiveScan') {
+    const reason = facts.error.reason;
+    if (reason.kind === 'gameEnvironment') return formatGameEnvironmentError(reason.reason);
+    const keys = {
+      threadStartFailed: 'errors.scan.threadStartFailed',
+      captureFailed: 'errors.scan.captureFailed',
+      navigationFailed: 'errors.scan.navigationFailed',
+      executionFailed: 'errors.scan.failed',
+    } as const;
+    return t(keys[reason.kind]);
+  }
   switch (facts.error.reason.kind) {
     case 'gameEnvironment':
       return formatGameEnvironmentError(facts.error.reason.reason);

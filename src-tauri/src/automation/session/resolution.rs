@@ -1,6 +1,6 @@
 //! 720p 识别坐标与游戏窗口物理坐标之间的转换。
 
-use anyhow::{Result, bail};
+use anyhow::bail;
 use image::{
     RgbaImage,
     imageops::{self, FilterType},
@@ -17,9 +17,11 @@ pub(super) struct Resolution {
 
 impl Resolution {
     /// 创建像素尺寸。
-    pub(super) fn new(width: u32, height: u32) -> Result<Self> {
+    pub(super) fn new(width: u32, height: u32) -> anyhow::Result<Self> {
         if width == 0 || height == 0 {
-            bail!("分辨率尺寸不能为零");
+            bail!(
+                crate::backend_error::GameEnvironmentError::UnsupportedResolution { width, height }
+            );
         }
 
         Ok(Self { width, height })
@@ -47,7 +49,7 @@ pub(super) struct ResolutionTransform {
 
 impl ResolutionTransform {
     /// 创建转换器，并确认物理分辨率与 720p 识别空间的比例兼容。
-    pub(super) fn new(physical: Resolution) -> Result<Self> {
+    pub(super) fn new(physical: Resolution) -> anyhow::Result<Self> {
         let transform = Self { physical };
         let canonical = transform.canonical();
         let physical = transform.physical();
@@ -56,11 +58,10 @@ impl ResolutionTransform {
 
         if width_scaled.abs_diff(height_scaled) > u64::from(canonical.width) {
             bail!(
-                "实际窗口分辨率 {}×{} 与 {}×{} 基准比例不兼容，期待 16:9 分辨率",
-                physical.width,
-                physical.height,
-                canonical.width,
-                canonical.height,
+                crate::backend_error::GameEnvironmentError::UnsupportedResolution {
+                    width: physical.width,
+                    height: physical.height,
+                }
             );
         }
 
@@ -80,15 +81,16 @@ impl ResolutionTransform {
     }
 
     /// 校验物理截图尺寸，并将其归一化到 720p 识别空间。
-    pub(super) fn to_canonical_image(&self, image: RgbaImage) -> Result<RgbaImage> {
+    pub(super) fn to_canonical_image(&self, image: RgbaImage) -> anyhow::Result<RgbaImage> {
         let physical = self.physical();
         if image.width() != physical.width || image.height() != physical.height {
             bail!(
-                "截图尺寸 {}×{} 与连接时记录的游戏分辨率 {}×{} 不一致",
-                image.width(),
-                image.height(),
-                physical.width,
-                physical.height,
+                crate::backend_error::GameEnvironmentError::WindowSizeChanged {
+                    expected_width: physical.width,
+                    expected_height: physical.height,
+                    actual_width: image.width(),
+                    actual_height: image.height(),
+                }
             );
         }
 

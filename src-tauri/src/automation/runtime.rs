@@ -47,7 +47,9 @@ impl Status {
 pub enum RunOutcome {
     Completed,
     Stopped,
-    Failed { error: String },
+    Failed {
+        error: crate::backend_error::BackendError,
+    },
 }
 
 /// 空闲状态中保留的最近一次运行结束信息。
@@ -63,7 +65,7 @@ pub struct LastRun {
 pub(crate) enum FinishReason {
     Completed,
     Stopped,
-    Failed(String),
+    Failed(crate::backend_error::BackendError),
 }
 
 /// [`Worker`] 交给 [`Runtime`] 的完整退出信息，不包含任务的领域结果。
@@ -134,10 +136,13 @@ impl Runtime {
                 runtime.handle_worker_exit(task_kind, result);
             })
         {
+            error!(error = ?error, "启动自动化任务线程失败");
             self.handle_worker_exit(
                 task_kind,
                 WorkerExit {
-                    reason: FinishReason::Failed(format!("启动自动化任务线程失败: {error}")),
+                    reason: FinishReason::Failed(crate::backend_error::BackendError::ArchiveScan(
+                        crate::backend_error::ArchiveScanError::ThreadStartFailed,
+                    )),
                     capture: None,
                 },
             );
@@ -220,7 +225,7 @@ impl Runtime {
                 RunOutcome::Stopped
             }
             FinishReason::Failed(message) => {
-                error!("{message}");
+                error!(reason = ?message, "自动化任务失败，详细原因已记录到日志");
                 RunOutcome::Failed { error: message }
             }
         };

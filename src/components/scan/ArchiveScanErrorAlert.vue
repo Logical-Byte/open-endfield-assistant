@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
+import { formatBackendError } from '@/shared/errors';
 import { scanError } from '@/features/archiveScan/scannedItems';
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
+
+const { t } = useAppI18n();
 
 /** 用户是否手动关闭了扫描失败提示（失败原因变化时自动恢复显示） */
 const scanErrorDismissed: Ref<boolean> = ref(false);
@@ -11,8 +15,8 @@ const showScanError: ComputedRef<boolean> = computed(
 );
 
 /** 当前扫描失败原因（无失败时为 undefined，用于提示文案） */
-const scanErrorMessage: ComputedRef<string | undefined> = computed(
-  (): string | undefined => scanError.value ?? undefined,
+const scanErrorMessage: ComputedRef<string | undefined> = computed((): string | undefined =>
+  scanError.value ? formatBackendError(scanError.value) : undefined,
 );
 
 // 失败原因变化（含重新失败）时恢复显示提示
@@ -29,7 +33,7 @@ watch(scanError, () => {
     :description="scanErrorMessage"
     icon="i-lucide-circle-alert"
     orientation="horizontal"
-    title="扫描失败"
+    :title="t('scan.failed')"
     variant="outline"
     @update:open="scanErrorDismissed = true"
   >
@@ -37,7 +41,7 @@ watch(scanError, () => {
       <UButton
         color="info"
         icon="i-lucide-scroll-text"
-        label="前往日志页查看详情"
+        :label="t('scan.logs')"
         size="sm"
         to="/log"
         variant="outline"
