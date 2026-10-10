@@ -53,7 +53,7 @@ pub(crate) fn connect(requirements: Requirements) -> Result<Environment, Error> 
         Error::WindowUnavailable
     })?;
     let resolution = Resolution::new(width, height)?;
-    info!("游戏分辨率: {}×{}", width, height);
+    info!("游戏分辨率: {}×{}", resolution.width(), resolution.height());
 
     if requirements.hdr_disabled {
         match platform::window::hdr::is_hdr_enabled_on_window_monitor(window) {

@@ -13,7 +13,7 @@ use crate::{
     app_paths::AppPaths,
     automation::{
         StopToken, capabilities,
-        game_environment::{self, Resolution, ResolutionTransform},
+        game_environment::{self, ResolutionTransform},
         is_stop_requested,
     },
     platform::{
@@ -29,9 +29,12 @@ use crate::{
 pub(crate) fn normalize_screenshot(
     image: image::RgbaImage,
 ) -> Result<image::RgbaImage, capabilities::Error> {
-    ResolutionTransform::new(Resolution::new(image.width(), image.height())?)?
-        .to_canonical_image(image)
-        .map_err(capabilities::Error::from)
+    ResolutionTransform::new(game_environment::Resolution::new(
+        image.width(),
+        image.height(),
+    )?)?
+    .to_canonical_image(image)
+    .map_err(capabilities::Error::from)
 }
 
 /// # Send 安全性
