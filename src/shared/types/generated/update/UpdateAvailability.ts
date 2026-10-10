@@ -4,4 +4,8 @@ import type { UpdateInfo } from "./UpdateInfo";
 /**
  * 更新可用性。第三方下载元数据只保留在后端缓存中。
  */
-export type UpdateAvailability = { "status": "upToDate" } | { "status": "available", update: UpdateInfo, };
+export type UpdateAvailability = { "status": "upToDate" } | { "status": "available", 
+/**
+ * 可用更新的公开版本信息。
+ */
+update: UpdateInfo, };

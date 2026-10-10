@@ -1,3 +1,5 @@
+use crate::update;
+use crate::update::error::Reason;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use semver::Version;
 use serde::Deserialize;
@@ -46,7 +48,7 @@ pub(super) async fn check_for_update(
     settings: &OeaSettings,
     current_version: &str,
     user_agent: &str,
-) -> Result<Option<AvailableUpdateMetadata>, String> {
+) -> Result<Option<AvailableUpdateMetadata>, update::Error> {
     let client = http::build_client(settings, user_agent)?;
     let cdk = configured_cdk(settings);
     let mut last_response = None;
@@ -79,7 +81,10 @@ pub(super) async fn check_for_update(
                     error = %request_error,
                     "更新检查站点请求失败，尝试备用站"
                 );
-                last_error = Some(request_error.to_string());
+                last_error = Some(update::Error::failed(
+                    Reason::Network,
+                    anyhow::anyhow!(request_error),
+                ));
                 continue;
             }
         };
@@ -93,7 +98,10 @@ pub(super) async fn check_for_update(
                     error = %read_error,
                     "更新检查站点响应读取失败，尝试备用站"
                 );
-                last_error = Some(read_error.to_string());
+                last_error = Some(update::Error::failed(
+                    Reason::Network,
+                    anyhow::anyhow!(read_error),
+                ));
                 continue;
             }
         };
@@ -106,7 +114,10 @@ pub(super) async fn check_for_update(
                     error = %parse_error,
                     "更新检查站点响应解析失败，尝试备用站"
                 );
-                last_error = Some(parse_error.to_string());
+                last_error = Some(update::Error::failed(
+                    Reason::InvalidMetadata,
+                    anyhow::anyhow!(parse_error),
+                ));
                 continue;
             }
         };
@@ -125,21 +136,32 @@ pub(super) async fn check_for_update(
             service_code = parsed.code,
             "更新检查站点返回业务错误，尝试备用站"
         );
-        last_error = Some(format!(
-            "Mirror 酱服务返回错误: code={}, msg={}",
-            parsed.code, parsed.msg
+        last_error = Some(update::Error::failed(
+            Reason::Service { code: parsed.code },
+            anyhow::anyhow!(
+                "Mirror 酱服务返回错误: code={}, msg={}",
+                parsed.code,
+                parsed.msg
+            ),
         ));
         last_response = Some(parsed);
     }
 
     if let Some(response) = last_response {
-        return Err(business_error_message(response.code, &response.msg));
+        return Err(update::Error::failed(
+            Reason::Service {
+                code: response.code,
+            },
+            anyhow::anyhow!(business_error_message(response.code, &response.msg)),
+        ));
     }
 
-    Err(format!(
-        "检查更新请求失败，请检查网络连接或代理设置，或稍后重试。\n{}",
-        last_error.unwrap_or_else(|| "未知错误".to_string())
-    ))
+    Err(last_error.unwrap_or_else(|| {
+        update::Error::failed(
+            Reason::Network,
+            anyhow::anyhow!("检查更新请求失败，请检查网络连接或代理设置"),
+        )
+    }))
 }
 
 pub(super) fn configured_cdk(settings: &OeaSettings) -> Option<String> {
@@ -188,13 +210,23 @@ pub(super) fn configured_cdk(settings: &OeaSettings) -> Option<String> {
     (!plain.is_empty()).then(|| plain.to_string())
 }
 
-fn normalize_response(response: MirrorchyanResponse) -> Result<AvailableUpdateMetadata, String> {
+fn normalize_response(
+    response: MirrorchyanResponse,
+) -> Result<AvailableUpdateMetadata, update::Error> {
     if response.code != 0 {
-        return Err(business_error_message(response.code, &response.msg));
+        return Err(update::Error::failed(
+            Reason::Service {
+                code: response.code,
+            },
+            anyhow::anyhow!(business_error_message(response.code, &response.msg)),
+        ));
     }
-    let data = response
-        .data
-        .ok_or_else(|| "检查更新服务响应异常，请稍后重试".to_string())?;
+    let data = response.data.ok_or_else(|| {
+        update::Error::failed(
+            Reason::InvalidMetadata,
+            anyhow::anyhow!("检查更新服务响应异常，请稍后重试"),
+        )
+    })?;
     let mirrorchyan_package = data.url.and_then(|url| {
         let url = url.trim();
         (!url.is_empty()).then(|| MirrorchyanPackage {
@@ -307,22 +339,30 @@ mod tests {
     }
 
     #[test]
-    fn response_errors_use_service_message_and_fallbacks() {
+    fn response_errors_preserve_service_codes_and_invalid_metadata() {
         assert_eq!(
-            normalize_response(response(-1, "service message", None)).unwrap_err(),
-            "Mirror 酱服务出现异常，请稍后重试或联系技术支持: service message"
+            normalize_response(response(-1, "service message", None))
+                .unwrap_err()
+                .reason,
+            Reason::Service { code: -1 }
         );
         assert_eq!(
-            normalize_response(response(1, "service message", None)).unwrap_err(),
-            "service message"
+            normalize_response(response(1, "service message", None))
+                .unwrap_err()
+                .reason,
+            Reason::Service { code: 1 }
         );
         assert_eq!(
-            normalize_response(response(2, "", None)).unwrap_err(),
-            "未知错误（2）"
+            normalize_response(response(2, "", None))
+                .unwrap_err()
+                .reason,
+            Reason::Service { code: 2 }
         );
         assert_eq!(
-            normalize_response(response(0, "ok", None)).unwrap_err(),
-            "检查更新服务响应异常，请稍后重试"
+            normalize_response(response(0, "ok", None))
+                .unwrap_err()
+                .reason,
+            Reason::InvalidMetadata
         );
     }
 

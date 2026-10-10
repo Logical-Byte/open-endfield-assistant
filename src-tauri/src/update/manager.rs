@@ -1,3 +1,4 @@
+use crate::update;
 use std::{
     path::{Path, PathBuf},
     sync::{
@@ -6,7 +7,7 @@ use std::{
     },
 };
 
-use anyhow::{Result, bail};
+use crate::update::error::Reason;
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
@@ -122,13 +123,19 @@ impl Default for UpdateManager {
 }
 
 impl UpdateManager {
-    pub(super) fn start_check(&self) -> Result<CheckLease<'_>> {
+    pub(super) fn start_check(&self) -> std::result::Result<CheckLease<'_>, update::Error> {
         let mut state = self.lock_state();
         if state.pending_update.is_some() {
-            bail!("已有待安装更新，无法重新检查更新");
+            return Err(update::Error::failed(
+                Reason::Busy,
+                anyhow::anyhow!("已有待安装更新，无法重新检查更新"),
+            ));
         }
         if !matches!(state.operation, UpdateOperation::Idle) {
-            bail!("已有更新操作正在进行，请稍后重试");
+            return Err(update::Error::failed(
+                Reason::Busy,
+                anyhow::anyhow!("已有更新操作正在进行，请稍后重试"),
+            ));
         }
         state.available_update = None;
         state.operation = UpdateOperation::Checking;
@@ -140,21 +147,43 @@ impl UpdateManager {
     }
 
     /// 使用已缓存的可用更新开始一次完整下载操作。
-    pub(super) fn start_update_download(&self) -> Result<DownloadLease<'_>> {
+    pub(super) fn start_update_download(
+        &self,
+    ) -> std::result::Result<DownloadLease<'_>, update::Error> {
         let mut state = self.lock_state();
         if state.pending_update.is_some() {
-            bail!("已有待安装更新，无法重复下载");
+            return Err(update::Error::failed(
+                Reason::Busy,
+                anyhow::anyhow!("已有待安装更新，无法重复下载"),
+            ));
         }
         match state.operation {
             UpdateOperation::Idle => {}
-            UpdateOperation::Checking => bail!("检查更新期间无法开始下载"),
-            UpdateOperation::Downloading(_) => bail!("更新下载已在进行"),
-            UpdateOperation::Installing => bail!("安装更新期间无法开始下载"),
+            UpdateOperation::Checking => {
+                return Err(update::Error::failed(
+                    Reason::Busy,
+                    anyhow::anyhow!("检查更新期间无法开始下载"),
+                ));
+            }
+            UpdateOperation::Downloading(_) => {
+                return Err(update::Error::failed(
+                    Reason::Busy,
+                    anyhow::anyhow!("更新下载已在进行"),
+                ));
+            }
+            UpdateOperation::Installing => {
+                return Err(update::Error::failed(
+                    Reason::Busy,
+                    anyhow::anyhow!("安装更新期间无法开始下载"),
+                ));
+            }
         }
-        let available_update = state
-            .available_update
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("没有可用的更新，请先检查更新"))?;
+        let available_update = state.available_update.clone().ok_or_else(|| {
+            update::Error::failed(
+                Reason::NoUpdate,
+                anyhow::anyhow!("没有可用的更新，请先检查更新"),
+            )
+        })?;
 
         state.next_session_id += 1;
         let session = Arc::new(DownloadSession {
@@ -179,7 +208,7 @@ impl UpdateManager {
         })
     }
 
-    pub(super) fn cancel_download(&self) -> Result<()> {
+    pub(super) fn cancel_download(&self) -> std::result::Result<(), update::Error> {
         let state = self.lock_state();
         match &state.operation {
             UpdateOperation::Downloading(session) => {
@@ -201,23 +230,43 @@ impl UpdateManager {
                 );
                 Ok(())
             }
-            UpdateOperation::Installing => bail!("安装更新期间无法取消下载"),
+            UpdateOperation::Installing => Err(update::Error::failed(
+                Reason::Busy,
+                anyhow::anyhow!("安装更新期间无法取消下载"),
+            )),
         }
     }
 
     /// 原子取走待安装更新并进入安装状态。
-    pub(super) fn start_install(&self) -> Result<InstallLease<'_>> {
+    pub(super) fn start_install(&self) -> std::result::Result<InstallLease<'_>, update::Error> {
         let mut state = self.lock_state();
         match state.operation {
             UpdateOperation::Idle => {}
-            UpdateOperation::Checking => bail!("检查更新期间无法开始安装更新"),
-            UpdateOperation::Downloading(_) => bail!("下载期间无法开始安装更新"),
-            UpdateOperation::Installing => bail!("更新安装已在进行"),
+            UpdateOperation::Checking => {
+                return Err(update::Error::failed(
+                    Reason::Busy,
+                    anyhow::anyhow!("检查更新期间无法开始安装更新"),
+                ));
+            }
+            UpdateOperation::Downloading(_) => {
+                return Err(update::Error::failed(
+                    Reason::Busy,
+                    anyhow::anyhow!("下载期间无法开始安装更新"),
+                ));
+            }
+            UpdateOperation::Installing => {
+                return Err(update::Error::failed(
+                    Reason::Busy,
+                    anyhow::anyhow!("更新安装已在进行"),
+                ));
+            }
         }
-        let pending_update = state
-            .pending_update
-            .take()
-            .ok_or_else(|| anyhow::anyhow!("没有待安装的更新，请先下载更新"))?;
+        let pending_update = state.pending_update.take().ok_or_else(|| {
+            update::Error::failed(
+                Reason::NoUpdate,
+                anyhow::anyhow!("没有待安装的更新，请先下载更新"),
+            )
+        })?;
         state.operation = UpdateOperation::Installing;
         debug!(
             from = "idle",
@@ -233,10 +282,15 @@ impl UpdateManager {
     }
 
     /// 开发者本地包使用独立入口，不创建或消费普通待安装更新。
-    pub(super) fn start_developer_install(&self) -> Result<DeveloperInstallLease<'_>> {
+    pub(super) fn start_developer_install(
+        &self,
+    ) -> std::result::Result<DeveloperInstallLease<'_>, update::Error> {
         let mut state = self.lock_state();
         if state.pending_update.is_some() {
-            bail!("已有待安装更新，无法开始开发者安装");
+            return Err(update::Error::failed(
+                Reason::Busy,
+                anyhow::anyhow!("已有待安装更新，无法开始开发者安装"),
+            ));
         }
         match state.operation {
             UpdateOperation::Idle => {
@@ -248,9 +302,24 @@ impl UpdateManager {
                     "更新状态机完成状态转换"
                 );
             }
-            UpdateOperation::Checking => bail!("检查更新期间无法开始安装更新"),
-            UpdateOperation::Downloading(_) => bail!("下载期间无法开始安装更新"),
-            UpdateOperation::Installing => bail!("更新安装已在进行"),
+            UpdateOperation::Checking => {
+                return Err(update::Error::failed(
+                    Reason::Busy,
+                    anyhow::anyhow!("检查更新期间无法开始安装更新"),
+                ));
+            }
+            UpdateOperation::Downloading(_) => {
+                return Err(update::Error::failed(
+                    Reason::Busy,
+                    anyhow::anyhow!("下载期间无法开始安装更新"),
+                ));
+            }
+            UpdateOperation::Installing => {
+                return Err(update::Error::failed(
+                    Reason::Busy,
+                    anyhow::anyhow!("更新安装已在进行"),
+                ));
+            }
         }
         Ok(DeveloperInstallLease {
             manager: self,
