@@ -66,7 +66,7 @@ impl Session {
     #[cfg(feature = "cli")]
     pub(crate) fn client_size(&self) -> (u32, u32) {
         let physical = self.resolution_transform.physical();
-        (physical.width(), physical.height())
+        (physical.width, physical.height)
     }
 
     /// 连接游戏窗口并创建会话。

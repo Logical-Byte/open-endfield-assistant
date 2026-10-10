@@ -11,8 +11,8 @@ use crate::{automation::Point720p, utils::point::Point2D};
 /// 非零的像素尺寸。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Resolution {
-    width: u32,
-    height: u32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 impl Resolution {
@@ -24,13 +24,11 @@ impl Resolution {
 
         Ok(Self { width, height })
     }
+}
 
-    pub(crate) fn width(&self) -> u32 {
-        self.width
-    }
-
-    pub(crate) fn height(&self) -> u32 {
-        self.height
+impl std::fmt::Display for Resolution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}×{}", self.width, self.height)
     }
 }
 
