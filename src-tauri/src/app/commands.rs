@@ -10,7 +10,8 @@ use tracing::{debug, error, info, trace, warn};
 use ts_rs::TS;
 
 use crate::{
-    app_paths::AppPaths, automation, controller::Controller, data::archive, platform, settings,
+    app_paths::AppPaths, automation, backend_error, controller::Controller, data::archive,
+    platform, settings,
 };
 
 /// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
@@ -165,21 +166,29 @@ pub async fn screenshot(
     width: u32,
     height: u32,
     format: ScreenshotFormat,
-) -> Result<String, String> {
+) -> Result<String, backend_error::BackendError> {
+    let report_error = |error, reason| screenshot_error(error, reason, width, height, format);
     // 定位游戏窗口（`PrintWindow` 可捕获非最小化后台窗口）
     let hwnd = platform::window::get_window_by_title(
         Some(platform::window::ENDFIELD_WINDOW_CLASS),
         Some(platform::window::ENDFIELD_WINDOW_TITLE),
     )
-    .context("未找到游戏窗口")
-    .map_err(|e| e.to_string())?;
+    .context(backend_error::GameEnvironmentError::WindowUnavailable)
+    .map_err(|e| {
+        report_error(
+            e,
+            backend_error::ScreenshotError::GameEnvironment {
+                reason: backend_error::GameEnvironmentError::WindowUnavailable,
+            },
+        )
+    })?;
 
     // 截图
     let mut screencap = platform::capture::PrintWindowScreencap::new(hwnd);
     let raw = screencap
         .screencap()
         .context("截图失败")
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| report_error(e, backend_error::ScreenshotError::CaptureFailed))?;
 
     // 缩放到指定尺寸
     let resized = imageops::resize(
@@ -199,18 +208,35 @@ pub async fn screenshot(
                 .to_rgb8()
                 .write_to(&mut buf, image_format)
                 .context("图片编码失败")
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| report_error(e, backend_error::ScreenshotError::EncodingFailed))?;
         }
         ScreenshotFormat::Png | ScreenshotFormat::Webp => {
             resized
                 .write_to(&mut buf, image_format)
                 .context("图片编码失败")
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| report_error(e, backend_error::ScreenshotError::EncodingFailed))?;
         }
     }
 
     // `base64` 编码返回
     Ok(STANDARD.encode(buf.into_inner()))
+}
+
+fn screenshot_error(
+    error: anyhow::Error,
+    fallback: backend_error::ScreenshotError,
+    width: u32,
+    height: u32,
+    format: ScreenshotFormat,
+) -> backend_error::BackendError {
+    error!(error = ?error, width, height, format = ?format, "游戏截图失败");
+    let reason = error
+        .downcast_ref::<backend_error::GameEnvironmentError>()
+        .map(|reason| backend_error::ScreenshotError::GameEnvironment {
+            reason: reason.clone(),
+        })
+        .unwrap_or(fallback);
+    backend_error::BackendError::Screenshot(reason)
 }
 
 /// 写一条 TRACE 级日志到后端日志系统（进入文件 / 控制台，并广播给所有前端窗口）。
