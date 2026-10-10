@@ -6,6 +6,7 @@
 mod image_region;
 pub(crate) use image_region::ImageRegion;
 
+pub(crate) mod color;
 pub(crate) mod ocr;
 pub(crate) mod statistics;
 pub(crate) mod template_matching;

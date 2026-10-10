@@ -28,6 +28,35 @@ where
     super::pure::match_template(search, template)
 }
 
+/// 在同一区域搜索多个命名模板，返回最佳模板名称及其匹配位置、分数。
+///
+/// 候选为空时返回 `Ok(None)`。分数相同则保留先出现的候选。
+/// 不应用置信度阈值或领域标签，调用方根据分数决定是否接受结果。
+/// 模板加载或匹配失败通过 `Err` 传播，不将错误解释为候选不存在。
+#[allow(dead_code, reason = "通用识别 primitive，供后续工作流调用")]
+pub(crate) fn find_best<'a, I, P>(
+    search: &ImageRegion<'_, I>,
+    template_names: &[&'a str],
+    templates: &mut P,
+) -> Result<Option<(&'a str, MatchResult)>>
+where
+    I: GenericImageView,
+    I::Pixel: Pixel<Subpixel = u8>,
+    P: TemplateProvider + ?Sized,
+{
+    let mut best: Option<(&str, MatchResult)> = None;
+    for &name in template_names {
+        let matched = find(search, name, templates)?;
+        if best
+            .as_ref()
+            .is_none_or(|(_, current)| matched.score > current.score)
+        {
+            best = Some((name, matched));
+        }
+    }
+    Ok(best)
+}
+
 /// 使用已加载模板的纯计算接口。
 pub(crate) mod pure {
     use anyhow::bail;
@@ -105,8 +134,65 @@ pub(crate) mod pure {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use image::{Rgb, RgbImage};
+
+    use super::*;
+
+    struct Templates {
+        exact: RgbImage,
+        inverse: RgbImage,
+    }
+
+    impl TemplateProvider for Templates {
+        fn get(&mut self, name: &str) -> Result<&RgbImage> {
+            match name {
+                "exact" | "same" => Ok(&self.exact),
+                "inverse" => Ok(&self.inverse),
+                _ => anyhow::bail!("missing template: {name}"),
+            }
+        }
+    }
+
+    fn templates() -> Templates {
+        let exact = RgbImage::from_fn(2, 2, |x, y| Rgb([30 + (x + y * 2) as u8 * 50; 3]));
+        let inverse = RgbImage::from_fn(2, 2, |x, y| Rgb(exact.get_pixel(x, y).0.map(|v| 255 - v)));
+        Templates { exact, inverse }
+    }
+
+    #[test]
+    fn selects_the_best_candidate_and_preserves_image_coordinates() {
+        let mut templates = templates();
+        let mut image = RgbImage::new(6, 5);
+        image::imageops::replace(&mut image, &templates.exact, 3, 2);
+        let region = ImageRegion::new(&image, Region2D::from_ltwh(2, 1, 4, 4)).unwrap();
+        let (name, matched) = find_best(&region, &["inverse", "exact", "same"], &mut templates)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(name, "exact");
+        assert_eq!(matched.region, Region2D::from_ltwh(3, 2, 2, 2));
+        assert!((matched.score - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn keeps_a_negative_score_for_the_caller_to_interpret() {
+        let mut templates = templates();
+        let image = templates.exact.clone();
+        let region = ImageRegion::new(&image, Region2D::from_ltwh(0, 0, 2, 2)).unwrap();
+        let (_, matched) = find_best(&region, &["inverse"], &mut templates)
+            .unwrap()
+            .unwrap();
+        assert!((matched.score + 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn distinguishes_empty_candidates_from_loading_errors() {
+        let mut templates = templates();
+        let image = templates.exact.clone();
+        let region = ImageRegion::new(&image, Region2D::from_ltwh(0, 0, 2, 2)).unwrap();
+        assert_eq!(find_best(&region, &[], &mut templates).unwrap(), None);
+        assert!(find_best(&region, &["exact", "missing"], &mut templates).is_err());
+    }
 
     #[test]
     fn maps_search_view_coordinates_back_to_the_original_image() {
