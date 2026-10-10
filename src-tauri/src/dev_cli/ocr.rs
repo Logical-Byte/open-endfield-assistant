@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use super::{args::Rect, commands::Output};
-use crate::{automation, vision::ocr};
+use crate::{
+    automation,
+    vision::{ImageRegion, ocr},
+};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct Settings {
@@ -98,9 +101,12 @@ pub(super) fn recognize(
                 .transpose()?
         };
         let rgb = image::DynamicImage::ImageRgba8(image.clone()).to_rgb8();
+        let region = region
+            .map(|bounds| ImageRegion::new(&image, bounds))
+            .transpose()?;
         let mut recognize = || {
-            if let Some(region) = region {
-                engine.recognize_region(&image, region)
+            if let Some(region) = &region {
+                engine.recognize_region(region)
             } else {
                 engine.recognize(&rgb).map(Some)
             }

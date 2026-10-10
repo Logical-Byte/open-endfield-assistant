@@ -1,6 +1,9 @@
 use super::args::{Command, Rect};
 use crate::automation::ScreenCapture;
-use crate::{automation, navigation, vision::template_matching};
+use crate::{
+    automation, navigation,
+    vision::{ImageRegion, template_matching},
+};
 use anyhow::{Context, Result};
 use clap::ValueEnum;
 use serde_json::{Value, json};
@@ -171,7 +174,7 @@ fn match_image(
         .to_rgb8();
     let template = json!({"path":template_path.to_string_lossy(), "width":template_image.width(), "height":template_image.height()});
     let matched =
-        template_matching::pure::match_template_in_region(image, &template_image, Some(search))
+        template_matching::pure::match_template(&ImageRegion::new(image, search)?, &template_image)
             .with_context(|| {
                 format!(
                     "failed to match template {} ({}x{}) in region ({region}) of {}x{} input",

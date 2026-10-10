@@ -6,7 +6,7 @@
 use anyhow::Result;
 
 use crate::utils::region::{Region2D, ltwh};
-use crate::vision::region::mean_luma;
+use crate::vision::{ImageRegion, statistics::mean_luma};
 
 use super::{RecognitionContext, Refinement, UiStateGroup};
 use crate::navigation::state::{ArchiveState, ArchiveSubscene, CentralPage, RecordsPage, UiState};
@@ -130,7 +130,7 @@ impl UiStateGroup for RecordsSubscenes {
     }
 
     fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> Result<Refinement> {
-        let dark = tab_darkness(cx, 3);
+        let dark = tab_darkness(cx, 3)?;
         let page = if dark[0] {
             RecordsPage::Paper
         } else if dark[1] {
@@ -158,7 +158,7 @@ impl UiStateGroup for CentralSubscenes {
     }
 
     fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> Result<Refinement> {
-        let dark = tab_darkness(cx, 2);
+        let dark = tab_darkness(cx, 2)?;
         let page = if dark[0] {
             CentralPage::Archive
         } else if dark[1] {
@@ -172,11 +172,11 @@ impl UiStateGroup for CentralSubscenes {
     }
 }
 
-fn tab_darkness(cx: &RecognitionContext<'_>, count: usize) -> [bool; 3] {
+fn tab_darkness(cx: &RecognitionContext<'_>, count: usize) -> Result<[bool; 3]> {
     let mut result = [false; 3];
     for (index, roi) in TAB_ROIS.iter().take(count).enumerate() {
-        result[index] =
-            mean_luma(cx.screenshot, *roi).is_some_and(|luma| luma < f32::from(DARK_THRESHOLD));
+        let region = ImageRegion::new(cx.screenshot, *roi)?;
+        result[index] = mean_luma(&region) < f32::from(DARK_THRESHOLD);
     }
-    result
+    Ok(result)
 }

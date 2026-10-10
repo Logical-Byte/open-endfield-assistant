@@ -12,7 +12,7 @@ use crate::{
     },
     platform::input::Contact,
     utils::region::Region2D,
-    vision::template_matching,
+    vision::{ImageRegion, template_matching},
 };
 
 use super::Session;
@@ -58,9 +58,8 @@ impl TemplateMatching for Session {
         target: &TemplateTarget,
     ) -> Result<Option<TemplateMatch>> {
         let matched = template_matching::find(
-            screenshot,
+            &ImageRegion::new(screenshot, target.roi)?,
             target.template_name,
-            target.roi,
             &mut self.templates,
         )?;
         Ok(
@@ -82,7 +81,7 @@ impl Ocr for Session {
             .ocr
             .lock()
             .unwrap()
-            .recognize_region(screenshot, region)?
+            .recognize_region(&ImageRegion::new(screenshot, region)?)?
             .map(|result| result.text))
     }
 }

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use image::{RgbImage, RgbaImage, imageops};
 use imageproc::contrast::ThresholdType;
 
-use crate::utils::region::Region2D;
+use crate::vision::ImageRegion;
 
 use super::{Config, Recognition, inference, text_detection};
 
@@ -36,17 +36,9 @@ impl OcrEngine {
     /// 区域内没有文字像素时返回 `None`，有像素但未识别出文字时返回空结果。
     pub(crate) fn recognize_region(
         &mut self,
-        screenshot: &RgbaImage,
-        region: Region2D<u32>,
+        region: &ImageRegion<'_, RgbaImage>,
     ) -> Result<Option<Recognition>> {
-        let cropped = imageops::crop_imm(
-            screenshot,
-            region.x0(),
-            region.y0(),
-            region.width(),
-            region.height(),
-        )
-        .to_image();
+        let cropped = region.view().to_image();
         let rgb = image::DynamicImage::ImageRgba8(cropped).to_rgb8();
         let Some(text_region) =
             text_detection::detect_single_line(&rgb, 128, ThresholdType::Binary, 6)
