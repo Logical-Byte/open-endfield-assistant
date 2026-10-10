@@ -16,6 +16,7 @@ use crate::{
     app_paths::AppPaths,
     locale::UiLocale,
     platform::update::{UpdatePrompt, show_update_error},
+    settings,
 };
 
 use super::{transaction, workspace::InstallTarget};
@@ -82,7 +83,7 @@ where
             return Some((
                 root,
                 executable_name,
-                locale.unwrap_or_else(crate::settings::system_ui_locale),
+                locale.unwrap_or_else(settings::system_ui_locale),
             ));
         }
     }
