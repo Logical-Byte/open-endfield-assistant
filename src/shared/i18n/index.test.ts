@@ -1,10 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import I18NextVue, { TranslationComponent } from 'i18next-vue';
 import { computed, createApp, createSSRApp, h, nextTick } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { d, i18n, locale, n, t, useAppI18n } from './index';
 
-// 英文仅用于验证语言切换和复数协议，不作为应用的可选语言交付。
+// 独立 fixture 验证翻译入口，不覆盖随应用交付的 en-US 资源。
 const englishFixture = {
   settings: { save: { failed: { title: 'Settings not saved' } } },
   scan: {
@@ -12,6 +12,10 @@ const englishFixture = {
     matches_other: '{{count}} matches',
   },
 };
+
+beforeEach(async () => {
+  await i18n.changeLanguage('zh-CN');
+});
 
 afterEach(async () => {
   await i18n.changeLanguage('zh-CN');
@@ -21,6 +25,15 @@ afterEach(async () => {
 });
 
 describe('应用翻译入口', () => {
+  it('交付的英文资源按数量选择复数，并使用英文日期格式', async () => {
+    await i18n.changeLanguage('en-US');
+    expect(t('scan.matches', { count: 1 })).toBe('1 match');
+    expect(t('scan.matches', { count: 2 })).toBe('2 matches');
+    expect(t('scan.linkedSummary', { id: 7, count: 1 })).toBe('Scan #7 is linked to 1 archive');
+    expect(t('scan.linkedSummary', { id: 7, count: 2 })).toBe('Scan #7 is linked to 2 archives');
+    expect(d(new Date(2026, 0, 2), 'date')).toBe('01/02/2026');
+  });
+
   it('嵌套消息插入原始文本，Vue 渲染负责 HTML 转义', () => {
     expect(t('scan.ocrValue', { text: '<OEM & mirror>' })).toBe('OCR 结果：<OEM & mirror>');
   });

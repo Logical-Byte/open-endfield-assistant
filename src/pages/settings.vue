@@ -222,6 +222,12 @@ const stopScrollToHash = router.afterEach((to) => {
                 :variant="draftSettings?.uiLocale === 'zh-CN' ? 'solid' : 'outline'"
                 @click="editSettings({ uiLocale: 'zh-CN' })"
               />
+              <UButton
+                :disabled="!draftSettings"
+                label="English"
+                :variant="draftSettings?.uiLocale === 'en-US' ? 'solid' : 'outline'"
+                @click="editSettings({ uiLocale: 'en-US' })"
+              />
             </div>
           </SettingsItem>
           <div>

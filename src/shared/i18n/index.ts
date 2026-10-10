@@ -3,6 +3,7 @@ import { useTranslation } from 'i18next-vue';
 import { readonly, shallowRef } from 'vue';
 import { dateFormats, numberFormats } from './formats';
 import zhCn from './locales/zh-CN.json';
+import enUs from './locales/en.json';
 
 export type MessageKey = ParseKeys<'translation'>;
 export type MessageParams = Record<string, string | number> & { count?: number };
@@ -10,12 +11,12 @@ export type MessageParams = Record<string, string | number> & { count?: number }
 export const i18n = createInstance();
 // 所有资源随应用打包，初始化同步完成，不依赖网络或语言探测。
 void i18n.init({
-  lng: 'zh-CN',
+  lng: 'en-US',
   fallbackLng: false,
   load: 'currentOnly',
   initAsync: false,
   enableSelector: false,
-  resources: { 'zh-CN': { translation: zhCn } },
+  resources: { 'zh-CN': { translation: zhCn }, 'en-US': { translation: enUs } },
   interpolation: { escapeValue: false },
   returnNull: false,
   parseMissingKeyHandler(key): string {
