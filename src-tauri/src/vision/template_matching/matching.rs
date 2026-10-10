@@ -1,4 +1,3 @@
-use anyhow::Result;
 use image::{GenericImageView, Pixel};
 
 use super::template_source::TemplateProvider;
@@ -19,7 +18,7 @@ pub(crate) fn find<I, P>(
     search: &ImageRegion<'_, I>,
     template_name: &str,
     templates: &mut P,
-) -> Result<MatchResult>
+) -> anyhow::Result<MatchResult>
 where
     I: GenericImageView,
     I::Pixel: Pixel<Subpixel = u8>,
@@ -31,7 +30,7 @@ where
 
 /// 使用已加载模板的纯计算接口。
 pub(crate) mod pure {
-    use anyhow::{Result, bail};
+    use anyhow::bail;
     use image::{GenericImageView, Pixel, imageops};
     use imageproc::template_matching;
 
@@ -43,7 +42,7 @@ pub(crate) mod pure {
     pub(crate) fn match_template<I, T>(
         search: &ImageRegion<'_, I>,
         template: &T,
-    ) -> Result<MatchResult>
+    ) -> anyhow::Result<MatchResult>
     where
         I: GenericImageView,
         I::Pixel: Pixel<Subpixel = u8>,
@@ -68,7 +67,10 @@ pub(crate) mod pure {
     /// 使用已加载的模板在已经裁剪的图片区域内搜索。
     ///
     /// 使用 `CCOEFF_NORMED`（Pearson 相关系数）。结果区域相对于 `image_region`。
-    pub(super) fn match_in_region<I, T>(image_region: &I, template: &T) -> Result<MatchResult>
+    pub(super) fn match_in_region<I, T>(
+        image_region: &I,
+        template: &T,
+    ) -> anyhow::Result<MatchResult>
     where
         I: GenericImageView,
         I::Pixel: Pixel<Subpixel = u8>,

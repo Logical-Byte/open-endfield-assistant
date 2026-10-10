@@ -1,6 +1,6 @@
 //! 识别算法共享的已校验图片区域。
 
-use anyhow::{Result, ensure};
+use anyhow::ensure;
 use image::{GenericImageView, SubImage, imageops};
 
 use crate::utils::region::Region2D;
@@ -13,7 +13,7 @@ pub(crate) struct ImageRegion<'a, I> {
 
 impl<'a, I: GenericImageView> ImageRegion<'a, I> {
     /// 区域使用半开区间，必须非空且完整位于图片内。非法区域返回错误，不自动裁剪。
-    pub(crate) fn new(image: &'a I, bounds: Region2D<u32>) -> Result<Self> {
+    pub(crate) fn new(image: &'a I, bounds: Region2D<u32>) -> anyhow::Result<Self> {
         ensure!(
             bounds.x0() < bounds.x1() && bounds.y0() < bounds.y1(),
             "图像区域必须非空且边界有序: {bounds:?}"

@@ -4,7 +4,7 @@ use crate::{
     automation, navigation,
     vision::{ImageRegion, template_matching},
 };
-use anyhow::{Context, Result};
+use anyhow::Context;
 use clap::ValueEnum;
 use serde_json::{Value, json};
 use std::path::Path;
@@ -28,7 +28,7 @@ impl From<anyhow::Error> for Error {
     }
 }
 
-pub(super) fn execute(command: &Command) -> Result<Output, Error> {
+pub(super) fn execute(command: &Command) -> std::result::Result<Output, Error> {
     match command {
         Command::Ocr {
             input,
@@ -128,7 +128,7 @@ pub(super) fn execute(command: &Command) -> Result<Output, Error> {
     }
 }
 
-fn connect() -> Result<automation::Session, Error> {
+fn connect() -> std::result::Result<automation::Session, Error> {
     #[cfg(windows)]
     {
         use crate::{app_paths, platform, vision};
@@ -157,7 +157,7 @@ fn match_image(
     input: Value,
     template: &Path,
     region: Rect,
-) -> Result<Output> {
+) -> anyhow::Result<Output> {
     let search = region
         .validate(image.width(), image.height())
         .context("invalid --region for matching input")?;
