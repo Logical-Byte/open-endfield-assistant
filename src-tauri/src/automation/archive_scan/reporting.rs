@@ -1,6 +1,6 @@
 //! 档案库扫描结果的数据结构与上报器。
 //!
-//! `ScannedItem` 是档案扫描的逐条产出。`ArchiveScanWorker` 把应用层注入的
+//! `ScannedItem` 是档案扫描的逐条产出。`super::Worker` 把应用层注入的
 //! [`EventSink`] 包装为 `ScanReporter`，工作流不依赖 Tauri 句柄。
 
 use std::io::Cursor;
@@ -55,7 +55,7 @@ const MAX_IMAGE_WIDTH: u32 = 1280;
 /// 把 720p 截图编码为 base64 PNG data URL（供前端 `<img>` 直接显示）。
 ///
 /// 截图会按最大宽度等比缩小，在保证可读性的同时控制事件体积。
-pub(super) fn encode_png_data_url(img: &RgbaImage) -> String {
+fn encode_png_data_url(img: &RgbaImage) -> String {
     // 等比缩小，控制事件体积
     let scaled = if img.width() > MAX_IMAGE_WIDTH {
         let h = ((img.height() as u64 * MAX_IMAGE_WIDTH as u64) / img.width() as u64) as u32;
@@ -75,7 +75,7 @@ pub(super) fn encode_png_data_url(img: &RgbaImage) -> String {
 
 /// 扫描结果上报器：扫描工作流 → 自动化事件观察出口。
 ///
-/// `ArchiveScanWorker` 创建 `ScanReporter` 并注入扫描工作流。
+/// `super::Worker` 创建 `ScanReporter` 并注入扫描工作流。
 /// 工作流只负责发布完整的领域结果，不关心观察者如何把事件传递给前端。
 pub(super) struct ScanReporter {
     events: Arc<dyn EventSink>,
@@ -90,13 +90,19 @@ impl ScanReporter {
     /// 上报一份扫描结果。
     pub(super) fn report(
         &self,
-        status: ScannedItemStatus,
         found_in_page: archive::Page,
         found_in_category: archive::Category,
-        image: String,
+        screenshot: &RgbaImage,
         ocr_result: String,
-        corrected: Option<super::correction::Corrected>,
+        corrected: Option<super::ocr_correction::Corrected>,
     ) {
+        let status = if ocr_result.is_empty() {
+            ScannedItemStatus::Failed
+        } else if corrected.is_some() {
+            ScannedItemStatus::Success
+        } else {
+            ScannedItemStatus::Unrecognized
+        };
         let (corrected_title, corrected_match_item_ids) = match corrected {
             Some(c) => (Some(c.title), c.item_ids),
             None => (None, Vec::new()),
@@ -105,7 +111,7 @@ impl ScanReporter {
             status,
             found_in_page,
             found_in_category,
-            image,
+            image: encode_png_data_url(screenshot),
             ocr_result,
             corrected_title,
             corrected_match_item_ids,

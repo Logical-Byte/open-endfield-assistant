@@ -72,22 +72,6 @@ pub(crate) struct WorkerExit {
     pub(crate) capture: Option<CaptureSummary>,
 }
 
-impl WorkerExit {
-    pub(crate) fn without_capture(reason: FinishReason) -> Self {
-        Self {
-            reason,
-            capture: None,
-        }
-    }
-
-    pub(crate) fn with_capture(reason: FinishReason, capture: CaptureSummary) -> Self {
-        Self {
-            reason,
-            capture: Some(capture),
-        }
-    }
-}
-
 /// 一次自动化运行的执行内容。`Runtime` 注入 `StopToken` 和 `EventSink`，每个 `Worker` 只能执行一次。
 pub(crate) trait Worker: Send + 'static {
     fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> WorkerExit;
@@ -152,9 +136,10 @@ impl Runtime {
         {
             self.handle_worker_exit(
                 task_kind,
-                WorkerExit::without_capture(FinishReason::Failed(format!(
-                    "启动自动化任务线程失败: {error}"
-                ))),
+                WorkerExit {
+                    reason: FinishReason::Failed(format!("启动自动化任务线程失败: {error}")),
+                    capture: None,
+                },
             );
         }
     }
@@ -280,7 +265,10 @@ mod tests {
             _stop: crate::automation::StopToken,
             _events: Arc<dyn EventSink>,
         ) -> WorkerExit {
-            WorkerExit::without_capture(FinishReason::Completed)
+            WorkerExit {
+                reason: FinishReason::Completed,
+                capture: None,
+            }
         }
     }
 

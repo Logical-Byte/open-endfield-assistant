@@ -79,11 +79,9 @@ impl Controller {
                         archive_scan::WorkerType::Production => {
                             Box::new(self.archive_scan_worker())
                         }
-                        archive_scan::WorkerType::Simulation => {
-                            Box::new(archive_scan::SimulatedArchiveScanWorker::new(Arc::clone(
-                                &self.app_data,
-                            )))
-                        }
+                        archive_scan::WorkerType::Simulation => Box::new(
+                            archive_scan::SimulationWorker::new(Arc::clone(&self.app_data)),
+                        ),
                     })
             }
         }
@@ -119,8 +117,8 @@ impl Controller {
         app_handle.exit(0);
     }
 
-    fn archive_scan_worker(&self) -> archive_scan::ArchiveScanWorker {
-        archive_scan::ArchiveScanWorker::new(
+    fn archive_scan_worker(&self) -> archive_scan::Worker {
+        archive_scan::Worker::new(
             self.settings_store.snapshot(),
             Arc::clone(&self.ocr),
             Arc::clone(&self.navigator),
