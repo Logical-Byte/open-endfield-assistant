@@ -2,6 +2,7 @@
 import type { AcquisitionMethod } from "./AcquisitionMethod";
 import type { ArchiveId } from "./ArchiveId";
 import type { Category } from "./Category";
+import type { LocalizedText } from "./LocalizedText";
 
 /**
  * 具体档案条目，同标题的不同 ID 仍是不同档案。
@@ -18,7 +19,7 @@ category: Category,
 /**
  * 档案详情的完整标题，用于展示和 OCR 候选匹配。
  */
-title: string, 
+title: LocalizedText, 
 /**
  * 获取途径，用于显示和地图拾取筛选。
  */

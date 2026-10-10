@@ -23,6 +23,7 @@
  *    其所属一级条目若因此清空则一并移除。
  */
 import type {
+  LocalizedText,
   PrtsAllItem,
   PrtsCategory,
   PrtsData,
@@ -31,13 +32,13 @@ import type {
   PrtsPageType,
 } from '../models/resources/prts';
 import {
-  getTranslation,
+  getArchiveText,
   prtsAllItemTable,
   prtsCategoryTable,
   prtsFirstLvTable,
   prtsPageTable,
   richContentTable,
-} from '../gameData';
+} from '../archiveData';
 import type { PrtsAllItemEntry, PrtsFirstLvEntry } from '../models';
 
 /** 档案库页面展示顺序：音像存档、见闻辑录、中枢档案 */
@@ -131,12 +132,16 @@ function computeCategoryToPageType(): Record<string, string> {
  * 音像存档（multi_media）标题与名称一致；
  * 文档 / 文本以 contentId 在富文本表中查找，查不到时回退为名称。
  */
-function resolveItemTitle(entry: PrtsAllItemEntry, name: string): string {
+function resolveItemTitle(entry: PrtsAllItemEntry, name: LocalizedText): LocalizedText {
   if (entry.type === 'multi_media') {
     return name;
   }
   const content = richContentTable[entry.contentId];
-  return content ? getTranslation(content.title, 'CN') : name;
+  if (!content) {
+    console.warn(`[makePrts] ${entry.id} 的富文本行 ${entry.contentId} 缺失，双语标题回退名称`);
+    return name;
+  }
+  return getArchiveText(content.title, entry.id, 'title');
 }
 
 /**
@@ -144,7 +149,7 @@ function resolveItemTitle(entry: PrtsAllItemEntry, name: string): string {
  * 若一级条目名称与唯一 item 的名称或标题不一致，打印警告。
  * 独立解析 item 名称 / 标题，不依赖 allItemOutputs，可在一级条目之前调用。
  */
-function warnIfSingleItemNameMismatch(entry: PrtsFirstLvEntry, name: string): void {
+function warnIfSingleItemNameMismatch(entry: PrtsFirstLvEntry, name: LocalizedText): void {
   if (entry.itemIds.length !== 1) {
     return;
   }
@@ -152,11 +157,11 @@ function warnIfSingleItemNameMismatch(entry: PrtsFirstLvEntry, name: string): vo
   if (!item) {
     return;
   }
-  const itemName = getTranslation(item.name, 'CN');
+  const itemName = getArchiveText(item.name, item.id, 'name');
   const itemTitle = resolveItemTitle(item, itemName);
-  if (itemName !== name || itemTitle !== name) {
+  if (itemName['zh-CN'] !== name['zh-CN'] || itemTitle['zh-CN'] !== name['zh-CN']) {
     console.warn(
-      `[makePrts] ${entry.firstLvId} 的一级条目名称「${name}」与唯一 item「${item.id}」的名称「${itemName}」或标题「${itemTitle}」不一致`,
+      `[makePrts] ${entry.firstLvId} 的一级条目名称「${name['zh-CN']}」与唯一 item「${item.id}」的名称「${itemName['zh-CN']}」或标题「${itemTitle['zh-CN']}」不一致`,
     );
   }
 }
@@ -211,7 +216,7 @@ export function makePrts(): PrtsData {
           [
             entry.pageType,
             {
-              name: getTranslation(entry.name, 'CN'),
+              name: getArchiveText(entry.name, entry.pageType, 'name'),
               pageType: entry.pageType,
               categoryIds: pageToCategoryIds[entry.pageType] ?? [],
             },
@@ -229,7 +234,7 @@ export function makePrts(): PrtsData {
             entry.categoryId,
             {
               categoryId: entry.categoryId,
-              name: getTranslation(entry.name, 'CN'),
+              name: getArchiveText(entry.name, entry.categoryId, 'name'),
               order: entry.order,
               type: categoryToPageType[entry.categoryId],
               firstLvIds: categoryToFirstLvIds[entry.categoryId] ?? [],
@@ -250,7 +255,7 @@ export function makePrts(): PrtsData {
     Object.values(prtsFirstLvTable)
       .filter((entry) => !redundantFirstLvIds.has(entry.firstLvId))
       .map((entry) => {
-        const name = getTranslation(entry.name, 'CN');
+        const name = getArchiveText(entry.name, entry.firstLvId, 'name');
         // 仅含单个 item 的一级条目：名称与唯一 item 的名称或标题不一致时打印警告
         warnIfSingleItemNameMismatch(entry, name);
         return [
@@ -282,11 +287,13 @@ export function makePrts(): PrtsData {
   const allItemOutputs: Record<string, PrtsAllItem> = {};
   for (const entry of Object.values(prtsAllItemTable)) {
     if (redundantItemIds.has(entry.id)) continue;
-    const name = getTranslation(entry.name, 'CN');
+    const name = getArchiveText(entry.name, entry.id, 'name');
     const title = resolveItemTitle(entry, name);
     // 标题与名称不一致时打印警告，便于核对源数据是否有误
-    if (title !== name) {
-      console.warn(`[makePrts] ${entry.id} 的标题「${title}」与名称「${name}」不一致`);
+    if (title['zh-CN'] !== name['zh-CN']) {
+      console.warn(
+        `[makePrts] ${entry.id} 的标题「${title['zh-CN']}」与名称「${name['zh-CN']}」不一致`,
+      );
     }
     // categoryId 从所属一级条目推导（item 表本身不直接给出分类）
     allItemOutputs[entry.id] = {

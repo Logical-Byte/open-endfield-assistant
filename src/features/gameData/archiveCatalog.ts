@@ -32,11 +32,12 @@ export class ArchiveCatalog {
     this.pagesById = new Map(
       catalog.pages.map((row: Readonly<PageEntry>): [Page, Readonly<PageEntry>] => [row.id, row]),
     );
+    // 游戏标题与纠正候选固定中文，不由应用界面语言决定。
     for (const archive of catalog.archives) {
       const titles = this.archivesByTitle.get(archive.category) ?? new Map<string, ArchiveId[]>();
-      const ids = titles.get(archive.title) ?? [];
+      const ids = titles.get(archive.title['zh-CN']) ?? [];
       ids.push(archive.id);
-      titles.set(archive.title, ids);
+      titles.set(archive.title['zh-CN'], ids);
       this.archivesByTitle.set(archive.category, titles);
     }
   }
