@@ -1,17 +1,16 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import { useScrollToBottom } from '@/composables/useScrollToBottom';
 import { clearLogs, filteredLogLines, levelOptions, logLevelFilter } from '@/features/log/log';
 import { openLogDir } from '@/features/log/ipc';
 import { useTemplateRef } from 'vue';
 
-/** 把 ISO 8601 时间字符串格式化为 `MM-dd HH:MM:SS`（解析失败时原样返回）。 */
+const { t, d } = useAppI18n();
+
+/** 日期使用统一格式，无法解析的诊断时间保留原文。 */
 function formatTime(iso: string): string {
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return iso;
-  }
-  const pad = (value: number, length = 2): string => String(value).padStart(length, '0');
-  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return Number.isNaN(date.getTime()) ? iso : d(date, 'dateTimeSeconds');
 }
 
 const logContainerRef = useTemplateRef('logContainerRef');
@@ -25,14 +24,19 @@ useScrollToBottom(logContainerRef, filteredLogLines);
       <UButton
         class="mr-auto"
         icon="i-lucide-folder-open"
-        label="打开日志文件目录"
+        :label="t('log.openDirectory')"
         @click="openLogDir"
       />
-      <USelect v-model="logLevelFilter" class="w-32" :items="levelOptions" />
+      <USelect
+        v-model="logLevelFilter"
+        :aria-label="t('log.levelFilter')"
+        class="w-32"
+        :items="levelOptions"
+      />
       <UButton
         color="error"
         icon="i-lucide-trash-2"
-        label="清空日志"
+        :label="t('log.clear')"
         variant="outline"
         @click="clearLogs"
       />
@@ -40,7 +44,9 @@ useScrollToBottom(logContainerRef, filteredLogLines);
 
     <UCard class="min-h-0 flex-1" :ui="{ body: 'h-full p-0!' }">
       <div ref="logContainerRef" class="h-full scrollbar-gutter-stable overflow-y-scroll px-6 py-4">
-        <p v-if="filteredLogLines.length === 0" class="font-mono text-muted">暂无日志</p>
+        <p v-if="filteredLogLines.length === 0" class="font-mono text-muted">
+          {{ t('log.empty') }}
+        </p>
         <pre
           v-for="({ time, level, message }, index) in filteredLogLines"
           :key="index"
@@ -52,7 +58,7 @@ useScrollToBottom(logContainerRef, filteredLogLines);
               'text-warning': level === 'WARN',
               'text-error': level === 'ERROR',
             }"
-            >{{ `[${level}]`.padStart(7, ' ') }}</span
+            >{{ level }}</span
           > <span class="whitespace-pre-wrap wrap-break-word">{{ message }}</span></pre>
       </div>
     </UCard>

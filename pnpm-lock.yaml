@@ -190,6 +190,12 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+      i18next:
+        specifier: ^26.4.2
+        version: 26.4.2(typescript@6.0.3)
+      i18next-vue:
+        specifier: ^5.4.0
+        version: 5.4.0(i18next@26.4.2(typescript@6.0.3))(vue@3.5.43(typescript@6.0.3))
       marked:
         specifier: ^18.0.9
         version: 18.0.14
@@ -2433,6 +2439,20 @@ packages:
   human-signals@5.0.0:
     resolution: {integrity: sha512-AXcZb6vzzrFAUE61HnN4mpLqd/cSIwNQjtNWR0euPm6y0iqx3G4gOXaIDdtdDwZmhwe82LA6+zinmW4UBWVePQ==}
     engines: {node: '>=16.17.0'}
+
+  i18next-vue@5.4.0:
+    resolution: {integrity: sha512-GDj0Xvmis5Xgcvo9gMBJMgJCtewYMLZP6gAEPDDGCMjA+QeB4uS4qUf1MK79mkz/FukhaJdC+nlj0y1qk6NO2Q==}
+    peerDependencies:
+      i18next: '>=23'
+      vue: ^3.4.38
+
+  i18next@26.4.2:
+    resolution: {integrity: sha512-RX+R0VLg13IbvRuJSxnqykUFS9vQZTl8wYpWPCIUDWVrSGjsQywB5Y+pjzrkboxGAuYfJZVH1InFTdgBdxq6ug==}
+    peerDependencies:
+      typescript: ^5 || ^6 || ^7
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -5869,6 +5889,15 @@ snapshots:
       terser: 5.49.0
 
   human-signals@5.0.0: {}
+
+  i18next-vue@5.4.0(i18next@26.4.2(typescript@6.0.3))(vue@3.5.43(typescript@6.0.3)):
+    dependencies:
+      i18next: 26.4.2(typescript@6.0.3)
+      vue: 3.5.43(typescript@6.0.3)
+
+  i18next@26.4.2(typescript@6.0.3):
+    optionalDependencies:
+      typescript: 6.0.3
 
   ieee754@1.2.1: {}
 

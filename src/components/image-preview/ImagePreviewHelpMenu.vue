@@ -1,16 +1,21 @@
+<script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
+const { t } = useAppI18n();
+</script>
+
 <template>
   <div class="space-y-4">
     <div class="flex items-center gap-2 font-bold text-highlighted">
       <UIcon class="size-5 text-primary" name="i-lucide-keyboard" />
-      快捷键与操作指南
+      {{ t('image.guide.title') }}
     </div>
 
     <USeparator />
 
     <section class="space-y-1.5">
-      <p class="text-xs font-medium tracking-wider text-muted">视图控制</p>
+      <p class="text-xs font-medium tracking-wider text-muted">{{ t('image.guide.view') }}</p>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">平移视图</span>
+        <span class="text-sm text-toned">{{ t('image.guide.panView') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="W" />
           <UKbd value="A" />
@@ -23,11 +28,11 @@
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">平移图像</span>
+        <span class="text-sm text-toned">{{ t('image.guide.panImage') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd>
             <UIcon class="me-0.5" name="i-lucide-mouse" />
-            拖动
+            {{ t('image.guide.drag') }}
           </UKbd>
         </div>
       </div>
@@ -36,21 +41,21 @@
     <USeparator />
 
     <section class="space-y-1.5">
-      <p class="text-xs font-medium tracking-wider text-muted">旋转控制</p>
+      <p class="text-xs font-medium tracking-wider text-muted">{{ t('image.guide.rotation') }}</p>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">顺时针旋转 90°</span>
+        <span class="text-sm text-toned">{{ t('image.rotateClockwise') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="R" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">逆时针旋转 90°</span>
+        <span class="text-sm text-toned">{{ t('image.guide.rotateCounterclockwise') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="shift" /> + <UKbd value="R" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">平滑旋转</span>
+        <span class="text-sm text-toned">{{ t('image.guide.smoothRotation') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="Q" />
           <UKbd value="E" />
@@ -61,33 +66,33 @@
     <USeparator />
 
     <section class="space-y-1.5">
-      <p class="text-xs font-medium tracking-wider text-muted">缩放控制</p>
+      <p class="text-xs font-medium tracking-wider text-muted">{{ t('image.guide.zoom') }}</p>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">缩放图像</span>
+        <span class="text-sm text-toned">{{ t('image.guide.zoomImage') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="-" />
           <UKbd value="=" />
           <UKbd>
             <UIcon class="me-0.5" name="i-lucide-mouse" />
-            滚轮
+            {{ t('image.guide.wheel') }}
           </UKbd>
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">平滑缩放</span>
+        <span class="text-sm text-toned">{{ t('image.guide.smoothZoom') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="[" />
           <UKbd value="]" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">缩放至预设大小</span>
+        <span class="text-sm text-toned">{{ t('image.guide.preset') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd v-for="x in 9" :key="x" :value="x.toString()" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">重置视图</span>
+        <span class="text-sm text-toned">{{ t('image.reset') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="0" />
         </div>
@@ -97,21 +102,21 @@
     <USeparator />
 
     <section class="space-y-1.5">
-      <p class="text-xs font-medium tracking-wider text-muted">高级操作</p>
+      <p class="text-xs font-medium tracking-wider text-muted">{{ t('image.guide.advanced') }}</p>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">加速平移 / 旋转 / 缩放</span>
+        <span class="text-sm text-toned">{{ t('image.guide.accelerate') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
-          <UKbd value="shift" /> + <UKbd value="操作键" />
+          <UKbd value="shift" /> + <UKbd :value="t('image.guide.actionKey')" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">下载图像</span>
+        <span class="text-sm text-toned">{{ t('image.guide.download') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="meta" /> + <UKbd value="S" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">新标签页打开</span>
+        <span class="text-sm text-toned">{{ t('image.guide.openTab') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="O" />
         </div>
@@ -120,6 +125,6 @@
 
     <USeparator />
 
-    <p class="text-center text-xs text-warning">快捷键请在英文输入法下使用</p>
+    <p class="text-center text-xs text-warning">{{ t('image.guide.inputMode') }}</p>
   </div>
 </template>
