@@ -1,0 +1,490 @@
+{
+  "application": {
+    "title": "OEA - 明日方舟终末地档案库扫描"
+  },
+  "common": {
+    "retrySave": "重试保存"
+  },
+  "footer": {
+    "poweredBy": "基于"
+  },
+  "help": {
+    "archive": {
+      "main": "档案库主界面"
+    },
+    "credits": {
+      "models": "RapidAI/RapidOCR 模型 (ModelScope)",
+      "title": "致谢"
+    },
+    "disclaimer": {
+      "acceptance": "使用本工具即意味着您同意以上全部内容。",
+      "compliance": "使用者必须确保使用本工具符合相关法律法规与服务条款，禁止用于任何违法或侵权行为。",
+      "recognition": "机器识别，可能存在错误。若发现错误，欢迎反馈。",
+      "risk": "使用者需承担因使用本工具产生的任何风险、损失或责任。",
+      "title": "说明",
+      "updates": "自动更新功能有删除硬盘上的文件的操作，请确保重要数据已备份再使用自动更新功能，避免误删重要文件。",
+      "warranty": "本工具按“原样”、“包含全部错误”和“视可用性情况”提供，作者不对可用性、准确性或使用效果做出任何承诺或保证。"
+    },
+    "export": "导出收集状态",
+    "faq": {
+      "accuracy": {
+        "answer": "可以使用输入框进行人工纠错。建议将识别错误告知我们，以便改进识别算法。",
+        "question": "识别结果不准确怎么办？"
+      },
+      "fee": {
+        "answer": "OEA 开源且免费，不会以任何形式收取费用。如果您是通过付费方式获取的 OEA，您可能已经被不法商家欺骗，请立即告知我们。",
+        "question": "OEA 收费吗？"
+      },
+      "mirror": {
+        "question": "OEA 和 Mirror酱的关系是什么？",
+        "service": "{service} 是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。"
+      },
+      "mobile": {
+        "answer": "不能。OEA 仅支持 Windows 10 / 11（x86_64）。",
+        "question": "手机能用吗？"
+      },
+      "title": "常见问题"
+    },
+    "feedback": {
+      "group": "反馈交流群：954628501",
+      "issue": "提交 GitHub Issue",
+      "logs": "遇到问题或建议，欢迎反馈并附上应用目录下 {directory} 中的日志文件，便于定位问题。",
+      "title": "反馈交流"
+    },
+    "hdr": {
+      "disable": "关闭 HDR"
+    },
+    "issues": {
+      "sharedTitle": "存在 2 个不同的档案，名称都为「{title}」。OEA 目前无法区分二者，只要识别到其一就认为 2 个档案都已收集。",
+      "title": "已知问题"
+    },
+    "repository": "GitHub 仓库",
+    "scan": {
+      "start": "开始扫描"
+    },
+    "shortcut": {
+      "quit": "按 {keys} 退出程序。",
+      "scan": "按 {key}（引号键）开始扫描档案库，扫描过程中再次按下可停止。"
+    },
+    "start": {
+      "archive": "终末地打开{archive}。",
+      "export": "扫完点击全部档案栏的{export}。",
+      "hdr": "{hdr}，关闭性能监控软件。",
+      "resolution": "打开终末地，调成 {resolution}、{language}。",
+      "scan": "点击扫描结果栏的{scan}。",
+      "title": "新手提示"
+    },
+    "usage": {
+      "archive": "理论上目前支持从任意档案库界面、协议终端界面和大世界界面开始扫描。为了稳定性，建议始终从{archive}开始扫描。",
+      "hdr": "请{hdr}，关闭任何会遮挡终末地窗口的软件。",
+      "language": "请将终末地的语言调成{language}。",
+      "preparation": "使用前准备",
+      "resolution": "理论上支持任意 {ratio} 的分辨率。我们最建议使用 {resolution}、{windowed}，这个分辨率可以兼顾准确性和性能。",
+      "shortcuts": "快捷键",
+      "title": "操作说明"
+    },
+    "website": "OEA 官网",
+    "windowed": "窗口模式"
+  },
+  "image": {
+    "background": "更改背景颜色",
+    "close": "关闭",
+    "download": "下载",
+    "guide": {
+      "accelerate": "加速平移 / 旋转 / 缩放",
+      "actionKey": "操作键",
+      "advanced": "高级操作",
+      "download": "下载图像",
+      "drag": "拖动",
+      "inputMode": "快捷键请在英文输入法下使用",
+      "openTab": "新标签页打开",
+      "panImage": "平移图像",
+      "panView": "平移视图",
+      "preset": "缩放至预设大小",
+      "rotateCounterclockwise": "逆时针旋转 90°",
+      "rotation": "旋转控制",
+      "smoothRotation": "平滑旋转",
+      "smoothZoom": "平滑缩放",
+      "title": "快捷键与操作指南",
+      "view": "视图控制",
+      "wheel": "滚轮",
+      "zoom": "缩放控制",
+      "zoomImage": "缩放图像"
+    },
+    "help": "帮助",
+    "openTab": "在新标签页中打开图像",
+    "reset": "重置视图",
+    "rotateClockwise": "顺时针旋转 90°",
+    "zoomIn": "放大",
+    "zoomOut": "缩小"
+  },
+  "log": {
+    "clear": "清空日志",
+    "empty": "暂无日志",
+    "levelFilter": "日志等级",
+    "openDirectory": "打开日志文件目录"
+  },
+  "monitor": {
+    "empty": "尚无游戏画面，请先启动游戏。",
+    "format": "截图格式",
+    "frameRate": "截图帧率",
+    "imageAlt": "游戏画面监控",
+    "openLogs": "查看日志",
+    "running": "正以 {{fps}} FPS 监控。",
+    "start": "开始监控",
+    "stop": "停止监控",
+    "updated": "正以 {{fps}} FPS 监控，最近更新于 {{time}}。"
+  },
+  "navigation": {
+    "help": "帮助",
+    "logs": "日志",
+    "maps": "地图集",
+    "menu": {
+      "description": "前往扫描、日志、监控、设置或帮助页面。",
+      "title": "导航菜单"
+    },
+    "monitor": "监控",
+    "scan": "档案扫描",
+    "settings": "设置",
+    "yituliu": "一图流"
+  },
+  "scan": {
+    "acquisition": {
+      "auto": "自动解锁",
+      "invstgt": "报告摘要",
+      "map": "地图拾取",
+      "mission": "跟随任务",
+      "shop": "商店购买"
+    },
+    "all": "全部",
+    "allArchives": "全部档案",
+    "allCategories": "全部分类",
+    "allMatched": "所有扫描结果都已匹配",
+    "archiveCategory": "档案分类",
+    "archiveCount": "显示 {{visible}} / {{total}} 份档案",
+    "automatic": "由 OCR 自动匹配的结果",
+    "blocked": "其他自动化任务正在运行",
+    "cancelEdit": "放弃编辑",
+    "chooseTitle": "输入或选择正确标题",
+    "clear": "清空",
+    "clearResults": "清空扫描结果",
+    "collected": "已收集",
+    "confirmEdit": "确认编辑",
+    "correction": "将第 {{id}} 个识别结果编辑为“{{title}}”。",
+    "editTitle": "编辑匹配标题",
+    "editing": "编辑中",
+    "evidenceCount_other": "{{count}} 条关联扫描证据",
+    "export": "导出收集状态",
+    "exportDescription": "在浏览器打开 OEM 导入页面，携带当前目录的收集状态。",
+    "exportFailedDescription": "请重试，或在日志中查看失败原因。",
+    "exportFailedTitle": "无法打开 OEM 导入页面",
+    "exportSubmit": "导出到 OEM 地图集",
+    "exportTitle": "将当前收集状态导出到 OEM 地图集",
+    "exportTooltip": "将当前的收集状态导出到 OEM 地图集",
+    "exportWarningLabel": "查看未匹配扫描结果的导出提醒",
+    "exportWarning_other": "有 {{count}} 条扫描结果尚未匹配到已知档案。继续核对可能减少“未收集”的数量，让导出结果更准确。",
+    "failed": "扫描失败",
+    "filters": "目录筛选",
+    "gotIt": "我知道了",
+    "guide": {
+      "archive": "终末地打开档案库界面",
+      "export": "扫完点击全部档案栏的导出收集状态",
+      "hdr": "关闭 HDR，关闭性能监控软件",
+      "open": "打开终末地，调成 1280 × 720、简体中文",
+      "scan": "点击扫描结果栏的开始扫描"
+    },
+    "hasRecords": "有记录",
+    "hideGuide": "下次更新前不再提示",
+    "hideOcr": "收起 OCR 结果",
+    "linkedArchives_other": "{{count}} 份关联档案",
+    "linkedSummary_other": "扫描 #{{id}} 关联了 {{count}} 份档案",
+    "locateArchive": "定位档案",
+    "locateScan": "定位记录",
+    "logs": "前往日志页查看详情",
+    "manual": "被人工纠正的结果",
+    "mapOnly": "仅显示可在地图拾取的档案",
+    "matchTitle": "匹配到目录中的标题",
+    "matched": "已匹配",
+    "matches_other": "{{count}} 个匹配",
+    "noArchives": "当前筛选下没有档案",
+    "noEvidence": "暂无扫描证据，尚不能判断游戏中的收集状态",
+    "noRecords": "无记录",
+    "noScans": "当前筛选下没有扫描结果",
+    "noText": "未识别到文字",
+    "noTextShort": "无文字",
+    "noTitle": "没有找到对应标题，可继续输入",
+    "notCollected": "未收集",
+    "ocr": "OCR 结果",
+    "ocrEmpty": "OCR 未识别到文字",
+    "ocrValue": "OCR 结果：{{text}}",
+    "resize": "调整全部档案与扫描结果宽度",
+    "results": "扫描结果",
+    "review": "待核对",
+    "scanCategory": "扫描分类",
+    "scanCount": "显示 {{visible}} / {{total}} 条记录",
+    "screenshot": "档案详情截图",
+    "searchArchive": "搜索档案标题",
+    "searchResults": "搜索扫描结果",
+    "searchTitle": "搜索识别或修正标题",
+    "showCandidates": "显示标题候选",
+    "start": "开始扫描（引号键）",
+    "startHint": "开始扫描后，结果会出现在这里",
+    "startSimulation": "开始模拟扫描",
+    "stop": "停止扫描（引号键）",
+    "stopping": "正在停止扫描",
+    "titleHelp": "输入或选择与这个截图匹配的档案标题",
+    "titleUnmatched": "标题仍未匹配到已知档案。",
+    "undo": "撤销编辑",
+    "unknownAcquisition": "获取方式未知",
+    "unmatched": "未匹配",
+    "viewDetails": "查看详情",
+    "viewLocation": "查看位置",
+    "viewOcr": "查看 OCR 结果",
+    "viewOem": "在OEM中查看",
+    "viewScreenshot": "查看完整档案截图"
+  },
+  "settings": {
+    "developer": {
+      "close": "关闭开发者选项",
+      "description": "显示仅用于开发和故障排查的高级工具",
+      "install": {
+        "button": "选择 .zip 文件安装包（开发者）",
+        "description": "从给定的 .zip 更新包运行一次原地更新流程。支持增量包和全量包。",
+        "title": "安装更新包"
+      },
+      "open": "开启开发者选项",
+      "section": "开发者选项",
+      "simulate": {
+        "description": "用固定示例结果调试档案扫描页面，无需游戏窗口。约 20 秒完成，可随时停止。重启应用后关闭。",
+        "enable": "使用模拟扫描结果",
+        "title": "模拟档案扫描"
+      },
+      "trace": {
+        "empty": "相关日志"
+      },
+      "warning": "如果你不知道自己在做什么，请不要使用下面的选项"
+    },
+    "initialize": {
+      "failed": {
+        "description": "自动更新和扫描提示暂时不会使用用户设置。",
+        "pageDescription": "无法从后端初始化设置。界面缩放和开发者功能仍可使用。",
+        "title": "设置初始化失败"
+      },
+      "open": "前往设置",
+      "retry": "重新初始化"
+    },
+    "interface": {
+      "guide": {
+        "description": "进入档案扫描页时显示操作指引，关闭后若无更新则不再提示，可随时重新开启",
+        "title": "显示新手操作提示"
+      },
+      "scale": {
+        "description": "设置应用窗口的缩放比例，影响所有界面元素的大小",
+        "title": "缩放比例"
+      },
+      "section": "界面设置",
+      "tray": {
+        "description": "点击窗口关闭按钮时隐藏到系统托盘而不是退出，可通过托盘菜单或 Alt+Delete 退出",
+        "title": "关闭时最小化到托盘"
+      }
+    },
+    "language": {
+      "application": {
+        "description": "OEA 应用界面使用的语言",
+        "title": "应用语言"
+      },
+      "game": {
+        "description": "设置为与终末地游戏中使用的语言一致。这会影响自动化任务的运行，也会影响 OEA 应用中显示的部分自动化结果。",
+        "fixed": "简体中文",
+        "title": "游戏语言",
+        "warning": "开发中：目前仅支持简体中文"
+      },
+      "section": "语言设置",
+      "shortcut": "语言设置 / Language"
+    },
+    "save": {
+      "failed": {
+        "description": "已保留当前编辑，应用仍使用最近一次成功保存的设置。",
+        "title": "设置未保存"
+      }
+    },
+    "sound": {
+      "section": "声音设置",
+      "volume": {
+        "description": "扫描开始、完成、失败或被停止时播放提示音",
+        "title": "扫描提示音音量"
+      }
+    },
+    "unavailable": "设置暂不可用",
+    "unsupported": {
+      "description": "纯浏览器模式只用于预览页面壳。请运行桌面开发模式来读取和修改设置。",
+      "label": "浏览器中不可用",
+      "title": "浏览器模式不支持应用设置"
+    },
+    "update": {
+      "autoDownload": {
+        "description": "检查到新版本后自动开始下载",
+        "title": "自动下载更新"
+      },
+      "autoInstall": {
+        "description": "更新包下载完成后自动安装",
+        "title": "自动安装更新"
+      },
+      "cdk": {
+        "clear": "清除已保存 CDK",
+        "placeholder": "未填写时使用 OEM 下载",
+        "subscribe": "没有 CDK？立即订阅",
+        "title": "Mirror酱 CDK",
+        "unreadable": "已保存的 CDK 无法解密，可重新输入或清除。"
+      },
+      "check": {
+        "button": "检查更新",
+        "description": "通过更新服务检查是否存在可用更新",
+        "title": "手动检查更新"
+      },
+      "mirror": {
+        "free": "OEA 本身不收取任何费用，也提供免费的下载渠道。您可以前往 {releases} 免费下载和使用。",
+        "service": "{service} 是独立的第三方加速下载服务，需要付费使用。"
+      },
+      "proxy": {
+        "custom": "自定义代理",
+        "description": "下载更新包时使用的代理方式",
+        "none": "不使用代理",
+        "system": "系统代理",
+        "title": "网络代理"
+      },
+      "proxyUrl": {
+        "description": "自定义代理服务器地址，例如 http://127.0.0.1:7890",
+        "title": "代理地址"
+      },
+      "section": "更新设置",
+      "source": {
+        "description": "选择从哪个源下载新版本",
+        "mirror": "Mirror酱",
+        "title": "更新源"
+      }
+    }
+  },
+  "theme": {
+    "change": "更改主题",
+    "chineseFont": "中文字体",
+    "color": {
+      "amber": "琥珀黄",
+      "black": "玄墨黑",
+      "blue": "霜月蓝",
+      "cyan": "琉璃青",
+      "emerald": "松石绿",
+      "fuchsia": "丁香紫",
+      "gray": "钛金灰",
+      "green": "帽子绿",
+      "indigo": "星夜靛",
+      "lime": "青柠绿",
+      "mauve": "淡霞紫",
+      "mist": "茶褐绿",
+      "neutral": "珍珠灰",
+      "olive": "橄榄绿",
+      "orange": "丹霞橙",
+      "pink": "少女粉",
+      "purple": "霞光紫",
+      "red": "胭脂红",
+      "rose": "玫瑰红",
+      "sky": "星河蓝",
+      "slate": "烟青灰",
+      "stone": "暖石灰",
+      "taupe": "亚麻褐",
+      "teal": "孔雀青",
+      "violet": "鸢尾紫",
+      "white": "象牙白",
+      "yellow": "鎏金黄",
+      "zinc": "铅华灰"
+    },
+    "colorMode": "颜色模式",
+    "cornerShape": "圆角形状",
+    "englishFont": "英文字体",
+    "font": {
+      "browser": "（浏览器默认）",
+      "system": "（系统默认）",
+      "useChinese": "（使用中文字体）"
+    },
+    "mode": {
+      "auto": "跟随系统",
+      "dark": "深色模式",
+      "light": "浅色模式"
+    },
+    "monospaceFont": "等宽字体",
+    "neutral": "中性色",
+    "primary": "主题色",
+    "radius": {
+      "large": "大",
+      "larger": "较大",
+      "medium": "中",
+      "none": "无",
+      "small": "小",
+      "title": "圆角大小"
+    },
+    "reset": "重置主题",
+    "shape": {
+      "bevel": "斜切",
+      "notch": "内凹",
+      "round": "标准",
+      "smooth": "平滑",
+      "soft": "柔和"
+    },
+    "toggleMode": "切换颜色模式"
+  },
+  "update": {
+    "cancel": "取消",
+    "check": {
+      "action": "检查更新",
+      "available": "发现新版本",
+      "checking": "正在检查更新…",
+      "failed": "检查更新失败",
+      "upToDate": "当前已是最新版本"
+    },
+    "close": "关闭",
+    "dismiss": "知道了",
+    "download": {
+      "cancelling": "正在取消…",
+      "completed": "下载完成",
+      "downloading": "正在下载",
+      "etaHours_other": "还需约 {{count}} 小时。",
+      "etaMinutes_other": "还需约 {{count}} 分钟。",
+      "etaSeconds_other": "还需约 {{count}} 秒。",
+      "failed": "下载失败",
+      "progress": "已下载 {{percent}}，速度为 {{speed}}。"
+    },
+    "install": {
+      "action": "立即安装",
+      "afterTask": "任务结束后将自动安装更新。",
+      "completed": "更新完成",
+      "failed": "安装失败",
+      "installing": "正在安装更新",
+      "preparing": "准备中…",
+      "redownload": "重新下载",
+      "success": "更新已成功安装，可以继续使用 OEA。",
+      "taskRunning": "自动化任务运行中"
+    },
+    "notice": "检测到新版本：{{version}}",
+    "now": "立即更新",
+    "releaseNotes": {
+      "empty": "暂无更新日志",
+      "title": "更新日志"
+    },
+    "retry": "重试",
+    "settings": "更新设置",
+    "stage": {
+      "cleanup": "清理临时文件",
+      "extracting": "解压更新包",
+      "full": "应用全量更新",
+      "incremental": "应用增量更新",
+      "preparing": "准备更新文件"
+    },
+    "viewLogs": "查看日志"
+  },
+  "window": {
+    "close": "关闭",
+    "maximize": "最大化",
+    "minimize": "最小化",
+    "restore": "还原"
+  }
+}

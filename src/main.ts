@@ -1,4 +1,6 @@
 import App from '@/App.vue';
+import { i18n } from '@/shared/i18n';
+import I18NextVue from 'i18next-vue';
 import '@/assets/css/main.css';
 import ui from '@nuxt/ui/vue-plugin';
 import { createHead } from '@unhead/vue/client';
@@ -14,6 +16,7 @@ const router = createRouter({
   history: createWebHistory(),
 });
 
+app.use(I18NextVue, { i18next: i18n });
 app.use(head);
 app.use(router);
 app.use(ui);

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import { editSettings, settingsState } from '@/features/settings/settings';
 import { computed, ref } from 'vue';
 
@@ -8,6 +9,8 @@ import { computed, ref } from 'vue';
  */
 
 /** 本次启动内已手动关闭（未勾选持久化时仅隐藏本次启动）。 */
+const { t } = useAppI18n();
+
 const dismissedThisSession = ref(false);
 
 /**
@@ -50,34 +53,29 @@ function dismissScanGuide(): void {
     <ol class="inline-flex flex-col gap-5 text-left text-2xl leading-relaxed font-semibold">
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">1.</span>
-        <span>
-          打开终末地，调成 <strong class="text-primary">1280 × 720</strong>、<strong
-            class="text-primary"
-            >简体中文</strong
-          >
-        </span>
+        <span>{{ t('scan.guide.open') }}</span>
       </li>
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">2.</span>
-        <span><strong class="text-primary">关闭 HDR</strong>，关闭性能监控软件</span>
+        <span>{{ t('scan.guide.hdr') }}</span>
       </li>
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">3.</span>
-        <span>终末地打开<strong class="text-primary">档案库界面</strong></span>
+        <span>{{ t('scan.guide.archive') }}</span>
       </li>
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">4.</span>
-        <span>点击扫描结果栏的<strong class="text-primary">开始扫描</strong></span>
+        <span>{{ t('scan.guide.scan') }}</span>
       </li>
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">5.</span>
-        <span>扫完点击全部档案栏的<strong class="text-primary">导出收集状态</strong></span>
+        <span>{{ t('scan.guide.export') }}</span>
       </li>
     </ol>
 
     <div class="flex flex-col items-center gap-4">
-      <UCheckbox v-model="dismissGuide" label="下次更新前不再提示" />
-      <UButton label="我知道了" size="lg" @click="dismissScanGuide" />
+      <UCheckbox v-model="dismissGuide" :label="t('scan.hideGuide')" />
+      <UButton :label="t('scan.gotIt')" size="lg" @click="dismissScanGuide" />
     </div>
   </div>
 </template>

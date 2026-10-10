@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useTranslatedToast } from '@/shared/i18n/toast';
+import { useAppI18n } from '@/shared/i18n';
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from 'vue';
 import { useResizeObserver } from '@vueuse/core';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
@@ -16,6 +18,8 @@ import ArchiveVirtualList from './ArchiveVirtualList.vue';
 import type { Virtualizer } from '@tanstack/vue-virtual';
 type ScrollList = { virtualizer: Virtualizer<HTMLElement, Element> };
 import { createScanCardState, type ScanCardState } from './scanCardState';
+
+const { t, n } = useAppI18n();
 
 const props = defineProps<{ source?: ArchiveScanSource }>();
 const {
@@ -42,6 +46,7 @@ const {
 } = useArchiveScanResults(props.source);
 const { isActive } = useAutomationTask('archiveScan');
 const toast = useToast();
+const translatedToast = useTranslatedToast();
 const selectedArchiveId: Ref<ArchiveId | null> = ref(null);
 const selectedScanId: Ref<ScannedItemId | null> = ref(null);
 const archiveList: Ref<ScrollList | null> = ref(null);
@@ -128,26 +133,30 @@ function correct(id: ScannedItemId, title: string): void {
   const matched =
     scans.value.find((item: ScannedItemView): boolean => item.scannedItemId === id)!.archives
       .length > 0;
-  const notification = toast.add({
-    title: `将第 ${id} 个识别结果编辑为“${title}”。`,
-    description: matched ? undefined : '标题仍未匹配到已知档案。',
-    duration: 20000,
-    color: 'neutral',
-    close: { color: 'neutral', variant: 'outline' },
-    actions: [
-      {
-        label: '撤销编辑',
-        color: 'neutral',
-        variant: 'outline',
-        onClick: (): void => {
-          undo(correction);
-          const state = cardStates.value[id];
-          if (state) state.expanded = undefined;
-          toast.remove(notification.id);
+  const notification = translatedToast.add(
+    {
+      duration: 20000,
+      color: 'neutral',
+      close: { color: 'neutral', variant: 'outline' },
+    },
+    () => ({
+      title: t('scan.correction', { id, title }),
+      description: matched ? undefined : t('scan.titleUnmatched'),
+      actions: [
+        {
+          label: t('scan.undo'),
+          color: 'neutral',
+          variant: 'outline',
+          onClick: (): void => {
+            undo(correction);
+            const state = cardStates.value[id];
+            if (state) state.expanded = undefined;
+            toast.remove(notification.id);
+          },
         },
-      },
-    ],
-  });
+      ],
+    }),
+  );
   editToasts.set(correction.key, notification.id);
 }
 // 解除筛选后先等虚拟列表收到新 items，再按索引定位未挂载的记录。
@@ -195,13 +204,14 @@ watch(scans, (): void => {
       :style="splitStyle"
     >
       <section
-        aria-label="全部档案"
+        :aria-label="t('scan.allArchives')"
         class="min-w-0 rounded-xl border border-default bg-elevated/20 min-[848px]:flex min-[848px]:min-h-0 min-[848px]:flex-col"
       >
         <header class="space-y-2 border-b border-default p-3">
           <div class="flex items-center justify-between gap-2">
             <h2 class="text-lg font-semibold whitespace-nowrap">
-              全部档案 <span class="font-normal text-muted">{{ archives.length }}</span>
+              {{ t('scan.allArchives') }}
+              <span class="font-normal text-muted">{{ n(archives.length) }}</span>
             </h2>
             <ArchiveExportButton
               :collected="matchedArchives"
@@ -212,33 +222,33 @@ watch(scans, (): void => {
           <div class="flex items-center gap-1">
             <UButton
               v-for="option in [
-                { value: 'all' as const, label: '全部', count: archives.length },
+                { value: 'all' as const, label: t('scan.all'), count: archives.length },
                 {
                   value: 'unmatched' as const,
-                  label: '无记录',
+                  label: t('scan.noRecords'),
                   count: archives.length - matchedArchives,
                 },
-                { value: 'matched' as const, label: '有记录', count: matchedArchives },
+                { value: 'matched' as const, label: t('scan.hasRecords'), count: matchedArchives },
               ]"
               :key="option.value"
               :color="archiveFilter === option.value ? 'primary' : 'neutral'"
               size="xs"
               :variant="archiveFilter === option.value ? 'subtle' : 'outline'"
               @click="archiveFilter = option.value"
-              >{{ option.label }} {{ option.count }}</UButton
+              >{{ option.label }} {{ n(option.count) }}</UButton
             >
           </div>
           <div class="flex gap-2">
             <UInput
               v-model="archiveSearch"
-              aria-label="搜索档案标题"
+              :aria-label="t('scan.searchArchive')"
               class="min-w-0 flex-1"
               icon="i-lucide-search"
-              placeholder="搜索档案标题"
+              :placeholder="t('scan.searchArchive')"
               size="sm"
             /><UPopover
               ><UButton
-                aria-label="目录筛选"
+                :aria-label="t('scan.filters')"
                 :color="mapOnly || archiveCategory !== 'all' ? 'primary' : 'neutral'"
                 icon="i-lucide-list-filter"
                 size="sm"
@@ -246,10 +256,10 @@ watch(scans, (): void => {
                 ><div class="w-64 space-y-3 p-3">
                   <USelect
                     v-model="archiveCategory"
-                    aria-label="档案分类"
+                    :aria-label="t('scan.archiveCategory')"
                     class="w-full"
                     :items="categories"
-                  /><UCheckbox v-model="mapOnly" label="仅显示可在地图拾取的档案" /></div></template
+                  /><UCheckbox v-model="mapOnly" :label="t('scan.mapOnly')" /></div></template
             ></UPopover>
           </div>
         </header>
@@ -269,15 +279,20 @@ watch(scans, (): void => {
           />
         </ArchiveVirtualList>
         <p v-if="!visibleArchives.length" class="flex-1 py-14 text-center text-sm text-muted">
-          当前筛选下没有档案
+          {{ t('scan.noArchives') }}
         </p>
         <div class="shrink-0 border-t border-default px-3 py-1.5 text-[11px] text-muted">
-          显示 {{ visibleArchives.length }} / {{ archives.length }} 份档案
+          {{
+            t('scan.archiveCount', {
+              visible: n(visibleArchives.length),
+              total: n(archives.length),
+            })
+          }}
         </div>
       </section>
 
       <div
-        aria-label="调整全部档案与扫描结果宽度"
+        :aria-label="t('scan.resize')"
         aria-orientation="vertical"
         :aria-valuemax="Math.round(resizeLimits().max)"
         :aria-valuemin="Math.round(resizeLimits().min)"
@@ -301,13 +316,14 @@ watch(scans, (): void => {
         /></span>
       </div>
       <section
-        aria-label="扫描结果"
+        :aria-label="t('scan.results')"
         class="min-w-0 rounded-xl border border-default bg-elevated/20 min-[848px]:flex min-[848px]:min-h-0 min-[848px]:flex-col"
       >
         <header class="space-y-2 border-b border-default p-3">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold">
-              扫描结果 <span class="font-normal text-muted">{{ scans.length }}</span>
+              {{ t('scan.results') }}
+              <span class="font-normal text-muted">{{ n(scans.length) }}</span>
             </h2>
             <ArchiveScanButton size="sm" />
           </div>
@@ -316,26 +332,26 @@ watch(scans, (): void => {
               v-for="option in [
                 {
                   value: 'unmatched' as const,
-                  label: '待核对',
+                  label: t('scan.review'),
                   count: scans.length - matchedScans,
                 },
-                { value: 'matched' as const, label: '已匹配', count: matchedScans },
-                { value: 'all' as const, label: '全部', count: scans.length },
+                { value: 'matched' as const, label: t('scan.matched'), count: matchedScans },
+                { value: 'all' as const, label: t('scan.all'), count: scans.length },
               ]"
               :key="option.value"
               :color="scanFilter === option.value ? 'primary' : 'neutral'"
               size="xs"
               :variant="scanFilter === option.value ? 'subtle' : 'outline'"
               @click="scanFilter = option.value"
-              >{{ option.label }} {{ option.count }}</UButton
-            ><UTooltip text="清空扫描结果"
+              >{{ option.label }} {{ n(option.count) }}</UButton
+            ><UTooltip :text="t('scan.clearResults')"
               ><UButton
-                aria-label="清空扫描结果"
+                :aria-label="t('scan.clearResults')"
                 class="ml-auto"
                 color="neutral"
                 :disabled="isActive"
                 icon="i-lucide-trash-2"
-                label="清空"
+                :label="t('scan.clear')"
                 size="xs"
                 variant="outline"
                 @click="clearScans"
@@ -344,14 +360,14 @@ watch(scans, (): void => {
           <div class="flex gap-2">
             <UInput
               v-model="scanSearch"
-              aria-label="搜索扫描结果"
+              :aria-label="t('scan.searchResults')"
               class="min-w-0 flex-1"
               icon="i-lucide-search"
-              placeholder="搜索识别或修正标题"
+              :placeholder="t('scan.searchTitle')"
               size="sm"
             /><USelect
               v-model="scanCategory"
-              aria-label="扫描分类"
+              :aria-label="t('scan.scanCategory')"
               class="w-28"
               :items="categories"
               size="sm"
@@ -378,15 +394,15 @@ watch(scans, (): void => {
           <p class="text-sm text-muted">
             {{
               !scans.length
-                ? '开始扫描后，结果会出现在这里'
+                ? t('scan.startHint')
                 : scanFilter === 'unmatched' && matchedScans === scans.length
-                  ? '所有扫描结果都已匹配'
-                  : '当前筛选下没有扫描结果'
+                  ? t('scan.allMatched')
+                  : t('scan.noScans')
             }}
           </p>
         </div>
         <div class="shrink-0 border-t border-default px-3 py-1.5 text-[11px] text-muted">
-          显示 {{ visibleScans.length }} / {{ scans.length }} 条记录
+          {{ t('scan.scanCount', { visible: n(visibleScans.length), total: n(scans.length) }) }}
         </div>
       </section>
     </div>
