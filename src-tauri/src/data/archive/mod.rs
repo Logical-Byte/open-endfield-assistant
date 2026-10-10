@@ -8,7 +8,8 @@ mod title_index;
 pub(crate) use database::Candidates;
 pub use database::Database;
 pub use model::{
-    AcquisitionMethod, ArchiveEntry, ArchiveId, Catalog, Category, CategoryEntry, Page, PageEntry,
+    AcquisitionMethod, ArchiveEntry, ArchiveId, Catalog, Category, CategoryEntry, LocalizedText,
+    Page, PageEntry,
 };
 #[cfg(test)]
 pub(crate) use title_index::NORM_MAX_CHARS;

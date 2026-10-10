@@ -8,24 +8,25 @@ const allItems: ArchiveEntry[] = [
     category: 'paper',
     id: 'paperNote' as ArchiveId,
     acquisitionMethod: 'map',
-    title: '研究人员的笔记',
+    title: { 'zh-CN': '研究人员的笔记', 'en-US': '研究人员的笔记' },
   },
   {
     category: 'paper',
     id: 'unrelated' as ArchiveId,
     acquisitionMethod: 'map',
-    title: '值班记录',
+    title: { 'zh-CN': '值班记录', 'en-US': '值班记录' },
   },
   {
     category: 'digital',
     id: 'digitalNote' as ArchiveId,
     acquisitionMethod: 'map',
-    title: '研究人员的笔记',
+    title: { 'zh-CN': '研究人员的笔记', 'en-US': '研究人员的笔记' },
   },
 ];
 
 const successfulScan: ScannedItem = {
   status: 'success',
+  gameLocale: 'zh-CN',
   foundInPage: 'document',
   foundInCategory: 'paper',
   image: '',

@@ -1,6 +1,6 @@
 //! 上游资源的私有读取结构，只保留投影所需字段。
 
-use super::{AcquisitionMethod, ArchiveId, Category, Page};
+use super::{AcquisitionMethod, ArchiveId, Category, LocalizedText, Page};
 use indexmap::IndexMap;
 use serde::{
     Deserialize, Deserializer,
@@ -28,7 +28,7 @@ pub(super) struct Prts {
 #[serde(rename_all = "camelCase")]
 pub(super) struct SourcePage {
     pub page_type: Page,
-    pub name: String,
+    pub name: LocalizedText,
     pub category_ids: Vec<Category>,
 }
 
@@ -36,7 +36,7 @@ pub(super) struct SourcePage {
 #[serde(rename_all = "camelCase")]
 pub(super) struct SourceCategory {
     pub category_id: Category,
-    pub name: String,
+    pub name: LocalizedText,
     pub order: i64,
     pub r#type: Page,
     pub first_lv_ids: Vec<FirstLvId>,
@@ -46,6 +46,7 @@ pub(super) struct SourceCategory {
 #[serde(rename_all = "camelCase")]
 pub(super) struct FirstLv {
     pub first_lv_id: FirstLvId,
+    pub name: LocalizedText,
     pub category_id: Category,
     pub order: i64,
     pub r#type: Page,
@@ -56,9 +57,10 @@ pub(super) struct FirstLv {
 #[serde(rename_all = "camelCase")]
 pub(super) struct SourceArchive {
     pub id: ArchiveId,
+    pub name: LocalizedText,
     pub first_lv_id: FirstLvId,
     pub category_id: Category,
-    pub title: String,
+    pub title: LocalizedText,
     pub order: i64,
     pub r#type: Page,
 }

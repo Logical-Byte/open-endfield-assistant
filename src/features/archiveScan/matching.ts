@@ -23,7 +23,7 @@ export function deriveArchiveMatching<T extends ScanEvidence>(
     const groups = new Set<string>();
     for (const id of scan.correctedMatchItemIds) {
       const archive = byId.get(id);
-      if (archive) groups.add(JSON.stringify([archive.category, archive.title]));
+      if (archive) groups.add(JSON.stringify([archive.category, archive.title['zh-CN']]));
     }
     for (const group of groups) {
       const scans = scansByGroup.get(group) ?? [];
@@ -36,7 +36,8 @@ export function deriveArchiveMatching<T extends ScanEvidence>(
   const archiveIdsByScan = new Map<T, ArchiveId[]>();
   for (const scan of scannedItems) archiveIdsByScan.set(scan, []);
   for (const archive of archives) {
-    const scans = scansByGroup.get(JSON.stringify([archive.category, archive.title])) ?? [];
+    const scans =
+      scansByGroup.get(JSON.stringify([archive.category, archive.title['zh-CN']])) ?? [];
     scansByArchiveId.set(archive.id, scans);
     for (const scan of scans) archiveIdsByScan.get(scan)!.push(archive.id);
   }

@@ -154,14 +154,14 @@ fn apply_override(
             index.candidate_by_id(category_id, &correction_override.item_id)
         })
         .map(|candidate| Corrected {
-            title: candidate.title.clone(),
+            title: candidate.title.zh_cn.clone(),
             item_ids: vec![candidate.id.clone()],
         })
 }
 
 /// 把候选组转为纠错结果。
 fn to_corrected(candidates: archive::Candidates<'_>) -> Option<Corrected> {
-    let title = candidates.iter().next()?.title.clone();
+    let title = candidates.iter().next()?.title.zh_cn.clone();
     Some(Corrected {
         title,
         item_ids: candidates
@@ -259,7 +259,10 @@ mod tests {
                 .map(|(id, category, title)| archive::ArchiveEntry {
                     id: archive::ArchiveId::new(id),
                     category,
-                    title: title.to_string(),
+                    title: archive::LocalizedText {
+                        zh_cn: title.to_string(),
+                        en_us: title.to_string(),
+                    },
                     acquisition_method: archive::AcquisitionMethod::Auto,
                 })
                 .collect(),
@@ -395,7 +398,7 @@ mod tests {
 
         for item in &idx.catalog().archives {
             let id = &item.id;
-            let title = &item.title;
+            let title = &item.title.zh_cn;
             let category_id = item.category;
             let normalized_title = normalize(title);
             if normalized_title.is_empty() {
