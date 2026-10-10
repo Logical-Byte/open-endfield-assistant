@@ -1,60 +1,62 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
 import { oeaVersion } from '@/version';
+import { computed } from 'vue';
 import { NavigationMenuItem } from '@nuxt/ui';
 
 const { t } = useAppI18n();
-const navigationMenuItems: NavigationMenuItem[] = [
+const navigationMenuItems = computed<NavigationMenuItem[]>(() => [
   {
-    label: '档案扫描',
+    label: t('navigation.scan'),
     icon: 'i-lucide-scan-line',
     to: '/',
   },
   {
-    label: '日志',
+    label: t('navigation.logs'),
     icon: 'i-lucide-scroll-text',
     to: '/log',
   },
   {
-    label: '监控',
+    label: t('navigation.monitor'),
     icon: 'i-lucide-monitor-play',
     to: '/monitor',
   },
   {
-    label: '设置',
+    label: t('navigation.settings'),
     icon: 'i-lucide-settings',
     to: '/settings',
   },
   {
-    label: '帮助',
+    label: t('navigation.help'),
     icon: 'i-lucide-circle-help',
     to: '/help',
   },
   {
-    label: '一图流',
+    label: t('navigation.yituliu'),
     icon: 'i-mdi-numeric-1-box-outline',
     to: 'https://ef.yituliu.cn/',
     target: '_blank',
   },
   {
-    label: '地图集',
+    label: t('navigation.maps'),
     icon: 'i-lucide-map',
     to: 'https://oem.re/',
     target: '_blank',
   },
-];
+]);
 </script>
 
 <template>
   <UHeader
+    :menu="{ title: t('navigation.menu.title'), description: t('navigation.menu.description') }"
     :ui="{
       title: 'inline',
-      left: 'md:flex-1',
-      center: 'hidden md:flex',
-      right: 'md:flex-1',
-      toggle: 'md:hidden',
-      content: 'md:hidden',
-      overlay: 'md:hidden',
+      left: 'lg:flex-1',
+      center: 'hidden lg:flex',
+      right: 'lg:flex-1',
+      toggle: 'lg:hidden',
+      content: 'lg:hidden',
+      overlay: 'lg:hidden',
     }"
   >
     <template #title>
@@ -81,7 +83,7 @@ const navigationMenuItems: NavigationMenuItem[] = [
         </UTooltip>
         <UpdatePopover />
         <ThemePicker />
-        <UTooltip text="切换颜色模式">
+        <UTooltip :text="t('theme.toggleMode')">
           <UColorModeButton />
         </UTooltip>
       </div>

@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import { useTheme } from '@/composables/useTheme';
 import { useColorMode } from '@vueuse/core';
 import { ref, useTemplateRef } from 'vue';
+
+const { t } = useAppI18n();
 
 const colorModeCalculated = useColorMode();
 const colorModeRaw = useColorMode({ emitAuto: true });
@@ -51,9 +54,9 @@ const {
         'flex max-h-[calc(100dvh-var(--ui-header-height)-var(--ui-title-height)-1rem)] flex-col gap-4 overflow-y-auto p-4 inline-80 max-inline-[calc(100svw-1rem)]',
     }"
   >
-    <UTooltip text="更改主题">
+    <UTooltip :text="t('theme.change')">
       <UButton
-        aria-label="更改主题"
+        :aria-label="t('theme.change')"
         color="neutral"
         icon="i-lucide-palette"
         square
@@ -69,8 +72,8 @@ const {
           class="mbe-2"
           :content="false"
           :items="[
-            { label: '主题色', value: 0 },
-            { label: '中性色', value: 1 },
+            { label: t('theme.primary'), value: 0 },
+            { label: t('theme.neutral'), value: 1 },
           ]"
           size="xs"
           variant="link"
@@ -111,7 +114,7 @@ const {
         </UCarousel>
       </UFormField>
 
-      <UFormField label="圆角大小">
+      <UFormField :label="t('theme.radius.title')">
         <div class="grid grid-cols-5 gap-1">
           <ThemePickerButton
             v-for="{ value, label } in radiuses"
@@ -127,7 +130,7 @@ const {
         </div>
       </UFormField>
 
-      <UFormField v-if="supportsCornerShape" label="圆角形状">
+      <UFormField v-if="supportsCornerShape" :label="t('theme.cornerShape')">
         <div class="grid grid-cols-5 gap-1">
           <ThemePickerButton
             v-for="{ label, value, cssValue, coefficient } in cornerShapePresets"
@@ -144,7 +147,7 @@ const {
         </div>
       </UFormField>
 
-      <UFormField label="英文字体">
+      <UFormField :label="t('theme.englishFont')">
         <div>
           <USelect
             v-model="englishFont"
@@ -171,7 +174,7 @@ const {
         </div>
       </UFormField>
 
-      <UFormField label="中文字体">
+      <UFormField :label="t('theme.chineseFont')">
         <div>
           <USelect
             v-model="chineseFont"
@@ -198,7 +201,7 @@ const {
         </div>
       </UFormField>
 
-      <UFormField label="等宽字体">
+      <UFormField :label="t('theme.monospaceFont')">
         <div>
           <USelect
             v-model="monospaceFont"
@@ -225,11 +228,11 @@ const {
         </div>
       </UFormField>
 
-      <UFormField label="颜色模式">
+      <UFormField :label="t('theme.colorMode')">
         <div class="grid grid-cols-3 gap-1">
           <ThemePickerButton
             v-for="{ label, value, icon } in colorModes"
-            :key="label"
+            :key="value"
             :icon="icon"
             :label="label"
             :selected="colorModeRaw === value"
@@ -240,8 +243,9 @@ const {
 
       <UFormField>
         <div class="flex justify-end">
-          <UTooltip text="重置主题">
+          <UTooltip :text="t('theme.reset')">
             <UButton
+              :aria-label="t('theme.reset')"
               class="ring-default hover:bg-elevated/50"
               color="neutral"
               icon="i-lucide-rotate-ccw"

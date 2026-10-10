@@ -27,8 +27,8 @@
     "r2:promote": "jiti scripts/publishR2.ts promote",
     "test:r2-release": "vitest run scripts/publishR2Core.test.ts",
     "generate:types": "cargo test --manifest-path src-tauri/Cargo.toml --lib export_bindings",
-    "i18n:check": "jiti scripts/i18n.ts",
-    "i18n:fix": "jiti scripts/i18n.ts --fix"
+    "i18n:check": "jiti scripts/checks/i18n.ts",
+    "i18n:fix": "jiti scripts/checks/i18n.ts --fix"
   },
   "dependencies": {
     "@nuxt/ui": "^4.10.0",
