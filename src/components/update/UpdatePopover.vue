@@ -251,7 +251,7 @@ function formatSpeed(bytesPerSecond: number): string {
         <div v-if="downloadState.status === 'idle'" class="flex w-full gap-2">
           <UButton block icon="i-lucide-download" :label="t('update.now')" @click="startDownload" />
           <UButton
-            aria-:label="t('update.settings')"
+            :aria-label="t('update.settings')"
             icon="i-lucide-settings-2"
             variant="subtle"
             @click="navigateToUpdateSettings"

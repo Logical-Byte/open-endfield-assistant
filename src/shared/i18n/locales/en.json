@@ -212,6 +212,7 @@
   "scan.searchArchive": "Search archive titles",
   "scan.searchResults": "Search scan results",
   "scan.searchTitle": "Search recognized or corrected titles",
+  "scan.showCandidates": "Show title candidates",
   "scan.start": "Start scan (quote key)",
   "scan.startHint": "Start a scan to see results here",
   "scan.startSimulation": "Start simulated scan",

@@ -5,7 +5,7 @@ use tracing::{debug, error, info, warn};
 use ts_rs::TS;
 
 use super::failure::UpdateFailure;
-use crate::backend_error::BackendError;
+use crate::backend_error;
 
 use crate::{controller::Controller, settings::UpdateProxyMode};
 
@@ -62,14 +62,14 @@ pub async fn check_update(
     manager: tauri::State<'_, UpdateManager>,
     controller: tauri::State<'_, Controller>,
     app: tauri::AppHandle,
-) -> Result<UpdateAvailability, BackendError> {
+) -> Result<UpdateAvailability, backend_error::BackendError> {
     let check_lease = manager.start_check().map_err(|check_error| {
         warn!(
             operation = "check",
             error = %check_error,
             "更新检查请求被状态机拒绝"
         );
-        BackendError::UpdateCheck(check_error.reason())
+        backend_error::BackendError::UpdateCheck(check_error.reason())
     })?;
     let settings = controller.settings_snapshot();
     let current_version = app.package_info().version.to_string();
@@ -96,7 +96,9 @@ pub async fn check_update(
                 error = %check_error,
                 "更新检查失败"
             );
-            return Err(BackendError::UpdateCheck(check_error.reason()));
+            return Err(backend_error::BackendError::UpdateCheck(
+                check_error.reason(),
+            ));
         }
     };
 
@@ -143,14 +145,14 @@ pub async fn download_update(
     controller: tauri::State<'_, Controller>,
     app: tauri::AppHandle,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
-) -> Result<DownloadOutcome, BackendError> {
+) -> Result<DownloadOutcome, backend_error::BackendError> {
     let download_lease = manager.start_update_download().map_err(|download_error| {
         warn!(
             operation = "download",
             error = %download_error,
             "更新下载请求被状态机拒绝"
         );
-        BackendError::UpdateDownload(download_error.reason())
+        backend_error::BackendError::UpdateDownload(download_error.reason())
     })?;
     let settings = controller.settings_snapshot();
     let metadata = download_lease.available_update().clone();
@@ -186,7 +188,9 @@ pub async fn download_update(
                 error = %download_error,
                 "更新下载失败"
             );
-            return Err(BackendError::UpdateDownload(download_error.reason()));
+            return Err(backend_error::BackendError::UpdateDownload(
+                download_error.reason(),
+            ));
         }
     };
     let package_path = match download::download_update_plan(
@@ -214,7 +218,9 @@ pub async fn download_update(
         Err(download_error) => {
             error!(operation = "download", phase = "transfer", session_id,
                 version = %metadata.version_name, error = %download_error, "更新下载失败");
-            return Err(BackendError::UpdateDownload(download_error.reason()));
+            return Err(backend_error::BackendError::UpdateDownload(
+                download_error.reason(),
+            ));
         }
     };
 
@@ -242,14 +248,16 @@ fn proxy_mode_label(mode: UpdateProxyMode) -> &'static str {
 
 /// 取消当前文件下载。
 #[tauri::command]
-pub fn cancel_download(manager: tauri::State<'_, UpdateManager>) -> Result<(), BackendError> {
+pub fn cancel_download(
+    manager: tauri::State<'_, UpdateManager>,
+) -> Result<(), backend_error::BackendError> {
     manager.cancel_download().map_err(|cancel_error| {
         warn!(
             operation = "cancel_download",
             error = %cancel_error,
             "取消更新下载请求被状态机拒绝"
         );
-        BackendError::UpdateDownload(cancel_error.reason())
+        backend_error::BackendError::UpdateDownload(cancel_error.reason())
     })
 }
 
