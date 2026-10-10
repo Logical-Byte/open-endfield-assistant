@@ -14,6 +14,7 @@ use tracing::{debug, error, info};
 
 use crate::{
     app_paths::AppPaths,
+    locale::UiLocale,
     platform::update::{UpdatePrompt, show_update_error},
 };
 
@@ -25,6 +26,7 @@ pub(super) const HELPER_ARGUMENT: &str = "--oea-update-helper";
 pub(super) const ROOT_ARGUMENT: &str = "--oea-update-root";
 /// helper 目标应用 executable name 参数。
 pub(super) const EXECUTABLE_NAME_ARGUMENT: &str = "--oea-update-executable-name";
+const UI_LOCALE_ARGUMENT: &str = "--oea-update-ui-locale";
 
 /// helper 执行结果。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,14 +39,16 @@ pub enum HelperResult {
     ExecutableCommitted,
 }
 
-/// 从命令行参数解析 helper 的根目录和目标 executable name。
-pub fn helper_request_from_args<I>(args: I) -> Option<(PathBuf, OsString)>
+/// 从命令行参数解析事务目标和提示语言快照。
+/// 语言参数缺失或无效时使用系统语言，不影响合法事务参数。
+pub fn helper_request_from_args<I>(args: I) -> Option<(PathBuf, OsString, UiLocale)>
 where
     I: IntoIterator<Item = OsString>,
 {
-    let mut args = args.into_iter();
+    let mut args = args.into_iter().peekable();
     let mut root = None;
     let mut executable_name = None;
+    let mut locale = None;
     while let Some(argument) = args.next() {
         if argument == HELPER_ARGUMENT {
             while let Some(argument) = args.next() {
@@ -52,6 +56,19 @@ where
                     root = args.next().map(PathBuf::from);
                 } else if argument == EXECUTABLE_NAME_ARGUMENT {
                     executable_name = args.next();
+                } else if argument == UI_LOCALE_ARGUMENT {
+                    // 语言是可选提示参数。缺少值时不能吞掉后续事务参数。
+                    if args.peek().is_some_and(|value| {
+                        value != ROOT_ARGUMENT
+                            && value != EXECUTABLE_NAME_ARGUMENT
+                            && value != UI_LOCALE_ARGUMENT
+                    }) {
+                        locale = args.next().and_then(|value| match value.to_str() {
+                            Some("zh-CN") => Some(UiLocale::ZhCn),
+                            Some("en-US") => Some(UiLocale::EnUs),
+                            _ => None,
+                        });
+                    }
                 }
             }
             let (root, executable_name) = root.zip(executable_name)?;
@@ -62,7 +79,11 @@ where
             {
                 return None;
             }
-            return Some((root, executable_name));
+            return Some((
+                root,
+                executable_name,
+                locale.unwrap_or_else(crate::settings::system_ui_locale),
+            ));
         }
     }
     None
@@ -76,11 +97,12 @@ where
 pub fn run_helper_request(
     root: PathBuf,
     executable_name: OsString,
+    locale: UiLocale,
 ) -> Result<HelperResult, String> {
-    let result =
-        validate_helper_request(root, executable_name).and_then(|target| run_helper(&target));
+    let result = validate_helper_request(root, executable_name)
+        .and_then(|target| run_helper(&target, locale));
     if let Err(error) = &result {
-        show_update_error("OEA 更新失败", error);
+        show_helper_error(locale, error);
     }
     result
 }
@@ -91,11 +113,12 @@ pub fn run_helper_request(
 pub fn run_helper_request_with_logging(
     root: PathBuf,
     executable_name: OsString,
+    locale: UiLocale,
 ) -> Result<HelperResult, String> {
     let target = match validate_helper_request(root, executable_name) {
         Ok(target) => target,
         Err(error) => {
-            show_update_error("OEA 更新失败", &error);
+            show_helper_error(locale, &error);
             return Err(error);
         }
     };
@@ -108,7 +131,7 @@ pub fn run_helper_request_with_logging(
     );
     info!("更新安装程序已启动");
 
-    let result = run_helper(&target);
+    let result = run_helper(&target, locale);
     match &result {
         Ok(helper_result) => {
             debug!(
@@ -131,7 +154,7 @@ pub fn run_helper_request_with_logging(
         ),
     }
     if let Err(helper_error) = &result {
-        show_update_error("OEA 更新失败", helper_error);
+        show_helper_error(locale, helper_error);
     }
     result
 }
@@ -152,10 +175,10 @@ fn validate_helper_request(
 }
 
 /// 启动真实的 helper 子进程。当前应用退出后，helper 会从相同的根目录继续事务。
-pub(super) fn spawn_helper(target: &InstallTarget) -> Result<Child, String> {
+pub(super) fn spawn_helper(target: &InstallTarget, locale: UiLocale) -> Result<Child, String> {
     let executable =
         std::env::current_exe().map_err(|error| format!("获取当前可执行文件路径失败: {error}"))?;
-    spawn_helper_with_executable(target, &executable)
+    spawn_helper_with_executable(target, &executable, locale)
 }
 
 /// 复制显式 source binary 到 cache/update/helper，再从副本启动 helper。
@@ -166,6 +189,7 @@ pub(super) fn spawn_helper(target: &InstallTarget) -> Result<Child, String> {
 pub(super) fn spawn_helper_with_executable(
     target: &InstallTarget,
     source_executable: &Path,
+    locale: UiLocale,
 ) -> Result<Child, String> {
     let helper_executable = target
         .prepare_helper_copy(source_executable)
@@ -176,6 +200,11 @@ pub(super) fn spawn_helper_with_executable(
         .arg(target.root())
         .arg(EXECUTABLE_NAME_ARGUMENT)
         .arg(target.executable_name())
+        .arg(UI_LOCALE_ARGUMENT)
+        .arg(match locale {
+            UiLocale::ZhCn => "zh-CN",
+            UiLocale::EnUs => "en-US",
+        })
         .spawn();
     match result {
         Ok(child) => Ok(child),
@@ -189,15 +218,43 @@ pub(super) fn spawn_helper_with_executable(
 /// 根路径，`transaction.json` 保持不变，candidate/resources 留待 v2 启动提交。若在
 /// 重试窗口内仍无法替换，事务材料会被删除，根目录保持旧版本，调用方下次必须重新
 /// 下载 package。
-pub(crate) fn run_helper(target: &InstallTarget) -> Result<HelperResult, String> {
+pub(crate) fn run_helper(target: &InstallTarget, locale: UiLocale) -> Result<HelperResult, String> {
+    // 同一个 helper 从进度到结果始终使用启动时的语言快照。
+    let (title, progress, success) = helper_messages(locale);
     let mut prompt = None;
     let result = transaction::commit_executable(target, || {
-        prompt = Some(UpdatePrompt::new("OEA 更新", "正在提交程序更新，请稍候…"));
+        prompt = Some(UpdatePrompt::new(title, progress));
     });
     if result == Ok(HelperResult::ExecutableCommitted) {
         prompt
             .expect("提交 executable 前必须创建提示")
-            .show_success("OEA 更新", "程序更新已准备好，请重新启动 OEA 以完成更新");
+            .show_success(title, success);
     }
     result
+}
+
+fn helper_messages(locale: UiLocale) -> (&'static str, &'static str, &'static str) {
+    match locale {
+        UiLocale::ZhCn => (
+            "OEA 更新",
+            "正在提交程序更新，请稍候…",
+            "程序更新已准备好，请重新启动 OEA 以完成更新",
+        ),
+        UiLocale::EnUs => (
+            "OEA update",
+            "Applying the application update. Please wait…",
+            "The application update is ready. Restart OEA to complete the update.",
+        ),
+    }
+}
+
+fn show_helper_error(locale: UiLocale, error: &str) {
+    let (title, prefix) = match locale {
+        UiLocale::ZhCn => ("OEA 更新失败", "无法完成程序更新。错误详情："),
+        UiLocale::EnUs => (
+            "OEA update failed",
+            "The application update could not be completed. Error details:",
+        ),
+    };
+    show_update_error(title, &format!("{prefix}\n\n{error}"));
 }

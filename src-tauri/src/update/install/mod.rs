@@ -11,7 +11,7 @@ use std::{
 };
 
 use serde::Serialize;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tracing::{debug, error, info, warn};
 use ts_rs::TS;
 
@@ -247,7 +247,11 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
         }
     }
 
-    let helper = match spawn_helper(&target) {
+    let locale = app
+        .state::<crate::controller::Controller>()
+        .settings_snapshot()
+        .ui_locale;
+    let helper = match spawn_helper(&target, locale) {
         Ok(helper) => helper,
         Err(error) => {
             return match begun.cancel() {
