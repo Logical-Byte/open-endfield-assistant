@@ -14,11 +14,12 @@ pub(super) struct ArchiveTitleIndex {
 impl ArchiveTitleIndex {
     pub(super) fn new(archives: &[ArchiveEntry]) -> Self {
         let mut by_category: HashMap<Category, HashMap<String, Vec<usize>>> = HashMap::new();
+        // 游戏识别固定中文，资源中的英文译文不参与候选组。
         for (index, entry) in archives.iter().enumerate() {
             by_category
                 .entry(entry.category)
                 .or_default()
-                .entry(normalize(&entry.title))
+                .entry(normalize(&entry.title.zh_cn))
                 .or_default()
                 .push(index);
         }

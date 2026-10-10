@@ -35,6 +35,8 @@ pub(crate) struct ScannedItem {
     /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
     /// `failed`（OCR 结果为空）
     pub status: ScannedItemStatus,
+    /// 识别时的具体游戏语言，人工纠正和 UI 语言变化保留此语境。
+    pub game_locale: archive::GameLocale,
     /// 扫描时所在的档案库大类 id（pageType：multi_media / text / document）
     pub found_in_page: archive::Page,
     /// 扫描时所在的档案库小类 id（categoryId）
@@ -109,6 +111,7 @@ impl ScanReporter {
         };
         self.events.publish(Event::ArchiveItemScanned(ScannedItem {
             status,
+            game_locale: archive::GameLocale::ZhCn,
             found_in_page,
             found_in_category,
             image: encode_png_data_url(screenshot),

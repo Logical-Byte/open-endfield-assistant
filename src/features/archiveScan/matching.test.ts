@@ -8,23 +8,24 @@ const archives: ArchiveEntry[] = [
     id: 'first' as ArchiveId,
     category: 'paper',
     acquisitionMethod: 'map',
-    title: '字条',
+    title: { 'zh-CN': '字条', 'en-US': '字条' },
   },
   {
     id: 'second' as ArchiveId,
     category: 'paper',
     acquisitionMethod: 'map',
-    title: '字条',
+    title: { 'zh-CN': '字条', 'en-US': '字条' },
   },
   {
     id: 'otherCategory' as ArchiveId,
     category: 'digital',
     acquisitionMethod: 'map',
-    title: '字条',
+    title: { 'zh-CN': '字条', 'en-US': '字条' },
   },
 ];
 const firstScan: ScannedItem = {
   status: 'success',
+  gameLocale: 'zh-CN',
   foundInPage: 'text',
   foundInCategory: 'paper',
   image: '',

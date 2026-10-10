@@ -24,6 +24,12 @@
  *   (页面、分类 order、一级条目 order、条目 order) 层级排序。
  */
 
+/** 必需游戏文本的两种译文，与当前支持的 GameLocale 分开。 */
+export interface LocalizedText {
+  'zh-CN': string;
+  'en-US': string;
+}
+
 /** 档案库页面类型（音像存档 / 见闻辑录 / 中枢档案） */
 export type PrtsPageType = 'multi_media' | 'text' | 'document';
 
@@ -32,8 +38,8 @@ export type PrtsPageType = 'multi_media' | 'text' | 'document';
  * PrtsData.PrtsPage 以 pageType 为键。
  */
 export interface PrtsPage {
-  /** 页面名称（中文，取自 i18n 文本表） */
-  name: string;
+  /** 页面名称（双语，取自 i18n 文本表） */
+  name: LocalizedText;
   /** 页面类型，同时作为本页面的唯一标识（Record 键） */
   pageType: PrtsPageType;
   /** 该页面下的分类 id 列表（按所属页面、分类 order 排序） */
@@ -47,8 +53,8 @@ export interface PrtsPage {
 export interface PrtsCategory {
   /** 分类唯一标识（Record 键） */
   categoryId: string;
-  /** 分类名称（中文） */
-  name: string;
+  /** 分类名称（双语） */
+  name: LocalizedText;
   /** 分类在所属页面内的展示顺序（数字越小越靠前） */
   order: number;
   /**
@@ -71,8 +77,8 @@ export interface PrtsFirstLv {
   firstLvId: string;
   /** 该一级条目下的具体档案条目 id 列表（保持数据表原始顺序） */
   itemIds: string[];
-  /** 一级条目名称（中文） */
-  name: string;
+  /** 一级条目名称（双语） */
+  name: LocalizedText;
   /** 一级条目在所属分类内的展示顺序（数字越小越靠前） */
   order: number;
   /** 所属页面类型（与所属分类的 type 保持一致） */
@@ -90,15 +96,15 @@ export interface PrtsAllItem {
   firstLvId: string;
   /** 档案条目唯一标识（Record 键） */
   id: string;
-  /** 条目名称（中文） */
-  name: string;
+  /** 条目名称（双语） */
+  name: LocalizedText;
   /** 条目在所属一级条目内的展示顺序（数字越小越靠前） */
   order: number;
   /**
-   * 展示标题（中文）：音像存档（multi_media）与名称一致；
+   * 展示标题（双语）：音像存档（multi_media）与名称一致；
    * 文档 / 文本则以 contentId 在富文本表中查找，查不到时回退为名称。
    */
-  title: string;
+  title: LocalizedText;
   /** 条目所属页面类型 */
   type: PrtsPageType;
 }
