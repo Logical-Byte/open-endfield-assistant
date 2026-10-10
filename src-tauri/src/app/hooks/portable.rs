@@ -14,7 +14,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::{app_paths::AppPaths, platform};
+use crate::{app_paths::AppPaths, locale::UiLocale, platform, settings};
 
 /// 根目录运行状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -143,17 +143,13 @@ pub fn ensure_extracted(app_paths: &AppPaths) {
         &format!("{reason:?}, root = {}", app_paths.root_dir().display()),
     );
 
-    let locale = crate::settings::read_ui_locale(&app_paths.oea_settings_file());
+    let locale = settings::read_ui_locale(&app_paths.oea_settings_file());
     let (title, content) = extraction_message(locale, reason);
     let _ = platform::dialog::show_message(title, content, platform::dialog::DialogIcon::Error);
     std::process::exit(1);
 }
 
-fn extraction_message(
-    locale: crate::locale::UiLocale,
-    reason: ZipReason,
-) -> (&'static str, &'static str) {
-    use crate::locale::UiLocale;
+fn extraction_message(locale: UiLocale, reason: ZipReason) -> (&'static str, &'static str) {
     match (locale, reason) {
         (UiLocale::ZhCn, ZipReason::ReadOnly) => (
             "请先解压 OEA 再运行",

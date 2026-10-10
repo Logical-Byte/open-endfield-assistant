@@ -16,6 +16,7 @@ use tracing::{debug, error, info, warn};
 use ts_rs::TS;
 
 use crate::app_paths::AppPaths;
+use crate::controller::Controller;
 
 mod candidate;
 pub(crate) mod extra;
@@ -247,10 +248,7 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
         }
     }
 
-    let locale = app
-        .state::<crate::controller::Controller>()
-        .settings_snapshot()
-        .ui_locale;
+    let locale = app.state::<Controller>().settings_snapshot().ui_locale;
     let helper = match spawn_helper(&target, locale) {
         Ok(helper) => helper,
         Err(error) => {
