@@ -2,13 +2,13 @@
 
 use std::{thread, time::Duration};
 
-use anyhow::Result;
 use image::RgbaImage;
+use tracing::debug;
 
 use crate::{
     automation::{
         Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
-        TemplateTarget,
+        TemplateTarget, capabilities,
     },
     platform::input::Contact,
     utils::region::Region2D,
@@ -21,33 +21,49 @@ use super::Session;
 const SAFE_MOUSE_POSITION: Point720p = Point720p { x: 640, y: 360 };
 
 impl ScreenCapture for Session {
-    fn screenshot(&mut self) -> Result<RgbaImage> {
+    fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
         self.check_stop()?;
-        let raw = self.screencap.screencap()?;
-        self.resolution_transform.to_canonical_image(raw)
+        let raw = self.screencap.screencap().map_err(|error| {
+            debug!(error = ?error, "游戏截图失败");
+            capabilities::Error::CaptureFailed
+        })?;
+        self.resolution_transform
+            .to_canonical_image(raw)
+            .map_err(capabilities::Error::from)
     }
 }
 
 impl Input for Session {
-    fn click(&mut self, point: Point720p) -> Result<()> {
+    fn click(&mut self, point: Point720p) -> Result<(), capabilities::Error> {
         self.check_stop()?;
         let point = self.resolution_transform.to_physical(point);
-        self.input.click(Contact::Left, point)?;
+        self.input.click(Contact::Left, point).map_err(|error| {
+            debug!(?point, error = ?error, "点击游戏窗口失败");
+            capabilities::Error::ExecutionFailed
+        })?;
         thread::sleep(Duration::from_millis(50));
         self.move_mouse_to_safe_position()
     }
 
-    fn press_key(&mut self, key: Key) -> Result<()> {
+    fn press_key(&mut self, key: Key) -> Result<(), capabilities::Error> {
         self.check_stop()?;
         let vk_code = match key {
             Key::Escape => 0x1B,
         };
-        self.input.press_key(vk_code)
+        self.input.press_key(vk_code).map_err(|error| {
+            debug!(?key, error = ?error, "发送游戏按键失败");
+            capabilities::Error::ExecutionFailed
+        })
     }
 
-    fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+    fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
         let point = self.resolution_transform.to_physical(SAFE_MOUSE_POSITION);
-        self.input.touch_move(Contact::Left, point)
+        self.input
+            .touch_move(Contact::Left, point)
+            .map_err(|error| {
+                debug!(error = ?error, "移动游戏鼠标失败");
+                capabilities::Error::ExecutionFailed
+            })
     }
 }
 
@@ -56,12 +72,19 @@ impl TemplateMatching for Session {
         &mut self,
         screenshot: &RgbaImage,
         target: &TemplateTarget,
-    ) -> Result<Option<TemplateMatch>> {
+    ) -> Result<Option<TemplateMatch>, capabilities::Error> {
         let matched = template_matching::find(
-            &ImageRegion::new(screenshot, target.roi)?,
+            &ImageRegion::new(screenshot, target.roi).map_err(|error| {
+                debug!(roi = ?target.roi, error = ?error, "模板匹配区域无效");
+                capabilities::Error::ExecutionFailed
+            })?,
             target.template_name,
             &mut self.templates,
-        )?;
+        )
+        .map_err(|error| {
+            debug!(template = target.template_name, error = ?error, "模板匹配失败");
+            capabilities::Error::ExecutionFailed
+        })?;
         Ok(
             (matched.score >= target.threshold).then_some(TemplateMatch {
                 region: matched.region,
@@ -76,12 +99,19 @@ impl Ocr for Session {
         &mut self,
         screenshot: &RgbaImage,
         region: Region2D<u32>,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<String>, capabilities::Error> {
         Ok(self
             .ocr
             .lock()
             .unwrap()
-            .recognize_region(&ImageRegion::new(screenshot, region)?)?
+            .recognize_region(&ImageRegion::new(screenshot, region).map_err(|error| {
+                debug!(?region, error = ?error, "OCR 区域无效");
+                capabilities::Error::ExecutionFailed
+            })?)
+            .map_err(|error| {
+                debug!(?region, error = ?error, "OCR 识别失败");
+                capabilities::Error::ExecutionFailed
+            })?
             .map(|result| result.text))
     }
 }

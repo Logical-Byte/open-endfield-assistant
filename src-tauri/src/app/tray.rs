@@ -13,7 +13,16 @@ use tauri::{
 };
 use tracing::info;
 
-use crate::{automation, controller::Controller, locale::UiLocale};
+use crate::{controller::Controller, locale::UiLocale};
+
+// 托盘只消费运行阶段，无需从 IPC 还原内部错误及其诊断来源。
+#[derive(serde::Deserialize)]
+#[serde(tag = "state", rename_all = "camelCase")]
+enum AutomationState {
+    Idle,
+    Running,
+    Stopping,
+}
 
 /// 全局托盘图标引用，供后续动态更新图标 / tooltip。
 static TRAY_ICON: OnceLock<Mutex<Option<TrayIcon>>> = OnceLock::new();
@@ -159,8 +168,8 @@ pub fn init_tray(app_handle: &AppHandle) -> anyhow::Result<()> {
     // 订阅运行状态事件：扫描档案库任务启动 / 结束都会推送，据此切换菜单文案
     let event_app = app_handle.clone();
     app_handle.listen("automation-status-changed", move |event| {
-        if let Ok(status) = serde_json::from_str::<automation::Status>(event.payload()) {
-            update_items(&event_app, status.is_active());
+        if let Ok(state) = serde_json::from_str::<AutomationState>(event.payload()) {
+            update_items(&event_app, !matches!(state, AutomationState::Idle));
         }
     });
     // 同步初始状态。

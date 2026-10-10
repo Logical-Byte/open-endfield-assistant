@@ -1,6 +1,6 @@
 //! 具体 UI 状态导航的 crate 内门面。
 
-use anyhow::Result;
+use crate::navigation;
 use tracing::debug;
 
 use crate::automation::{Clock, Input, ScreenCapture, TemplateMatching};
@@ -23,13 +23,24 @@ impl Navigator {
     }
 
     /// 从当前可识别状态导航到一个具体 UI 状态。
-    pub(crate) fn navigate_to<C>(&self, target: UiState, cx: &mut C) -> Result<()>
+    pub(crate) fn navigate_to<C>(
+        &self,
+        target: UiState,
+        cx: &mut C,
+    ) -> Result<(), navigation::Error>
     where
         C: ScreenCapture + Input + TemplateMatching + Clock,
     {
-        let policy = NavigationPolicy::build(&self.graph, std::iter::once(target))?;
+        let policy = NavigationPolicy::build(&self.graph, std::iter::once(target))
+            .inspect_err(|error| debug!(target = ?target, error = ?error, "构建导航策略失败"))?;
         debug!(target = ?target, "开始导航到具体 UI 状态");
-        PolicyExecutor::new(&policy, cx).run()?;
+        PolicyExecutor::new(&policy, cx)
+            .run()
+            .inspect_err(|error| {
+                if !error.is_stopped_by_user() {
+                    debug!(target = ?target, error = ?error, "导航失败");
+                }
+            })?;
         debug!(target = ?target, "导航完成");
         Ok(())
     }
@@ -39,7 +50,7 @@ impl Navigator {
 mod tests {
     use std::time::Duration;
 
-    use anyhow::Result;
+    use crate::automation::{self, capabilities};
     use image::RgbaImage;
 
     use crate::{
@@ -48,7 +59,7 @@ mod tests {
             TemplateTarget,
         },
         navigation::{
-            Navigator,
+            self, Navigator,
             state::{ArchiveSubscene, RecordsPage, UiState},
         },
     };
@@ -71,7 +82,7 @@ mod tests {
     }
 
     impl ScreenCapture for GameBoundary {
-        fn screenshot(&mut self) -> Result<RgbaImage> {
+        fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
             self.frame_recognizable = self.unrecognized_frames_remaining == 0;
             self.unrecognized_frames_remaining =
                 self.unrecognized_frames_remaining.saturating_sub(1);
@@ -80,11 +91,11 @@ mod tests {
     }
 
     impl Input for GameBoundary {
-        fn click(&mut self, _point: Point720p) -> Result<()> {
+        fn click(&mut self, _point: Point720p) -> Result<(), capabilities::Error> {
             Ok(())
         }
 
-        fn press_key(&mut self, key: Key) -> Result<()> {
+        fn press_key(&mut self, key: Key) -> Result<(), capabilities::Error> {
             assert_eq!(key, Key::Escape);
             self.escape_presses += 1;
             if self.escape_changes_ui {
@@ -94,7 +105,7 @@ mod tests {
             Ok(())
         }
 
-        fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+        fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
             Ok(())
         }
     }
@@ -104,7 +115,7 @@ mod tests {
             &mut self,
             _screenshot: &RgbaImage,
             target: &TemplateTarget,
-        ) -> Result<Option<TemplateMatch>> {
+        ) -> Result<Option<TemplateMatch>, capabilities::Error> {
             let matches = self.frame_recognizable
                 && matches!(
                     (self.visible, target.template_name),
@@ -136,13 +147,13 @@ mod tests {
     }
 
     impl ScreenCapture for DetailFallbackBoundary {
-        fn screenshot(&mut self) -> Result<RgbaImage> {
+        fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
             Ok(RgbaImage::new(1280, 720))
         }
     }
 
     impl Input for DetailFallbackBoundary {
-        fn click(&mut self, point: Point720p) -> Result<()> {
+        fn click(&mut self, point: Point720p) -> Result<(), capabilities::Error> {
             self.clicks.push(point);
             if point == (Point720p { x: 1240, y: 50 }) {
                 self.visible = ArchiveVisibleUi::Paper;
@@ -150,11 +161,11 @@ mod tests {
             Ok(())
         }
 
-        fn press_key(&mut self, _key: Key) -> Result<()> {
+        fn press_key(&mut self, _key: Key) -> Result<(), capabilities::Error> {
             Ok(())
         }
 
-        fn move_mouse_to_safe_position(&mut self) -> Result<()> {
+        fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
             Ok(())
         }
     }
@@ -164,7 +175,7 @@ mod tests {
             &mut self,
             _screenshot: &RgbaImage,
             target: &TemplateTarget,
-        ) -> Result<Option<TemplateMatch>> {
+        ) -> Result<Option<TemplateMatch>, capabilities::Error> {
             let matches = match (self.visible, target.template_name) {
                 (ArchiveVisibleUi::Detail, "情报档案库/档案详情装饰.png") => true,
                 (ArchiveVisibleUi::Detail, "情报档案库/档案详情关闭.png") => {
@@ -223,6 +234,10 @@ mod tests {
 
         assert_eq!(game.escape_presses, 3);
         assert!(error.to_string().contains("已执行策略动作 3 次"));
+        assert_eq!(
+            serde_json::to_value(automation::WorkerError::from(error)).unwrap(),
+            serde_json::json!({ "kind": "navigationFailed" })
+        );
     }
 
     #[test]
@@ -259,5 +274,59 @@ mod tests {
             .unwrap();
 
         assert_eq!(game.clicks, [Point720p { x: 1240, y: 50 }]);
+    }
+    #[test]
+    fn preserves_stop_and_capture_failure_during_navigation() {
+        struct FailedCapture {
+            stopped: bool,
+        }
+        impl ScreenCapture for FailedCapture {
+            fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
+                if self.stopped {
+                    Err(capabilities::Error::StoppedByUser)
+                } else {
+                    Err(capabilities::Error::CaptureFailed)
+                }
+            }
+        }
+        impl Input for FailedCapture {
+            fn click(&mut self, _: Point720p) -> Result<(), capabilities::Error> {
+                unreachable!()
+            }
+            fn press_key(&mut self, _: Key) -> Result<(), capabilities::Error> {
+                unreachable!()
+            }
+            fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
+                unreachable!()
+            }
+        }
+        impl TemplateMatching for FailedCapture {
+            fn find_template(
+                &mut self,
+                _: &RgbaImage,
+                _: &TemplateTarget,
+            ) -> Result<Option<TemplateMatch>, capabilities::Error> {
+                unreachable!()
+            }
+        }
+        impl Clock for FailedCapture {
+            fn sleep(&mut self, _: Duration) {
+                unreachable!()
+            }
+        }
+
+        let navigator = Navigator::new();
+        let stopped = navigator
+            .navigate_to(UiState::Terminal, &mut FailedCapture { stopped: true })
+            .unwrap_err();
+        assert!(stopped.is_stopped_by_user());
+        let failed = navigator
+            .navigate_to(UiState::Terminal, &mut FailedCapture { stopped: false })
+            .unwrap_err();
+        assert!(matches!(
+            &failed,
+            navigation::Error::Capability(capabilities::Error::CaptureFailed)
+        ));
+        assert!(!failed.is_stopped_by_user());
     }
 }

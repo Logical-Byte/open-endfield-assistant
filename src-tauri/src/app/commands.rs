@@ -2,16 +2,35 @@
 
 use std::{fs, io::Cursor};
 
-use anyhow::Context;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use image::{ImageFormat, imageops};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, trace, warn};
 use ts_rs::TS;
 
 use crate::{
-    app_paths::AppPaths, automation, controller::Controller, data::archive, platform, settings,
+    app_paths::AppPaths,
+    automation::{self, game_environment},
+    controller::Controller,
+    data::archive,
+    platform, settings,
 };
+
+/// 截图操作的失败原因，由 `kind` 区分：
+/// - `gameEnvironment`：游戏环境不满足截图条件，`reason` 携带具体环境事实。
+/// - `captureFailed`：无法取得游戏窗口截图。
+/// - `encodingFailed`：无法将截图编码为请求的图片格式。
+#[derive(Debug, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[ts(export, export_to = "errors/")]
+pub enum ScreenshotError {
+    GameEnvironment {
+        /// 游戏窗口或显示设置的具体失败事实。
+        reason: automation::GameEnvironmentError,
+    },
+    CaptureFailed,
+    EncodingFailed,
+}
 
 /// 截图编码格式（与前端 `ScreenshotFormat` 对应，值为小写字符串）。
 #[derive(Debug, Clone, Copy, Deserialize, TS)]
@@ -165,21 +184,18 @@ pub async fn screenshot(
     width: u32,
     height: u32,
     format: ScreenshotFormat,
-) -> Result<String, String> {
-    // 定位游戏窗口（`PrintWindow` 可捕获非最小化后台窗口）
-    let hwnd = platform::window::get_window_by_title(
-        Some(platform::window::ENDFIELD_WINDOW_CLASS),
-        Some(platform::window::ENDFIELD_WINDOW_TITLE),
-    )
-    .context("未找到游戏窗口")
-    .map_err(|e| e.to_string())?;
+) -> Result<String, ScreenshotError> {
+    let environment = game_environment::connect(game_environment::Requirements {
+        hdr_disabled: false,
+    })
+    .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
 
     // 截图
-    let mut screencap = platform::capture::PrintWindowScreencap::new(hwnd);
-    let raw = screencap
-        .screencap()
-        .context("截图失败")
-        .map_err(|e| e.to_string())?;
+    let mut screencap = platform::capture::PrintWindowScreencap::new(environment.window);
+    let raw = screencap.screencap().map_err(|error| {
+        debug!(error = ?error, width, height, format = ?format, "游戏截图失败");
+        ScreenshotError::CaptureFailed
+    })?;
 
     // 缩放到指定尺寸
     let resized = imageops::resize(
@@ -193,21 +209,15 @@ pub async fn screenshot(
     let image_format = format.to_image_format();
     let mut buf = Cursor::new(Vec::new());
 
-    match format {
-        ScreenshotFormat::Jpeg => {
-            image::DynamicImage::ImageRgba8(resized)
-                .to_rgb8()
-                .write_to(&mut buf, image_format)
-                .context("图片编码失败")
-                .map_err(|e| e.to_string())?;
-        }
-        ScreenshotFormat::Png | ScreenshotFormat::Webp => {
-            resized
-                .write_to(&mut buf, image_format)
-                .context("图片编码失败")
-                .map_err(|e| e.to_string())?;
-        }
-    }
+    let image = image::DynamicImage::ImageRgba8(resized);
+    let image = match format {
+        ScreenshotFormat::Jpeg => image::DynamicImage::ImageRgb8(image.to_rgb8()),
+        ScreenshotFormat::Png | ScreenshotFormat::Webp => image,
+    };
+    image.write_to(&mut buf, image_format).map_err(|error| {
+        debug!(error = ?error, width, height, format = ?format, "截图编码失败");
+        ScreenshotError::EncodingFailed
+    })?;
 
     // `base64` 编码返回
     Ok(STANDARD.encode(buf.into_inner()))

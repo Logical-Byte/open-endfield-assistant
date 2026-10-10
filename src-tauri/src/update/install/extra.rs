@@ -1,5 +1,6 @@
 //! 开发者选项的本地更新包入口。
 
+use crate::update::error::Reason;
 use std::{
     fs::{self, File, OpenOptions},
     io,
@@ -8,23 +9,26 @@ use std::{
 };
 
 use crate::app_paths::AppPaths;
+use crate::update;
+use crate::update::UpdateManager;
 use tracing::{debug, error, info, warn};
 
 /// 选择、暂存并安装本地 ZIP，不向 WebView 暴露文件路径。
 #[tauri::command]
 pub fn developer_install_update(
-    manager: tauri::State<'_, super::super::UpdateManager>,
+    manager: tauri::State<'_, UpdateManager>,
     app: tauri::AppHandle,
-) -> Result<bool, String> {
-    let install_lease = manager.start_developer_install().map_err(|install_error| {
-        warn!(
-            operation = "install",
-            install_kind = "developer_package",
-            error = %install_error,
-            "开发者更新安装请求被状态机拒绝"
-        );
-        install_error.to_string()
-    })?;
+) -> Result<bool, update::Error> {
+    let install_lease = manager
+        .start_developer_install()
+        .inspect_err(|install_error| {
+            warn!(
+                operation = "install",
+                install_kind = "developer_package",
+                error = %install_error,
+                "开发者更新安装请求被状态机拒绝"
+            );
+        })?;
     debug!(
         operation = "install",
         install_kind = "developer_package",
@@ -57,9 +61,12 @@ pub fn developer_install_update(
     Ok(true)
 }
 
-fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, String> {
+fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, update::Error> {
     if cfg!(debug_assertions) {
-        return Err("开发构建禁止执行真实自更新，请使用 release 构建验证".to_string());
+        return Err(update::Error::failed(
+            Reason::DebugBuild,
+            anyhow::anyhow!("开发构建禁止执行真实自更新，请使用 release 构建验证"),
+        ));
     }
 
     debug!(
@@ -82,7 +89,8 @@ fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, String> {
         info!("已取消安装开发者更新包");
         return Ok(None);
     };
-    let staged = stage_developer_package(&paths, &selected)?;
+    let staged = stage_developer_package(&paths, &selected)
+        .map_err(|error| update::Error::failed(Reason::InvalidPackage, anyhow::anyhow!(error)))?;
     debug!(
         operation = "install",
         install_kind = "developer_package",
@@ -158,11 +166,7 @@ mod tests {
     #[test]
     fn developer_update_command_rejects_debug_build() {
         let error = choose_and_stage_developer_package().unwrap_err();
-
-        assert_eq!(
-            error,
-            "开发构建禁止执行真实自更新，请使用 release 构建验证".to_string()
-        );
+        assert_eq!(error.reason, Reason::DebugBuild);
     }
 
     #[test]
