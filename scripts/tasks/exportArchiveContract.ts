@@ -27,7 +27,7 @@ import type {
   ArchiveMissionSpecial,
   ArchiveShopAcquisition,
 } from '../models/resources/archiveContract';
-import { endfieldDataDir, parseJSONWithBigInt } from '../gameData';
+import { endfieldDataDir, parseJSONWithBigInt } from '../readGameData';
 import type {
   ComponentProperties,
   LevelData,

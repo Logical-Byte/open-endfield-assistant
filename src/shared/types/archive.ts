@@ -6,3 +6,4 @@ export type { Category } from './generated/archive/Category';
 export type { CategoryEntry } from './generated/archive/CategoryEntry';
 export type { Page } from './generated/archive/Page';
 export type { PageEntry } from './generated/archive/PageEntry';
+export type { LocalizedText } from './generated/archive/LocalizedText';

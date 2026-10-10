@@ -2,6 +2,7 @@
 import type { ArchiveId } from "../archive/ArchiveId";
 import type { Category } from "../archive/Category";
 import type { Page } from "../archive/Page";
+import type { GameLocale } from "../locale/GameLocale";
 import type { ScannedItemStatus } from "./ScannedItemStatus";
 
 /**
@@ -13,6 +14,10 @@ export type ScannedItem = {
  * `failed`（OCR 结果为空）
  */
 status: ScannedItemStatus, 
+/**
+ * 识别时的具体游戏语言，人工纠正和 UI 语言变化保留此语境。
+ */
+gameLocale: GameLocale, 
 /**
  * 扫描时所在的档案库大类 id（pageType：multi_media / text / document）
  */
