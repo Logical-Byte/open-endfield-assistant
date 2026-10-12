@@ -25,6 +25,8 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 90
+    outputs:
+      base_artifact_id: ${{ steps.upload_base.outputs.artifact-id }}
     env:
       PR_NUMBER: ${{ inputs.pr }}
       REQUEST_ID: ${{ inputs.request_id }}
@@ -217,6 +219,16 @@ jobs:
             fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'oea-size-result',
               `${process.env.MEASUREMENT}.json`), JSON.stringify(manifest));
 
+      - name: Upload base measurements before executing PR code
+        id: upload_base
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: oea-size-base-measurements
+          path: ${{ runner.temp }}/oea-size-result/base.json
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Remove downloaded base OCR models
         if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
         uses: actions/github-script@v8
@@ -277,12 +289,12 @@ jobs:
         with:
           script: *measure_zip
 
-      - name: Upload measurements
+      - name: Upload PR measurements
         if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: oea-size-measurements
-          path: ${{ runner.temp }}/oea-size-result/*.json
+          name: oea-size-pr-measurements
+          path: ${{ runner.temp }}/oea-size-result/pr.json
           if-no-files-found: warn
           retention-days: 7
 
@@ -335,12 +347,22 @@ jobs:
               core.setOutput('stable_key', `oea-size-stable-v1-windows-x86_64-asset-${request.stable.assetId}-${fingerprint}`);
             }
 
-      - name: Download build measurements
+      - name: Download base measurements
+        if: steps.request.outputs.active == 'true' && needs.build.outputs.base_artifact_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          # 固定到 PR 代码执行前上传的 artifact，避免读取后续同名替代品。
+          artifact-ids: ${{ needs.build.outputs.base_artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/oea-size-raw
+
+      - name: Download PR measurements
         if: steps.request.outputs.active == 'true'
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
-          name: oea-size-measurements
+          name: oea-size-pr-measurements
           path: ${{ runner.temp }}/oea-size-raw
 
       - name: Restore stable measurements
