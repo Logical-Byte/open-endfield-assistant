@@ -217,6 +217,16 @@ jobs:
             fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'oea-size-result',
               `${process.env.MEASUREMENT}.json`), JSON.stringify(manifest));
 
+      - name: Remove downloaded base OCR models
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // 模型不由 submodule 管理。切换提交前清理下载文件，保留 Git 跟踪的文件。
+            await exec.exec('git', ['clean', '-fdX', '--', 'resources/ocr-models'], {
+              cwd: require('node:path').join(process.env.GITHUB_WORKSPACE, 'app'),
+            });
+
       # clean:false 保留同一 runner 上的 Cargo target。前端和打包产物单独清理。
       - name: Checkout PR head
         if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
