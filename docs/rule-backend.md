@@ -27,19 +27,8 @@ macOS 上的开发、测试和打包不属于验收范围。可以使用 `cargo 
 - 使用 `Arc::clone(&value)` 克隆原子引用计数指针。
 - anyhow 的函数或闭包返回类型保留 `anyhow::`，宏允许导入。
 
-  允许：
-
   ```rust
-  use anyhow::{anyhow, bail, ensure};
-
-  fn load() -> anyhow::Result<Data> { /* ... */ }
-  fn parse() -> anyhow::Result<Data, ParseError> { /* ... */ }
-  let load = || -> anyhow::Result<Data> { /* ... */ };
-  ```
-
-  不允许：
-
-  ```rust
+  // ❌ 导入或另起类型别名，省略 `anyhow::`
   use anyhow::Result;
   use anyhow::{Context, Result};
   use anyhow::Result as AppResult;
@@ -48,6 +37,13 @@ macOS 上的开发、测试和打包不属于验收范围。可以使用 `cargo 
   fn load() -> Result<Data> { /* ... */ }
   fn load() -> AppResult<Data> { /* ... */ }
   let load = || -> Result<Data> { /* ... */ };
+
+  // ✅ 返回类型保留 `anyhow::`，宏允许导入
+  use anyhow::{anyhow, bail, ensure};
+
+  fn load() -> anyhow::Result<Data> { /* ... */ }
+  fn parse() -> anyhow::Result<Data, ParseError> { /* ... */ }
+  let load = || -> anyhow::Result<Data> { /* ... */ };
   ```
 
 - 在注释中使用反引号包裹代码片段。
