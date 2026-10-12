@@ -7,7 +7,7 @@ mod capability_impls;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::{
     app_paths::AppPaths,
@@ -75,6 +75,7 @@ impl Session {
         stop: StopToken,
     ) -> Result<Self, capabilities::Error> {
         let environment = game_environment::connect(game_environment::Requirements::default())?;
+        info!("游戏分辨率: {}", environment.resolution);
         let hwnd = environment.window;
         let resolution_transform = ResolutionTransform::new(environment.resolution)?;
 

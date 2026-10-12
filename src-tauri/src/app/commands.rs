@@ -186,6 +186,8 @@ pub async fn screenshot(
     format: ScreenshotFormat,
 ) -> Result<String, ScreenshotError> {
     let environment = game_environment::connect(game_environment::Requirements {
+        restore_if_minimized: false,
+        ensure_on_screen: false,
         hdr_disabled: false,
     })
     .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
