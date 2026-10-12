@@ -1,4 +1,8 @@
-/** 档案生成只读取所需表及 CN/EN，不依赖其他语言或业务表。 */
+/**
+ * 档案生成的数据模块，由 makePrts 导入，不直接运行。
+ * 导入时从 ENDFIELD_DATA_DIR 同步读取档案所需表及 CN/EN 文本，不依赖其他语言或业务表。
+ * 必需字段的中英文译文缺失、为空或使用零 ID 时，生成任务会报错。
+ */
 import type {
   I18nTextTable,
   PrtsAllItem,

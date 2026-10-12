@@ -12,6 +12,7 @@
  * 用法:
  *   pnpm bump:version 0.2.0   # 直接指定新版本
  *   pnpm bump:version         # 交互式输入新版本
+ * 在仓库根目录运行。脚本会修改版本文件、创建本地 commit 和 tag，不会自动推送。
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';

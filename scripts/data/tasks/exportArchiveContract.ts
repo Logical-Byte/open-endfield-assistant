@@ -1,5 +1,6 @@
 /**
  * 生成档案库运行时契约（resources/data/archive_contract.json）。
+ * 由统一入口 pnpm makedata 调用，返回数据对象，由入口写入文件，不直接运行本模块。
  *
  * 由 scripts/export_archive_contract.mjs 用 TypeScript 重写而来，利用
  * scripts/data/models 下各解包数据表模型与 scripts/data/models/resources/archiveContract.ts 的契约类型，

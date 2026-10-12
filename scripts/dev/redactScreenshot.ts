@@ -3,6 +3,8 @@
  * pnpm exec jiti scripts/dev/redactScreenshot.ts input.png output.png
  * 协议终端额外参数：--rect 218,572,115,32 --rect 210,645,135,25
  * 使用 --help 查看全部选项。
+ * 输入支持 8 位非交错 RGB/RGBA PNG，默认遮盖 UID，可用 --rect 增加遮盖区域。
+ * 输出为脱敏 PNG，会覆盖指定的输出文件，需提前创建输出目录。
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';

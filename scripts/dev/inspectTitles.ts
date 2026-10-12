@@ -1,11 +1,13 @@
 /**
- * 临时脚本：按分类列出 prts.json 的全部标题，并标记 OCR 纠错风险。
+ * 标题检查工具：按分类列出旧版 prts.json 的全部标题，并标记 OCR 纠错风险。
+ * 输入要求名称和标题为字符串，尚未适配包含多语言对象的资源格式。
  *
  * 运行：pnpm exec jiti scripts/dev/inspectTitles.ts
+ * 在仓库根目录运行，读取 resources/data/prts.json，需提前创建 temp/ 输出目录。
  *
  * 输出：
  * - 控制台：每个分类的标题数 + 全部有风险的标题（含原因）
- * - temp/titles-inspection.txt：完整标题列表（含分类、风险标记）
+ * - temp/titles-inspection.txt：完整标题列表（含分类、风险标记），覆盖已有文件
  */
 import fs from 'node:fs';
 

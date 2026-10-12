@@ -2,6 +2,8 @@
  * pnpm i18n:check：检查消息的嵌套结构、属性排序、非空文本及插值，禁止 HTML 和管道复数。
  * pnpm i18n:fix：执行相同检查，并在通过后按层级排序属性、写回 JSON。
  * 按 locales 列表顺序检查各语言文件。发现问题时输出语言与消息路径并以非零状态退出。
+ * 在仓库根目录运行，输入为 src/shared/i18n/locales/ 下的语言 JSON。
+ * check 只报告问题，fix 会覆盖检查通过的语言文件。
  */
 import { readFile, writeFile } from 'node:fs/promises';
 

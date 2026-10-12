@@ -1,7 +1,8 @@
 /**
  * 生成档案库数据（resources/data/prts.json）。
+ * 由统一入口 pnpm makedata 调用，返回数据对象，由入口写入文件，不直接运行本模块。
  *
- * ## 输入（由 scripts/data/gameData.ts 读取的游戏原始数据表）
+ * ## 输入（由 scripts/data/archiveData.ts 读取 ENDFIELD_DATA_DIR 下的原始数据表和 CN/EN 文本）
  * - `prtsPageTable`：页面定义（音像存档 / 见闻辑录 / 中枢档案）
  * - `prtsCategoryTable`：分类定义（藏品、电子档案、纸质记录……）
  * - `prtsFirstLvTable`：一级条目（分类 → 一级条目的从属）

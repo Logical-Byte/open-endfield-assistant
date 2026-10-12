@@ -7,6 +7,7 @@
  * 已存在的文件会被跳过，可用 `--force` 强制重新下载。
  *
  * 执行方式: `pnpm download:models` 或 `pnpm download:models --force`
+ * 在仓库根目录运行，需要访问 ModelScope。--force 会重新下载并覆盖已有模型文件。
  */
 import { createWriteStream, existsSync, mkdirSync, renameSync } from 'node:fs';
 import path from 'node:path';

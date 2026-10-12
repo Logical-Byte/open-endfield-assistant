@@ -1,3 +1,15 @@
+/**
+ * 将安装包发布到 Cloudflare R2，或将已有版本切换为 stable。
+ * 在仓库根目录运行：
+ *   pnpm r2:publish --tag vX.Y.Z [--artifact-dir DIR]
+ *   pnpm r2:promote --tag vX.Y.Z
+ *
+ * 两种操作均要求环境变量 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY。
+ * publish 从 DIR（默认 releases/）读取安装包 zip 和同名 .sha256 文件，校验后上传到版本归档。
+ * 已有归档必须与待发布内容一致。stable 仅在候选版本更高或尚未存在时更新。
+ * promote 校验 R2 中已有的 zip 与 .sha256 后直接改写 stable，支持回滚，不需要本地产物。
+ * 这两个命令都会写入远端 R2。发布契约和配置见 docs/r2-release.md。
+ */
 import {
   GetObjectCommand,
   HeadObjectCommand,
