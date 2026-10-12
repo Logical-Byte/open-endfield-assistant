@@ -1,8 +1,11 @@
 //! 更新下载相关的 Tauri 命令及其序列化接口。
 
+use crate::update::error::Reason;
 use serde::Serialize;
 use tracing::{debug, error, info, warn};
 use ts_rs::TS;
+
+use crate::update;
 
 use crate::{controller::Controller, settings::UpdateProxyMode};
 
@@ -18,7 +21,26 @@ use super::{
 #[ts(export, export_to = "update/")]
 pub enum UpdateAvailability {
     UpToDate,
-    Available { update: UpdateInfo },
+    Available {
+        /// 可用更新的公开版本信息。
+        update: UpdateInfo,
+    },
+}
+
+/// 高层更新下载的结果，由 `status` 区分：
+/// - `completed`：下载成功并登记为待安装更新，`update` 携带公开版本信息。
+/// - `cancelled`：用户主动取消下载，属于正常结束。
+///
+/// 租约与临时文件仍由原守卫清理。
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(tag = "status", rename_all = "camelCase")]
+#[ts(export, export_to = "update/")]
+pub enum DownloadOutcome {
+    Completed {
+        /// 已下载更新的公开版本信息。
+        update: UpdateInfo,
+    },
+    Cancelled,
 }
 
 /// 一次高层更新下载的进度。
@@ -50,14 +72,13 @@ pub async fn check_update(
     manager: tauri::State<'_, UpdateManager>,
     controller: tauri::State<'_, Controller>,
     app: tauri::AppHandle,
-) -> Result<UpdateAvailability, String> {
-    let check_lease = manager.start_check().map_err(|check_error| {
+) -> Result<UpdateAvailability, update::Error> {
+    let check_lease = manager.start_check().inspect_err(|check_error| {
         warn!(
             operation = "check",
             error = %check_error,
             "更新检查请求被状态机拒绝"
         );
-        check_error.to_string()
     })?;
     let settings = controller.settings_snapshot();
     let current_version = app.package_info().version.to_string();
@@ -131,15 +152,16 @@ pub async fn download_update(
     controller: tauri::State<'_, Controller>,
     app: tauri::AppHandle,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
-) -> Result<UpdateInfo, String> {
-    let download_lease = manager.start_update_download().map_err(|download_error| {
-        warn!(
-            operation = "download",
-            error = %download_error,
-            "更新下载请求被状态机拒绝"
-        );
-        download_error.to_string()
-    })?;
+) -> Result<DownloadOutcome, update::Error> {
+    let download_lease = manager
+        .start_update_download()
+        .inspect_err(|download_error| {
+            warn!(
+                operation = "download",
+                error = %download_error,
+                "更新下载请求被状态机拒绝"
+            );
+        })?;
     let settings = controller.settings_snapshot();
     let metadata = download_lease.available_update().clone();
     let session = download_lease.session();
@@ -164,6 +186,9 @@ pub async fn download_update(
         .await
     {
         Ok(plan) => plan,
+        Err(error) if error.reason == Reason::Cancelled => {
+            return Ok(DownloadOutcome::Cancelled);
+        }
         Err(download_error) => {
             error!(
                 operation = "download",
@@ -187,26 +212,20 @@ pub async fn download_update(
     .await
     {
         Ok(package_path) => package_path,
+        Err(error) if error.reason == Reason::Cancelled => {
+            debug!(
+                operation = "download",
+                result = "cancelled",
+                session_id,
+                version = %metadata.version_name,
+                "更新下载已取消"
+            );
+            info!("更新 {} 的下载已取消", metadata.version_name);
+            return Ok(DownloadOutcome::Cancelled);
+        }
         Err(download_error) => {
-            if download_error == "下载已取消" {
-                debug!(
-                    operation = "download",
-                    result = "cancelled",
-                    session_id,
-                    version = %metadata.version_name,
-                    "更新下载已取消"
-                );
-                info!("更新 {} 的下载已取消", metadata.version_name);
-            } else {
-                error!(
-                    operation = "download",
-                    phase = "transfer",
-                    session_id,
-                    version = %metadata.version_name,
-                    error = %download_error,
-                    "更新下载失败"
-                );
-            }
+            error!(operation = "download", phase = "transfer", session_id,
+                version = %metadata.version_name, error = %download_error, "更新下载失败");
             return Err(download_error);
         }
     };
@@ -222,7 +241,7 @@ pub async fn download_update(
     );
     info!("更新 {} 下载完成，等待安装", metadata.version_name);
     download_lease.complete(package_path);
-    Ok(update)
+    Ok(DownloadOutcome::Completed { update })
 }
 
 fn proxy_mode_label(mode: UpdateProxyMode) -> &'static str {
@@ -235,15 +254,15 @@ fn proxy_mode_label(mode: UpdateProxyMode) -> &'static str {
 
 /// 取消当前文件下载。
 #[tauri::command]
-pub fn cancel_download(manager: tauri::State<'_, UpdateManager>) -> Result<(), String> {
-    manager.cancel_download().map_err(|cancel_error| {
+pub fn cancel_download(manager: tauri::State<'_, UpdateManager>) -> Result<(), update::Error> {
+    manager.cancel_download().inspect_err(|cancel_error| {
         warn!(
             operation = "cancel_download",
             error = %cancel_error,
             "取消更新下载请求被状态机拒绝"
         );
-        cancel_error.to_string()
-    })
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]

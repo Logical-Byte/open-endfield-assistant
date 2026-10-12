@@ -1,5 +1,7 @@
 //! 将已缓存的可用更新解析为一次下载所需的私有计划。
 
+use crate::update;
+use crate::update::error::Reason;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
@@ -61,7 +63,7 @@ pub(super) async fn resolve_download_plan(
     settings: &OeaSettings,
     user_agent: &str,
     cancellation: &CancellationToken,
-) -> Result<DownloadPlan, String> {
+) -> Result<DownloadPlan, update::Error> {
     let cdk = check::configured_cdk(settings);
     let selected = select_source(
         settings.update_source,
@@ -126,7 +128,7 @@ async fn resolve_oem_plan(
     settings: &OeaSettings,
     user_agent: &str,
     cancellation: &CancellationToken,
-) -> Result<DownloadPlan, String> {
+) -> Result<DownloadPlan, update::Error> {
     let client = http::build_client(settings, user_agent)?;
     let response = send_with_cancellation(
         client
@@ -137,30 +139,43 @@ async fn resolve_oem_plan(
     )
     .await?;
     if !response.status().is_success() {
-        return Err(format!(
-            "OEM 更新元数据请求失败（HTTP {}），已中断下载",
-            response.status()
+        return Err(update::Error::failed(
+            Reason::Network,
+            anyhow::anyhow!(
+                "OEM 更新元数据请求失败（HTTP {}），已中断下载",
+                response.status()
+            ),
         ));
     }
     let body =
         read_body_with_cancellation(response, cancellation, "OEM 更新元数据响应读取失败").await?;
-    let manifest: OemManifest = serde_json::from_slice(&body)
-        .map_err(|error| format!("OEM 更新元数据不是有效 JSON，已中断下载: {error}"))?;
+    let manifest: OemManifest = serde_json::from_slice(&body).map_err(|error| {
+        update::Error::failed(
+            Reason::InvalidMetadata,
+            anyhow::Error::new(error).context("OEM 更新元数据不是有效 JSON，已中断下载"),
+        )
+    })?;
     parse_oem_manifest(&metadata.version_name, manifest)
 }
 
 fn parse_oem_manifest(
     expected_version: &str,
     manifest: OemManifest,
-) -> Result<DownloadPlan, String> {
+) -> Result<DownloadPlan, update::Error> {
     let normalized_expected = expected_version
         .trim()
         .strip_prefix(['v', 'V'])
         .unwrap_or(expected_version.trim());
     if manifest.version != normalized_expected {
-        return Err(format!(
-            "OEM 与 Mirror酱版本不一致（OEM: {}，Mirror酱: {expected_version}），已中断下载",
-            manifest.tag
+        return Err(update::Error::failed(
+            Reason::VersionMismatch {
+                expected: expected_version.to_string(),
+                actual: manifest.tag.clone(),
+            },
+            anyhow::anyhow!(
+                "OEM 与 Mirror酱版本不一致（OEM: {}，Mirror酱: {expected_version}），已中断下载",
+                manifest.tag
+            ),
         ));
     }
     debug!(
@@ -194,7 +209,7 @@ async fn resolve_github_plan(
     settings: &OeaSettings,
     user_agent: &str,
     cancellation: &CancellationToken,
-) -> Result<DownloadPlan, String> {
+) -> Result<DownloadPlan, update::Error> {
     let client = http::build_client(settings, user_agent)?;
     let mut url = reqwest::Url::parse(GITHUB_RELEASE_TAG_URL)
         .map_err(|error| format!("GitHub API URL 构造失败: {error}"))?;
@@ -211,25 +226,37 @@ async fn resolve_github_plan(
     )
     .await?;
     if response.status() == StatusCode::NOT_FOUND {
-        return Err(format!(
-            "GitHub 上未找到版本 {} 的 Release",
-            metadata.version_name
+        return Err(update::Error::failed(
+            Reason::PackageUnavailable {
+                version: metadata.version_name.clone(),
+            },
+            anyhow::anyhow!("GitHub 上未找到版本 {} 的 Release", metadata.version_name),
         ));
     }
     if !response.status().is_success() {
-        return Err(format!(
-            "GitHub API 错误（HTTP {}），GitHub 下载暂不可用",
-            response.status()
+        return Err(update::Error::failed(
+            Reason::Network,
+            anyhow::anyhow!(
+                "GitHub API 错误（HTTP {}），GitHub 下载暂不可用",
+                response.status()
+            ),
         ));
     }
     let body =
         read_body_with_cancellation(response, cancellation, "GitHub API 响应读取失败").await?;
-    let release: GithubRelease = serde_json::from_slice(&body)
-        .map_err(|error| format!("GitHub API 响应不是有效 JSON: {error}"))?;
+    let release: GithubRelease = serde_json::from_slice(&body).map_err(|error| {
+        update::Error::failed(
+            Reason::InvalidMetadata,
+            anyhow::Error::new(error).context("GitHub API 响应不是有效 JSON"),
+        )
+    })?;
     select_github_asset(&metadata.version_name, release)
 }
 
-fn select_github_asset(version_name: &str, release: GithubRelease) -> Result<DownloadPlan, String> {
+fn select_github_asset(
+    version_name: &str,
+    release: GithubRelease,
+) -> Result<DownloadPlan, update::Error> {
     let exact_name = default_filename(version_name);
     let mut candidates = release
         .assets
@@ -240,7 +267,14 @@ fn select_github_asset(version_name: &str, release: GithubRelease) -> Result<Dow
     let asset = exact_index
         .map(|index| candidates.swap_remove(index))
         .or_else(|| candidates.into_iter().max_by_key(|asset| asset.size))
-        .ok_or_else(|| "GitHub Release 中未找到 OEA-windows-x86_64 的 zip 资产".to_string())?;
+        .ok_or_else(|| {
+            update::Error::failed(
+                Reason::PackageUnavailable {
+                    version: version_name.to_string(),
+                },
+                anyhow::anyhow!("GitHub Release 中未找到 OEA-windows-x86_64 的 zip 资产"),
+            )
+        })?;
 
     let expected_sha256 = parse_github_digest(asset.digest.as_deref());
     Ok(DownloadPlan {
@@ -271,11 +305,11 @@ async fn send_with_cancellation(
     request: reqwest::RequestBuilder,
     cancellation: &CancellationToken,
     context: &str,
-) -> Result<reqwest::Response, String> {
+) -> Result<reqwest::Response, update::Error> {
     tokio::select! {
         biased;
-        response = request.send() => response.map_err(|error| format!("{context}: {error}")),
-        _ = cancellation.cancelled() => Err("下载已取消".to_string()),
+        response = request.send() => response.map_err(|error| update::Error::failed(Reason::Network, anyhow::Error::new(error).context(context.to_owned()))),
+        _ = cancellation.cancelled() => Err(update::Error::new(Reason::Cancelled)),
     }
 }
 
@@ -283,11 +317,11 @@ async fn read_body_with_cancellation(
     response: reqwest::Response,
     cancellation: &CancellationToken,
     context: &str,
-) -> Result<bytes::Bytes, String> {
+) -> Result<bytes::Bytes, update::Error> {
     tokio::select! {
         biased;
-        body = response.bytes() => body.map_err(|error| format!("{context}: {error}")),
-        _ = cancellation.cancelled() => Err("下载已取消".to_string()),
+        body = response.bytes() => body.map_err(|error| update::Error::failed(Reason::Network, anyhow::Error::new(error).context(context.to_owned()))),
+        _ = cancellation.cancelled() => Err(update::Error::new(Reason::Cancelled)),
     }
 }
 

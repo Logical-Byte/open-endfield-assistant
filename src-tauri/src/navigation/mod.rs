@@ -5,6 +5,8 @@
 //! `executor` 解释动作并在每次观测后继续查询同一份策略。档案 OCR、内容翻页和扫描
 //! 顺序属于 `automation::archive_scan`，不进入通用导航模型。
 
+mod error;
+pub use error::Error;
 mod executor;
 mod graph;
 mod navigator;

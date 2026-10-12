@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { normalizeBackendError, formatBackendError } from '@/shared/errors';
+import { useTranslatedToast } from '@/shared/i18n/toast';
 import { useAppI18n } from '@/shared/i18n';
 import {
   useAutomationTask,
@@ -13,8 +15,19 @@ const { t } = useAppI18n();
 const { phase, isActive, canStart, canStop, tryStart, tryStop }: AutomationTask<'archiveScan'> =
   useAutomationTask('archiveScan');
 
-function toggleScan(): Promise<CommandResult> {
-  return canStart.value ? tryStart({ workerType: archiveScanWorkerType.value }) : tryStop();
+const toast = useTranslatedToast();
+async function toggleScan(): Promise<CommandResult | undefined> {
+  try {
+    return await (canStart.value
+      ? tryStart({ workerType: archiveScanWorkerType.value })
+      : tryStop());
+  } catch (error: unknown) {
+    const facts = normalizeBackendError(error, { operation: 'automation' });
+    toast.add({ color: 'error' }, () => ({
+      title: t('scan.failed'),
+      description: formatBackendError(facts),
+    }));
+  }
 }
 
 const scanButtonLabel: ComputedRef<string> = computed((): string => {

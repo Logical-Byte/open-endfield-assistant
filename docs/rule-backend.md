@@ -27,7 +27,7 @@ macOS 上的开发、测试和打包不属于验收范围。可以使用 `cargo 
 - 使用 `Arc::clone(&value)` 克隆原子引用计数指针。
 - 在注释中使用反引号包裹代码片段。
 - `unsafe` 块只包裹单个函数调用表达式，赋值、`?` 和分号放在块外。例如：`let value = unsafe { call() }?;`。
-- 胶水层负责跨模块编排。引用 `Status`、`Config`、`Runtime`、`Kind` 等难以辨认职责的类型时，保留所属模块的命名空间，例如 `automation::Runtime`。`UiLocale`、`GameLocale` 等名称已清晰表达职责的类型可以直接导入，模块内部也可以使用短名称。
+- 胶水层负责跨模块编排。引用 `Status`、`Config`、`Runtime`、`Kind`、`Error` 等难以辨认职责的类型时，保留所属模块的命名空间，例如 `automation::Runtime`、`automation::Error`。`UiLocale`、`GameLocale` 等名称已清晰表达职责的类型可以直接导入，模块内部也可以使用短名称。
 - 跨模块类型或模块通过 `use` 导入，类型使用处不保留 `crate::` 前缀。命名空间用于说明职责和避免歧义，无需在所有跨模块类型前添加。
 - 新增或迁移 Tauri 边界的数据类型时，按 [ts-rs 编写与管理约定](data-pipeline.md#ts-rs-编写与管理约定) 从 Rust 定义生成前端类型，并提交生成文件。
 - 模块应尽量提供窄 Interface，避免调用者依赖内部子模块结构或其他 Implementation 细节。原因：降低调用者的心智负担和模块之间的耦合，使内部实现与代码布局可以局部调整。
@@ -53,7 +53,13 @@ macOS 上的开发、测试和打包不属于验收范围。可以使用 `cargo 
 ### 日志
 
 - `INFO`、`WARN`、`ERROR` 的消息文本面向人阅读，使用中文表述，要求可读性高。
-- 调用链、内部状态、标识符等结构化诊断信息主要记录在 `DEBUG` 或 `TRACE` 日志中。底层错误可以保留在结构化 `error` 字段中。
+- 用户可能查看的 `WARN`、`ERROR` 报错信息使用 `Display`，可写入消息正文或用 `%` 记录为字段。
+- 调用链、内部状态等详细诊断放在 `DEBUG`、`TRACE`，底层错误用 `error = ?source` 记录。`anyhow::Error` 的 `Debug` 包含错误链及已捕获的 backtrace，`{error:#}` 可用于只输出错误链。
+
+```rust
+error!(error = %error, "自动化任务失败");
+debug!(error = ?source, "定位游戏窗口失败");
+```
 
 ### 后台线程生命周期
 

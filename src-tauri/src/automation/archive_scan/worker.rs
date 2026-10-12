@@ -5,16 +5,15 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
 use image::RgbaImage;
 use tracing::{debug, info, warn};
 
 use crate::{
     app_paths::AppPaths,
     automation::{
-        AutomationStopped, Clock, EventSink, Input, Ocr, ScreenCapture, StopToken,
-        TemplateMatching, TemplateTarget,
-        runtime::{self, FinishReason, WorkerExit},
+        self, Clock, EventSink, Input, Ocr, ScreenCapture, StopToken, TemplateMatching,
+        TemplateTarget, capabilities,
+        runtime::{self, WorkerExit},
         session::Session,
         stats::counts::{Capture, CaptureSummary},
     },
@@ -55,19 +54,10 @@ impl runtime::Worker for Worker {
     fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> WorkerExit {
         let mut capture: Option<CaptureSummary> = None;
         let result = execute_session(&self, stop, events, &mut capture);
-        let exit = WorkerExit {
-            reason: match result {
-                Ok(()) => FinishReason::Completed,
-                Err(error) if error.downcast_ref::<AutomationStopped>().is_some() => {
-                    FinishReason::Stopped
-                }
-                Err(error) => FinishReason::Failed(format!("{error:#}")),
-            },
-            capture,
-        };
-        let sound = match &exit.reason {
-            FinishReason::Completed => ScanSound::Enable,
-            FinishReason::Stopped | FinishReason::Failed(_) => ScanSound::Disable,
+        let exit = WorkerExit { result, capture };
+        let sound = match &exit.result {
+            Ok(()) => ScanSound::Enable,
+            Err(_) => ScanSound::Disable,
         };
         play_scan_sound(self.settings.sound_volume, sound);
         exit
@@ -79,9 +69,9 @@ fn execute_session(
     stop: StopToken,
     events: Arc<dyn EventSink>,
     capture: &mut Option<CaptureSummary>,
-) -> anyhow::Result<()> {
+) -> Result<(), automation::WorkerError> {
     // 连接游戏可能耗时，所以留在工作线程中。
-    let mut session = Session::connect(&worker.ocr, stop).context("连接游戏失败")?;
+    let mut session = Session::connect(&worker.ocr, stop)?;
 
     // 停止请求可能发生在连接过程中，不能让它被清除或跳过。
     session.check_stop()?;
@@ -104,7 +94,7 @@ fn execute_session(
     );
     // 扫描失败或停止时也收集统计，再向外传播结果。
     *capture = Some(captured_session.finish());
-    result.context("扫描档案库任务执行失败")
+    result
 }
 
 /// 移动鼠标、进入档案库主界面，然后按顺序扫描全部子分类。
@@ -113,7 +103,7 @@ fn scan_archives<C>(
     navigator: &Navigator,
     archives: &archive::Database,
     reporter: &ScanReporter,
-) -> anyhow::Result<()>
+) -> Result<(), automation::WorkerError>
 where
     C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
 {
@@ -147,7 +137,7 @@ fn scan_subscene<C>(
     subscene: ArchiveSubscene,
     archives: &archive::Database,
     reporter: &ScanReporter,
-) -> anyhow::Result<()>
+) -> Result<(), automation::WorkerError>
 where
     C: ScreenCapture + Input + TemplateMatching + Ocr + Clock,
 {
@@ -175,12 +165,12 @@ fn scan_current_item<C>(
     page: archive::Page,
     category: archive::Category,
     count: u32,
-) -> anyhow::Result<()>
+) -> Result<(), automation::WorkerError>
 where
     C: ScreenCapture + Ocr,
 {
     let screenshot = cx.screenshot()?;
-    let ocr_text = read_title(cx, &screenshot, count);
+    let ocr_text = read_title(cx, &screenshot, count)?;
     let corrected = ocr_correction::match_with_correction(
         archives,
         category,
@@ -206,26 +196,31 @@ where
 }
 
 /// OCR 失败按空标题上报，继续扫描下一份档案。
-fn read_title<C: Ocr>(cx: &mut C, screenshot: &RgbaImage, count: u32) -> String {
+fn read_title<C: Ocr>(
+    cx: &mut C,
+    screenshot: &RgbaImage,
+    count: u32,
+) -> Result<String, capabilities::Error> {
     match cx.recognize_text(screenshot, OCR_ROI) {
         Ok(Some(text)) if !text.trim().is_empty() => {
             info!("第 {} 份档案标题：{}", count, text.trim());
-            text.trim().to_string()
+            Ok(text.trim().to_string())
         }
         Ok(None | Some(_)) => {
             info!("第 {count} 份档案标题：（空）");
-            String::new()
+            Ok(String::new())
         }
+        Err(error) if error.is_stopped_by_user() => Err(error),
         Err(error) => {
             debug!("OCR 识别失败（第 {count} 份）: {error:#}");
             info!("第 {count} 份档案标题：（OCR 识别失败）");
-            String::new()
+            Ok(String::new())
         }
     }
 }
 
 /// 优先点击「下一篇」，其次点击右箭头。匹配或点击失败仍向上传播。
-fn advance_to_next_item<C>(cx: &mut C, next_count: u32) -> anyhow::Result<bool>
+fn advance_to_next_item<C>(cx: &mut C, next_count: u32) -> Result<bool, automation::WorkerError>
 where
     C: ScreenCapture + TemplateMatching + Input + Clock,
 {
@@ -323,4 +318,94 @@ fn play_scan_sound(volume: f32, sound: ScanSound) {
 enum ScanSound {
     Enable,
     Disable,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use image::RgbaImage;
+
+    use crate::{
+        automation::{
+            self, Clock, Input, Key, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
+            TemplateTarget, capabilities,
+        },
+        navigation::{Navigator, UiState},
+    };
+
+    struct FailedCapture(Option<capabilities::Error>);
+
+    impl ScreenCapture for FailedCapture {
+        fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
+            Err(self.0.take().unwrap())
+        }
+    }
+
+    impl Input for FailedCapture {
+        fn click(&mut self, _: Point720p) -> Result<(), capabilities::Error> {
+            unreachable!()
+        }
+        fn press_key(&mut self, _: Key) -> Result<(), capabilities::Error> {
+            unreachable!()
+        }
+        fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
+            unreachable!()
+        }
+    }
+
+    impl TemplateMatching for FailedCapture {
+        fn find_template(
+            &mut self,
+            _: &RgbaImage,
+            _: &TemplateTarget,
+        ) -> Result<Option<TemplateMatch>, capabilities::Error> {
+            unreachable!()
+        }
+    }
+
+    impl Clock for FailedCapture {
+        fn sleep(&mut self, _: Duration) {
+            unreachable!()
+        }
+    }
+
+    fn navigate(error: capabilities::Error) -> automation::WorkerError {
+        Navigator::new()
+            .navigate_to(UiState::Terminal, &mut FailedCapture(Some(error)))
+            .unwrap_err()
+            .into()
+    }
+
+    #[test]
+    fn navigation_stop_finishes_without_a_failure() {
+        assert!(navigate(capabilities::Error::StoppedByUser).is_stopped_by_user());
+    }
+
+    #[test]
+    fn navigation_preserves_actionable_reasons_without_serializing_diagnostics() {
+        for (error, expected) in [
+            (
+                automation::GameEnvironmentError::WindowUnavailable.into(),
+                serde_json::json!({
+                    "status": "failed", "error": {
+                        "scope": "worker", "kind": "capability",
+                        "reason": { "kind": "gameEnvironment", "reason": { "kind": "windowUnavailable" } }
+                    }
+                }),
+            ),
+            (
+                capabilities::Error::CaptureFailed,
+                serde_json::json!({
+                    "status": "failed", "error": { "scope": "worker", "kind": "capability", "reason": { "kind": "captureFailed" } }
+                }),
+            ),
+        ] {
+            let error = navigate(error);
+            let outcome = automation::RunOutcome::Failed {
+                error: error.into(),
+            };
+            assert_eq!(serde_json::to_value(outcome).unwrap(), expected);
+        }
+    }
 }

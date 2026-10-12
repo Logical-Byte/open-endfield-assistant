@@ -12,8 +12,9 @@
 
 mod archive;
 
-use anyhow::{Context, Result};
+use crate::navigation;
 use image::RgbaImage;
+use tracing::debug;
 
 use crate::automation::{ScreenCapture, TemplateMatching, TemplateTarget};
 
@@ -55,11 +56,14 @@ enum Refinement {
 
 /// 固定判定树中的一个状态组节点。
 trait UiStateGroup: Sync {
-    /// 用于错误上下文和调试日志的状态组名称。
+    /// 用于调试日志的状态组名称。
     fn name(&self) -> &'static str;
 
     /// 使用同一张截图把当前状态集合细化一层。
-    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> Result<Refinement>;
+    fn refine(
+        &'static self,
+        cx: &mut RecognitionContext<'_>,
+    ) -> Result<Refinement, navigation::Error>;
 }
 
 /// 一次识别共享的截图和探测能力。
@@ -69,7 +73,7 @@ struct RecognitionContext<'a> {
 }
 
 impl RecognitionContext<'_> {
-    fn matches(&mut self, target: &TemplateTarget) -> Result<bool> {
+    fn matches(&mut self, target: &TemplateTarget) -> Result<bool, navigation::Error> {
         Ok(self
             .templates
             .find_template(self.screenshot, target)?
@@ -78,7 +82,7 @@ impl RecognitionContext<'_> {
 }
 
 /// 获取一张截图并运行完整的固定判定树。
-pub(super) fn recognize<C>(cx: &mut C) -> Result<Recognition>
+pub(super) fn recognize<C>(cx: &mut C) -> Result<Recognition, navigation::Error>
 where
     C: ScreenCapture + TemplateMatching,
 {
@@ -90,10 +94,11 @@ where
     let mut group: &'static dyn UiStateGroup = &ANY_UI;
 
     loop {
-        match group
-            .refine(&mut recognition)
-            .with_context(|| format!("UI 状态组 {} 判定失败", group.name()))?
-        {
+        match group.refine(&mut recognition).inspect_err(|error| {
+            if !error.is_stopped_by_user() {
+                debug!(group = group.name(), error = ?error, "UI 状态组判定失败");
+            }
+        })? {
             Refinement::Determined(state) => return Ok(Recognition::Determined(state)),
             Refinement::StillVague(next) => group = next,
             Refinement::Unrecognized => return Ok(Recognition::Unrecognized),
@@ -117,7 +122,10 @@ impl UiStateGroup for AnyUi {
         "全部 UI"
     }
 
-    fn refine(&'static self, cx: &mut RecognitionContext<'_>) -> Result<Refinement> {
+    fn refine(
+        &'static self,
+        cx: &mut RecognitionContext<'_>,
+    ) -> Result<Refinement, navigation::Error> {
         if recognize_archive_detail(cx)? {
             return Ok(Refinement::Determined(UiState::archive_detail()));
         }
@@ -139,12 +147,15 @@ impl UiStateGroup for AnyUi {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+    use crate::automation::capabilities;
     use image::{Rgba, RgbaImage};
 
     use crate::{
         automation::{ScreenCapture, TemplateMatch, TemplateMatching, TemplateTarget},
-        navigation::state::{ArchiveSubscene, RecordsPage, UiState},
+        navigation::{
+            self,
+            state::{ArchiveSubscene, RecordsPage, UiState},
+        },
         utils::region::Region2D,
     };
 
@@ -175,7 +186,7 @@ mod tests {
     }
 
     impl ScreenCapture for TestAutomation {
-        fn screenshot(&mut self) -> Result<RgbaImage> {
+        fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
             Ok(self.screenshot.clone())
         }
     }
@@ -185,9 +196,9 @@ mod tests {
             &mut self,
             _screenshot: &RgbaImage,
             target: &TemplateTarget,
-        ) -> Result<Option<TemplateMatch>> {
+        ) -> Result<Option<TemplateMatch>, capabilities::Error> {
             if self.fail_template == Some(target.template_name) {
-                anyhow::bail!("模板损坏");
+                return Err(capabilities::Error::ExecutionFailed);
             }
             Ok(self
                 .matching_templates
@@ -277,6 +288,9 @@ mod tests {
 
         let error = recognize(&mut automation).unwrap_err();
 
-        assert!(format!("{error:#}").contains("模板损坏"));
+        assert!(matches!(
+            error,
+            navigation::Error::Capability(capabilities::Error::ExecutionFailed)
+        ));
     }
 }

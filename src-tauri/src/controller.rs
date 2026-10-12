@@ -14,7 +14,9 @@ use crate::{
     automation::{self, archive_scan},
     data::{AppData, archive},
     navigation::Navigator,
-    settings, vision,
+    settings,
+    update::UpdateManager,
+    vision,
 };
 
 /// 应用控制器（Tauri 托管状态）。
@@ -76,10 +78,8 @@ impl Controller {
             automation::StartRequest::ArchiveScan { worker_type } => {
                 self.automation_runtime
                     .start(automation::TaskKind::ArchiveScan, || match worker_type {
-                        archive_scan::WorkerType::Production => {
-                            Box::new(self.archive_scan_worker())
-                        }
-                        archive_scan::WorkerType::Simulation => Box::new(
+                        automation::WorkerType::Production => Box::new(self.archive_scan_worker()),
+                        automation::WorkerType::Simulation => Box::new(
                             archive_scan::SimulationWorker::new(Arc::clone(&self.app_data)),
                         ),
                     })
@@ -98,17 +98,14 @@ impl Controller {
             self.stop_automation();
         } else {
             self.start_automation(automation::StartRequest::ArchiveScan {
-                worker_type: archive_scan::WorkerType::Production,
+                worker_type: automation::WorkerType::Production,
             });
         }
     }
 
     /// 退出程序：请求停止后退出 Tauri 应用。
     pub fn quit(&self, app_handle: &AppHandle) {
-        if app_handle
-            .state::<crate::update::UpdateManager>()
-            .is_installing()
-        {
+        if app_handle.state::<UpdateManager>().is_installing() {
             warn!("正在安装更新，拒绝退出");
             return;
         }
