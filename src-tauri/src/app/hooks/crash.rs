@@ -21,8 +21,9 @@ use std::path::PathBuf;
 use std::sync::Once;
 
 use chrono::Local;
+use tauri::Manager;
 
-use crate::{app_paths::AppPaths, platform};
+use crate::{app_paths::AppPaths, controller::Controller, locale::UiLocale, platform, settings};
 
 static PANIC_HOOK_INSTALLED: Once = Once::new();
 
@@ -60,22 +61,52 @@ pub fn report_fatal(error: &anyhow::Error, app_handle: &tauri::AppHandle) -> ! {
     tracing::error!("启动初始化失败:\n{error:#}");
 
     let crash_file = write_crash_log("FATAL SETUP ERROR", &format!("{error:#}"));
-    let crash_file_hint = match &crash_file {
-        Some(path) => path.display().to_string(),
-        None => "（写入失败）".to_string(),
-    };
-
-    let _ = platform::dialog::show_message(
-        "OEA 启动失败",
-        &format!(
-            "程序初始化失败，无法启动。\n\n错误详情：\n{error:#}\n\n详细日志已保存至：\n{crash_file_hint}",
-        ),
-        platform::dialog::DialogIcon::Error,
-    );
+    // Controller 未初始化的失败路径只读语言字段，根目录尚不可用时直接使用系统语言。
+    let locale = app_handle
+        .try_state::<Controller>()
+        .map(|controller| controller.settings_snapshot().ui_locale)
+        .unwrap_or_else(|| {
+            AppPaths::new()
+                .map(|paths| settings::read_ui_locale(&paths.oea_settings_file()))
+                .unwrap_or_else(|_| settings::system_ui_locale())
+        });
+    let (title, content) = fatal_message(locale, error, crash_file.as_deref());
+    let _ = platform::dialog::show_message(title, &content, platform::dialog::DialogIcon::Error);
 
     // 兜底退出：setup 失败后进程不应继续运行
     app_handle.exit(1);
     std::process::exit(1);
+}
+
+fn fatal_message(
+    locale: UiLocale,
+    error: &anyhow::Error,
+    crash_file: Option<&std::path::Path>,
+) -> (&'static str, String) {
+    match locale {
+        UiLocale::ZhCn => {
+            let hint = crash_file
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| "（写入失败）".to_string());
+            (
+                "OEA 启动失败",
+                format!(
+                    "程序初始化失败，无法启动。\n\n错误详情：\n{error:#}\n\n详细日志已保存至：\n{hint}"
+                ),
+            )
+        }
+        UiLocale::EnUs => {
+            let hint = crash_file
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| "(Failed to write log)".to_string());
+            (
+                "OEA failed to start",
+                format!(
+                    "OEA could not initialize.\n\nError details:\n{error:#}\n\nDetailed log location:\n{hint}"
+                ),
+            )
+        }
+    }
 }
 
 /// 把一段致命错误文本写入 `logs/crash-<时间>-<pid>.log`。

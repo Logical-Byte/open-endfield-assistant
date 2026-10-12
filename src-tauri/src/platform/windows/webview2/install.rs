@@ -17,7 +17,10 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use tracing::{debug, error, info, warn};
 
-use crate::platform::dialog::{self, DialogIcon};
+use crate::{
+    locale::UiLocale,
+    platform::dialog::{self, DialogIcon},
+};
 
 /// Evergreen Bootstrapper 官方下载链接（微软固定跳转链接，约 2 MB，自动匹配架构）。
 const BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
@@ -31,14 +34,17 @@ const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(300);
 ///
 /// 已安装 → 直接返回 `true`；未安装 → 弹窗征询用户，同意后下载引导程序并安装。
 /// 安装成功 → 返回 `true`；安装失败或用户拒绝 → 返回 `false`。
-pub(in crate::platform) fn ensure_installed(cache_dir: &Path) -> Result<bool> {
+pub(in crate::platform) fn ensure_installed(
+    cache_dir: &Path,
+    locale: UiLocale,
+) -> anyhow::Result<bool> {
     if super::detection::is_installed() {
         debug!("Microsoft Edge WebView2 已安装");
         return Ok(true);
     }
 
     info!("未检测到 Microsoft Edge WebView2，准备自动安装");
-    if !confirm_install() {
+    if !confirm_install(locale) {
         error!("用户拒绝安装 Microsoft Edge WebView2");
         return Ok(false);
     }
@@ -51,11 +57,8 @@ pub(in crate::platform) fn ensure_installed(cache_dir: &Path) -> Result<bool> {
         Ok(()) => {
             warn!("WebView2 安装程序已结束，但重检仍未检测到 Runtime");
             dialog::show_message(
-                "WebView2 安装失败",
-                "安装程序已结束，但重新检测仍未发现 Microsoft Edge WebView2。\n\n\
-                 请尝试以下方法：\n\
-                 1. 前往 <a href=\"https://aka.ms/webview2installer\">https://aka.ms/webview2installer</a> 手动下载并安装 Evergreen Bootstrapper；\n\
-                 2. 安装完成后重新打开 OEA。",
+                failure_title(locale),
+                &failure_message(locale, None),
                 DialogIcon::Error,
             )?;
             Ok(false)
@@ -63,14 +66,8 @@ pub(in crate::platform) fn ensure_installed(cache_dir: &Path) -> Result<bool> {
         Err(e) => {
             warn!("WebView2 自动安装失败: {e}");
             dialog::show_message(
-                "WebView2 安装失败",
-                &format!(
-                    "自动下载并安装 Microsoft Edge WebView2 失败：\n{e}\n\n\
-                     请尝试以下方法：\n\
-                     1. 检查网络连接后重试；\n\
-                     2. 前往 <a href=\"https://aka.ms/webview2installer\">https://aka.ms/webview2installer</a> 手动下载并安装 Evergreen Bootstrapper；\n\
-                     3. 安装完成后重新打开 OEA。"
-                ),
+                failure_title(locale),
+                &failure_message(locale, Some(&e)),
                 DialogIcon::Error,
             )?;
             Ok(false)
@@ -79,14 +76,52 @@ pub(in crate::platform) fn ensure_installed(cache_dir: &Path) -> Result<bool> {
 }
 
 /// 征询用户是否立即联网安装。
-fn confirm_install() -> bool {
-    dialog::confirm(
-        "OEA 需要 WebView2",
-        "检测到系统未安装 Microsoft Edge WebView2（Windows 的网页渲染组件），OEA 的界面将无法显示。\n\n\
-         是否立即联网下载并安装？\n\
-         也可以选择 “否”，稍后前往 <a href=\"https://developer.microsoft.com/microsoft-edge/webview2/consumer/\">https://developer.microsoft.com/microsoft-edge/webview2/consumer/</a> 手动安装。",
-        DialogIcon::Info,
-    ).unwrap_or(false)
+fn confirm_install(locale: UiLocale) -> bool {
+    let (title, content) = match locale {
+        UiLocale::ZhCn => (
+            "OEA 需要 WebView2",
+            "检测到系统未安装 Microsoft Edge WebView2（Windows 的网页渲染组件），OEA 的界面将无法显示。\n\n是否立即联网下载并安装？\n也可以选择“否”，稍后前往 <a href=\"https://developer.microsoft.com/microsoft-edge/webview2/consumer/\">https://developer.microsoft.com/microsoft-edge/webview2/consumer/</a> 手动安装。",
+        ),
+        UiLocale::EnUs => (
+            "OEA requires WebView2",
+            "Microsoft Edge WebView2, the Windows web rendering component, is not installed. OEA cannot display its interface without it.\n\nDownload and install it now?\nChoose No to install it later from <a href=\"https://developer.microsoft.com/microsoft-edge/webview2/consumer/\">https://developer.microsoft.com/microsoft-edge/webview2/consumer/</a>.",
+        ),
+    };
+    dialog::confirm(title, content, DialogIcon::Info).unwrap_or(false)
+}
+
+fn failure_title(locale: UiLocale) -> &'static str {
+    match locale {
+        UiLocale::ZhCn => "WebView2 安装失败",
+        UiLocale::EnUs => "WebView2 installation failed",
+    }
+}
+
+fn failure_message(locale: UiLocale, error: Option<&anyhow::Error>) -> String {
+    let reason = match (locale, error) {
+        (UiLocale::ZhCn, Some(error)) => {
+            format!("自动下载并安装 Microsoft Edge WebView2 失败：\n{error}\n\n")
+        }
+        (UiLocale::ZhCn, None) => {
+            "安装程序已结束，但重新检测仍未发现 Microsoft Edge WebView2。\n\n".to_string()
+        }
+        (UiLocale::EnUs, Some(error)) => format!(
+            "Microsoft Edge WebView2 could not be downloaded and installed automatically:\n{error}\n\n"
+        ),
+        (UiLocale::EnUs, None) => {
+            "The installer finished, but Microsoft Edge WebView2 is still unavailable.\n\n"
+                .to_string()
+        }
+    };
+    let remedy = match locale {
+        UiLocale::ZhCn => {
+            "请检查网络连接后重试，或前往 <a href=\"https://aka.ms/webview2installer\">https://aka.ms/webview2installer</a> 手动下载并安装 Evergreen Bootstrapper。安装完成后重新打开 OEA。"
+        }
+        UiLocale::EnUs => {
+            "Check your network connection and try again, or manually download and install the Evergreen Bootstrapper from <a href=\"https://aka.ms/webview2installer\">https://aka.ms/webview2installer</a>. Then restart OEA."
+        }
+    };
+    format!("{reason}{remedy}")
 }
 
 /// 下载引导程序到应用缓存目录并安装，成功后清理临时文件。

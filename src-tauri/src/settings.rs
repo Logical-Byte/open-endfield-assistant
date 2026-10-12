@@ -141,6 +141,17 @@ pub(crate) fn system_ui_locale() -> UiLocale {
         .unwrap_or(UiLocale::EnUs)
 }
 
+/// 启动早期只读取语言字段，不初始化缓存或覆盖设置文件。
+/// 其他设置字段损坏不影响有效语言值。缺失、无效或读取失败使用系统语言。
+pub(crate) fn read_ui_locale(path: &Path) -> UiLocale {
+    std::fs::read(path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|value| value.get("uiLocale").cloned())
+        .and_then(|value| serde_json::from_value(value).ok())
+        .unwrap_or_else(system_ui_locale)
+}
+
 fn is_not_found(error: &anyhow::Error) -> bool {
     error
         .downcast_ref::<std::io::Error>()
