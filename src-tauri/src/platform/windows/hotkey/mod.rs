@@ -21,7 +21,7 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
     PeekMessageW, PostThreadMessageW, SetWindowsHookExW, UnhookWindowsHookEx, WH_KEYBOARD_LL,
     WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, anyhow};
 use scopeguard::defer;
 use tracing::{error, info};
 
@@ -59,11 +59,11 @@ pub(in crate::platform) struct KeyboardHookGuard {
 }
 
 impl KeyboardHookGuard {
-    pub(in crate::platform) fn shutdown(mut self) -> Result<()> {
+    pub(in crate::platform) fn shutdown(mut self) -> anyhow::Result<()> {
         self.shutdown_inner()
     }
 
-    fn shutdown_inner(&mut self) -> Result<()> {
+    fn shutdown_inner(&mut self) -> anyhow::Result<()> {
         let Some(thread) = self.inner.take() else {
             return Ok(());
         };
@@ -181,7 +181,8 @@ unsafe extern "system" fn keyboard_hook_proc(
 ///
 /// 安装 `WH_KEYBOARD_LL` 低级键盘钩子，把键盘消息（按下 / 弹起，自动重复已过滤）
 /// 广播到返回的接收端。钩子只感知、不拦截任何按键。
-pub(in crate::platform) fn listen() -> Result<(mpsc::Receiver<KeyEvent>, KeyboardHookGuard)> {
+pub(in crate::platform) fn listen() -> anyhow::Result<(mpsc::Receiver<KeyEvent>, KeyboardHookGuard)>
+{
     let (tx, rx) = mpsc::channel();
     let (startup_tx, startup_rx) = mpsc::sync_channel(0);
 

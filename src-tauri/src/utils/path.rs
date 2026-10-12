@@ -1,9 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, bail};
 
 /// 解析并验证当前存在于 `root` 内的相对文件路径。
-pub(crate) fn resolve_existing_relative_file(root: &Path, relative_path: &str) -> Result<PathBuf> {
+pub(crate) fn resolve_existing_relative_file(
+    root: &Path,
+    relative_path: &str,
+) -> anyhow::Result<PathBuf> {
     if relative_path.is_empty() {
         bail!("相对文件路径不能为空");
     }

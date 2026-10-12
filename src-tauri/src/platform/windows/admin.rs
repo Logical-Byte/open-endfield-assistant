@@ -13,7 +13,7 @@ use ::windows::Win32::{
     UI::WindowsAndMessaging::SW_SHOWNORMAL,
 };
 use ::windows::core::{PCWSTR, w};
-use anyhow::{Context, Result};
+use anyhow::Context;
 
 /// 当前进程是否以管理员权限运行（查询进程 token 的提升状态）。
 pub(in crate::platform) fn is_elevated() -> bool {
@@ -40,7 +40,7 @@ pub(in crate::platform) fn is_elevated() -> bool {
 /// 以管理员权限重新启动当前应用（触发 UAC 弹窗）；调用方随后应退出当前进程。
 ///
 /// 返回 `Ok` 表示新进程已成功启动；用户取消 UAC 时返回 `Err`。
-pub(in crate::platform) fn restart_as_admin() -> Result<()> {
+pub(in crate::platform) fn restart_as_admin() -> anyhow::Result<()> {
     let exe_path = std::env::current_exe().context("获取程序路径失败")?;
     let exe_wide: Vec<u16> = exe_path
         .as_os_str()

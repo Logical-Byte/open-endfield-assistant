@@ -17,7 +17,6 @@ use ::windows::Win32::UI::Controls::{
 use ::windows::Win32::UI::Shell::ShellExecuteW;
 use ::windows::Win32::UI::WindowsAndMessaging::{IDYES, SW_SHOWNORMAL};
 use ::windows::core::{HRESULT, PCWSTR};
-use anyhow::Result;
 
 use crate::platform::dialog::DialogIcon;
 
@@ -28,7 +27,7 @@ pub(in crate::platform) fn show_message(
     title: &str,
     content: &str,
     icon: DialogIcon,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     task_dialog(title, content, icon, TDCBF_OK_BUTTON, None, None)?;
     Ok(())
 }
@@ -36,7 +35,11 @@ pub(in crate::platform) fn show_message(
 /// 弹出一个「是/否」确认对话框（默认焦点在「是」），返回用户是否确认。
 ///
 /// 内容同样支持 `<a href="...">` 超链接；按 Esc 或关闭窗口视为「否」。
-pub(in crate::platform) fn confirm(title: &str, content: &str, icon: DialogIcon) -> Result<bool> {
+pub(in crate::platform) fn confirm(
+    title: &str,
+    content: &str,
+    icon: DialogIcon,
+) -> anyhow::Result<bool> {
     let mut selected = 0;
     task_dialog(
         title,

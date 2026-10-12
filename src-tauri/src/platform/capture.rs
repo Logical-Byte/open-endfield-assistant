@@ -1,6 +1,5 @@
 //! 窗口截图接口。
 
-use anyhow::Result;
 use image::{RgbaImage, imageops};
 
 use crate::utils::region::Region2D;
@@ -13,10 +12,10 @@ use super::windows;
 /// 可替换的窗口截图能力。
 pub trait ScreencapBase: Send {
     /// 捕获完整窗口客户区。
-    fn screencap(&mut self) -> Result<RgbaImage>;
+    fn screencap(&mut self) -> anyhow::Result<RgbaImage>;
 
     /// 捕获相对于窗口客户区的区域。
-    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> Result<RgbaImage> {
+    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> anyhow::Result<RgbaImage> {
         let image = self.screencap()?;
         let cropped = imageops::crop_imm(
             &image,
@@ -54,7 +53,7 @@ impl PrintWindowScreencap {
     }
 
     /// 捕获完整窗口客户区；macOS 开发外壳返回 unsupported error。
-    pub fn screencap(&mut self) -> Result<RgbaImage> {
+    pub fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         #[cfg(target_os = "windows")]
         {
             self.state.screencap()
@@ -71,11 +70,11 @@ impl PrintWindowScreencap {
 unsafe impl Send for PrintWindowScreencap {}
 
 impl ScreencapBase for PrintWindowScreencap {
-    fn screencap(&mut self) -> Result<RgbaImage> {
+    fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         self.screencap()
     }
 
-    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> Result<RgbaImage> {
+    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> anyhow::Result<RgbaImage> {
         #[cfg(target_os = "windows")]
         {
             self.state.screencap_region(relative_region)

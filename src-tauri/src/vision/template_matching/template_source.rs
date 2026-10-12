@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use image::RgbImage;
 
 use crate::utils::path::resolve_existing_relative_file;
@@ -9,7 +9,7 @@ use crate::utils::path::resolve_existing_relative_file;
 /// 按逻辑名称提供模板图片，不向调用方暴露存储与缓存策略。
 pub(crate) trait TemplateProvider {
     /// 返回由模板源持有的图片。
-    fn get(&mut self, template_name: &str) -> Result<&RgbImage>;
+    fn get(&mut self, template_name: &str) -> anyhow::Result<&RgbImage>;
 }
 
 /// 从模板根目录按需加载图片，并缓存成功加载的结果。
@@ -30,7 +30,7 @@ impl LazyTemplateLoader {
 }
 
 impl TemplateProvider for LazyTemplateLoader {
-    fn get(&mut self, template_name: &str) -> Result<&RgbImage> {
+    fn get(&mut self, template_name: &str) -> anyhow::Result<&RgbImage> {
         if self.cache.contains_key(template_name) {
             return Ok(self
                 .cache

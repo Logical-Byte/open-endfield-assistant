@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, bail};
 use tracing::{debug, error, info, warn};
 
 use crate::{
@@ -125,7 +125,7 @@ fn failure_message(locale: UiLocale, error: Option<&anyhow::Error>) -> String {
 }
 
 /// 下载引导程序到应用缓存目录并安装，成功后清理临时文件。
-fn install(cache_dir: &Path) -> Result<()> {
+fn install(cache_dir: &Path) -> anyhow::Result<()> {
     let exe_path = download_bootstrapper(cache_dir)?;
     let result = run_bootstrapper(&exe_path);
     // 无论成败都清理临时文件；清理失败只记日志，不影响安装结果
@@ -136,7 +136,7 @@ fn install(cache_dir: &Path) -> Result<()> {
 }
 
 /// 用 `reqwest` 从微软官方链接下载 Evergreen Bootstrapper 到应用缓存目录。
-fn download_bootstrapper(cache_dir: &Path) -> Result<PathBuf> {
+fn download_bootstrapper(cache_dir: &Path) -> anyhow::Result<PathBuf> {
     fs::create_dir_all(cache_dir).context("创建应用缓存目录失败")?;
     let exe_path = cache_dir.join(format!(
         "MicrosoftEdgeWebview2Setup_{}.exe",
@@ -174,7 +174,7 @@ fn download_bootstrapper(cache_dir: &Path) -> Result<PathBuf> {
 }
 
 /// 运行引导程序并等待其退出。
-fn run_bootstrapper(exe_path: &std::path::Path) -> Result<()> {
+fn run_bootstrapper(exe_path: &std::path::Path) -> anyhow::Result<()> {
     info!("运行 WebView2 引导程序: {}", exe_path.display());
     let status = Command::new(exe_path)
         // .args(["/silent", "/install"])

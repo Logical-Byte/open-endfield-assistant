@@ -10,14 +10,16 @@ use ::windows::Win32::Graphics::Dxgi::{
 };
 use ::windows::Win32::Graphics::Gdi::{MONITOR_DEFAULTTONEAREST, MonitorFromWindow};
 use ::windows::core::Interface;
-use anyhow::{Result, bail};
+use anyhow::bail;
 
 use crate::platform::WindowHandle;
 
 /// 判断指定窗口所在显示器是否开启了 HDR。
 ///
 /// 检测失败（API 不可用 / 查询出错）时返回 `Err`，由调用方决定是否阻断任务。
-pub(in crate::platform) fn is_hdr_enabled_on_window_monitor(window: WindowHandle) -> Result<bool> {
+pub(in crate::platform) fn is_hdr_enabled_on_window_monitor(
+    window: WindowHandle,
+) -> anyhow::Result<bool> {
     let hwnd = window.raw;
     let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
     if monitor.is_invalid() {

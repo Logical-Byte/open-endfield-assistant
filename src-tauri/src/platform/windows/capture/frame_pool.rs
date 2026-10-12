@@ -27,7 +27,7 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetWindowRect, IsWindow, IsWindowVisible,
 };
 use ::windows::core::Interface;
-use anyhow::{Result, anyhow, bail};
+use anyhow::{anyhow, bail};
 use image::{ImageBuffer, Rgba, RgbaImage};
 use tracing::{debug, error, info, warn};
 
@@ -54,7 +54,7 @@ struct FramePoolScreencap {
 unsafe impl Send for FramePoolScreencap {}
 
 impl ScreencapBase for FramePoolScreencap {
-    fn screencap(&mut self) -> Result<RgbaImage> {
+    fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         self.screencap()
     }
 }
@@ -76,7 +76,7 @@ impl FramePoolScreencap {
         }
     }
 
-    pub fn screencap(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+    pub fn screencap(&mut self) -> anyhow::Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
         if self.hwnd.is_invalid() {
             bail!("hwnd_ is nullptr");
         }
@@ -216,7 +216,7 @@ impl FramePoolScreencap {
             .ok_or_else(|| anyhow!("从原始数据创建图像失败"))
     }
 
-    pub fn init(&mut self) -> Result<bool> {
+    pub fn init(&mut self) -> anyhow::Result<bool> {
         if self.hwnd.is_invalid() {
             bail!("hwnd_ is nullptr");
         }
@@ -340,7 +340,7 @@ impl FramePoolScreencap {
         self.last_capture_size = (0, 0);
     }
 
-    fn check_and_handle_size_changed(&mut self) -> Result<bool> {
+    fn check_and_handle_size_changed(&mut self) -> anyhow::Result<bool> {
         let cap_item = match &self.cap_item {
             Some(item) => item.clone(),
             None => return Ok(true),
@@ -371,7 +371,7 @@ impl FramePoolScreencap {
         Ok(true)
     }
 
-    fn init_texture(&mut self, raw_texture: &ID3D11Texture2D) -> Result<bool> {
+    fn init_texture(&mut self, raw_texture: &ID3D11Texture2D) -> anyhow::Result<bool> {
         let d3d_device = match &self.d3d_device {
             Some(dev) => dev,
             None => bail!("handle is null"),

@@ -4,12 +4,12 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
     GWL_STYLE, GetClassNameW, GetClientRect, GetWindowLongPtrW, GetWindowTextLengthW,
     GetWindowTextW, WS_POPUP,
 };
-use anyhow::{Result, bail};
+use anyhow::bail;
 
 use crate::platform::WindowHandle;
 use crate::utils::{point::Point2D, region::Region2D};
 
-fn get_window_title(window: WindowHandle) -> Result<String> {
+fn get_window_title(window: WindowHandle) -> anyhow::Result<String> {
     let hwnd = window.raw;
     let length = unsafe { GetWindowTextLengthW(hwnd) };
     if length == 0 {
@@ -23,21 +23,21 @@ fn get_window_title(window: WindowHandle) -> Result<String> {
     Ok(title)
 }
 
-pub(in crate::platform) fn get_client_rect(window: WindowHandle) -> Result<Region2D<i32>> {
+pub(in crate::platform) fn get_client_rect(window: WindowHandle) -> anyhow::Result<Region2D<i32>> {
     let hwnd = window.raw;
     let mut rect = RECT::default();
     unsafe { GetClientRect(hwnd, &mut rect) }?;
     Ok(rect.into())
 }
 
-fn client_to_screen(window: WindowHandle, point: Point2D<i32>) -> Result<Point2D<i32>> {
+fn client_to_screen(window: WindowHandle, point: Point2D<i32>) -> anyhow::Result<Point2D<i32>> {
     let hwnd = window.raw;
     let mut point = POINT::from(point);
     unsafe { ClientToScreen(hwnd, &mut point) }.ok()?;
     Ok(point.into())
 }
 
-fn get_window_class_name(window: WindowHandle) -> Result<String> {
+fn get_window_class_name(window: WindowHandle) -> anyhow::Result<String> {
     let hwnd = window.raw;
     let mut buffer = vec![0u16; 256];
     let length = unsafe { GetClassNameW(hwnd, &mut buffer) };

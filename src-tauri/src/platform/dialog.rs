@@ -1,7 +1,5 @@
 //! Windows 原生对话框接口。
 
-use anyhow::Result;
-
 #[cfg(target_os = "windows")]
 use super::windows;
 
@@ -20,7 +18,7 @@ pub enum DialogIcon {
 ///
 /// `content` 中可用 `<a href="https://...">链接文字</a>` 语法嵌入可点击超链接。
 /// macOS 开发外壳返回 unsupported error。
-pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> Result<()> {
+pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> anyhow::Result<()> {
     #[cfg(target_os = "windows")]
     {
         windows::dialog::show_message(title, content, icon)
@@ -35,6 +33,6 @@ pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> Result<()> 
 
 /// 弹出一个“是/否”确认对话框，返回用户是否确认。
 #[cfg(target_os = "windows")]
-pub(super) fn confirm(title: &str, content: &str, icon: DialogIcon) -> Result<bool> {
+pub(super) fn confirm(title: &str, content: &str, icon: DialogIcon) -> anyhow::Result<bool> {
     windows::dialog::confirm(title, content, icon)
 }

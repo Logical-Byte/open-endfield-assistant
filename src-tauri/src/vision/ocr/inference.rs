@@ -1,6 +1,6 @@
 use std::{fs, path::Path, sync::Arc};
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, ensure};
 use image::RgbImage;
 use rten::{Model, ModelOptions, RunOptions, ThreadPool, Value};
 
@@ -16,7 +16,7 @@ pub(super) struct Inference {
 }
 
 impl Inference {
-    pub(super) fn new(models_dir: &Path, config: Config) -> Result<Self> {
+    pub(super) fn new(models_dir: &Path, config: Config) -> anyhow::Result<Self> {
         let dict = fs::read_to_string(models_dir.join("ppocrv6_tiny_dict.txt"))?;
         ensure!(!dict.trim().is_empty(), "OCR 字典为空");
         let characters = std::iter::once(String::new())
@@ -54,7 +54,7 @@ impl Inference {
         })
     }
 
-    pub(super) fn recognize(&mut self, image: &RgbImage) -> Result<Recognition> {
+    pub(super) fn recognize(&mut self, image: &RgbImage) -> anyhow::Result<Recognition> {
         let (shape, pixels) = recognition::preprocess(image)?;
         let input = Value::from_shape(shape, pixels)?;
         let output = self

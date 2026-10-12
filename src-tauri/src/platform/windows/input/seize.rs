@@ -9,7 +9,7 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetSystemMetrics, HWND_NOTOPMOST, SM_CXSCREEN, SM_CYSCREEN, SWP_NOMOVE,
     SWP_NOSIZE, SetCursorPos, SetWindowPos,
 };
-use anyhow::{Result, bail};
+use anyhow::bail;
 use scopeguard::defer;
 
 use crate::platform::WindowHandle;
@@ -43,7 +43,7 @@ impl SeizeInputState {
         contact: Contact,
         x: i32,
         y: i32,
-    ) -> Result<()> {
+    ) -> anyhow::Result<()> {
         let mut point = POINT { x, y };
 
         if !self.hwnd.is_invalid() {
@@ -81,7 +81,7 @@ impl SeizeInputState {
         _contact: Contact,
         x: i32,
         y: i32,
-    ) -> Result<()> {
+    ) -> anyhow::Result<()> {
         let mut point = POINT { x, y };
 
         if !self.hwnd.is_invalid() {
@@ -123,7 +123,12 @@ impl SeizeInputState {
         Ok(())
     }
 
-    pub(in crate::platform) fn touch_up(&self, contact: Contact, _x: i32, _y: i32) -> Result<()> {
+    pub(in crate::platform) fn touch_up(
+        &self,
+        contact: Contact,
+        _x: i32,
+        _y: i32,
+    ) -> anyhow::Result<()> {
         if !self.hwnd.is_invalid() {
             self.ensure_foreground()?;
         }
@@ -153,7 +158,7 @@ impl SeizeInputState {
         Ok(())
     }
 
-    fn ensure_foreground(&self) -> Result<()> {
+    fn ensure_foreground(&self) -> anyhow::Result<()> {
         ensure_foreground_and_topmost(WindowHandle { raw: self.hwnd })
     }
 
@@ -171,14 +176,14 @@ impl SeizeInputState {
         (0, 0)
     }
 
-    fn check_and_block_input(&self) -> Result<()> {
+    fn check_and_block_input(&self) -> anyhow::Result<()> {
         if self.block_input {
             unsafe { BlockInput(true) }?;
         }
         Ok(())
     }
 
-    fn unblock_input(&self) -> Result<()> {
+    fn unblock_input(&self) -> anyhow::Result<()> {
         if self.block_input {
             unsafe { BlockInput(false) }?;
         }
@@ -186,7 +191,7 @@ impl SeizeInputState {
     }
 
     #[allow(dead_code)]
-    fn inactive(&self) -> Result<()> {
+    fn inactive(&self) -> anyhow::Result<()> {
         self.unblock_input()?;
         if !self.hwnd.is_invalid() {
             unsafe {
@@ -205,7 +210,7 @@ impl SeizeInputState {
     }
 
     #[allow(dead_code)]
-    fn relative_move(&mut self, dx: i32, dy: i32) -> Result<()> {
+    fn relative_move(&mut self, dx: i32, dy: i32) -> anyhow::Result<()> {
         if dx == 0 && dy == 0 {
             return Ok(());
         }
@@ -230,7 +235,7 @@ impl SeizeInputState {
     }
 
     #[allow(dead_code)]
-    fn input_text(&self, text: &str) -> Result<()> {
+    fn input_text(&self, text: &str) -> anyhow::Result<()> {
         self.ensure_foreground()?;
 
         let u16_text: Vec<u16> = text.encode_utf16().collect();
@@ -263,7 +268,7 @@ impl SeizeInputState {
         Ok(())
     }
 
-    pub(in crate::platform) fn key_down(&self, key: i32) -> Result<()> {
+    pub(in crate::platform) fn key_down(&self, key: i32) -> anyhow::Result<()> {
         self.ensure_foreground()?;
 
         let mut input: INPUT = unsafe { std::mem::zeroed() };
@@ -278,7 +283,7 @@ impl SeizeInputState {
         Ok(())
     }
 
-    pub(in crate::platform) fn key_up(&self, key: i32) -> Result<()> {
+    pub(in crate::platform) fn key_up(&self, key: i32) -> anyhow::Result<()> {
         self.ensure_foreground()?;
 
         let mut input: INPUT = unsafe { std::mem::zeroed() };
@@ -294,7 +299,7 @@ impl SeizeInputState {
         Ok(())
     }
 
-    pub(in crate::platform) fn scroll(&self, dx: i32, dy: i32) -> Result<()> {
+    pub(in crate::platform) fn scroll(&self, dx: i32, dy: i32) -> anyhow::Result<()> {
         self.ensure_foreground()?;
 
         self.check_and_block_input()?;

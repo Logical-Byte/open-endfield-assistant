@@ -11,7 +11,7 @@ use ::windows::Win32::Graphics::Dxgi::{
 };
 use ::windows::Win32::Graphics::Gdi::{HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow};
 use ::windows::core::Interface;
-use anyhow::{Result, anyhow, bail};
+use anyhow::{anyhow, bail};
 use image::{ImageBuffer, Rgba, RgbaImage};
 use tracing::{debug, warn};
 
@@ -52,7 +52,7 @@ impl DesktopDupScreencap {
         }
     }
 
-    pub(super) fn screencap(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+    pub(super) fn screencap(&mut self) -> anyhow::Result<ImageBuffer<Rgba<u8>, Vec<u8>>> {
         // 初始化 D3D 设备和 DXGI 工厂（只需要初始化一次）
         if self.d3d_device.is_none()
             && let Err(e) = self.init()
@@ -95,7 +95,7 @@ impl DesktopDupScreencap {
     }
 
     /// 获取当前输出（显示器）在虚拟桌面中的坐标
-    pub(super) fn output_desktop_coordinates(&self) -> Result<RECT> {
+    pub(super) fn output_desktop_coordinates(&self) -> anyhow::Result<RECT> {
         let dxgi_output = self
             .dxgi_output
             .as_ref()
@@ -107,13 +107,13 @@ impl DesktopDupScreencap {
         Ok(output_desc.DesktopCoordinates)
     }
 
-    fn init(&mut self) -> Result<()> {
+    fn init(&mut self) -> anyhow::Result<()> {
         self.init_d3d_device()?;
         self.init_dxgi_factory()?;
         Ok(())
     }
 
-    fn ensure_output_for_monitor(&mut self) -> Result<bool> {
+    fn ensure_output_for_monitor(&mut self) -> anyhow::Result<bool> {
         // 获取目标显示器
         let target_monitor = if !self.hwnd.is_invalid() {
             let m = unsafe { MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTONEAREST) };
@@ -161,7 +161,7 @@ impl DesktopDupScreencap {
         Ok(true)
     }
 
-    fn init_d3d_device(&mut self) -> Result<()> {
+    fn init_d3d_device(&mut self) -> anyhow::Result<()> {
         let mut d3d_device: Option<ID3D11Device> = None;
         let mut d3d_context: Option<ID3D11DeviceContext> = None;
         unsafe {
@@ -183,7 +183,7 @@ impl DesktopDupScreencap {
         Ok(())
     }
 
-    fn init_dxgi_factory(&mut self) -> Result<()> {
+    fn init_dxgi_factory(&mut self) -> anyhow::Result<()> {
         let dxgi_factory: IDXGIFactory = unsafe {
             CreateDXGIFactory().map_err(|e| anyhow!("CreateDXGIFactory failed: {:?}", e))?
         };
@@ -191,7 +191,7 @@ impl DesktopDupScreencap {
         Ok(())
     }
 
-    fn find_output_by_monitor(&mut self, monitor: HMONITOR) -> Result<bool> {
+    fn find_output_by_monitor(&mut self, monitor: HMONITOR) -> anyhow::Result<bool> {
         let dxgi_factory = match &self.dxgi_factory {
             Some(f) => f.clone(),
             None => return Ok(false),
@@ -234,7 +234,7 @@ impl DesktopDupScreencap {
         Ok(false)
     }
 
-    fn init_primary_output(&mut self) -> Result<()> {
+    fn init_primary_output(&mut self) -> anyhow::Result<()> {
         let dxgi_factory = self
             .dxgi_factory
             .as_ref()
@@ -261,7 +261,7 @@ impl DesktopDupScreencap {
         Ok(())
     }
 
-    fn init_output_duplication(&mut self) -> Result<()> {
+    fn init_output_duplication(&mut self) -> anyhow::Result<()> {
         let dxgi_output = self
             .dxgi_output
             .as_ref()
@@ -280,7 +280,7 @@ impl DesktopDupScreencap {
         Ok(())
     }
 
-    fn init_texture(&mut self, raw_texture: &ID3D11Texture2D) -> Result<()> {
+    fn init_texture(&mut self, raw_texture: &ID3D11Texture2D) -> anyhow::Result<()> {
         let d3d_device = match &self.d3d_device {
             Some(d) => d,
             None => bail!("handle is null"),
@@ -315,7 +315,7 @@ impl DesktopDupScreencap {
         self.d3d_device = None;
     }
 
-    fn screencap_impl(&mut self) -> Result<Vec<u8>> {
+    fn screencap_impl(&mut self) -> anyhow::Result<Vec<u8>> {
         let d3d_context = self
             .d3d_context
             .as_ref()
@@ -400,7 +400,7 @@ impl DesktopDupScreencap {
 unsafe impl Send for DesktopDupScreencap {}
 
 impl ScreencapBase for DesktopDupScreencap {
-    fn screencap(&mut self) -> Result<RgbaImage> {
+    fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         self.screencap()
     }
 }

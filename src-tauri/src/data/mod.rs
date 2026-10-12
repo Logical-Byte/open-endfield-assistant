@@ -9,7 +9,7 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use serde::de::DeserializeOwned;
 use tracing::info;
 
@@ -18,14 +18,17 @@ use crate::app_paths::AppPaths;
 pub mod archive;
 
 /// 读取并解析一个 JSON 文件；失败时错误信息带完整文件路径。
-fn load_json<T: DeserializeOwned>(path: &Path) -> Result<T> {
+fn load_json<T: DeserializeOwned>(path: &Path) -> anyhow::Result<T> {
     let text = fs::read_to_string(path)
         .with_context(|| format!("读取数据文件 {} 失败", path.display()))?;
     serde_json::from_str(&text).with_context(|| format!("解析数据文件 {} 失败", path.display()))
 }
 
 /// 解析并加载 `resources/` 内的一个 JSON 文件。
-fn load_resource_json<T: DeserializeOwned>(app_paths: &AppPaths, relative_path: &str) -> Result<T> {
+fn load_resource_json<T: DeserializeOwned>(
+    app_paths: &AppPaths,
+    relative_path: &str,
+) -> anyhow::Result<T> {
     let path = app_paths.resolve_resource_file(relative_path)?;
     load_json(&path)
 }
@@ -36,7 +39,7 @@ pub struct AppData {
 }
 
 impl AppData {
-    pub fn load(app_paths: &AppPaths) -> Result<Self> {
+    pub fn load(app_paths: &AppPaths) -> anyhow::Result<Self> {
         let archives = archive::Database::load(app_paths)?;
         info!(
             "已加载档案目录（{} 个档案条目）",
