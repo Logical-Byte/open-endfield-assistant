@@ -234,9 +234,9 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            // 模型不由 submodule 管理。切换提交前清理下载文件，保留 Git 跟踪的文件。
-            await exec.exec('git', ['clean', '-fdX', '--', 'resources/ocr-models'], {
-              cwd: require('node:path').join(process.env.GITHUB_WORKSPACE, 'app'),
+            // 在 resources 子仓库内清理下载的模型，保留 Git 跟踪的文件。
+            await exec.exec('git', ['clean', '-fdX', '--', 'ocr-models'], {
+              cwd: require('node:path').join(process.env.GITHUB_WORKSPACE, 'app', 'resources'),
             });
 
       # clean:false 保留同一 runner 上的 Cargo target。前端和打包产物单独清理。
