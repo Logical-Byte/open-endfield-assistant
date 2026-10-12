@@ -25,7 +25,31 @@ macOS 上的开发、测试和打包不属于验收范围。可以使用 `cargo 
 ## 编码风格
 
 - 使用 `Arc::clone(&value)` 克隆原子引用计数指针。
-- 使用 anyhow 的函数或闭包返回类型必须显式写为 `anyhow::Result<T>`（指定错误类型时为 `anyhow::Result<T, E>`），不得导入或另起类型别名来省略 `anyhow::`。`anyhow!`、`bail!`、`ensure!` 等宏允许通过 `use` 导入后直接调用。
+- anyhow 的函数或闭包返回类型保留 `anyhow::`，宏允许导入。
+
+  允许：
+
+  ```rust
+  use anyhow::{anyhow, bail, ensure};
+
+  fn load() -> anyhow::Result<Data> { /* ... */ }
+  fn parse() -> anyhow::Result<Data, ParseError> { /* ... */ }
+  let load = || -> anyhow::Result<Data> { /* ... */ };
+  ```
+
+  不允许：
+
+  ```rust
+  use anyhow::Result;
+  use anyhow::{Context, Result};
+  use anyhow::Result as AppResult;
+  type AppResult<T> = anyhow::Result<T>;
+
+  fn load() -> Result<Data> { /* ... */ }
+  fn load() -> AppResult<Data> { /* ... */ }
+  let load = || -> Result<Data> { /* ... */ };
+  ```
+
 - 在注释中使用反引号包裹代码片段。
 - `unsafe` 块只包裹单个函数调用表达式，赋值、`?` 和分号放在块外。例如：`let value = unsafe { call() }?;`。
 - 胶水层负责跨模块编排。引用 `Status`、`Config`、`Runtime`、`Kind`、`Error` 等难以辨认职责的类型时，保留所属模块的命名空间，例如 `automation::Runtime`、`automation::Error`。`UiLocale`、`GameLocale` 等名称已清晰表达职责的类型可以直接导入，模块内部也可以使用短名称。
