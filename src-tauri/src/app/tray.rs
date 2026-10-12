@@ -23,6 +23,8 @@ struct TrayItems {
     show: MenuItem<Wry>,
     toggle: MenuItem<Wry>,
     quit: MenuItem<Wry>,
+    // 状态事件和语言刷新共用锁内的状态，避免语言刷新覆盖较新的扫描状态。
+    running: bool,
 }
 static TRAY_ITEMS: OnceLock<Mutex<Option<TrayItems>>> = OnceLock::new();
 
@@ -54,19 +56,22 @@ fn show_main_window(app_handle: &AppHandle) {
     }
 }
 
-/// 按有效应用语言刷新菜单，并让扫描菜单文案与任务运行状态同步。
-fn update_items(app: &AppHandle, running: bool) {
+/// 按有效应用语言刷新菜单。只有状态事件传入新的运行状态，语言刷新保留当前状态。
+fn update_items(app: &AppHandle, running: Option<bool>) {
     let Some(controller) = app.try_state::<Controller>() else {
         return;
     };
-    let text = menu_text(controller.settings_snapshot().ui_locale, running);
     let Some(items) = TRAY_ITEMS.get() else {
         return;
     };
-    let Ok(guard) = items.lock() else {
+    let Ok(mut guard) = items.lock() else {
         return;
     };
-    if let Some(items) = guard.as_ref() {
+    if let Some(items) = guard.as_mut() {
+        if let Some(running) = running {
+            items.running = running;
+        }
+        let text = menu_text(controller.settings_snapshot().ui_locale, items.running);
         let _ = items.show.set_text(text.0);
         let _ = items.toggle.set_text(text.1);
         let _ = items.quit.set_text(text.2);
@@ -75,18 +80,14 @@ fn update_items(app: &AppHandle, running: bool) {
 
 /// 设置成功提交后刷新托盘语言，自动化状态和菜单动作保持原样。
 pub(super) fn refresh_locale(app: &AppHandle) {
-    if let Some(controller) = app.try_state::<Controller>() {
-        update_items(app, controller.automation_status().is_active());
-    }
+    update_items(app, None);
 }
 
 /// 初始化系统托盘（在 `setup` 中、`Controller` 托管之后调用）。
 pub fn init_tray(app_handle: &AppHandle) -> anyhow::Result<()> {
     let controller = app_handle.state::<Controller>();
-    let text = menu_text(
-        controller.settings_snapshot().ui_locale,
-        controller.automation_status().is_active(),
-    );
+    let running = controller.automation_status().is_active();
+    let text = menu_text(controller.settings_snapshot().ui_locale, running);
     // 托盘菜单项：开始/停止扫描合并为一个动态切换项
     let show_item = MenuItem::with_id(app_handle, "show", text.0, true, None::<&str>)?;
     let toggle_item = MenuItem::with_id(app_handle, "toggle", text.1, true, None::<&str>)?;
@@ -153,6 +154,7 @@ pub fn init_tray(app_handle: &AppHandle) -> anyhow::Result<()> {
             show: show_item,
             toggle: toggle_item,
             quit: quit_item,
+            running,
         });
     }
 
@@ -160,12 +162,12 @@ pub fn init_tray(app_handle: &AppHandle) -> anyhow::Result<()> {
     let event_app = app_handle.clone();
     app_handle.listen("automation-status-changed", move |event| {
         if let Ok(status) = serde_json::from_str::<automation::Status>(event.payload()) {
-            update_items(&event_app, status.is_active());
+            update_items(&event_app, Some(status.is_active()));
         }
     });
     // 同步初始状态。
     if let Some(controller) = app_handle.try_state::<Controller>() {
-        update_items(app_handle, controller.automation_status().is_active());
+        update_items(app_handle, Some(controller.automation_status().is_active()));
     }
 
     info!("系统托盘初始化完成");
