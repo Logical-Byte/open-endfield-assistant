@@ -3,7 +3,7 @@
 use std::sync::mpsc;
 
 use ::windows::core::IUnknown;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, anyhow};
 use tauri::{Emitter, Manager};
 use tracing::warn;
 use webview2_com::{
@@ -11,7 +11,7 @@ use webview2_com::{
 };
 
 /// 读取 WebView2 当前缩放因子。
-pub(in crate::platform) fn get_zoom(window: tauri::WebviewWindow) -> Result<f64> {
+pub(in crate::platform) fn get_zoom(window: tauri::WebviewWindow) -> anyhow::Result<f64> {
     let (tx, rx) = mpsc::channel();
     window
         .with_webview(move |platform_webview| {

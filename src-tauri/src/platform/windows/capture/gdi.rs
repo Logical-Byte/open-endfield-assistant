@@ -4,7 +4,7 @@ use ::windows::Win32::Graphics::Gdi::{
     GetDC, ReleaseDC, SRCCOPY, SelectObject,
 };
 use ::windows::Win32::UI::WindowsAndMessaging::GetClientRect;
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, bail};
 use image::RgbaImage;
 use scopeguard::defer;
 
@@ -21,7 +21,7 @@ impl GdiScreencap {
         Self { hwnd: window.raw }
     }
 
-    pub fn screencap(&mut self) -> Result<RgbaImage> {
+    pub fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         let mut rect = RECT::default();
         unsafe {
             GetClientRect(self.hwnd, &mut rect)?;
@@ -29,7 +29,7 @@ impl GdiScreencap {
         self.screencap_region(Region2D::from(rect))
     }
 
-    pub fn screencap_region(&mut self, region: Region2D<i32>) -> Result<RgbaImage> {
+    pub fn screencap_region(&mut self, region: Region2D<i32>) -> anyhow::Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -98,11 +98,11 @@ impl GdiScreencap {
 unsafe impl Send for GdiScreencap {}
 
 impl ScreencapBase for GdiScreencap {
-    fn screencap(&mut self) -> Result<RgbaImage> {
+    fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         self.screencap()
     }
 
-    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> Result<RgbaImage> {
+    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> anyhow::Result<RgbaImage> {
         self.screencap_region(relative_region)
     }
 }

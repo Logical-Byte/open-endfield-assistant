@@ -1,5 +1,5 @@
 use crate::{navigation, utils::region::Region2D};
-use anyhow::{Result, bail};
+use anyhow::bail;
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::Serialize;
 use std::{fmt, path::PathBuf, str::FromStr};
@@ -121,7 +121,7 @@ pub(super) struct Rect {
 
 impl FromStr for Rect {
     type Err = String;
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
+    fn from_str(value: &str) -> anyhow::Result<Self, Self::Err> {
         let parts: Vec<_> = value.split(',').collect();
         if parts.len() != 4 {
             return Err(format!(
@@ -163,7 +163,7 @@ impl FromStr for Rect {
 }
 
 impl Rect {
-    pub(super) fn validate(self, width: u32, height: u32) -> Result<Region2D<u32>> {
+    pub(super) fn validate(self, width: u32, height: u32) -> anyhow::Result<Region2D<u32>> {
         if u64::from(self.left) + u64::from(self.width) > u64::from(width)
             || u64::from(self.top) + u64::from(self.height) > u64::from(height)
         {

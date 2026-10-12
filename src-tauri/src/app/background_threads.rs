@@ -9,7 +9,6 @@ use std::{
     thread::JoinHandle,
 };
 
-use anyhow::Result;
 use tauri::AppHandle;
 use tracing::{error, info};
 use tracing_appender::non_blocking::WorkerGuard;
@@ -41,7 +40,7 @@ impl BackgroundThreads {
         frontend_event_sink: Arc<automation_events::TauriEventSink>,
         logger_guard: WorkerGuard,
         log_rx: mpsc::Receiver<LogEntry>,
-    ) -> Result<Self> {
+    ) -> anyhow::Result<Self> {
         let oea_window = platform::window::get_app_window(app_handle)?;
         let foreground = platform::window::ForegroundGuard::new(oea_window);
         let (hotkey_rx, keyboard_hook) = platform::hotkey::listen()?;

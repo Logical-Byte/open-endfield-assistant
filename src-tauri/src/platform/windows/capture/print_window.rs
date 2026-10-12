@@ -5,7 +5,7 @@ use ::windows::Win32::Graphics::Gdi::{
 };
 use ::windows::Win32::Storage::Xps::{PRINT_WINDOW_FLAGS, PW_CLIENTONLY, PrintWindow};
 use ::windows::Win32::UI::WindowsAndMessaging::GetClientRect;
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, bail};
 use image::RgbaImage;
 use scopeguard::defer;
 
@@ -24,7 +24,7 @@ impl PrintWindowState {
         Self { hwnd: window.raw }
     }
 
-    pub(in crate::platform) fn screencap(&mut self) -> Result<RgbaImage> {
+    pub(in crate::platform) fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -126,7 +126,7 @@ impl PrintWindowState {
     pub(in crate::platform) fn screencap_region(
         &mut self,
         relative_region: Region2D<i32>,
-    ) -> Result<RgbaImage> {
+    ) -> anyhow::Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }

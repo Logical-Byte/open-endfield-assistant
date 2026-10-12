@@ -2,8 +2,6 @@
 
 use std::sync::mpsc;
 
-use anyhow::Result;
-
 #[cfg(target_os = "windows")]
 use super::windows;
 
@@ -33,7 +31,7 @@ pub struct KeyboardHookGuard {
 
 impl KeyboardHookGuard {
     /// 停止键盘消息泵并等待监听线程退出。
-    pub fn shutdown(self) -> Result<()> {
+    pub fn shutdown(self) -> anyhow::Result<()> {
         #[cfg(target_os = "windows")]
         {
             self.inner.shutdown()
@@ -50,7 +48,7 @@ impl KeyboardHookGuard {
 ///
 /// 自动重复在监听层过滤，返回端只收到首次按下与弹起事件。
 /// macOS 开发外壳返回一个不会产生事件的接收端。
-pub fn listen() -> Result<(mpsc::Receiver<KeyEvent>, KeyboardHookGuard)> {
+pub fn listen() -> anyhow::Result<(mpsc::Receiver<KeyEvent>, KeyboardHookGuard)> {
     #[cfg(target_os = "windows")]
     {
         let (rx, inner) = windows::hotkey::listen()?;

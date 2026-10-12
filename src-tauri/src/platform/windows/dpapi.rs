@@ -9,10 +9,9 @@ use ::windows::Win32::Security::Cryptography::{
     CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN, CryptProtectData, CryptUnprotectData,
 };
 use ::windows::core::PCWSTR;
-use anyhow::Result;
 
 /// 用 DPAPI（当前用户作用域）加密字节串，返回密文字节。
-pub(in crate::platform) fn encrypt(plain: &[u8]) -> Result<Vec<u8>> {
+pub(in crate::platform) fn encrypt(plain: &[u8]) -> anyhow::Result<Vec<u8>> {
     let input = CRYPT_INTEGER_BLOB {
         cbData: plain.len() as u32,
         pbData: plain.as_ptr() as *mut u8,
@@ -37,7 +36,7 @@ pub(in crate::platform) fn encrypt(plain: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// 解密密文字节串，返回明文字节串。换机器或切换用户时返回 `Err`。
-pub(in crate::platform) fn decrypt(data: &[u8]) -> Result<Vec<u8>> {
+pub(in crate::platform) fn decrypt(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     let input = CRYPT_INTEGER_BLOB {
         cbData: data.len() as u32,
         pbData: data.as_ptr() as *mut u8,

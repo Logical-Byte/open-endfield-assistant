@@ -1,7 +1,5 @@
 //! Windows 管理员权限接口。
 
-use anyhow::Result;
-
 #[cfg(target_os = "windows")]
 use super::windows;
 
@@ -22,7 +20,7 @@ pub fn is_elevated() -> bool {
 ///
 /// 返回 `Ok` 表示新进程已成功启动；用户取消 UAC 时返回 `Err`。
 /// macOS 开发外壳返回 unsupported error。
-pub fn restart_as_admin() -> Result<()> {
+pub fn restart_as_admin() -> anyhow::Result<()> {
     #[cfg(target_os = "windows")]
     {
         windows::admin::restart_as_admin()

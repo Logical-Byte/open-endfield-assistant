@@ -1,7 +1,5 @@
 //! 窗口平台接口。
 
-use anyhow::Result;
-
 use crate::utils::region::Region2D;
 
 use super::WindowHandle;
@@ -62,7 +60,7 @@ impl ForegroundGuard {
 }
 
 /// 获取 OEA 主窗口的原生窗口句柄；macOS 开发外壳返回空句柄。
-pub fn get_app_window(app_handle: &tauri::AppHandle) -> Result<WindowHandle> {
+pub fn get_app_window(app_handle: &tauri::AppHandle) -> anyhow::Result<WindowHandle> {
     #[cfg(target_os = "windows")]
     {
         windows::window::get_app_window(app_handle)
@@ -81,7 +79,10 @@ fn get_foreground_window() -> WindowHandle {
 }
 
 /// 按窗口类名和标题查找窗口；macOS 开发外壳返回 unsupported error。
-pub fn get_window_by_title(class_name: Option<&str>, title: Option<&str>) -> Result<WindowHandle> {
+pub fn get_window_by_title(
+    class_name: Option<&str>,
+    title: Option<&str>,
+) -> anyhow::Result<WindowHandle> {
     #[cfg(target_os = "windows")]
     {
         windows::window::get_window_by_title(class_name, title)
@@ -95,7 +96,7 @@ pub fn get_window_by_title(class_name: Option<&str>, title: Option<&str>) -> Res
 }
 
 /// 获取窗口客户区矩形；macOS 开发外壳返回 unsupported error。
-pub fn get_client_rect(window: WindowHandle) -> Result<Region2D<i32>> {
+pub fn get_client_rect(window: WindowHandle) -> anyhow::Result<Region2D<i32>> {
     #[cfg(target_os = "windows")]
     {
         windows::window::get_client_rect(window)
@@ -120,7 +121,7 @@ pub fn set_thread_dpi_awareness_context() {
 }
 
 /// 激活窗口并将其置于最前；macOS 开发外壳返回 unsupported error。
-pub fn ensure_foreground_and_topmost(window: WindowHandle) -> Result<()> {
+pub fn ensure_foreground_and_topmost(window: WindowHandle) -> anyhow::Result<()> {
     #[cfg(target_os = "windows")]
     {
         windows::window::ensure_foreground_and_topmost(window)
@@ -134,7 +135,7 @@ pub fn ensure_foreground_and_topmost(window: WindowHandle) -> Result<()> {
 }
 
 /// 窗口最小化时将其恢复；macOS 开发外壳返回 unsupported error。
-pub fn restore_window_if_minimized(window: WindowHandle) -> Result<()> {
+pub fn restore_window_if_minimized(window: WindowHandle) -> anyhow::Result<()> {
     #[cfg(target_os = "windows")]
     {
         windows::window::restore_window_if_minimized(window)
@@ -148,7 +149,7 @@ pub fn restore_window_if_minimized(window: WindowHandle) -> Result<()> {
 }
 
 /// 确保窗口客户区位于显示器可见范围内；macOS 开发外壳返回 unsupported error。
-pub fn ensure_window_on_screen(window: WindowHandle) -> Result<()> {
+pub fn ensure_window_on_screen(window: WindowHandle) -> anyhow::Result<()> {
     #[cfg(target_os = "windows")]
     {
         windows::window::ensure_window_on_screen(window)
@@ -162,15 +163,13 @@ pub fn ensure_window_on_screen(window: WindowHandle) -> Result<()> {
 }
 
 pub mod hdr {
-    use anyhow::Result;
-
     use super::WindowHandle;
 
     #[cfg(target_os = "windows")]
     use super::windows;
 
     /// 判断窗口所在显示器是否开启 HDR；macOS 开发外壳返回 unsupported error。
-    pub fn is_hdr_enabled_on_window_monitor(window: WindowHandle) -> Result<bool> {
+    pub fn is_hdr_enabled_on_window_monitor(window: WindowHandle) -> anyhow::Result<bool> {
         #[cfg(target_os = "windows")]
         {
             windows::window::hdr::is_hdr_enabled_on_window_monitor(window)

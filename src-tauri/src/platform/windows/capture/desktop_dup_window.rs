@@ -1,7 +1,7 @@
 use ::windows::Win32::Foundation::{HWND, RECT};
 use ::windows::Win32::Graphics::Gdi::ClientToScreen;
 use ::windows::Win32::UI::WindowsAndMessaging::GetClientRect;
-use anyhow::{Result, anyhow, bail};
+use anyhow::{anyhow, bail};
 use image::RgbaImage;
 
 use super::desktop_dup::DesktopDupScreencap;
@@ -23,7 +23,7 @@ impl DesktopDupWindowScreencap {
         }
     }
 
-    fn screencap(&mut self) -> Result<RgbaImage> {
+    fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -76,7 +76,7 @@ impl DesktopDupWindowScreencap {
     }
 
     /// 获取窗口客户区在屏幕上的位置（对应 C++ get_window_client_rect_screen）
-    fn get_window_client_rect_screen(&self) -> Result<RECT> {
+    fn get_window_client_rect_screen(&self) -> anyhow::Result<RECT> {
         let mut client_rect = RECT::default();
 
         // 获取窗口客户区（相对于窗口）
@@ -119,7 +119,7 @@ impl DesktopDupWindowScreencap {
 unsafe impl Send for DesktopDupWindowScreencap {}
 
 impl ScreencapBase for DesktopDupWindowScreencap {
-    fn screencap(&mut self) -> Result<RgbaImage> {
+    fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         self.screencap()
     }
 }

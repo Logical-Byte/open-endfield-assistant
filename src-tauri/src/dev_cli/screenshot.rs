@@ -1,11 +1,15 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, bail};
 use std::{
     fs::OpenOptions,
     io::Cursor,
     path::{Path, PathBuf},
 };
 
-pub(super) fn save(image: &image::RgbaImage, output: Option<&Path>, cwd: &Path) -> Result<PathBuf> {
+pub(super) fn save(
+    image: &image::RgbaImage,
+    output: Option<&Path>,
+    cwd: &Path,
+) -> anyhow::Result<PathBuf> {
     let path = output
         .map(|path| cwd.join(path))
         .unwrap_or_else(|| cwd.to_owned());
@@ -38,7 +42,7 @@ pub(super) fn save(image: &image::RgbaImage, output: Option<&Path>, cwd: &Path) 
     Ok(path)
 }
 
-fn write_png(image: &image::RgbaImage, path: &Path) -> Result<()> {
+fn write_png(image: &image::RgbaImage, path: &Path) -> anyhow::Result<()> {
     let mut png = Cursor::new(Vec::new());
     image
         .write_to(&mut png, image::ImageFormat::Png)

@@ -1,11 +1,13 @@
 use ::windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetForegroundWindow};
 use ::windows::core::PCWSTR;
-use anyhow::{Result, anyhow};
+use anyhow::anyhow;
 use tauri::Manager;
 
 use crate::platform::WindowHandle;
 
-pub(in crate::platform) fn get_app_window(app_handle: &tauri::AppHandle) -> Result<WindowHandle> {
+pub(in crate::platform) fn get_app_window(
+    app_handle: &tauri::AppHandle,
+) -> anyhow::Result<WindowHandle> {
     let window = app_handle
         .get_webview_window("main")
         .ok_or_else(|| anyhow!("未找到 OEA 主窗口"))?;
@@ -23,7 +25,7 @@ pub(in crate::platform) fn get_foreground_window() -> WindowHandle {
 pub(in crate::platform) fn get_window_by_title(
     class_name: Option<&str>,
     title: Option<&str>,
-) -> Result<WindowHandle> {
+) -> anyhow::Result<WindowHandle> {
     let class_wide = class_name.map(|s| {
         s.encode_utf16()
             .chain(std::iter::once(0))

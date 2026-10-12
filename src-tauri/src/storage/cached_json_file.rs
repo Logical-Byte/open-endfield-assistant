@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::platform;
@@ -28,7 +28,7 @@ where
     T: Serialize + DeserializeOwned,
 {
     /// 读取并反序列化现有文件。
-    pub(crate) fn at(path: PathBuf) -> Result<Self> {
+    pub(crate) fn at(path: PathBuf) -> anyhow::Result<Self> {
         let text = fs::read_to_string(&path)
             .with_context(|| format!("读取 JSON 文件失败 [{}]", path.display()))?;
         let initial = serde_json::from_str(&text)
@@ -60,7 +60,7 @@ where
     }
 
     /// 将新模型序列化并提交到文件，成功后发布新的内存快照。
-    pub(crate) fn replace(&self, next: T) -> Result<()> {
+    pub(crate) fn replace(&self, next: T) -> anyhow::Result<()> {
         let _writer = self
             .writer
             .lock()

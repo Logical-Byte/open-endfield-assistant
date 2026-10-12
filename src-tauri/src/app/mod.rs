@@ -11,7 +11,6 @@ mod tray;
 
 use std::sync::{Arc, Mutex};
 
-use anyhow::Result;
 use tauri::Manager;
 use tracing::{info, warn};
 
@@ -107,7 +106,7 @@ pub fn run() {
 }
 
 /// `setup` 主体：任何一步失败都会返回 `Err`，由 [`crash::report_fatal`] 统一兜底。
-fn setup_app(app: &mut tauri::App) -> Result<()> {
+fn setup_app(app: &mut tauri::App) -> anyhow::Result<()> {
     // 解析资源目录（`resources/models/logs`），不依赖运行时工作目录
     let app_paths = AppPaths::new().map_err(anyhow::Error::msg)?;
 

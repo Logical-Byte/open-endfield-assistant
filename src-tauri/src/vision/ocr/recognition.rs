@@ -3,7 +3,7 @@
 //! 缩放和解码规则参考 rapidocr-core 0.2.2（Apache-2.0）：
 //! https://github.com/White-NX/rapidocr-rs/blob/main/crates/rapidocr-core/src/rec.rs
 
-use anyhow::{Result, ensure};
+use anyhow::ensure;
 use image::RgbImage;
 
 use super::Recognition;
@@ -11,7 +11,7 @@ use super::Recognition;
 const HEIGHT: usize = 48;
 const MIN_WIDTH: usize = 320;
 
-pub(super) fn preprocess(image: &RgbImage) -> Result<([usize; 4], Vec<f32>)> {
+pub(super) fn preprocess(image: &RgbImage) -> anyhow::Result<([usize; 4], Vec<f32>)> {
     ensure!(
         image.width() > 0 && image.height() > 0,
         "OCR 输入图片尺寸不能为空"
