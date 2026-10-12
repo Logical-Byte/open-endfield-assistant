@@ -27,7 +27,7 @@ jobs:
             const title = run.display_title.match(/^Artifact size PR #(\d+) request (\d+)$/);
             if (!title || run.event !== 'workflow_dispatch'
               || run.head_branch !== context.payload.repository.default_branch
-              || run.path !== '.github/workflows/pr-artifact-size-build.yml') return;
+              || run.path?.split('@')[0] !== '.github/workflows/pr-artifact-size-build.yml') return;
             core.setOutput('pr', title[1]);
             core.setOutput('request_id', title[2]);
             if (context.payload.action === 'completed') {
