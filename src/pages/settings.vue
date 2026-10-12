@@ -85,6 +85,7 @@ async function manualCheckUpdate(): Promise<void> {
 
 /** 设置分类目录：`id` 同时用作滚动锚点。 */
 const sections = [
+  { id: 'language', icon: 'i-lucide-languages', title: '语言设置' },
   { id: 'interface', icon: 'i-lucide-layout-panel-left', title: '界面设置' },
   { id: 'sound', icon: 'i-lucide-headphones', title: '声音设置' },
   { id: 'update', icon: 'i-lucide-download', title: '更新设置' },
@@ -92,7 +93,7 @@ const sections = [
 ];
 
 /** 当前高亮的设置分类 id。 */
-const activeSectionId = ref<string>('interface');
+const activeSectionId = ref<string>('language');
 
 /** 点击目录触发程序化滚动期间，暂停滚动监听，避免平滑滚动途中高亮抖动。 */
 let isProgrammaticScroll = false;
@@ -201,6 +202,43 @@ const stopScrollToHash = router.afterEach((to) => {
           description="已保留当前编辑，应用仍使用最近一次成功保存的设置。"
           title="设置未保存"
         />
+        <SettingsCard id="language" class="scroll-mt-8" icon="i-lucide-languages" title="语言设置">
+          <SettingsItem
+            description="OEA 应用界面使用的语言"
+            icon="i-lucide-languages"
+            title="应用语言"
+          >
+            <div class="flex shrink-0 flex-wrap gap-2">
+              <UButton
+                :disabled="!draftSettings"
+                label="简体中文"
+                :variant="draftSettings?.uiLocale === 'zh-CN' ? 'solid' : 'outline'"
+                @click="editSettings({ uiLocale: 'zh-CN' })"
+              />
+            </div>
+          </SettingsItem>
+          <div>
+            <SettingsItem
+              description="设置为与终末地游戏中使用的语言一致。这会影响自动化任务的运行，也会影响 OEA 应用中显示的部分自动化结果。"
+              icon="i-lucide-gamepad-2"
+              title="游戏语言"
+            >
+              <UButton
+                class="shrink-0"
+                :disabled="!draftSettings"
+                label="简体中文"
+                variant="solid"
+              />
+            </SettingsItem>
+            <UAlert
+              class="mt-4"
+              color="warning"
+              description="开发中：目前仅支持简体中文"
+              icon="i-lucide-triangle-alert"
+              variant="subtle"
+            />
+          </div>
+        </SettingsCard>
         <SettingsCard
           id="interface"
           class="scroll-mt-8"

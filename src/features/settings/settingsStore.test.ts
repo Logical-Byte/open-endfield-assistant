@@ -7,6 +7,7 @@ type ReadySettingsState = Extract<SettingsState, { status: 'ready' }>;
 
 function createSettingsFixture(overrides: Partial<Settings> = {}): Settings {
   return {
+    uiLocale: 'en-US',
     majorVersion: 0,
     minorVersion: 0,
     minimizeToTray: false,

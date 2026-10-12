@@ -14,3 +14,5 @@ pub(super) mod sound;
 pub(super) mod update;
 pub(super) mod webview2;
 pub(super) mod window;
+
+pub(super) mod locale;
