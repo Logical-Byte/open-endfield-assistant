@@ -28,8 +28,8 @@ interface TauriConfig {
   version?: string;
 }
 
-// 项目根目录（本文件位于 <root>/scripts/ 下），不依赖运行时 cwd
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 项目根目录（本文件位于 <root>/scripts/release/ 下），不依赖运行时 cwd
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 // 读取 tauri.conf.json（版本与产品名的唯一事实来源）
 const tauriConfig = JSON.parse(

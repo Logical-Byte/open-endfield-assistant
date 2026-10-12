@@ -2,7 +2,7 @@
 
 ## 数据生成
 
-`pnpm makedata` 执行 [scripts/makeAllData.ts](../scripts/makeAllData.ts)，将游戏解包数据转换为 OEA 使用的档案数据。更新解包数据或修改生成脚本后，在仓库根目录运行：
+`pnpm makedata` 执行 [scripts/data/makeAllData.ts](../scripts/data/makeAllData.ts)，将游戏解包数据转换为 OEA 使用的档案数据。更新解包数据或修改生成脚本后，在仓库根目录运行：
 
 ```bash
 pnpm makedata

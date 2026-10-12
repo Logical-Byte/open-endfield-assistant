@@ -20,8 +20,8 @@ interface ModelFile {
   name: string;
 }
 
-// 项目根目录（本文件位于 <root>/scripts/ 下），不依赖运行时 cwd
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 项目根目录（本文件位于 <root>/scripts/dev/ 下），不依赖运行时 cwd
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const modelsDir = path.join(rootDir, 'resources', 'ocr-models');
 
 // 需要下载的模型（来自 ModelScope: RapidAI/RapidOCR）

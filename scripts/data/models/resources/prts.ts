@@ -17,7 +17,7 @@
  *
  * ## 数据来源
  *
- * 生成逻辑见 `scripts/tasks/makePrts.ts`：
+ * 生成逻辑见 `scripts/data/tasks/makePrts.ts`：
  * - 页面→分类、分类→一级条目的归属关系来自游戏数据表；
  * - 分类→页面没有显式字段，由该分类下 item 的 type 推断（取出现次数最多的）；
  * - 四个部分的 Record 写入顺序即前端展示顺序，统一按

@@ -1,6 +1,6 @@
 /**
  * 1280×720 PNG 截图脱敏，不需要额外依赖。
- * pnpm exec jiti scripts/redactScreenshot.ts input.png output.png
+ * pnpm exec jiti scripts/dev/redactScreenshot.ts input.png output.png
  * 协议终端额外参数：--rect 218,572,115,32 --rect 210,645,135,25
  * 使用 --help 查看全部选项。
  */
@@ -130,7 +130,7 @@ const { values, positionals } = parseArgs({
   },
 });
 if (values.help) {
-  console.log(`用法：pnpm exec jiti scripts/redactScreenshot.ts <input.png> <output.png> [选项]
+  console.log(`用法：pnpm exec jiti scripts/dev/redactScreenshot.ts <input.png> <output.png> [选项]
 默认用纯黑遮盖左下角 UID：68,696,132,20。
   --rect x,y,width,height  额外遮盖的矩形，可重复指定
   --no-uid                 不遮盖默认 UID 区域

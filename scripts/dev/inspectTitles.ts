@@ -1,7 +1,7 @@
 /**
  * 临时脚本：按分类列出 prts.json 的全部标题，并标记 OCR 纠错风险。
  *
- * 运行：pnpm exec jiti scripts/inspectTitles.ts
+ * 运行：pnpm exec jiti scripts/dev/inspectTitles.ts
  *
  * 输出：
  * - 控制台：每个分类的标题数 + 全部有风险的标题（含原因）

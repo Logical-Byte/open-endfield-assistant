@@ -8,7 +8,7 @@ import { defineConfig } from 'vite';
 import { createHtmlPlugin } from 'vite-plugin-html';
 import vueRouter from 'vue-router/vite';
 
-import { parseStrictSemver } from './scripts/semver';
+import { parseStrictSemver } from './scripts/release/semver';
 
 const host = process.env.TAURI_DEV_HOST;
 
