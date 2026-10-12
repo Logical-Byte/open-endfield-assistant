@@ -1,0 +1,130 @@
+name: PR artifact size control
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [synchronize, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: write
+
+# 所有修改同一条报告的任务使用相同的并发组。
+concurrency:
+  group: oea-size-comment-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  control:
+    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Handle command or mark the report outdated
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const reportMarker = '<!-- oea-artifact-size-report -->';
+            const outdatedMarker = '<!-- oea-size-outdated -->';
+            const repo = context.repo;
+            const number = context.payload.issue?.number ?? context.payload.pull_request.number;
+            const command = context.payload.comment?.body.trim() ?? '';
+            if (context.eventName === 'issue_comment'
+              && !/^\/ci-show-artifact-size(?:\s+--rebuild-base)?$/.test(command)) return;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...repo, issue_number: number, per_page: 100,
+            });
+            const report = comments.find(comment =>
+              comment.user?.login === 'github-actions[bot]' && comment.body?.startsWith(reportMarker));
+
+            if (context.eventName === 'pull_request_target') {
+              if (!report || report.body.includes(outdatedMarker)) return;
+              const encoded = report.body.match(/<!-- oea-size-request ([A-Za-z0-9+/=]+) -->/)?.[1];
+              if (!encoded) return;
+              const request = JSON.parse(Buffer.from(encoded, 'base64').toString());
+              const { data: current } = await github.rest.pulls.get({ ...repo, pull_number: number });
+              // 晚到的 push 事件不能把已针对新提交发起的请求标为过期。
+              if (current.state === 'open' && current.head.sha === request.headSha) return;
+              const body = report.body.replace(
+                /^\*\*Status: (working|completed|failed|outdated)\*\*$/m,
+                '**Status: outdated**',
+              ) + '\n\n' + outdatedMarker + '\n\n' +
+                'This report is outdated. Comment `/ci-show-artifact-size` on an open PR to update it.';
+              await github.rest.issues.updateComment({ ...repo, comment_id: report.id, body });
+              return;
+            }
+
+            const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+              ...repo, username: context.payload.comment.user.login,
+            });
+            if (!['write', 'maintain', 'admin'].includes(permission.permission)) {
+              core.notice('Only repository writers can request a package size report.');
+              return;
+            }
+            const previous = report?.body.match(/<!-- oea-size-request ([A-Za-z0-9+/=]+) -->/)?.[1];
+            if (previous) {
+              const latest = JSON.parse(Buffer.from(previous, 'base64').toString());
+              if (BigInt(latest.requestId) > BigInt(context.payload.comment.id)) return;
+            }
+            const { data: pr } = await github.rest.pulls.get({ ...repo, pull_number: number });
+            if (pr.state !== 'open') return;
+
+            let stable = null;
+            try {
+              const { data: release } = await github.rest.repos.getLatestRelease(repo);
+              const asset = release.assets.find(item =>
+                /^OEA-windows-x86_64-v.+\.zip$/.test(item.name));
+              if (asset) {
+                stable = {
+                  tag: release.tag_name, releaseUrl: release.html_url,
+                  assetId: asset.id, size: asset.size, updatedAt: asset.updated_at,
+                  digest: asset.digest ?? null, downloadUrl: asset.browser_download_url,
+                };
+              }
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            const request = {
+              pr: number, requestId: String(context.payload.comment.id),
+              headSha: pr.head.sha, headRepository: pr.head.repo.full_name,
+              baseSha: pr.base.sha, baseRef: pr.base.ref,
+              rebuildBase: command.endsWith('--rebuild-base'),
+              stable, requestedAt: new Date().toISOString(),
+            };
+            const encoded = Buffer.from(JSON.stringify(request)).toString('base64');
+            const root = `${context.serverUrl}/${repo.owner}/${repo.repo}`;
+            const escape = value => value.replace(/[\\`\[\]]/g, '\\$&');
+            const body = [
+              reportMarker,
+              `<!-- oea-size-request ${encoded} -->`,
+              '### Windows x86_64 portable ZIP size report',
+              '', '**Status: working**', '',
+              `- **PR:** [\`${pr.head.sha.slice(0, 7)}\`](${context.serverUrl}/${request.headRepository}/commit/${pr.head.sha})`,
+              `- **Base:** [\`${escape(pr.base.ref)}@${pr.base.sha.slice(0, 7)}\`](${root}/commit/${pr.base.sha})`,
+              `- **Stable:** ${stable ? `[\`${escape(stable.tag)}\`](${stable.releaseUrl})` : 'N/A'}`,
+              '', 'The size report will appear here when the build completes.', '',
+              '<details>', '<summary>Build details and rerun commands</summary>', '',
+              `[Current workflow run](${root}/actions/workflows/pr-artifact-size-build.yml)`, '',
+              'The base is built only when measurements are missing or `--rebuild-base` is used.',
+              'The PR is built for every request. Cargo caches remain enabled.', '',
+              'Comment `/ci-show-artifact-size` to measure the latest PR commit.',
+              'Add `--rebuild-base` to rebuild and measure the base as well.', '', '</details>',
+            ].join('\n');
+            const { data: updated } = report
+              ? await github.rest.issues.updateComment({ ...repo, comment_id: report.id, body })
+              : await github.rest.issues.createComment({ ...repo, issue_number: number, body });
+            try {
+              await github.rest.actions.createWorkflowDispatch({
+                ...repo, workflow_id: 'pr-artifact-size-build.yml',
+                ref: context.payload.repository.default_branch,
+                inputs: { pr: String(number), request_id: request.requestId },
+              });
+            } catch (error) {
+              const failed = body.replace('**Status: working**', '**Status: failed**')
+                .replace('The size report will appear here when the build completes.',
+                  'The build could not be started. Check that the workflow is enabled on the default branch.');
+              await github.rest.issues.updateComment({ ...repo, comment_id: updated.id, body: failed });
+              throw error;
+            }
