@@ -11,14 +11,12 @@ const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
   ERROR: 4,
 };
 
-/** 日志等级过滤选项（显示该等级及以上）。 */
-export const levelOptions: { label: string; value: LogLevel }[] = [
-  { label: 'TRACE', value: 'TRACE' },
-  { label: 'DEBUG', value: 'DEBUG' },
-  { label: 'INFO', value: 'INFO' },
-  { label: 'WARN', value: 'WARN' },
-  { label: 'ERROR', value: 'ERROR' },
-] as const;
+export const levelOptions = (Object.keys(LOG_LEVEL_ORDER) as LogLevel[]).map(
+  (value: LogLevel): { value: LogLevel; label: string } => ({
+    value,
+    label: value,
+  }),
+);
 
 /** 界面当前过滤的日志等级（显示该等级及以上） */
 export const logLevelFilter = ref<LogLevel>('INFO');

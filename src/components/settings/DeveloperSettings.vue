@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
 import { nextTick, onBeforeUnmount, ref } from 'vue';
 
 import { developerSettingsEnabled as enabled } from '@/features/settings/developerSettings';
 
 import DeveloperSettingsBody from './DeveloperSettingsBody.vue';
 import SettingsCard from './SettingsCard.vue';
+
+const { t } = useAppI18n();
 
 const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
 
@@ -91,8 +94,8 @@ onBeforeUnmount(stopScrollCompensation);
           <div class="flex flex-1 items-center gap-3">
             <UIcon class="text-2xl text-primary" name="i-lucide-code-2" />
             <div class="flex-1">
-              <p class="font-medium">开发者选项</p>
-              <p class="text-sm text-dimmed">显示仅用于开发和故障排查的高级工具</p>
+              <p class="font-medium">{{ t('settings.developer.section') }}</p>
+              <p class="text-sm text-dimmed">{{ t('settings.developer.description') }}</p>
             </div>
           </div>
           <UButton
@@ -100,7 +103,7 @@ onBeforeUnmount(stopScrollCompensation);
             data-developer-toggle
             :disabled="toggleBusy"
             :icon="enabled ? 'i-lucide-eye-off' : 'i-lucide-lock-keyhole-open'"
-            :label="enabled ? '关闭开发者选项' : '开启开发者选项'"
+            :label="enabled ? t('settings.developer.close') : t('settings.developer.open')"
             size="sm"
             variant="soft"
             @click="toggleKeepingScrollAnchor"

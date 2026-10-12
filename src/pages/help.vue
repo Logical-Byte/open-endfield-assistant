@@ -1,37 +1,41 @@
 <script setup lang="ts">
+import { useAppI18n } from '@/shared/i18n';
+import { TranslationComponent } from 'i18next-vue';
 import type { AccordionItem } from '@nuxt/ui';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+
+const { t } = useAppI18n();
 
 /** 常见问题（含链接的条目通过自定义 slot 渲染）。 */
-const faqItems: AccordionItem[] = [
+const faqItems = computed<AccordionItem[]>(() => [
   {
-    label: '手机能用吗？',
+    label: t('help.faq.mobile.question'),
     slot: 'faq-mobile',
   },
   {
-    label: '识别结果不准确怎么办？',
+    label: t('help.faq.accuracy.question'),
     slot: 'faq-accuracy',
   },
   {
-    label: 'OEA 收费吗？',
+    label: t('help.faq.fee.question'),
     slot: 'faq-fee',
   },
   {
-    label: 'OEA 和 Mirror酱的关系是什么？',
+    label: t('help.faq.mirror.question'),
     slot: 'faq-mirror',
   },
-];
+]);
 
 /** 文档目录：`id` 同时用作滚动锚点。 */
-const sections = [
-  { id: 'getting-started', icon: 'i-lucide-rocket', title: '新手提示' },
-  { id: 'usage', icon: 'i-lucide-keyboard', title: '操作说明' },
-  { id: 'known-issues', icon: 'i-lucide-triangle-alert', title: '已知问题' },
-  { id: 'faq', icon: 'i-lucide-circle-help', title: '常见问题' },
-  { id: 'feedback', icon: 'i-lucide-message-circle', title: '反馈交流' },
-  { id: 'credits', icon: 'i-lucide-heart', title: '致谢' },
-  { id: 'disclaimer', icon: 'i-lucide-file-text', title: '说明' },
-];
+const sections = computed(() => [
+  { id: 'getting-started', icon: 'i-lucide-rocket', title: t('help.start.title') },
+  { id: 'usage', icon: 'i-lucide-keyboard', title: t('help.usage.title') },
+  { id: 'known-issues', icon: 'i-lucide-triangle-alert', title: t('help.issues.title') },
+  { id: 'faq', icon: 'i-lucide-circle-help', title: t('help.faq.title') },
+  { id: 'feedback', icon: 'i-lucide-message-circle', title: t('help.feedback.title') },
+  { id: 'credits', icon: 'i-lucide-heart', title: t('help.credits.title') },
+  { id: 'disclaimer', icon: 'i-lucide-file-text', title: t('help.disclaimer.title') },
+]);
 
 /** 当前高亮的文档分类 id。 */
 const activeSectionId = ref<string>('getting-started');
@@ -45,8 +49,8 @@ function updateActiveSection(): void {
     return;
   }
   const offset = 120;
-  let current = sections[0].id;
-  for (const section of sections) {
+  let current = sections.value[0].id;
+  for (const section of sections.value) {
     const el = document.getElementById(section.id);
     if (el !== null && el.getBoundingClientRect().top <= offset) {
       current = section.id;
@@ -94,6 +98,7 @@ onBeforeUnmount(() => {
               :color="activeSectionId === section.id ? 'primary' : 'neutral'"
               :icon="section.icon"
               :label="section.title"
+              :ui="{ label: 'overflow-visible text-start text-clip whitespace-normal' }"
               :variant="activeSectionId === section.id ? 'soft' : 'ghost'"
               @click="scrollToSection(section.id)"
             />
@@ -106,7 +111,7 @@ onBeforeUnmount(() => {
         <div class="flex flex-wrap gap-2">
           <UButton
             icon="i-lucide-globe"
-            label="OEA 官网"
+            :label="t('help.website')"
             rel="noopener noreferrer"
             target="_blank"
             to="https://ef.yituliu.cn/resources/oea"
@@ -114,14 +119,14 @@ onBeforeUnmount(() => {
           <UButton
             color="neutral"
             icon="i-simple-icons:github"
-            label="GitHub 仓库"
+            :label="t('help.repository')"
             rel="noopener noreferrer"
             target="_blank"
             to="https://github.com/Logical-Byte/open-endfield-assistant"
           />
           <UButton
             icon="i-simple-icons:qq"
-            label="反馈交流群：954628501"
+            :label="t('help.feedback.group')"
             rel="noopener noreferrer"
             target="_blank"
             to="https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms"
@@ -133,34 +138,62 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-rocket" />
-              <span class="font-semibold text-highlighted">新手提示</span>
+              <span class="font-semibold text-highlighted">{{ t('help.start.title') }}</span>
             </div>
           </template>
           <ol class="flex flex-col gap-4 text-lg leading-relaxed font-medium">
             <li class="flex items-baseline gap-3">
-              <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span>
-              <span>
-                打开终末地，调成 <strong class="text-primary">1280 × 720</strong>、<strong
-                  class="text-primary"
-                  >简体中文</strong
-                >
-              </span>
+              <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
+              ><span
+                ><TranslationComponent :translation="t('help.start.resolution')"
+                  ><template #resolution><strong class="text-primary">1280 × 720</strong></template
+                  ><template #language
+                    ><strong class="text-primary">{{
+                      t('settings.language.game.fixed')
+                    }}</strong></template
+                  ></TranslationComponent
+                ></span
+              >
             </li>
             <li class="flex items-baseline gap-3">
-              <span class="w-6 flex-none text-end text-primary tabular-nums">2.</span>
-              <span><strong class="text-primary">关闭 HDR</strong>，关闭性能监控软件</span>
+              <span class="w-6 flex-none text-end text-primary tabular-nums">2.</span
+              ><span
+                ><TranslationComponent :translation="t('help.start.hdr')"
+                  ><template #hdr
+                    ><strong class="text-primary">{{ t('help.hdr.disable') }}</strong></template
+                  ></TranslationComponent
+                ></span
+              >
             </li>
             <li class="flex items-baseline gap-3">
-              <span class="w-6 flex-none text-end text-primary tabular-nums">3.</span>
-              <span>终末地打开<strong class="text-primary">档案库界面</strong></span>
+              <span class="w-6 flex-none text-end text-primary tabular-nums">3.</span
+              ><span
+                ><TranslationComponent :translation="t('help.start.archive')"
+                  ><template #archive
+                    ><strong class="text-primary">{{ t('help.archive.main') }}</strong></template
+                  ></TranslationComponent
+                ></span
+              >
             </li>
             <li class="flex items-baseline gap-3">
-              <span class="w-6 flex-none text-end text-primary tabular-nums">4.</span>
-              <span>点击扫描结果栏的<strong class="text-primary">开始扫描</strong></span>
+              <span class="w-6 flex-none text-end text-primary tabular-nums">4.</span
+              ><span
+                ><TranslationComponent :translation="t('help.start.scan')"
+                  ><template #scan
+                    ><strong class="text-primary">{{ t('help.scan.start') }}</strong></template
+                  ></TranslationComponent
+                ></span
+              >
             </li>
             <li class="flex items-baseline gap-3">
-              <span class="w-6 flex-none text-end text-primary tabular-nums">5.</span>
-              <span>扫完点击全部档案栏的<strong class="text-primary">导出收集状态</strong></span>
+              <span class="w-6 flex-none text-end text-primary tabular-nums">5.</span
+              ><span
+                ><TranslationComponent :translation="t('help.start.export')"
+                  ><template #export
+                    ><strong class="text-primary">{{ t('help.export') }}</strong></template
+                  ></TranslationComponent
+                ></span
+              >
             </li>
           </ol>
         </UCard>
@@ -170,36 +203,63 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-keyboard" />
-              <span class="font-semibold text-highlighted">操作说明</span>
+              <span class="font-semibold text-highlighted">{{ t('help.usage.title') }}</span>
             </div>
           </template>
           <div class="space-y-6">
             <div>
-              <p class="mb-3 font-semibold text-highlighted">使用前准备</p>
+              <p class="mb-3 font-semibold text-highlighted">{{ t('help.usage.preparation') }}</p>
               <ul class="flex list-disc flex-col gap-3 ps-6 text-toned marker:text-toned">
                 <li>
-                  理论上支持任意 <strong class="text-primary">16:9</strong> 的分辨率。我们最建议使用
-                  <strong class="text-primary">1280 × 720</strong>、<strong class="text-primary"
-                    >窗口模式</strong
-                  >，这个分辨率可以兼顾准确性和性能。
+                  <TranslationComponent :translation="t('help.usage.resolution')"
+                    ><template #ratio><strong class="text-primary">16:9</strong></template
+                    ><template #resolution
+                      ><strong class="text-primary">1280 × 720</strong></template
+                    ><template #windowed
+                      ><strong class="text-primary">{{ t('help.windowed') }}</strong></template
+                    ></TranslationComponent
+                  >
                 </li>
                 <li>
-                  理论上目前支持从任意档案库界面、协议终端界面和大世界界面开始扫描，为了稳定性，建议始终从<strong
-                    class="text-primary"
-                    >档案库主界面</strong
-                  >开始扫描。
+                  <TranslationComponent :translation="t('help.usage.archive')"
+                    ><template #archive
+                      ><strong class="text-primary">{{ t('help.archive.main') }}</strong></template
+                    ></TranslationComponent
+                  >
                 </li>
-                <li>请将终末地的语言调成<strong class="text-primary">简体中文</strong>。</li>
                 <li>
-                  请<strong class="text-primary">关闭 HDR</strong>，关闭任何会遮挡终末地窗口的软件。
+                  <TranslationComponent :translation="t('help.usage.language')"
+                    ><template #language
+                      ><strong class="text-primary">{{
+                        t('settings.language.game.fixed')
+                      }}</strong></template
+                    ></TranslationComponent
+                  >
+                </li>
+                <li>
+                  <TranslationComponent :translation="t('help.usage.hdr')"
+                    ><template #hdr
+                      ><strong class="text-primary">{{ t('help.hdr.disable') }}</strong></template
+                    ></TranslationComponent
+                  >
                 </li>
               </ul>
             </div>
             <div>
-              <p class="mb-3 font-semibold text-highlighted">快捷键</p>
+              <p class="mb-3 font-semibold text-highlighted">{{ t('help.usage.shortcuts') }}</p>
               <ul class="flex list-disc flex-col gap-3 ps-6 text-toned marker:text-toned">
-                <li>按 <UKbd>'</UKbd>（引号键）开始扫描档案库；扫描过程中再次按下可停止</li>
-                <li>按 <UKbd>Alt</UKbd> + <UKbd>Delete</UKbd> 退出程序</li>
+                <li>
+                  <TranslationComponent :translation="t('help.shortcut.scan')"
+                    ><template #key><UKbd>'</UKbd></template></TranslationComponent
+                  >
+                </li>
+                <li>
+                  <TranslationComponent :translation="t('help.shortcut.quit')"
+                    ><template #keys
+                      ><span><UKbd>Alt</UKbd> + <UKbd>Delete</UKbd></span></template
+                    ></TranslationComponent
+                  >
+                </li>
               </ul>
             </div>
           </div>
@@ -210,13 +270,14 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-triangle-alert" />
-              <span class="font-semibold text-highlighted">已知问题</span>
+              <span class="font-semibold text-highlighted">{{ t('help.issues.title') }}</span>
             </div>
           </template>
           <ol class="list-disc space-y-3 text-toned">
             <li>
-              存在 2 个不同的档案，名称都为「挂在竹子上的字条」。OEA
-              目前无法区分二者，目前只要识别到其一就认为 2 个档案都已收集。
+              <TranslationComponent :translation="t('help.issues.sharedTitle')"
+                ><template #title><span>挂在竹子上的字条</span></template></TranslationComponent
+              >
             </li>
           </ol>
         </UCard>
@@ -226,46 +287,51 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-circle-help" />
-              <span class="font-semibold text-highlighted">常见问题</span>
+              <span class="font-semibold text-highlighted">{{ t('help.faq.title') }}</span>
             </div>
           </template>
           <UAccordion :items="faqItems" :ui="{ trigger: 'text-base' }">
             <template #faq-mobile>
-              <p class="pb-3.5 text-toned">不能。OEA 仅支持 Windows 10 / 11（x86_64）。</p>
+              <p class="pb-3.5 text-toned">{{ t('help.faq.mobile.answer') }}</p>
             </template>
             <template #faq-accuracy>
               <p class="pb-3.5 text-toned">
-                可以使用输入框进行人工纠错。建议将识别错误告知我们，以便改进识别算法。
+                {{ t('help.faq.accuracy.answer') }}
               </p>
             </template>
-            <template #faq-fee>
-              <p class="pb-3.5 text-toned">
-                OEA 开源且免费，不会以任何形式收取费用。如果您是通过付费方式获取的
-                OEA，您可能已经被不法商家欺骗，请立即告知我们。
-              </p>
-            </template>
-            <template #faq-mirror>
-              <p class="pb-3.5 text-toned">
-                <ULink
-                  class="text-primary hover:text-primary/75"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  to="https://mirrorchyan.com/"
-                  >Mirror酱</ULink
-                >
-                是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。
-                <br />
-                OEA 本身不收取任何费用，也提供免费的下载渠道，您可以前往
-                <ULink
-                  class="text-primary hover:text-primary/75"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
-                  >GitHub Release</ULink
-                >
-                免费下载和使用。
-              </p>
-            </template>
+            <template #faq-fee
+              ><p class="pb-3.5 text-toned">{{ t('help.faq.fee.answer') }}</p></template
+            >
+            <template #faq-mirror
+              ><div class="space-y-2 pb-3.5 text-toned">
+                <p>
+                  <TranslationComponent :translation="t('help.faq.mirror.service')"
+                    ><template #service
+                      ><ULink
+                        class="text-primary hover:text-primary/75"
+                        rel="noopener noreferrer"
+                        target="_blank"
+                        to="https://mirrorchyan.com/"
+                        >MirrorChyan</ULink
+                      ></template
+                    ></TranslationComponent
+                  >
+                </p>
+                <p>
+                  <TranslationComponent :translation="t('settings.update.mirror.free')"
+                    ><template #releases
+                      ><ULink
+                        class="text-primary hover:text-primary/75"
+                        rel="noopener noreferrer"
+                        target="_blank"
+                        to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
+                        >GitHub Releases</ULink
+                      ></template
+                    ></TranslationComponent
+                  >
+                </p>
+              </div></template
+            >
           </UAccordion>
         </UCard>
 
@@ -274,14 +340,14 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-message-circle" />
-              <span class="font-semibold text-highlighted">反馈交流</span>
+              <span class="font-semibold text-highlighted">{{ t('help.feedback.title') }}</span>
             </div>
           </template>
           <div class="flex flex-col gap-4">
             <div class="flex flex-wrap gap-2">
               <UButton
                 icon="i-simple-icons:qq"
-                label="反馈交流群：954628501"
+                :label="t('help.feedback.group')"
                 rel="noopener noreferrer"
                 target="_blank"
                 to="https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms"
@@ -289,15 +355,16 @@ onBeforeUnmount(() => {
               <UButton
                 color="neutral"
                 icon="i-simple-icons:github"
-                label="提交 GitHub Issue"
+                :label="t('help.feedback.issue')"
                 rel="noopener noreferrer"
                 target="_blank"
                 to="https://github.com/Logical-Byte/open-endfield-assistant/issues"
               />
             </div>
-            <p class="text-sm text-muted">
-              遇到问题或建议，欢迎反馈并附上应用目录下
-              <code>logs/</code> 中的日志文件，便于定位问题。
+            <p>
+              <TranslationComponent :translation="t('help.feedback.logs')"
+                ><template #directory><code>logs/</code></template></TranslationComponent
+              >
             </p>
           </div>
         </UCard>
@@ -307,7 +374,7 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-heart" />
-              <span class="font-semibold text-highlighted">致谢</span>
+              <span class="font-semibold text-highlighted">{{ t('help.credits.title') }}</span>
             </div>
           </template>
           <div class="flex flex-col items-start gap-1">
@@ -364,7 +431,7 @@ onBeforeUnmount(() => {
             <UButton
               class="px-0"
               color="primary"
-              label="RapidAI/RapidOCR 模型 (ModelScope)"
+              :label="t('help.credits.models')"
               rel="noopener noreferrer"
               target="_blank"
               to="https://www.modelscope.cn/models/RapidAI/RapidOCR"
@@ -409,23 +476,16 @@ onBeforeUnmount(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-file-text" />
-              <span class="font-semibold text-highlighted">说明</span>
+              <span class="font-semibold text-highlighted">{{ t('help.disclaimer.title') }}</span>
             </div>
           </template>
           <ol class="list-disc space-y-3 ps-6 text-toned marker:text-toned">
-            <li>
-              自动更新功能有删除硬盘上的文件的操作，请确保重要数据已备份再使用自动更新功能，避免误删重要文件。
-            </li>
-            <li>机器识别，可能存在错误。若发现错误，欢迎反馈。</li>
-            <li>
-              本工具按 “原样”、“包含全部错误” 和 “视可用性情况”
-              提供，作者不对可用性、准确性或使用效果做出任何承诺或保证。
-            </li>
-            <li>
-              使用者必须确保使用本工具符合相关法律法规与服务条款，禁止用于任何违法或侵权行为。
-            </li>
-            <li>使用者需承担因使用本工具产生的任何风险、损失或责任。</li>
-            <li>使用本工具即意味着您同意以上全部内容。</li>
+            <li>{{ t('help.disclaimer.updates') }}</li>
+            <li>{{ t('help.disclaimer.recognition') }}</li>
+            <li>{{ t('help.disclaimer.warranty') }}</li>
+            <li>{{ t('help.disclaimer.compliance') }}</li>
+            <li>{{ t('help.disclaimer.risk') }}</li>
+            <li>{{ t('help.disclaimer.acceptance') }}</li>
           </ol>
         </UCard>
       </UPageBody>

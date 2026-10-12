@@ -1,3 +1,5 @@
+import { t, type MessageKey } from '@/shared/i18n';
+import { useTranslatedToast } from '@/shared/i18n/toast';
 import type {
   DownloadProgress,
   DownloadState,
@@ -131,17 +133,17 @@ export const updateOperationBusy = computed<boolean>(
 );
 
 /** 安装阶段 → 用户可读文案。 */
-const INSTALL_STAGE_LABELS: Record<UpdateInstallStage, string> = {
-  preparing: '准备更新文件',
-  extracting: '解压更新包',
-  applying_incremental: '应用增量更新',
-  applying_full: '应用全量更新',
-  cleaning_up: '清理临时文件',
+const INSTALL_STAGE_LABELS: Record<UpdateInstallStage, MessageKey> = {
+  preparing: 'update.stage.preparing',
+  extracting: 'update.stage.extracting',
+  applying_incremental: 'update.stage.incremental',
+  applying_full: 'update.stage.full',
+  cleaning_up: 'update.stage.cleanup',
 };
 
 /** 安装阶段文案（供弹窗展示）。 */
 export function installStageLabel(stage: UpdateInstallStage): string {
-  return INSTALL_STAGE_LABELS[stage];
+  return t(INSTALL_STAGE_LABELS[stage]);
 }
 
 /** 用一次 IPC 替换完整后端状态投影。 */
@@ -183,7 +185,7 @@ export async function checkUpdate(): Promise<void> {
     updatePopoverOpen.value = true;
     writeUpdateLog(
       logError,
-      `更新前端：check_update 调用失败，显示检查错误: ${checkError.value.message}`,
+      `更新前端：check_update 调用失败，显示检查错误: ${JSON.stringify(error)}`,
     );
   } finally {
     await refreshUpdateStatus();
@@ -229,7 +231,11 @@ export async function startDownload(): Promise<void> {
       writeUpdateLog(logDebug, '更新前端：download_update 已确认取消');
     } else {
       downloadFailed.value = true;
-      handleDownloadFailure(error, '下载失败');
+      writeUpdateLog(logError, `更新前端：download_update 调用失败，显示下载错误: ${message}`);
+      useTranslatedToast().add({ icon: 'i-lucide-triangle-alert', color: 'error' }, () => ({
+        title: t('update.download.failed'),
+        description: message,
+      }));
     }
   } finally {
     await refreshUpdateStatus();
@@ -343,12 +349,10 @@ export async function startInstall(): Promise<InstallStartResult> {
   }
   if (automationStatus.value.state !== 'idle') {
     writeUpdateLog(logDebug, '更新前端：自动化任务运行中，安装请求留待任务结束后重试');
-    useToast().add({
-      title: '扫描任务运行中',
-      description: '扫描结束后将自动安装更新',
-      icon: 'i-lucide-info',
-      color: 'info',
-    });
+    useTranslatedToast().add({ icon: 'i-lucide-info', color: 'info' }, () => ({
+      title: t('update.install.taskRunning'),
+      description: t('update.install.afterTask'),
+    }));
     return 'skipped';
   }
 
@@ -457,15 +461,4 @@ function handleInstallFailure(error: unknown): void {
   installStatus.value = UpdateInstallStatus.Failed;
   installError.value = message;
   writeUpdateLog(logError, `更新前端：install_update 调用失败，显示安装错误: ${message}`);
-}
-
-function handleDownloadFailure(error: unknown, fallbackTitle: string): void {
-  const message = error instanceof Error ? error.message : String(error);
-  writeUpdateLog(logError, `更新前端：download_update 调用失败，显示下载错误: ${message}`);
-  useToast().add({
-    title: fallbackTitle,
-    description: message,
-    icon: 'i-lucide-triangle-alert',
-    color: 'error',
-  });
 }

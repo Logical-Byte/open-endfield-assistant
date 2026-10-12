@@ -1,3 +1,4 @@
+import { type MessageKey } from '@/shared/i18n';
 import type { AcquisitionMethod, ArchiveId, Category, Page } from '@/shared/types/archive';
 import type { ArchiveCatalog } from '@/features/gameData/archiveCatalog';
 import type { ScannedItemRecord } from './types/scannedItem';
@@ -9,7 +10,7 @@ export interface ArchiveDetails {
   readonly category: Category;
   readonly categoryLabel: string;
   readonly acquisitionMethod: AcquisitionMethod;
-  readonly acquisitionLabel: string;
+  readonly acquisitionLabel: MessageKey;
   readonly oemUrl: string;
   readonly intelUrl: string;
 }
@@ -29,12 +30,12 @@ export interface ArchiveScanView {
   readonly scans: readonly ScannedItemView[];
 }
 
-const acquisitionLabels: Record<AcquisitionMethod, string> = {
-  map: '地图拾取',
-  mission: '跟随任务',
-  auto: '自动解锁',
-  shop: '商店购买',
-  invstgt: '报告摘要',
+const acquisitionLabels: Record<AcquisitionMethod, MessageKey> = {
+  map: 'scan.acquisition.map',
+  mission: 'scan.acquisition.mission',
+  auto: 'scan.acquisition.auto',
+  shop: 'scan.acquisition.shop',
+  invstgt: 'scan.acquisition.invstgt',
 };
 
 /** 两种展示数据共享一次匹配计算，档案目录始终来自真实目录。 */

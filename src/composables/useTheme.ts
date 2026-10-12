@@ -1,3 +1,4 @@
+import { t, type MessageKey } from '@/shared/i18n';
 import { defaultTheme } from '@/features/appearance/defaultTheme';
 import {
   englishFontOptions,
@@ -65,48 +66,47 @@ function getColorCSSProperty(colorName: string, shade: number): string {
   }
 }
 
-/** Tailwind 颜色 id 对应的中文显示名。 */
-const COLOR_ZH_NAMES: Record<string, string> = {
-  red: '胭脂红',
-  orange: '丹霞橙',
-  amber: '琥珀黄',
-  yellow: '鎏金黄',
-  lime: '青柠绿',
-  green: '帽子绿',
-  emerald: '松石绿',
-  teal: '孔雀青',
-  cyan: '琉璃青',
-  sky: '星河蓝',
-  blue: '霜月蓝',
-  indigo: '星夜靛',
-  violet: '鸢尾紫',
-  purple: '霞光紫',
-  fuchsia: '丁香紫',
-  pink: '少女粉',
-  rose: '玫瑰红',
-  slate: '烟青灰',
-  gray: '钛金灰',
-  zinc: '铅华灰',
-  neutral: '珍珠灰',
-  stone: '暖石灰',
-  taupe: '亚麻褐',
-  mauve: '淡霞紫',
-  mist: '茶褐绿',
-  olive: '橄榄绿',
-  black: '玄墨黑',
-  white: '象牙白',
+/** 颜色选项只重算标签，颜色 ID 与 CSS 保持不变。 */
+const colorLabels: Record<string, MessageKey> = {
+  red: 'theme.color.red',
+  orange: 'theme.color.orange',
+  amber: 'theme.color.amber',
+  yellow: 'theme.color.yellow',
+  lime: 'theme.color.lime',
+  green: 'theme.color.green',
+  emerald: 'theme.color.emerald',
+  teal: 'theme.color.teal',
+  cyan: 'theme.color.cyan',
+  sky: 'theme.color.sky',
+  blue: 'theme.color.blue',
+  indigo: 'theme.color.indigo',
+  violet: 'theme.color.violet',
+  purple: 'theme.color.purple',
+  fuchsia: 'theme.color.fuchsia',
+  pink: 'theme.color.pink',
+  rose: 'theme.color.rose',
+  slate: 'theme.color.slate',
+  gray: 'theme.color.gray',
+  zinc: 'theme.color.zinc',
+  neutral: 'theme.color.neutral',
+  stone: 'theme.color.stone',
+  taupe: 'theme.color.taupe',
+  mauve: 'theme.color.mauve',
+  mist: 'theme.color.mist',
+  olive: 'theme.color.olive',
+  black: 'theme.color.black',
+  white: 'theme.color.white',
 };
-
-/** 返回颜色的中文显示名，未收录时回退到英文 id。 */
-function colorZhName(colorName: string): string {
-  return COLOR_ZH_NAMES[colorName] ?? colorName;
+function colorLabel(colorName: string): string {
+  const key = colorLabels[colorName];
+  return key ? t(key) : colorName;
 }
 
 function toColorEntry(colorName: string): ColorEntry {
   return {
     id: colorName,
-    lightLabel: colorZhName(colorName),
-    darkLabel: colorZhName(colorName),
+    lightLabel: colorLabel(colorName),
+    darkLabel: colorLabel(colorName),
     chipStyle: {
       // 优先使用 CSS 变量（尊重 @theme 覆盖），被 tree-shake 时 fallback 到具体值
       '--color-light': getColorCSSProperty(colorName, 500),
@@ -127,11 +127,11 @@ const neutralColorNames = [
   'mist',
   'olive',
 ];
-const primaryColors: ColorEntry[] = [
+const primaryColors = computed<ColorEntry[]>(() => [
   {
     id: 'grayscale',
-    lightLabel: colorZhName('black'),
-    darkLabel: colorZhName('white'),
+    lightLabel: colorLabel('black'),
+    darkLabel: colorLabel('white'),
     chipStyle: {
       '--color-light': 'black',
       '--color-dark': 'white',
@@ -141,58 +141,58 @@ const primaryColors: ColorEntry[] = [
     .filter((colorName) => !colorsToOmit.includes(colorName))
     .filter((colorName) => !neutralColorNames.includes(colorName))
     .map(toColorEntry),
-];
-const secondaryColors = [...primaryColors];
-const neutralColors = neutralColorNames.map(toColorEntry);
+]);
+const secondaryColors = computed(() => [...primaryColors.value]);
+const neutralColors = computed(() => neutralColorNames.map(toColorEntry));
 
-const radiuses: RadiusPreset[] = [
-  { value: 0, label: '无' },
-  { value: 0.125, label: '小' },
-  { value: 0.25, label: '中' },
-  { value: 0.375, label: '较大' },
-  { value: 0.5, label: '大' },
-];
+const radiuses = computed<RadiusPreset[]>(() => [
+  { value: 0, label: t('theme.radius.none') },
+  { value: 0.125, label: t('theme.radius.small') },
+  { value: 0.25, label: t('theme.radius.medium') },
+  { value: 0.375, label: t('theme.radius.larger') },
+  { value: 0.5, label: t('theme.radius.large') },
+]);
 
-const cornerShapePresets: CornerShapePreset[] = [
+const cornerShapePresets = computed<CornerShapePreset[]>(() => [
   {
-    label: '内凹',
+    label: t('theme.shape.notch'),
     value: '-infinity',
     cssValue: 'notch',
     coefficient: 0.46325137517610426,
   },
   {
-    label: '斜切',
+    label: t('theme.shape.bevel'),
     value: '0',
     cssValue: 'bevel',
     coefficient: 0.6551363775620336,
   },
   {
-    label: '标准',
+    label: t('theme.shape.round'),
     value: '1',
     cssValue: 'round',
     coefficient: 1,
   },
   {
-    label: '柔和',
+    label: t('theme.shape.soft'),
     value: 'log2(3)',
     cssValue: 'superellipse(log(3, 2))',
     coefficient: 1.3561800271129498,
   },
   {
-    label: '平滑',
+    label: t('theme.shape.smooth'),
     value: '2',
     cssValue: 'squircle',
     coefficient: 1.7150089225301701,
   },
-];
+]);
 
 const supportsCornerShape = CSS.supports('corner-shape: squircle');
 
 const colorModes = computed<{ label: string; value: 'light' | 'dark' | 'auto'; icon: string }[]>(
   () => [
-    { label: '浅色模式', value: 'light', icon: appConfig.ui.icons.light },
-    { label: '深色模式', value: 'dark', icon: appConfig.ui.icons.dark },
-    { label: '跟随系统', value: 'auto', icon: appConfig.ui.icons.system },
+    { label: t('theme.mode.light'), value: 'light', icon: appConfig.ui.icons.light },
+    { label: t('theme.mode.dark'), value: 'dark', icon: appConfig.ui.icons.dark },
+    { label: t('theme.mode.auto'), value: 'auto', icon: appConfig.ui.icons.system },
   ],
 );
 
@@ -235,7 +235,7 @@ const cornerShape = useStorage<string>('oea:theme.cornerShape', themeDefaults.co
 
 /** 当前选中的圆角形状 */
 const selectedCornerShape = computed<CornerShapePreset | undefined>(() =>
-  cornerShapePresets.find((p) => p.value === cornerShape.value),
+  cornerShapePresets.value.find((p) => p.value === cornerShape.value),
 );
 
 /** 当前选中圆角形状的补偿系数 */
@@ -429,6 +429,22 @@ function resetTheme() {
   monospaceFont.value = themeDefaults.monospaceFont;
 }
 
+const fontLabelKeys: Record<string, MessageKey> = {
+  'use-chinese': 'theme.font.useChinese',
+  'system-ui': 'theme.font.system',
+  'sans-serif': 'theme.font.browser',
+  monospace: 'theme.font.browser',
+};
+function localizedFonts(options: FontOption[]): FontOption[] {
+  return options.map((option) => ({
+    ...option,
+    label: fontLabelKeys[option.value] ? t(fontLabelKeys[option.value]) : option.label,
+  }));
+}
+const localizedEnglishFonts = computed(() => localizedFonts(englishFontOptions));
+const localizedChineseFonts = computed(() => localizedFonts(chineseFontOptions));
+const localizedMonospaceFonts = computed(() => localizedFonts(monospaceFontOptions));
+
 export function useTheme() {
   return {
     primaryColors,
@@ -437,9 +453,9 @@ export function useTheme() {
     radiuses,
     cornerShapePresets,
     supportsCornerShape,
-    englishFontOptions,
-    chineseFontOptions,
-    monospaceFontOptions,
+    englishFontOptions: localizedEnglishFonts,
+    chineseFontOptions: localizedChineseFonts,
+    monospaceFontOptions: localizedMonospaceFonts,
     colorModes,
     primary,
     secondary,
