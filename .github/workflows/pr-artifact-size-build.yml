@@ -535,3 +535,168 @@ jobs:
           path: ${{ runner.temp }}/oea-size-report/report.json
           if-no-files-found: error
           retention-days: 7
+
+  # 评论发布使用独立 runner 和 job 权限，不依赖跨 workflow 的完成事件。
+  publish:
+    needs: [build, collect]
+    if: ${{ always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    concurrency:
+      group: oea-size-comment-${{ inputs.pr }}
+      cancel-in-progress: false
+    steps:
+      - name: Download the validated measurements
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: oea-size-report
+          path: size-report
+
+      - name: Update the same report comment
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ inputs.pr }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          COLLECT_RESULT: ${{ needs.collect.result }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const repo = context.repo;
+            const number = Number(process.env.PR_NUMBER);
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...repo, issue_number: number, per_page: 100,
+            });
+            const reportMarker = '<!-- oea-artifact-size-report -->';
+            const outdatedMarker = '<!-- oea-size-outdated -->';
+            const report = comments.find(comment => comment.user?.login === 'github-actions[bot]'
+              && comment.body?.startsWith(reportMarker));
+            const encoded = report?.body.match(/<!-- oea-size-request ([A-Za-z0-9+/=]+) -->/)?.[1];
+            if (!encoded) return;
+            const request = JSON.parse(Buffer.from(encoded, 'base64').toString());
+            if (request.requestId !== process.env.REQUEST_ID || request.pr !== number) return;
+            const { data: pr } = await github.rest.pulls.get({ ...repo, pull_number: number });
+            if (pr.state !== 'open') return;
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              ...repo, run_id: context.runId,
+            });
+            if (run.run_attempt !== Number(process.env.GITHUB_RUN_ATTEMPT)) return;
+            const root = `${context.serverUrl}/${repo.owner}/${repo.repo}`;
+            const runUrl = `${root}/actions/runs/${run.id}`;
+            const isOutdated = pr.head.sha !== request.headSha || report.body.includes(outdatedMarker);
+            function markOutdated(body) {
+              const updated = body.replace(/^\*\*Status: (working|completed|failed|outdated)\*\*$/m,
+                '**Status: outdated**');
+              return updated.includes(outdatedMarker) ? updated : updated + '\n\n' + outdatedMarker +
+                '\n\nThis report is outdated. Comment `/ci-show-artifact-size` on an open PR to update it.';
+            }
+
+            let data = { pr: null, base: null, stable: null, notes: [] };
+            try {
+              const file = path.join(process.env.GITHUB_WORKSPACE, 'size-report', 'report.json');
+              if (fs.statSync(file).size > 65536) throw new Error('Oversized report.');
+              const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+              if (parsed.schemaVersion !== 1 || parsed.requestId !== request.requestId) {
+                throw new Error('Report request mismatch.');
+              }
+              // 只渲染数字和可信请求身份，artifact 中的文本不能变成评论或链接。
+              const fields = ['total', 'application', 'ocr', 'data', 'other', 'overhead'];
+              for (const name of ['pr', 'base', 'stable']) {
+                const item = parsed[name];
+                if (!item) continue;
+                for (const key of fields) {
+                  if (item.bytes?.[key] !== undefined
+                    && (!Number.isSafeInteger(item.bytes[key]) || item.bytes[key] < 0 || item.bytes[key] > 1e12)) {
+                    throw new Error('Invalid report sizes.');
+                  }
+                }
+                if (name !== 'stable') {
+                  if (!fields.every(key => Number.isSafeInteger(item.bytes?.[key]) && item.bytes[key] >= 0)
+                    || item.bytes.total <= 0
+                    || fields.slice(1).reduce((sum, key) => sum + item.bytes[key], 0) !== item.bytes.total) {
+                    throw new Error('Incomplete component measurements.');
+                  }
+                  const sha = name === 'pr' ? request.headSha : request.baseSha;
+                  const source = name === 'pr' ? request.headRepository : `${repo.owner}/${repo.repo}`;
+                  if (item.sourceSha !== sha || item.sourceRepository !== source || item.pr !== number
+                    || !/^\d+$/.test(String(item.runId)) || !Number.isFinite(Date.parse(item.measuredAt))) {
+                    throw new Error('Invalid report source.');
+                  }
+                }
+              }
+              if (parsed.pr && (parsed.pr.runId !== run.id || parsed.pr.runAttempt !== run.run_attempt)) {
+                throw new Error('PR measurements belong to another run.');
+              }
+              data = parsed;
+            } catch {
+              core.notice('No valid measurements artifact is available.');
+            }
+
+            const completed = Boolean(data.pr)
+              && process.env.BUILD_RESULT === 'success' && process.env.COLLECT_RESULT === 'success';
+            const escape = value => value.replace(/[\\`\[\]]/g, '\\$&');
+            const lines = [
+              reportMarker, `<!-- oea-size-request ${encoded} -->`,
+              '### Windows x86_64 portable ZIP size report', '',
+              `**Status: ${completed ? 'completed' : 'failed'}**`, '',
+              `- **PR:** [\`${request.headSha.slice(0, 7)}\`](${context.serverUrl}/${request.headRepository}/commit/${request.headSha})`,
+              `- **Base:** [\`${escape(request.baseRef)}@${request.baseSha.slice(0, 7)}\`](${root}/commit/${request.baseSha})`,
+              `- **Stable:** ${request.stable ? `[\`${escape(request.stable.tag)}\`](${request.stable.releaseUrl})` : 'N/A'}`, '',
+            ];
+            if (completed) {
+              const mib = bytes => Number.isSafeInteger(bytes) ? (bytes / 1024 / 1024).toFixed(2) : 'N/A';
+              function difference(current, baseline) {
+                if (!Number.isSafeInteger(current) || !Number.isSafeInteger(baseline)) return 'N/A';
+                const delta = current - baseline;
+                const sign = delta > 0 ? '+' : delta < 0 ? '-' : '';
+                const rate = baseline === 0 ? 'N/A' :
+                  `${sign}${Math.abs(delta / baseline * 100).toFixed(2)}%`;
+                return `${sign}${mib(Math.abs(delta))} (${rate})`;
+              }
+              lines.push('All sizes are in MiB. Component sizes are compressed sizes within the ZIP.',
+                'Changes compare the PR build with each baseline.', '',
+                '| Component | Stable | Base | PR | Change vs. stable | Change vs. base |',
+                '| --- | ---: | ---: | ---: | ---: | ---: |');
+              for (const [key, label] of [
+                ['total', '**Total ZIP**'], ['application', 'Application (includes frontend)'],
+                ['ocr', 'OCR models'], ['data', 'Data and templates'], ['other', 'Other files'],
+                ['overhead', 'ZIP overhead'],
+              ]) {
+                const current = data.pr.bytes[key];
+                const stable = data.stable?.bytes[key];
+                const base = data.base?.bytes[key];
+                lines.push(`| ${label} | ${mib(stable)} | ${mib(base)} | ${mib(current)} | ${difference(current, stable)} | ${difference(current, base)} |`);
+              }
+            } else {
+              lines.push('The CI run failed or was cancelled before a valid report could be completed.');
+            }
+            lines.push('', '<details>', '<summary>Build details and rerun commands</summary>', '', '**Data sources**', '');
+            if (data.pr) lines.push('- **PR:** Built for this request.');
+            if (data.base) {
+              lines.push(data.base.runId === run.id
+                ? '- **Base:** Built for this request.'
+                : `- **Base:** Reused cached measurements from ${new Date(data.base.measuredAt).toISOString()}.`);
+            } else {
+              lines.push('- **Base:** Measurements are unavailable. Check the base build steps.');
+            }
+            lines.push(data.stable
+              ? '- **Stable:** Measured from the published release ZIP; cached measurements are reused when available.'
+              : '- **Stable:** No matching release measurements are available.');
+            if (data.stable && data.stable.bytes.application === undefined) {
+              lines.push('- Stable component measurements are unavailable. Total size comes from release metadata.');
+            }
+            lines.push('', '**Links**', '', `[Current workflow run](${runUrl})`);
+            if (data.base && data.base.runId !== run.id) {
+              lines.push(`[Original base measurement](${root}/actions/runs/${data.base.runId})`);
+            }
+            lines.push('', '**Rerun**', '',
+              'Comment `/ci-show-artifact-size` to measure the latest PR commit.',
+              'Add `--rebuild-base` to rebuild and measure the base as well.', '', '</details>');
+            let body = lines.join('\n');
+            if (isOutdated) body = markOutdated(body);
+            await github.rest.issues.updateComment({ ...repo, comment_id: report.id, body });
