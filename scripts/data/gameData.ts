@@ -1,3 +1,8 @@
+/**
+ * 通用游戏数据模块，供需要完整数据表和多语言文本的脚本导入，不直接运行。
+ * 通过 readGameData 从 ENDFIELD_DATA_DIR 读取解包数据，导入时同步加载下方所有表及 14 种语言文本。
+ * 档案生成使用 archiveData 中的专用数据，不经过此模块。
+ */
 import * as fs from 'node:fs';
 import path from 'node:path';
 import type {

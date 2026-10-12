@@ -7,6 +7,7 @@
  * 已存在的文件会被跳过，可用 `--force` 强制重新下载。
  *
  * 执行方式: `pnpm download:models` 或 `pnpm download:models --force`
+ * 在仓库根目录运行，需要访问 ModelScope。--force 会重新下载并覆盖已有模型文件。
  */
 import { createWriteStream, existsSync, mkdirSync, renameSync } from 'node:fs';
 import path from 'node:path';
@@ -20,8 +21,8 @@ interface ModelFile {
   name: string;
 }
 
-// 项目根目录（本文件位于 <root>/scripts/ 下），不依赖运行时 cwd
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 项目根目录（本文件位于 <root>/scripts/dev/ 下），不依赖运行时 cwd
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const modelsDir = path.join(rootDir, 'resources', 'ocr-models');
 
 // 需要下载的模型（来自 ModelScope: RapidAI/RapidOCR）

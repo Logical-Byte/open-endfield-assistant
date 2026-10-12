@@ -1,3 +1,8 @@
+/**
+ * 解包数据读取模块，供数据生成任务导入，不直接运行。
+ * 导入时加载仓库根目录的 .env，并要求 ENDFIELD_DATA_DIR 指向 TableCfg 的父目录。
+ * 读取函数同步解析该目录下的 JSON，将数值 id 保留为原始 token 字符串以避免精度损失。
+ */
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';

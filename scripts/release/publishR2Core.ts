@@ -1,3 +1,8 @@
+/**
+ * R2 发布契约模块，供 publishR2 和测试导入，不直接运行。
+ * 定义对象路径、stable manifest、校验和版本更新规则，不执行文件读取或网络请求。
+ * 验证命令：pnpm test:r2-release。
+ */
 import { compareStrictSemver, parseStrictSemver } from './semver';
 
 export const R2_BUCKET = 'opendfieldmap-package';

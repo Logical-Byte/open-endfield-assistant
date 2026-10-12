@@ -1,7 +1,8 @@
 /**
  * 生成档案库数据（resources/data/prts.json）。
+ * 由统一入口 pnpm makedata 调用，返回数据对象，由入口写入文件，不直接运行本模块。
  *
- * ## 输入（由 scripts/gameData.ts 读取的游戏原始数据表）
+ * ## 输入（由 scripts/data/archiveData.ts 读取 ENDFIELD_DATA_DIR 下的原始数据表和 CN/EN 文本）
  * - `prtsPageTable`：页面定义（音像存档 / 见闻辑录 / 中枢档案）
  * - `prtsCategoryTable`：分类定义（藏品、电子档案、纸质记录……）
  * - `prtsFirstLvTable`：一级条目（分类 → 一级条目的从属）
@@ -9,7 +10,7 @@
  * - `richContentTable`：富文本内容（用于解析文档 / 文本条目的标题）
  *
  * ## 输出
- * `PrtsData`（类型见 scripts/models/resources/prts.ts）：四个部分，均为「以 id 为键、
+ * `PrtsData`（类型见 scripts/data/models/resources/prts.ts）：四个部分，均为「以 id 为键、
  * 写入顺序即展示顺序」的 Record，构成 页面 → 分类 → 一级条目 → 条目 的四级树。
  *
  * ## 关键逻辑

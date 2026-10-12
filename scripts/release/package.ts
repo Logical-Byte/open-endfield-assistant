@@ -8,6 +8,8 @@
  * 产物命名：`<productName>-windows-<arch>-v<version>.zip`，例如 `OEA-windows-x86_64-v0.1.0.zip`。
  *
  * 执行方式: `pnpm package`
+ * 在仓库根目录运行，命令先构建 release 主程序，再读取 resources/ 并组装安装包。
+ * 输出到 releases/，同版本的暂存目录与 zip 会被覆盖，暂存目录在打包后保留。
  */
 import {
   copyFileSync,
@@ -28,8 +30,8 @@ interface TauriConfig {
   version?: string;
 }
 
-// 项目根目录（本文件位于 <root>/scripts/ 下），不依赖运行时 cwd
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 项目根目录（本文件位于 <root>/scripts/release/ 下），不依赖运行时 cwd
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 // 读取 tauri.conf.json（版本与产品名的唯一事实来源）
 const tauriConfig = JSON.parse(

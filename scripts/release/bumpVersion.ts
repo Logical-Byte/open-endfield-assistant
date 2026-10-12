@@ -2,7 +2,7 @@
  * 版本号提升脚本：更新 `src-tauri/tauri.conf.json` 的 `version`，暂存提交并打 tag。
  *
  * `src-tauri/tauri.conf.json` 是版本号的唯一来源：
- * 前端编译期注入（`vite.config.ts`）、打包命名（`scripts/package.ts`）、
+ * 前端编译期注入（`vite.config.ts`）、打包命名（`scripts/release/package.ts`）、
  * release tag 校验（`.github/workflows/release.yml`）均以此文件为准，
  * 无需维护 `package.json` / `Cargo.toml` 的版本号。
  *
@@ -12,6 +12,7 @@
  * 用法:
  *   pnpm bump:version 0.2.0   # 直接指定新版本
  *   pnpm bump:version         # 交互式输入新版本
+ * 在仓库根目录运行。脚本会修改版本文件、创建本地 commit 和 tag，不会自动推送。
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -21,8 +22,8 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { parseStrictSemver } from './semver';
 
-// 项目根目录（本文件位于 <root>/scripts/ 下），不依赖运行时 cwd
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// 项目根目录（本文件位于 <root>/scripts/release/ 下），不依赖运行时 cwd
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 // 版本号的唯一来源
 const configPath = path.join(rootDir, 'src-tauri', 'tauri.conf.json');
