@@ -25,26 +25,6 @@ tauri build --no-bundle && jiti scripts/package.ts
 
 产物：`releases/OEA-windows-x86_64-v0.1.0.zip`。实际文件名中的版本号和架构取决于当前配置与构建环境；`releases/` 目录已 git 忽略。
 
-## PR 包体积报告（实验性）
-
-拥有仓库 write、maintain 或 admin 权限的成员，可以在打开的 PR 下新增评论：
-
-```text
-/ci-show-artifact-size
-```
-
-任务先处理 base branch，再打包 PR 当前提交。base 对应的统计缓存存在时跳过其构建，PR 每次请求都重新打包。两次构建保留可复用的 Cargo 产物，并使用 rust-cache 加速。
-
-需要重新测量 base 时使用：
-
-```text
-/ci-show-artifact-size --rebuild-base
-```
-
-英文报告更新同一条 bot 评论，比较 stable、base、PR 的最终 ZIP 和各类文件的压缩大小。stable 从实际 GitHub Release ZIP 统计，也缓存结果。报告状态为 `working`、`completed`、`failed` 或 `outdated`。后续 push 只标记过期，再次发送指令才重测。
-
-该入口需要相关 workflow 已合入默认分支并允许执行。MVP 的完整决策见 [PR 便携 ZIP 体积报告 Spec](ci-size-report.md)。
-
 ## 发版流程
 
 1. 拉取 `main` 分支。
