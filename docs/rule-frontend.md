@@ -36,6 +36,16 @@ pnpm check
 
 不符合此处约定的 Vue 与 Nuxt UI 编码风格的，在 PR 中应列出例外和原因。
 
+### 图标离线打包
+
+`vite.config.ts` 中的 Nuxt UI `icon.clientBundle.scan` 扫描 `src/**/*.{vue,ts}`，从本地安装的 `@iconify-json/*` 图标集中提取图标数据并打入前端 JS。Nuxt UI 默认图标也会自动打包。
+
+- 新增 Lucide 图标时，在 Vue 或 TS 中写完整名称，例如 `i-lucide-heart`。模板、三元表达式、对象映射和 toast 中的完整字符串都可被扫描，无需维护另一份图标清单。
+- 使用新图标集时，通过 `pnpm add -D @iconify-json/<collection>` 安装对应图标集。构建仅打包扫描到的图标及 Nuxt UI 默认图标。
+- 扫描不会执行代码。避免用字符串拼接生成图标名称，例如 `'i-lucide-' + name`。需要这种写法时，在 `icon.clientBundle.icons` 中显式列出所有可能名称，使用 `lucide:heart` 格式。
+- 图标定义放在 `src` 下的 Vue 或 TS 文件中。若迁移到其他目录或文件类型，同时调整 `scan.globInclude`。
+- 构建后清空浏览器存储并阻断外部资源，检查图标渲染。扫描发现但无法解析的名称可能被忽略，不能仅凭构建成功认定图标已打包。
+
 ## 界面文案
 
 - 禁止使用 `·` 做文案分隔符。这通常意味着罗列一串名词。使用单个名词，或者完整的句子。

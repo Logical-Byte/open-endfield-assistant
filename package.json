@@ -49,6 +49,9 @@
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
     "@aws-sdk/lib-storage": "^3.1121.0",
+    "@iconify-json/lucide": "^1.2.142",
+    "@iconify-json/mdi": "^1.2.3",
+    "@iconify-json/simple-icons": "^1.2.99",
     "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^26.1.2",
     "@types/yazl": "^3.3.1",

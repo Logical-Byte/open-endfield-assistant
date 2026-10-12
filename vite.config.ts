@@ -70,6 +70,12 @@ export default defineConfig(() => {
       }),
       vue(),
       ui({
+        icon: {
+          clientBundle: {
+            // 同时扫描 Vue 模板和 TS 中的完整图标名称（例如 toast、对象映射）。
+            scan: { globInclude: ['src/**/*.{vue,ts}'] },
+          },
+        },
         ui: {
           colors: {
             primary: 'pink',
