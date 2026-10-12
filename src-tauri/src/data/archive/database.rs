@@ -1,8 +1,9 @@
 use super::{
-    ArchiveEntry, ArchiveId, Catalog, Category, CategoryEntry, Page, PageEntry, source, title_index,
+    ArchiveEntry, ArchiveId, Catalog, Category, CategoryEntry, LocalizedText, Page, PageEntry,
+    source, title_index,
 };
 use crate::{app_paths::AppPaths, data::load_resource_json};
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, ensure};
 use std::collections::{HashMap, HashSet};
 
 /// 只读档案数据，拥有一份目录和派生索引。加载成功后不再修改。
@@ -16,7 +17,7 @@ pub struct Database {
 
 impl Database {
     /// 从上游资源加载，投影或关联错误使加载失败。
-    pub fn load(app_paths: &AppPaths) -> Result<Self> {
+    pub fn load(app_paths: &AppPaths) -> anyhow::Result<Self> {
         let prts = load_resource_json::<source::Prts>(app_paths, "data/prts.json")?;
         let contract =
             load_resource_json::<source::Contract>(app_paths, "data/archive_contract.json")?;
@@ -114,12 +115,25 @@ impl Database {
     }
 }
 
-fn project(prts: source::Prts, contract: source::Contract) -> Result<Catalog> {
+fn project(prts: source::Prts, contract: source::Contract) -> anyhow::Result<Catalog> {
     ensure!(
         contract.version == 1,
         "不支持的获取契约版本: {}",
         contract.version
     );
+    for (id, page) in &prts.pages {
+        validate_text(&page.name, &format!("page {id:?}"), "name")?;
+    }
+    for (id, category) in &prts.categories {
+        validate_text(&category.name, &format!("category {id:?}"), "name")?;
+    }
+    for (id, first_lv) in &prts.first_lv {
+        validate_text(&first_lv.name, &format!("firstLv {id:?}"), "name")?;
+    }
+    for (id, archive) in &prts.archives {
+        validate_text(&archive.name, &format!("archive {id}"), "name")?;
+        validate_text(&archive.title, &format!("archive {id}"), "title")?;
+    }
     let mut methods = HashMap::new();
     for (category, rows) in contract.categories {
         for row in rows {
@@ -241,6 +255,16 @@ fn project(prts: source::Prts, contract: source::Contract) -> Result<Catalog> {
     Ok(catalog)
 }
 
+fn validate_text(text: &LocalizedText, entity: &str, field: &str) -> anyhow::Result<()> {
+    for (locale, value) in [("zh-CN", &text.zh_cn), ("en-US", &text.en_us)] {
+        ensure!(
+            !value.trim().is_empty(),
+            "{locale} {entity}.{field} 译文为空白"
+        );
+    }
+    Ok(())
+}
+
 /// 候选的只读视图，目录位置和索引组织方式不向纠错模块暴露。
 #[derive(Clone, Copy)]
 pub(crate) struct Candidates<'a> {
@@ -277,7 +301,7 @@ mod tests {
         for archive in &catalog.archives {
             assert!(std::ptr::eq(db.archive(&archive.id).unwrap(), archive));
             assert!(db.category(archive.category).is_some());
-            let title = normalize(&archive.title);
+            let title = normalize(&archive.title.zh_cn);
             let candidates = db
                 .by_normalized_title(archive.category, &title)
                 .unwrap_or_else(|| panic!("档案缺少标题候选组: {}", archive.id));

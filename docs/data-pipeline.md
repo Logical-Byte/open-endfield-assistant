@@ -117,6 +117,10 @@ pub struct ExampleStatus {
 
 ### 序列化契约
 
+新增共享类型不使用 serde 的 `content`。
+
+Tagged union 生成 TypeScript 时可能丢失分支或字段的注释；需要保留的说明写在 Rust 类型顶部的文档注释中。
+
 注意整数类型的映射：ts-rs 默认把 `u64` 等类型生成为 `bigint`，而它们经 JSON 传输后在前端实际是普通数字，两种表示并不一致。可以用 `#[ts(type = "number")]` 之类的字段属性覆盖生成类型。选择哪种表示要结合业务取值范围、精度需求和序列化方式，并留意 JavaScript 的安全整数范围。
 
 ### TS 文件组织
