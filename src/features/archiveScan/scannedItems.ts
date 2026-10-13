@@ -27,7 +27,7 @@ export function clearScannedItems(): void {
   items.value = [];
 }
 
-/** 在扫描时所在的小分类内匹配标题，一次替换记录的纠错字段。 */
+/** 在扫描时所在的档案分类内匹配标题，一次替换记录的纠错字段。 */
 export function correctScannedItem(scannedItemId: ScannedItemId, title: string): void {
   const index = items.value.findIndex(
     (item: ScannedItemRecord): boolean => item.scannedItemId === scannedItemId,

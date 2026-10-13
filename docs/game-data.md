@@ -27,8 +27,8 @@ pnpm makedata
 
 ## 数据表与标题差异
 
-一级子分类：`PrtsPage.json`
-二级子分类：`PrtsCategory.json`
+档案页面数据：`PrtsPage.json`
+档案分类数据：`PrtsCategory.json`
 
 档案库子界面的档案标题和档案详情页面的档案标题不一致，以下列出差异
 

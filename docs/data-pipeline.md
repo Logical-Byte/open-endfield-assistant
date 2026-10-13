@@ -48,7 +48,7 @@ flowchart TB
     subgraph usage[业务用途]
         ocr("后端 OCR 匹配与纠错")
         view("前端结果展示")
-        correction("前端人工纠错与扫描关联")
+        correction("前端人工纠错与档案匹配")
         export("OEM 收集状态导出")
     end
 

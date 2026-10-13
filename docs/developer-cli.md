@@ -9,7 +9,7 @@ cargo run --features cli -- dev --help
 cargo run --features cli -- dev match-image --image screen.png --template template.png --region 100,50,320,180 --json
 ```
 
-在 Windows 仓库中调试窗口命令时，使用 debug 构建。应用从仓库根目录读取 OCR 模型和模板资源：
+在 Windows 仓库中调试窗口命令时，以下命令从仓库根目录读取 OCR 模型和模板资源。添加 `--release` 只改变 Cargo 优化等级，不改变资源来源：
 
 ```powershell
 cargo run --features cli -- dev connect --json
@@ -18,9 +18,9 @@ cargo run --features cli -- dev screenshot -o captures --crop 100,50,320,180 --j
 cargo run --features cli -- dev match --template candidate.png --region 100,50,320,180 --json
 ```
 
-`captures` 必须预先存在。release 构建从可执行文件所在目录读取资源。`cargo build --release --features cli` 仅编译程序，不复制资源。运行窗口命令前，需要按应用分发目录布局在可执行文件旁准备 `resources/ocr-models` 和 `resources/templates`。本地 `match-image` 使用显式文件路径，无需这些资源。
+`captures` 必须预先存在。`cargo build --release --features cli` 未启用 `tauri/custom-protocol`，仍使用工作区资源，且仅编译程序，不复制资源。资源根目录由应用形态决定，OEA release 使用可执行文件所在目录，分发时需要在程序旁准备 `resources/ocr-models` 和 `resources/templates`。本地 `match-image` 使用显式文件路径，无需这些资源。
 
-Windows 启用 `cli` 的 release 构建使用 Console subsystem。正式 release 不启用 `cli`，仍使用 GUI subsystem。启用 `cli` 后以普通模式启动 Tauri 时可能附带控制台。
+Windows 启用 `cli` 的构建使用 Console subsystem。未启用 `cli` 的 Cargo release profile 构建使用 GUI subsystem。此行为由 `cli` feature 和 `debug_assertions` 决定，独立于 OEA dev / OEA release 应用形态。启用 `cli` 后以普通模式启动 Tauri 时可能附带控制台。
 
 窗口命令在 Windows 中复用生产流程，需要真实游戏窗口和应用的 OCR 模型、模板资源。`connect` 会恢复最小化窗口并确保窗口位于屏幕内，不截图、不发送点击或按键。`navigate` 等待生产导航器完成目标状态或返回错误，没有额外 CLI timeout。macOS 和 Linux 的窗口命令返回 `platform_unsupported`。`match-image` 可跨平台运行，无需游戏或 OCR 模型。
 

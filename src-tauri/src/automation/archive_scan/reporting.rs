@@ -1,4 +1,4 @@
-//! 档案库扫描结果的数据结构与上报器。
+//! 档案扫描记录的数据结构与上报器。
 //!
 //! `ScannedItem` 是档案扫描的逐条产出。`super::Worker` 把应用层注入的
 //! [`EventSink`] 包装为 `ScanReporter`，工作流不依赖 Tauri 句柄。
@@ -14,7 +14,7 @@ use ts_rs::TS;
 
 use crate::automation::{Event, EventSink};
 
-/// 单份扫描的识别状态，不表示自动化任务本身是否成功。
+/// 单条扫描记录的识别状态，不表示自动化任务本身是否成功。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "archiveScan/")]
@@ -27,7 +27,7 @@ pub(crate) enum ScannedItemStatus {
     Failed,
 }
 
-/// 单份档案的扫描结果。
+/// 对单个档案详情页面进行一次识别产生的一条扫描记录。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "archiveScan/")]
@@ -37,9 +37,9 @@ pub(crate) struct ScannedItem {
     pub status: ScannedItemStatus,
     /// 识别时的具体游戏语言，人工纠正和 UI 语言变化保留此语境。
     pub game_locale: GameLocale,
-    /// 扫描时所在的档案库大类 id（pageType：multi_media / text / document）
+    /// 扫描时所在的档案页面 ID（`pageType`：`multi_media` / `text` / `document`）。
     pub found_in_page: archive::Page,
-    /// 扫描时所在的档案库小类 id（categoryId）
+    /// 扫描时所在的档案分类 ID（`categoryId`）。
     pub found_in_category: archive::Category,
     /// 档案详情页面截图（base64 PNG data URL，已缩小以控制事件体积）
     pub image: String,
@@ -47,7 +47,7 @@ pub(crate) struct ScannedItem {
     pub ocr_result: String,
     /// 纠错后的档案标题（无法识别时为 `None`）
     pub corrected_title: Option<String>,
-    /// 纠错命中的档案 id（allItems 的 id，当前小分类下同标题多条时返回全部）
+    /// 纠错命中的档案 ID（`allItems` 的 ID，当前档案分类下同标题档案有多个时返回全部）。
     pub corrected_match_item_ids: Vec<archive::ArchiveId>,
 }
 
@@ -75,7 +75,7 @@ fn encode_png_data_url(img: &RgbaImage) -> String {
     format!("data:image/png;base64,{}", STANDARD.encode(&buf))
 }
 
-/// 扫描结果上报器：扫描工作流 → 自动化事件观察出口。
+/// 扫描记录上报器：扫描工作流 → 自动化事件观察出口。
 ///
 /// `super::Worker` 创建 `ScanReporter` 并注入扫描工作流。
 /// 工作流只负责发布完整的领域结果，不关心观察者如何把事件传递给前端。
@@ -89,7 +89,7 @@ impl ScanReporter {
         Self { events }
     }
 
-    /// 上报一份扫描结果。
+    /// 上报一条扫描记录。
     pub(super) fn report(
         &self,
         found_in_page: archive::Page,

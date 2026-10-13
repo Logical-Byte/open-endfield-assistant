@@ -4,7 +4,7 @@ import type { ScannedItem } from './types/scannedItem';
 import { listen, type Event } from '@tauri-apps/api/event';
 
 /**
- * 监听后端扫描结果事件（扫描进度中每识别一份档案触发一次）。
+ * 监听后端扫描记录事件（扫描进度中每识别一个档案详情页面触发一次）。
  * 返回取消监听函数，组件卸载时应调用。
  */
 export async function onScannedItem(cb: (result: ScannedItem) => void): Promise<() => void> {

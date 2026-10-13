@@ -25,7 +25,7 @@ impl fmt::Display for ArchiveId {
     }
 }
 
-/// 档案库的大页面，与页面下的分类身份不同。
+/// 档案页面，与页面下的档案分类身份不同。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "archive/")]
@@ -38,7 +38,7 @@ pub enum Page {
     Document,
 }
 
-/// 档案所属的小分类，用于限定标题匹配范围。
+/// 档案所属的档案分类，用于限定标题匹配范围。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "archive/")]

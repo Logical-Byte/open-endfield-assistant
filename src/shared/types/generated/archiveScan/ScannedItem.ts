@@ -6,7 +6,7 @@ import type { GameLocale } from "../locale/GameLocale";
 import type { ScannedItemStatus } from "./ScannedItemStatus";
 
 /**
- * 单份档案的扫描结果。
+ * 对单个档案详情页面进行一次识别产生的一条扫描记录。
  */
 export type ScannedItem = { 
 /**
@@ -19,11 +19,11 @@ status: ScannedItemStatus,
  */
 gameLocale: GameLocale, 
 /**
- * 扫描时所在的档案库大类 id（pageType：multi_media / text / document）
+ * 扫描时所在的档案页面 ID（`pageType`：`multi_media` / `text` / `document`）。
  */
 foundInPage: Page, 
 /**
- * 扫描时所在的档案库小类 id（categoryId）
+ * 扫描时所在的档案分类 ID（`categoryId`）。
  */
 foundInCategory: Category, 
 /**
@@ -39,6 +39,6 @@ ocrResult: string,
  */
 correctedTitle: string | null, 
 /**
- * 纠错命中的档案 id（allItems 的 id，当前小分类下同标题多条时返回全部）
+ * 纠错命中的档案 ID（`allItems` 的 ID，当前档案分类下同标题档案有多个时返回全部）。
  */
 correctedMatchItemIds: Array<ArchiveId>, };

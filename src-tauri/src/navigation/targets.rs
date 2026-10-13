@@ -12,7 +12,7 @@ use crate::{
 const TEMPLATE_MATCH_THRESHOLD: f32 = 0.75;
 /// 档案库主界面、子界面和档案详情页面右上角关闭按钮的模板搜索区域。
 const ARCHIVE_CLOSE_ROI: Region2D<u32> = ltrb!(1180, 0, 1280, 100);
-/// 档案库子界面左下角分类水印的模板搜索区域。
+/// 档案库子界面左下角档案页面水印的模板搜索区域。
 const ARCHIVE_WATERMARK_ROI: Region2D<u32> = ltrb!(52, 482, 189, 618);
 
 /// 协议终端中档案库入口的模板搜索目标。
