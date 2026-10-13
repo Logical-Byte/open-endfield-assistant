@@ -113,7 +113,7 @@ pub fn get_webview_zoom(window: tauri::WebviewWindow) -> Result<f64, String> {
 
 /// 在系统文件管理器中打开日志目录（不存在时先创建）。
 ///
-/// 由于根目录为双模式动态路径（`dev`=项目根 / `release`=`exe` 目录），静态 `scope` 无法精确
+/// 由于根目录由应用形态决定（OEA dev=项目根 / OEA release=`exe` 目录），静态 `scope` 无法精确
 /// 表达，故不用前端 `openPath` + `scope` 方案，而用后端 Rust API `open_path`
 /// （直接调不经 `scope` 检查），`capabilities` 无需放通任何路径。
 #[tauri::command]

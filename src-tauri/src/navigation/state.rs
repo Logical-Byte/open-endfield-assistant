@@ -57,7 +57,7 @@ pub(crate) enum ArchiveState {
     Main,
     /// 档案详情页面
     Detail,
-    /// 音像存档、见闻辑录和中枢档案分类下的六个档案库子界面。
+    /// 三个档案页面下对应的六个档案分类子界面。
     Subscene(ArchiveSubscene),
 }
 
@@ -85,7 +85,7 @@ impl fmt::Display for ArchiveSubscene {
     }
 }
 
-/// 见闻辑录子界面的具体页面。
+/// 见闻辑录子界面对应的具体档案分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum RecordsPage {
     /// 见闻辑录 - 纸质记录
@@ -96,7 +96,7 @@ pub(crate) enum RecordsPage {
     Collection,
 }
 
-/// 中枢档案子界面的具体页面。
+/// 中枢档案子界面对应的具体档案分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum CentralPage {
     /// 中枢档案 - 中枢档案

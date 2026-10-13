@@ -97,7 +97,7 @@ fn execute_session(
     result
 }
 
-/// 移动鼠标、进入档案库主界面，然后按顺序扫描全部子分类。
+/// 移动鼠标、进入档案库主界面，然后按顺序扫描全部档案分类对应的子界面。
 fn scan_archives<C>(
     cx: &mut C,
     navigator: &Navigator,
@@ -130,7 +130,7 @@ where
     Ok(())
 }
 
-/// 从当前子分类进入详情，逐份扫描，完成后返回该子分类。
+/// 从当前档案分类对应的子界面进入档案详情页面，逐份扫描，完成后返回该子界面。
 fn scan_subscene<C>(
     cx: &mut C,
     navigator: &Navigator,
@@ -269,7 +269,7 @@ const SCAN_PLAN: &[ArchiveSubscene] = &[
     ArchiveSubscene::Central(CentralPage::Report),
 ];
 
-/// 子界面所属的档案库大类 ID（`pageType`：`multi_media` / `text` / `document`）。
+/// 子界面所属的档案页面 ID（`pageType`：`multi_media` / `text` / `document`）。
 fn page_type_of(subscene: ArchiveSubscene) -> archive::Page {
     match subscene {
         ArchiveSubscene::Media => archive::Page::MultiMedia,
@@ -278,7 +278,7 @@ fn page_type_of(subscene: ArchiveSubscene) -> archive::Page {
     }
 }
 
-/// 子界面所属的小类 ID（`categoryId`，与 `prts.json` 中 `allItems` 的
+/// 子界面所属的档案分类 ID（`categoryId`，与 `prts.json` 中 `allItems` 的
 /// `categoryId` 一致）。
 fn category_id_of(subscene: ArchiveSubscene) -> archive::Category {
     match subscene {

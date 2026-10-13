@@ -1,5 +1,9 @@
 查看并遵循 `AGENTS.local.md`（若存在）；冲突时以本文件为准。
 
+## 领域术语
+
+讨论领域概念、撰写 PR、注释或文档前，阅读 [术语表](docs/GLOSSARY.md) 中的相关定义，并优先使用其中确定的名称。词条格式与使用方式见 [领域术语约定](docs/agents/domain.md)。
+
 ## docs/ 文档索引
 
 - [setup.md](docs/setup.md)：环境要求、开发准备与本地调试

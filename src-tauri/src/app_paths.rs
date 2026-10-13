@@ -120,7 +120,7 @@ impl AppPaths {
         self.resources_dir().join("templates")
     }
 
-    /// 配置文件目录（`<root_dir>/config`）。
+    /// 设置文件目录（`<root_dir>/config`）。
     pub fn config_dir(&self) -> PathBuf {
         self.root_dir.join("config")
     }

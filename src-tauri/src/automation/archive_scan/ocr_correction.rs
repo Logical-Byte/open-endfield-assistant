@@ -58,7 +58,7 @@ struct ScoredGroup<'a> {
     score: f64,
 }
 
-/// 在指定子分类中把原始 OCR 文本纠正为档案标题与条目 ID。
+/// 在指定档案分类中把原始 OCR 文本纠正为档案标题与条目 ID。
 ///
 /// `ocr_text` 会先通过 `normalize` 转换为索引使用的形式。规范化结果为空时返回
 /// `None`。`overrides` 为 `None` 时等价于空列表；覆盖项中的 `observed_text` 使用同一
