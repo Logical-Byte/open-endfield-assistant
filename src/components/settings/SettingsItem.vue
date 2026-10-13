@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toValue, type ComputedRef } from 'vue';
 import SettingsControl from './SettingsControl.vue';
 import {
   settingsSkeletonClasses,
-  type SettingsControl as Control,
+  type SettingsItemDefinition,
   type SettingsItemState,
   type SettingsSkeleton,
 } from './settingsItem';
@@ -12,19 +12,28 @@ const {
   icon = undefined,
   title = undefined,
   description = undefined,
-  state = { status: 'ready' },
-  control = undefined,
+  item = undefined,
   skeleton = undefined,
 } = defineProps<{
+  /** 设置项图标，使用完整 Lucide 图标名。 */
   icon?: string;
+  /** 设置项标题，同时作为普通输入控件的 ARIA 标签。 */
   title?: string;
+  /** 简单说明文案。复合说明可使用 description 插槽。 */
   description?: string;
-  state?: SettingsItemState;
-  control?: Control;
+  /** 统一的控件与展示状态描述。省略时继续支持原有纯插槽内容。 */
+  item?: SettingsItemDefinition;
+  /** 覆盖按 item.kind 推导的加载骨架形状。 */
   skeleton?: SettingsSkeleton;
 }>();
 
-const skeletonClass = computed(() => settingsSkeletonClasses[skeleton ?? control?.kind ?? 'input']);
+// 在 computed 内读取描述中的 ref/getter，保持状态更新与语言切换响应式。
+const state: ComputedRef<SettingsItemState> = computed<SettingsItemState>(
+  () => toValue(item?.state) ?? { status: 'ready' },
+);
+const skeletonClass: ComputedRef<string> = computed<string>(
+  () => settingsSkeletonClasses[skeleton ?? item?.kind ?? 'input'],
+);
 </script>
 
 <template>
@@ -53,10 +62,10 @@ const skeletonClass = computed(() => settingsSkeletonClasses[skeleton ?? control
     />
     <slot v-else :disabled="state.status === 'disabled'">
       <SettingsControl
-        v-if="control"
+        v-if="item"
         :aria-label="title"
-        :control="control"
         :disabled="state.status === 'disabled'"
+        :item="item"
       />
     </slot>
   </div>

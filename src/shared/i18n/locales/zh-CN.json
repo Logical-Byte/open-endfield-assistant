@@ -416,17 +416,6 @@
       }
     }
   },
-  "settingsPrototype": {
-    "description": "使用真实设置 store 的内存演示。切换场景、编辑控件，并观察 draft 与 effective。不读取或保存用户设置。",
-    "initializeError": "加载失败",
-    "loading": "加载中",
-    "ready": "已就绪",
-    "saveFails": "模拟保存失败",
-    "snapshot": "实时状态",
-    "title": "声明式设置原型",
-    "unreadable": "CDK 不可读",
-    "unsupported": "浏览器不可用"
-  },
   "theme": {
     "change": "更改主题",
     "chineseFont": "中文字体",
