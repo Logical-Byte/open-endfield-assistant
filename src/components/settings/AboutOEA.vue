@@ -151,7 +151,7 @@ async function updateApplication(): Promise<void> {
     :title="t('settings.about.title')"
   >
     <template #body>
-      <div class="grid items-center gap-5 sm:grid-cols-[minmax(0,1fr)_auto]">
+      <div class="grid items-center gap-5 sm:grid-cols-[max-content_minmax(0,1fr)]">
         <div class="flex items-center gap-3">
           <img alt="OEA" class="size-12 shrink-0" :src="icon" />
           <div class="min-w-0">
