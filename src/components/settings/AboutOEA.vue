@@ -28,7 +28,13 @@ const currentVersion = computed<string>((): string =>
     ? t('settings.about.dev')
     : `v${appPresentation.version}`,
 );
-const links = computed(() => [
+interface AboutLink {
+  label: string;
+  icon: string;
+  to: string;
+}
+
+const links = computed<AboutLink[]>((): AboutLink[] => [
   {
     label: t('settings.about.website'),
     icon: 'i-lucide-globe',
@@ -154,7 +160,7 @@ async function updateApplication(): Promise<void> {
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2 sm:max-w-105 sm:justify-end">
+        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
           <UButton
             v-for="link in links"
             :key="link.to"
