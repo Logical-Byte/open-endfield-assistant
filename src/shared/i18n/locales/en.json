@@ -28,7 +28,7 @@
       "busy": "Another update operation is in progress. Try again later.",
       "cancelled": "The update operation was cancelled.",
       "checkFailed": "Could not check for updates. See the logs for details.",
-      "debugBuild": "Self-update is unavailable in development builds. Use a release build.",
+      "developmentBuild": "Updates are disabled in the OEA dev version. To test update behavior, use the OEA release version.",
       "downloadFailed": "Could not download the update. See the logs for details.",
       "failed": "The update operation failed. See the logs for details.",
       "fileAccess": "Could not read or write update files. Check disk space and file permissions.",
@@ -397,6 +397,7 @@
         "description": "Check the update service for available updates.",
         "title": "Check for updates manually"
       },
+      "developmentBuild": "Updates are disabled in the OEA dev version.",
       "mirror": {
         "free": "OEA is free and also provides free downloads. Download and use it for free from {releases}.",
         "service": "{service} is an independent third-party accelerated download service that requires a paid subscription."

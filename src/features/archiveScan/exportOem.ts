@@ -8,7 +8,7 @@ import { archiveCatalog } from '@/features/gameData/archiveCatalog';
 import { scannedItems } from '@/features/archiveScan/scannedItems';
 import { deriveArchiveCollection } from '@/features/archiveScan/collection';
 import { logDebug, logError, logInfo } from '@/features/log/ipc';
-import { oeaVersion } from '@/version';
+import { appVersion } from '@/app/build';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { gzipSync, strToU8 } from 'fflate';
 
@@ -30,7 +30,7 @@ function buildUploadData(): UploadData {
     majorVersion: 0,
     minorVersion: 0,
     data: {
-      oeaVersion,
+      oeaVersion: appVersion,
       prtsAllItems: {
         collected: collection.collectedIds,
         notCollected: collection.notCollectedIds,

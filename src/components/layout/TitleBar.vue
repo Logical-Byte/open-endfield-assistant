@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
 import { startDownload, updateCheckState } from '@/features/update/update';
-import { oeaVersion } from '@/version';
+import { appPresentation } from '@/app/presentation';
+import { AppVariant } from '@/app/build';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -73,7 +74,10 @@ onUnmounted(() => {
         {{ t('update.notice', { version: availableVersion }) }}
       </button>
       <span class="pointer-events-none font-ui text-xs text-toned">
-        OEA<span v-if="oeaVersion"> v{{ oeaVersion }}</span>
+        {{ appPresentation.name }}
+        <span v-if="appPresentation.variant === AppVariant.Release">
+          v{{ appPresentation.version }}
+        </span>
       </span>
     </div>
 

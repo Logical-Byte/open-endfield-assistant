@@ -13,7 +13,7 @@ import {
 } from '@/features/update/update';
 import { renderMarkdown } from '@/shared/markdown';
 import { updatePopoverOpen } from '@/features/update/updatePopover';
-import { oeaVersion } from '@/version';
+import { appVersion } from '@/app/build';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -153,7 +153,7 @@ function formatSpeed(bytesPerSecond: number): string {
             <p class="font-semibold">{{ t('update.check.available') }}</p>
           </div>
           <div class="flex items-center gap-1.5">
-            <UBadge color="neutral" variant="subtle">v{{ oeaVersion }}</UBadge>
+            <UBadge color="neutral" variant="subtle">v{{ appVersion }}</UBadge>
             <UIcon class="text-toned" name="i-lucide-arrow-right" />
             <UBadge color="primary" variant="subtle">{{
               updateCheckState.update.versionName

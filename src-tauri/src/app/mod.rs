@@ -20,7 +20,16 @@ use crate::{
 };
 
 use self::hooks::{crash, portable};
+use crate::app_variant::{self, AppVariant};
 use background_threads::BackgroundThreads;
+
+/// 原生窗口和托盘共用的产品名称。
+const fn variant_name() -> &'static str {
+    match app_variant::CURRENT {
+        AppVariant::Dev => "OEA dev",
+        AppVariant::Release => "OEA",
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -118,7 +127,9 @@ fn setup_app(app: &mut tauri::App) -> anyhow::Result<()> {
     let (logger_guard, log_rx) = logger::init(&app_paths.logs_dir());
 
     // 必须在应用初始化前完成更新。
-    update::install::initialize_at_startup(&app_paths)?;
+    if update::allow_variant_update() {
+        update::install::initialize_at_startup(&app_paths)?;
+    }
 
     // 开始应用初始化。
 

@@ -73,6 +73,7 @@ pub async fn check_update(
     controller: tauri::State<'_, Controller>,
     app: tauri::AppHandle,
 ) -> Result<UpdateAvailability, update::Error> {
+    update::ensure_enabled()?;
     let check_lease = manager.start_check().inspect_err(|check_error| {
         warn!(
             operation = "check",
@@ -153,6 +154,7 @@ pub async fn download_update(
     app: tauri::AppHandle,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
 ) -> Result<DownloadOutcome, update::Error> {
+    update::ensure_enabled()?;
     let download_lease = manager
         .start_update_download()
         .inspect_err(|download_error| {

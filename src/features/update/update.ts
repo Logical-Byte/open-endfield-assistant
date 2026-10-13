@@ -17,6 +17,7 @@ import { settingsState } from '@/features/settings/settings';
 import type { DraftSettings } from '@/features/settings/settingsStore';
 import { logDebug, logError, logWarn } from '@/features/log/ipc';
 import { updatePopoverOpen } from '@/features/update/updatePopover';
+import { updateCapabilities } from './variantPolicy';
 import {
   getUpdateStatus,
   requestUpdateCheck,
@@ -171,6 +172,7 @@ export async function refreshUpdateStatus(): Promise<void> {
 
 /** 执行一次检查更新（启动自动检查与设置页手动检查共用）。 */
 export async function checkUpdate(): Promise<void> {
+  if (!updateCapabilities.onlineUpdate) return;
   if (updateOperationBusy.value) {
     writeUpdateLog(
       logDebug,
@@ -280,6 +282,7 @@ export async function cancelDownload(): Promise<void> {
  * 待安装更新只存在于当前 Rust 进程，不从 WebView 存储恢复。
  */
 export async function initUpdateState(): Promise<void> {
+  if (!updateCapabilities.onlineUpdate && !updateCapabilities.localInstall) return;
   const startupUpdateResult = await consumeStartupUpdateResult();
   await refreshUpdateStatus();
   writeUpdateLog(

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RunOutcome, Status } from '@/features/automation/types';
 import type { Settings } from '@/features/settings/types/settings';
 import type { UpdateStatus } from '@/features/update/types/update';
+import { AppVariant } from '@/shared/types/app';
 
 const { invoke } = vi.hoisted(() => ({
   invoke: vi.fn<(command: string) => Promise<unknown>>(),
@@ -15,6 +16,10 @@ vi.mock('@tauri-apps/api/event', () => ({
     if (event === 'automation-status-changed') onAutomationStatus = callback;
     return () => {};
   },
+}));
+vi.mock('@/app/build', () => ({
+  AppVariant,
+  appVariant: AppVariant.Release,
 }));
 
 const updateInfo = { versionName: '1.3.0', releaseNote: 'notes' };

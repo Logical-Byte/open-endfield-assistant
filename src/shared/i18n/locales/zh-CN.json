@@ -28,7 +28,7 @@
       "busy": "已有更新操作正在进行，请稍后重试。",
       "cancelled": "更新操作已取消。",
       "checkFailed": "检查更新失败，请查看日志了解详情。",
-      "debugBuild": "开发构建无法执行真实自更新，请使用 release 构建。",
+      "developmentBuild": "OEA dev 版本已禁用更新。要验证更新行为，请使用 OEA release 版本。",
       "downloadFailed": "下载更新失败，请查看日志了解详情。",
       "failed": "更新操作失败，请查看日志了解详情。",
       "fileAccess": "无法读写更新文件，请检查磁盘空间和文件权限。",
@@ -392,6 +392,7 @@
         "description": "通过更新服务检查是否存在可用更新",
         "title": "手动检查更新"
       },
+      "developmentBuild": "OEA dev 版本已禁用更新。",
       "mirror": {
         "free": "OEA 本身不收取任何费用，也提供免费的下载渠道。您可以前往 {releases} 免费下载和使用。",
         "service": "{service} 是独立的第三方加速下载服务，需要付费使用。"

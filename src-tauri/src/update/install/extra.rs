@@ -19,6 +19,7 @@ pub fn developer_install_update(
     manager: tauri::State<'_, UpdateManager>,
     app: tauri::AppHandle,
 ) -> Result<bool, update::Error> {
+    update::ensure_enabled()?;
     let install_lease = manager
         .start_developer_install()
         .inspect_err(|install_error| {
@@ -62,13 +63,6 @@ pub fn developer_install_update(
 }
 
 fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, update::Error> {
-    if cfg!(debug_assertions) {
-        return Err(update::Error::failed(
-            Reason::DebugBuild,
-            anyhow::anyhow!("开发构建禁止执行真实自更新，请使用 release 构建验证"),
-        ));
-    }
-
     debug!(
         operation = "install",
         install_kind = "developer_package",
@@ -161,13 +155,6 @@ fn copy_to_new_file(source: &Path, target: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[cfg(debug_assertions)]
-    #[test]
-    fn developer_update_command_rejects_debug_build() {
-        let error = choose_and_stage_developer_package().unwrap_err();
-        assert_eq!(error.reason, Reason::DebugBuild);
-    }
 
     #[test]
     fn developer_package_is_staged_in_controlled_download_directory() {

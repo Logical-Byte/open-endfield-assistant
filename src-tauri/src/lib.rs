@@ -8,6 +8,7 @@ mod dev_cli;
 pub use dev_cli::run_dev_cli;
 
 pub mod app_paths;
+pub(crate) mod app_variant;
 pub mod automation;
 pub mod controller;
 pub mod data;

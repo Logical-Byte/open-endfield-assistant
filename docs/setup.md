@@ -50,6 +50,8 @@ pnpm download:models
 - 完整应用（Windows）：`pnpm tauri dev`，同时启动 Vite 开发服务器与 Tauri 窗口。
 - 仅前端：`pnpm dev`，无法调用后端命令（`invoke` 会失败），适合纯 UI 调试。
 
+OEA dev 与 OEA release 的资源和更新行为差异见[构建形态](build-variants.md)。
+
 macOS 开发外壳是可选的本地调试入口。初始化 `resources/` 子模块后，可直接运行 `pnpm tauri dev`。能力边界见[后端规范](rule-backend.md#编译检查与测试)。
 
 调试档案扫描页面时，可在「设置 → 开发者选项」中勾选「使用模拟扫描结果」，然后点击档案页的「开始模拟扫描」。模拟扫描无需游戏窗口，约 20 秒内以随机间隔报告示例结果，支持停止和重新开始。该开关重启应用后关闭。
