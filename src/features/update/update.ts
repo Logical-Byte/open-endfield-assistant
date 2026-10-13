@@ -29,7 +29,8 @@ import {
   developerInstallUpdate,
   type StartupUpdateResult,
 } from './ipc';
-import { computed, ref, shallowRef, watch } from 'vue';
+import { whenever } from '@vueuse/core';
+import { computed, ref, shallowRef } from 'vue';
 
 const EMPTY_DOWNLOAD_PROGRESS: DownloadProgress = {
   downloadedSize: 0,
@@ -116,6 +117,15 @@ export const downloadState = computed<DownloadState>(() => {
 
 /** 安装阶段状态。 */
 export const installStatus = ref<UpdateInstallStatus>(UpdateInstallStatus.Idle);
+/** 下载、任务结束和设置保存共同决定自动安装，只监听最终条件的变化。 */
+const canAutoInstall = computed<boolean>(
+  () =>
+    pendingUpdate.value !== null &&
+    currentEffectiveSettings()?.autoInstallUpdates === true &&
+    automationStatus.value.state === 'idle' &&
+    effectiveOperation.value === 'idle' &&
+    installStatus.value === UpdateInstallStatus.Idle,
+);
 /** 安装流程当前阶段（驱动弹窗进度文案）。 */
 export const installStage = ref<UpdateInstallStage | null>(null);
 /** 安装失败原因。 */
@@ -224,10 +234,8 @@ export async function startDownload(): Promise<void> {
   const onProgress = createDownloadProgressChannel((progress) => {
     downloadProgress.value = progress;
   });
-  let completed = false;
   try {
     const result = await downloadUpdate(onProgress);
-    completed = result.status === 'completed';
     writeUpdateLog(logDebug, `更新前端：download_update 调用完成（status=${result.status}）`);
   } catch (error) {
     const facts = normalizeBackendError(error, { operation: 'update', stage: 'download' });
@@ -242,10 +250,6 @@ export async function startDownload(): Promise<void> {
     await refreshUpdateStatus();
     requestedOperation.value = null;
     downloadCancelling.value = false;
-  }
-
-  if (completed) {
-    void tryAutoInstall();
   }
 }
 
@@ -290,16 +294,16 @@ export async function initUpdateState(): Promise<void> {
     showInstallModal.value = true;
   }
 
-  watch(automationStatus, (status) => {
-    if (status.state === 'idle') {
-      void tryAutoInstall();
-    }
-  });
+  whenever(
+    canAutoInstall,
+    () => {
+      void startInstall();
+    },
+    { immediate: true },
+  );
 
   if (pendingUpdate.value) {
-    if (currentEffectiveSettings()?.autoInstallUpdates === true) {
-      void tryAutoInstall();
-    } else {
+    if (currentEffectiveSettings()?.autoInstallUpdates !== true) {
       updatePopoverOpen.value = true;
     }
   } else {
@@ -315,25 +319,6 @@ async function consumeStartupUpdateResult(): Promise<StartupUpdateResult> {
     writeUpdateLog(logWarn, `更新前端：读取启动更新结果失败: ${String(error)}`);
     return 'no_transaction';
   }
-}
-
-/** 满足条件时自动开始安装：存在待安装更新、开启自动安装且扫描空闲。 */
-export async function tryAutoInstall(): Promise<void> {
-  const autoInstallEnabled = currentEffectiveSettings()?.autoInstallUpdates;
-  if (
-    pendingUpdate.value === null ||
-    effectiveOperation.value !== 'idle' ||
-    installStatus.value !== UpdateInstallStatus.Idle ||
-    autoInstallEnabled !== true ||
-    automationStatus.value.state !== 'idle'
-  ) {
-    writeUpdateLog(
-      logDebug,
-      `更新前端：跳过自动安装（pending=${pendingUpdate.value !== null}, effective=${effectiveOperation.value}, install=${installStatus.value}, enabled=${autoInstallEnabled ?? 'n/a'}, automating=${automationStatus.value.state !== 'idle'}）`,
-    );
-    return;
-  }
-  await startInstall();
 }
 
 /** 安装启动结果：命令已接受、流程被条件阻止，或安装失败。 */
