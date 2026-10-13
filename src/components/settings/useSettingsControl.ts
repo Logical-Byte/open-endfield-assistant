@@ -38,11 +38,11 @@ export interface SettingsControlView {
  * 也不调用字段工厂或业务 store。输入中间文本由 UInput 的 lazy 模式处理。
  */
 export function useSettingsControl(item: () => SettingsItemDefinition): SettingsControlView {
-  const value: ComputedRef<SettingsControlValue> = computed<SettingsControlValue>(() => {
+  const value: ComputedRef<SettingsControlValue> = computed((): SettingsControlValue => {
     const current: SettingsItemDefinition = item();
     return current.kind === 'button' ? undefined : current.read();
   });
-  const inputValue: WritableComputedRef<string> = computed<string>({
+  const inputValue: WritableComputedRef<string> = computed({
     get(): string {
       const current: SettingsItemDefinition = item();
       return current.kind === 'input' ? (current.read() ?? '') : '';
@@ -52,25 +52,25 @@ export function useSettingsControl(item: () => SettingsItemDefinition): Settings
       if (current.kind === 'input') current.write(next);
     },
   });
-  const items: ComputedRef<SettingsChoice[]> = computed<SettingsChoice[]>(() => {
+  const items: ComputedRef<SettingsChoice[]> = computed((): SettingsChoice[] => {
     const current: SettingsItemDefinition = item();
     return current.kind === 'select' || current.kind === 'choice-buttons'
       ? [...toValue(current.items)]
       : [];
   });
-  const placeholder: ComputedRef<string | undefined> = computed<string | undefined>(() => {
+  const placeholder: ComputedRef<string | undefined> = computed((): string | undefined => {
     const current: SettingsItemDefinition = item();
     return current.kind === 'input' ? toValue(current.placeholder) : undefined;
   });
-  const buttonLabel: ComputedRef<string | undefined> = computed<string | undefined>(() => {
+  const buttonLabel: ComputedRef<string | undefined> = computed((): string | undefined => {
     const current: SettingsItemDefinition = item();
     return current.kind === 'button' ? toValue(current.label) : undefined;
   });
-  const buttonDisabled: ComputedRef<boolean> = computed<boolean>(() => {
+  const buttonDisabled: ComputedRef<boolean> = computed((): boolean => {
     const current: SettingsItemDefinition = item();
     return current.kind === 'button' && !!toValue(current.disabled);
   });
-  const buttonLoading: ComputedRef<boolean> = computed<boolean>(() => {
+  const buttonLoading: ComputedRef<boolean> = computed((): boolean => {
     const current: SettingsItemDefinition = item();
     return current.kind === 'button' && !!toValue(current.loading);
   });

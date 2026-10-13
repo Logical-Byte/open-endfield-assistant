@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useTranslatedToast } from '@/shared/i18n/toast';
+import { useTranslatedToast, type ToastText } from '@/shared/i18n/toast';
 import { TranslationComponent } from 'i18next-vue';
 import { useAppI18n } from '@/shared/i18n';
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
@@ -29,7 +29,7 @@ import { uiScale } from '@/features/appearance/uiScale';
 import { updateCapabilities } from '@/features/update/variantPolicy';
 import { appVersion } from '@/app/build';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
 
 const { t, n } = useAppI18n();
 const route = useRoute();
@@ -38,61 +38,76 @@ const router = useRouter();
 /** 成功加载后供设置页读取的草稿、生效值与保存错误。 */
 type ReadySettingsState = Extract<SettingsState, { status: 'ready' }>;
 
-const readySettings = computed<ReadySettingsState | null>(() =>
+/** 设置分类目录的展示信息，与滚动锚点共用 id。 */
+interface SettingsSection {
+  /** 设置卡片的 DOM id，也是目录导航目标。 */
+  id: string;
+  /** 目录和卡片共用的完整图标名。 */
+  icon: string;
+  /** 随应用语言更新的分类标题。 */
+  title: string;
+}
+
+const readySettings = computed<ReadySettingsState | null>((): ReadySettingsState | null =>
   settingsState.value.status === 'ready' ? settingsState.value : null,
 );
 const draftSettings = computed<Readonly<DraftSettings> | null>(
-  () => readySettings.value?.draft ?? null,
+  (): Readonly<DraftSettings> | null => readySettings.value?.draft ?? null,
 );
-const settingsInitializing = computed<boolean>(() => settingsState.value.status === 'initializing');
+const settingsInitializing = computed<boolean>(
+  (): boolean => settingsState.value.status === 'initializing',
+);
 const settingsUnsupported = computed<boolean>(
-  () =>
+  (): boolean =>
     settingsState.value.status === 'unavailable' &&
     settingsState.value.reason.type === 'unsupported',
 );
-const settingsInitializeError = computed<Error | null>(() =>
+const settingsInitializeError = computed<Error | null>((): Error | null =>
   settingsState.value.status === 'unavailable' &&
   settingsState.value.reason.type === 'initialize-error'
     ? settingsState.value.reason.error
     : null,
 );
-const unavailableLabel = computed<string>(() =>
+const unavailableLabel = computed<string>((): string =>
   settingsUnsupported.value ? t('settings.unsupported.label') : t('settings.unavailable'),
 );
 const settingsCanCheckUpdate = computed<boolean>(
-  () => readySettings.value !== null || settingsInitializeError.value !== null,
+  (): boolean => readySettings.value !== null || settingsInitializeError.value !== null,
 );
 
 /** 手动检查更新。 */
 async function manualCheckUpdate(): Promise<void> {
   await checkUpdate();
   if (updateCheckState.value.status === 'upToDate') {
-    useTranslatedToast().add({ icon: 'i-lucide-check-circle', color: 'success' }, () => ({
-      title: t('update.check.upToDate'),
-      description: `v${appVersion}`,
-    }));
+    useTranslatedToast().add(
+      { icon: 'i-lucide-check-circle', color: 'success' },
+      (): ToastText => ({
+        title: t('update.check.upToDate'),
+        description: `v${appVersion}`,
+      }),
+    );
   }
 }
 
 /** 普通持久化字段共用加载与不可用规则，正常编辑保持自动保存。 */
-const persistedItemState = computed<SettingsItemState>(() => {
+const persistedItemState = computed<SettingsItemState>((): SettingsItemState => {
   if (settingsInitializing.value) return { status: 'loading' };
   return draftSettings.value
     ? { status: 'ready' }
     : { status: 'unavailable', label: unavailableLabel.value };
 });
 /** 语言按钮始终保留，设置尚未可用时禁用，不替换成 skeleton 或 badge。 */
-const languageItemState = computed<SettingsItemState>(() => ({
+const languageItemState = computed<SettingsItemState>((): SettingsItemState => ({
   status: draftSettings.value ? 'ready' : 'disabled',
 }));
 /** 缩放使用独立的本地状态，后端设置加载或加载失败时仍允许调整。 */
-const scaleItemState = computed<SettingsItemState>(() =>
+const scaleItemState = computed<SettingsItemState>((): SettingsItemState =>
   settingsUnsupported.value
     ? { status: 'unavailable', label: t('settings.unsupported.label'), variant: 'subtle' }
     : { status: 'ready' },
 );
 /** 初始化失败仍允许检查更新，初始化中显示 skeleton，浏览器模式不可用。 */
-const checkUpdateItemState = computed<SettingsItemState>(() => {
+const checkUpdateItemState = computed<SettingsItemState>((): SettingsItemState => {
   if (settingsInitializing.value) return { status: 'loading' };
   return settingsCanCheckUpdate.value
     ? { status: 'ready' }
@@ -100,7 +115,7 @@ const checkUpdateItemState = computed<SettingsItemState>(() => {
 });
 
 const fields: SettingsFields<DraftSettings> = useSettingsFields(draftSettings, editSettings, {
-  state: persistedItemState,
+  defaults: { state: persistedItemState },
 });
 
 // 语言：覆盖普通字段的展示状态，保留原有按钮样式。
@@ -168,7 +183,7 @@ const checkUpdateItem: ButtonSettingsItem = {
 };
 
 /** 设置分类目录：`id` 同时用作滚动锚点。 */
-const sections = computed(() => [
+const sections = computed<SettingsSection[]>((): SettingsSection[] => [
   { id: 'language', icon: 'i-lucide-languages', title: t('settings.language.section') },
   { id: 'interface', icon: 'i-lucide-layout-panel-left', title: t('settings.interface.section') },
   { id: 'sound', icon: 'i-lucide-headphones', title: t('settings.sound.section') },
@@ -203,7 +218,7 @@ function scrollToSection(id: string): void {
   activeSectionId.value = id;
   isProgrammaticScroll = true;
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  window.setTimeout(() => {
+  window.setTimeout((): void => {
     isProgrammaticScroll = false;
   }, 700);
 }
@@ -211,12 +226,12 @@ function scrollToSection(id: string): void {
 /** 支持从更新弹窗直接定位到更新设置，也支持在本页再次点击该入口。 */
 function scrollToHashSection(): void {
   const sectionId = route.hash.slice(1);
-  if (sections.value.some((section) => section.id === sectionId)) {
+  if (sections.value.some((section: SettingsSection): boolean => section.id === sectionId)) {
     scrollToSection(sectionId);
   }
 }
 
-onMounted(() => {
+onMounted((): void => {
   // `UMain` 渲染为 <main>，是实际滚动容器。
   document
     .querySelector('main')
@@ -224,13 +239,13 @@ onMounted(() => {
   void nextTick().then(scrollToHashSection);
 });
 
-onBeforeUnmount(() => {
+onBeforeUnmount((): void => {
   document.querySelector('main')?.removeEventListener('scroll', updateActiveSection);
   stopScrollToHash();
 });
 
 // 相同 hash 的重复导航也会经过 afterEach，滚离更新区域后仍可用齿轮重新定位。
-const stopScrollToHash = router.afterEach((to) => {
+const stopScrollToHash = router.afterEach((to: RouteLocationNormalized): void => {
   if (to.path === '/settings') {
     void nextTick().then(scrollToHashSection);
   }

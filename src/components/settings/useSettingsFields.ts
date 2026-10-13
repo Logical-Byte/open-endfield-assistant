@@ -16,6 +16,12 @@ type FieldKey<T, Value> = {
   [Key in keyof T]-?: T[Key] extends Value ? Key : never;
 }[keyof T];
 
+/** 字段工厂的配置，与各个字段的控件选项分开。 */
+export interface SettingsFieldsOptions {
+  /** 生成设置项的默认选项，逐项声明时可以覆盖。 */
+  defaults?: SettingsItemOptions;
+}
+
 /** 字段工厂的具名接口，返回具体设置项类型，便于 LSP 显示和跳转。 */
 export interface SettingsFields<T extends object> {
   /** 布尔字段。options 可覆盖工厂的默认展示状态。 */
@@ -43,18 +49,22 @@ export interface SettingsFields<T extends object> {
  *
  * source 接受 ref、getter 或对象。每次 read 都访问最新投影，描述中不缓存字段值。
  * edit 负责业务规范化、保存及生效时机，本 composable 不依赖任何业务 store。
- * defaults 为一组字段指定共同的展示状态，逐项 options 可以覆盖。state 保留 ref/getter，
+ * options.defaults 为一组字段指定共同的展示状态，逐项选项可以覆盖。state 保留 ref/getter，
  * 不在创建时求值。默认值和逐项选项在创建设置项时组合，其后响应式更新由 ref/getter 提供。
  *
  * @example
- * const fields: SettingsFields<DraftSettings> = useSettingsFields(draft, edit, { state });
+ * const fields: SettingsFields<DraftSettings> = useSettingsFields(draft, edit, {
+ *   defaults: { state },
+ * });
  * const trayItem: SwitchSettingsItem = fields.switch('minimizeToTray');
  */
 export function useSettingsFields<T extends object>(
   source: MaybeRefOrGetter<Readonly<T> | null>,
   edit: (patch: Partial<T>) => void,
-  defaults: SettingsItemOptions = {},
+  options: SettingsFieldsOptions = {},
 ): SettingsFields<T> {
+  const defaults: SettingsItemOptions = options.defaults ?? {};
+
   function read<Key extends keyof T>(key: Key): T[Key] | undefined {
     return toValue(source)?.[key];
   }

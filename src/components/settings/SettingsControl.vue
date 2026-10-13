@@ -23,7 +23,7 @@ const {
   updateSlider,
   updateChoice,
   blurOnEnter,
-} = useSettingsControl(() => props.item);
+} = useSettingsControl((): SettingsItemDefinition => props.item);
 </script>
 
 <template>

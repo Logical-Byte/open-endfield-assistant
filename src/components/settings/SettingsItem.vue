@@ -28,11 +28,11 @@ const {
 }>();
 
 // 在 computed 内读取描述中的 ref/getter，保持状态更新与语言切换响应式。
-const state: ComputedRef<SettingsItemState> = computed<SettingsItemState>(
-  () => toValue(item?.state) ?? { status: 'ready' },
+const state: ComputedRef<SettingsItemState> = computed(
+  (): SettingsItemState => toValue(item?.state) ?? { status: 'ready' },
 );
-const skeletonClass: ComputedRef<string> = computed<string>(
-  () => settingsSkeletonClasses[skeleton ?? item?.kind ?? 'input'],
+const skeletonClass: ComputedRef<string> = computed(
+  (): string => settingsSkeletonClasses[skeleton ?? item?.kind ?? 'input'],
 );
 </script>
 
