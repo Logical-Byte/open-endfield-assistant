@@ -5,15 +5,7 @@ import { useAppI18n } from '@/shared/i18n';
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import SettingsControl from '@/components/settings/SettingsControl.vue';
 import { useSettingsFields, type SettingsFields } from '@/components/settings/useSettingsFields';
-import type {
-  ButtonSettingsItem,
-  ChoiceButtonsSettingsItem,
-  InputSettingsItem,
-  SelectSettingsItem,
-  SettingsItemState,
-  SliderSettingsItem,
-  SwitchSettingsItem,
-} from '@/components/settings/settingsItem';
+import type { SettingsItemState } from '@/components/settings/settingsItem';
 import type { DraftSettings, SettingsState } from '@/features/settings/settingsStore';
 import {
   settingsSaveError,
@@ -117,70 +109,6 @@ const checkUpdateItemState = computed<SettingsItemState>((): SettingsItemState =
 const fields: SettingsFields<DraftSettings> = useSettingsFields(draftSettings, editSettings, {
   defaults: { state: persistedItemState },
 });
-
-// 语言：覆盖普通字段的展示状态，保留原有按钮样式。
-const applicationLanguageItem: ChoiceButtonsSettingsItem = fields.choices(
-  'uiLocale',
-  [
-    { value: 'zh-CN', label: '简体中文' },
-    { value: 'en-US', label: 'English' },
-  ],
-  { state: languageItemState },
-);
-const gameLanguageItem: ButtonSettingsItem = {
-  kind: 'button',
-  state: languageItemState,
-  label: '简体中文',
-  variant: 'solid',
-};
-
-// 界面：本地缩放直接连接自己的读写入口，其他项通过字段工厂生成。
-const interfaceScaleItem: SliderSettingsItem = {
-  kind: 'slider',
-  state: scaleItemState,
-  read: (): number => uiScale.value,
-  write: (value: number): void => {
-    uiScale.value = value;
-  },
-  min: 0.5,
-  max: 2,
-  step: 0.05,
-  marks: [0.5, 1, 1.5, 2],
-  tooltip: true,
-  formatValue: (value: number): string => n(value, 'percent'),
-};
-const minimizeToTrayItem: SwitchSettingsItem = fields.switch('minimizeToTray');
-const scanGuideItem: SwitchSettingsItem = fields.switch('scanGuideEnabled');
-
-// 声音：仅声明编辑范围和显示格式，数值规范化继续由 settings store 处理。
-const soundVolumeItem: SliderSettingsItem = fields.slider('soundVolume', {
-  min: 0,
-  max: 1,
-  step: 0.05,
-  formatValue: (value: number): string => n(value, 'percent'),
-});
-
-// 更新：持久化字段复用默认状态，检查更新按钮独立声明可用性与忙碌状态。
-const updateSourceItem: SelectSettingsItem = fields.select('updateSource', updateSourceItems);
-const autoDownloadItem: SwitchSettingsItem = fields.switch('autoDownloadUpdates');
-const autoInstallItem: SwitchSettingsItem = fields.switch('autoInstallUpdates');
-const mirrorchyanCdkItem: InputSettingsItem = fields.input('mirrorchyanCdk', {
-  type: 'password',
-  placeholder: (): string => t('settings.update.cdk.placeholder'),
-});
-const updateProxyItem: SelectSettingsItem = fields.select('updateProxyMode', proxyModeItems);
-const updateProxyUrlItem: InputSettingsItem = fields.input('updateProxyUrl', {
-  placeholder: 'http://127.0.0.1:7890',
-});
-const checkUpdateItem: ButtonSettingsItem = {
-  kind: 'button',
-  state: checkUpdateItemState,
-  label: (): string => t('settings.update.check.button'),
-  icon: 'i-lucide-refresh-cw',
-  onClick: manualCheckUpdate,
-  disabled: (): boolean => updateOperationBusy.value,
-  loading: (): boolean => updateCheckState.value.status === 'checking',
-};
 
 /** 设置分类目录：`id` 同时用作滚动锚点。 */
 const sections = computed<SettingsSection[]>((): SettingsSection[] => [
@@ -311,14 +239,28 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized): void =>
           <SettingsItem
             :description="t('settings.language.application.description')"
             icon="i-lucide-languages"
-            :item="applicationLanguageItem"
+            :item="
+              fields.choices(
+                'uiLocale',
+                [
+                  { value: 'zh-CN', label: '简体中文' },
+                  { value: 'en-US', label: 'English' },
+                ],
+                { state: languageItemState },
+              )
+            "
             :title="t('settings.language.application.title')"
           />
           <div>
             <SettingsItem
               :description="t('settings.language.game.description')"
               icon="i-lucide-gamepad-2"
-              :item="gameLanguageItem"
+              :item="{
+                kind: 'button',
+                state: languageItemState,
+                label: '简体中文',
+                variant: 'solid',
+              }"
               :title="t('settings.language.game.title')"
             />
             <UAlert
@@ -339,19 +281,32 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized): void =>
           <SettingsItem
             :description="t('settings.interface.scale.description')"
             icon="i-lucide-zoom-in"
-            :item="interfaceScaleItem"
+            :item="{
+              kind: 'slider',
+              state: scaleItemState,
+              read: (): number => uiScale,
+              write: (value: number): void => {
+                uiScale = value;
+              },
+              min: 0.5,
+              max: 2,
+              step: 0.05,
+              marks: [0.5, 1, 1.5, 2],
+              tooltip: true,
+              formatValue: (value: number): string => n(value, 'percent'),
+            }"
             :title="t('settings.interface.scale.title')"
           />
           <SettingsItem
             :description="t('settings.interface.tray.description')"
             icon="i-lucide-panel-bottom-close"
-            :item="minimizeToTrayItem"
+            :item="fields.switch('minimizeToTray')"
             :title="t('settings.interface.tray.title')"
           />
           <SettingsItem
             :description="t('settings.interface.guide.description')"
             icon="i-lucide-circle-help"
-            :item="scanGuideItem"
+            :item="fields.switch('scanGuideEnabled')"
             :title="t('settings.interface.guide.title')"
           />
         </SettingsCard>
@@ -365,7 +320,14 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized): void =>
           <SettingsItem
             :description="t('settings.sound.volume.description')"
             icon="i-lucide-volume-2"
-            :item="soundVolumeItem"
+            :item="
+              fields.slider('soundVolume', {
+                min: 0,
+                max: 1,
+                step: 0.05,
+                formatValue: (value: number): string => n(value, 'percent'),
+              })
+            "
             :title="t('settings.sound.volume.title')"
           />
         </SettingsCard>
@@ -383,27 +345,32 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized): void =>
             <SettingsItem
               :description="t('settings.update.source.description')"
               icon="i-lucide-cloud-download"
-              :item="updateSourceItem"
+              :item="fields.select('updateSource', updateSourceItems)"
               :title="t('settings.update.source.title')"
             />
 
             <SettingsItem
               :description="t('settings.update.autoDownload.description')"
               icon="i-lucide-cloud-download"
-              :item="autoDownloadItem"
+              :item="fields.switch('autoDownloadUpdates')"
               :title="t('settings.update.autoDownload.title')"
             />
 
             <SettingsItem
               :description="t('settings.update.autoInstall.description')"
               icon="i-lucide-rocket"
-              :item="autoInstallItem"
+              :item="fields.switch('autoInstallUpdates')"
               :title="t('settings.update.autoInstall.title')"
             />
 
             <SettingsItem
               icon="i-lucide-key-round"
-              :item="mirrorchyanCdkItem"
+              :item="
+                fields.input('mirrorchyanCdk', {
+                  type: 'password',
+                  placeholder: (): string => t('settings.update.cdk.placeholder'),
+                })
+              "
               :title="t('settings.update.cdk.title')"
             >
               <template #description>
@@ -434,39 +401,43 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized): void =>
                   </p>
                 </div>
               </template>
-              <div class="flex flex-col items-center gap-1">
-                <SettingsControl
-                  :aria-label="t('settings.update.cdk.title')"
-                  :item="mirrorchyanCdkItem"
-                />
-                <template v-if="draftSettings?.mirrorchyanCdk === null">
-                  <p class="max-w-56 text-sm text-warning">
-                    {{ t('settings.update.cdk.unreadable') }}
-                  </p>
-                  <UButton
-                    color="neutral"
-                    :label="t('settings.update.cdk.clear')"
-                    variant="link"
-                    @click="mirrorchyanCdkItem.write('')"
+              <template #default="{ item: cdkItem, disabled }">
+                <div class="flex flex-col items-center gap-1">
+                  <SettingsControl
+                    :aria-label="t('settings.update.cdk.title')"
+                    :disabled="disabled"
+                    :item="cdkItem!"
                   />
-                </template>
-                <ULink
-                  class="text-sm text-primary hover:text-primary/75"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  to="https://mirrorchyan.com/?source=oea"
-                >
-                  <span class="flex items-center gap-1"
-                    >{{ t('settings.update.cdk.subscribe') }}<UIcon name="i-lucide-external-link"
-                  /></span>
-                </ULink>
-              </div>
+                  <template v-if="draftSettings?.mirrorchyanCdk === null">
+                    <p class="max-w-56 text-sm text-warning">
+                      {{ t('settings.update.cdk.unreadable') }}
+                    </p>
+                    <UButton
+                      color="neutral"
+                      :disabled="disabled"
+                      :label="t('settings.update.cdk.clear')"
+                      variant="link"
+                      @click="editSettings({ mirrorchyanCdk: '' })"
+                    />
+                  </template>
+                  <ULink
+                    class="text-sm text-primary hover:text-primary/75"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                    to="https://mirrorchyan.com/?source=oea"
+                  >
+                    <span class="flex items-center gap-1"
+                      >{{ t('settings.update.cdk.subscribe') }}<UIcon name="i-lucide-external-link"
+                    /></span>
+                  </ULink>
+                </div>
+              </template>
             </SettingsItem>
 
             <SettingsItem
               :description="t('settings.update.proxy.description')"
               icon="i-lucide-network"
-              :item="updateProxyItem"
+              :item="fields.select('updateProxyMode', proxyModeItems)"
               :title="t('settings.update.proxy.title')"
             />
 
@@ -474,13 +445,21 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized): void =>
               v-if="draftSettings?.updateProxyMode === 'custom'"
               :description="t('settings.update.proxyUrl.description')"
               icon="i-lucide-link"
-              :item="updateProxyUrlItem"
+              :item="fields.input('updateProxyUrl', { placeholder: 'http://127.0.0.1:7890' })"
               :title="t('settings.update.proxyUrl.title')"
             />
             <SettingsItem
               :description="t('settings.update.check.description')"
               icon="i-lucide-refresh-cw"
-              :item="checkUpdateItem"
+              :item="{
+                kind: 'button',
+                state: checkUpdateItemState,
+                label: (): string => t('settings.update.check.button'),
+                icon: 'i-lucide-refresh-cw',
+                onClick: manualCheckUpdate,
+                disabled: (): boolean => updateOperationBusy,
+                loading: (): boolean => updateCheckState.status === 'checking',
+              }"
               :title="t('settings.update.check.title')"
             />
           </template>

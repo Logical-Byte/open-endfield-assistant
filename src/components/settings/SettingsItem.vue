@@ -21,7 +21,7 @@ const {
   title?: string;
   /** 简单说明文案。复合说明可使用 description 插槽。 */
   description?: string;
-  /** 统一的控件与展示状态描述。省略时继续支持原有纯插槽内容。 */
+  /** 统一的控件与展示状态描述，默认插槽通过 item 复用它。省略时支持纯插槽内容。 */
   item?: SettingsItemDefinition;
   /** 覆盖按 item.kind 推导的加载骨架形状。 */
   skeleton?: SettingsSkeleton;
@@ -60,7 +60,7 @@ const skeletonClass: ComputedRef<string> = computed(
       :label="state.label"
       :variant="state.variant ?? 'soft'"
     />
-    <slot v-else :disabled="state.status === 'disabled'">
+    <slot v-else :disabled="state.status === 'disabled'" :item="item">
       <SettingsControl
         v-if="item"
         :aria-label="title"

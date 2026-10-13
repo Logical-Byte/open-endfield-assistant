@@ -24,6 +24,9 @@ const {
   updateChoice,
   blurOnEnter,
 } = useSettingsControl((): SettingsItemDefinition => props.item);
+
+// 保持 lazy 修饰符的引用稳定，避免内联 item 更新时 UInput 重渲染并清掉未提交的文本。
+const inputModelModifiers: { lazy: boolean } = { lazy: true };
 </script>
 
 <template>
@@ -65,10 +68,11 @@ const {
   />
   <UInput
     v-else-if="item.kind === 'input'"
-    v-model.lazy="inputValue"
+    v-model="inputValue"
     :aria-label="ariaLabel"
     class="w-56"
     :disabled="disabled"
+    :model-modifiers="inputModelModifiers"
     :placeholder="placeholder"
     :type="item.type"
     @keydown.enter="blurOnEnter"

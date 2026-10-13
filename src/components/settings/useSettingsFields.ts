@@ -51,6 +51,7 @@ export interface SettingsFields<T extends object> {
  * edit 负责业务规范化、保存及生效时机，本 composable 不依赖任何业务 store。
  * options.defaults 为一组字段指定共同的展示状态，逐项选项可以覆盖。state 保留 ref/getter，
  * 不在创建时求值。默认值和逐项选项在创建设置项时组合，其后响应式更新由 ref/getter 提供。
+ * 字段工厂只创建描述对象，不创建订阅，可直接在模板的 item prop 中调用。
  *
  * @example
  * const fields: SettingsFields<DraftSettings> = useSettingsFields(draft, edit, {
