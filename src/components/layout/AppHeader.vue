@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
-import { oeaVersion } from '@/version';
+import { appPresentation } from '@/app/presentation';
+import { AppVariant } from '@/app/build';
+import { updateCapabilities } from '@/features/update/variantPolicy';
 import { computed } from 'vue';
 import { NavigationMenuItem } from '@nuxt/ui';
 
@@ -60,8 +62,13 @@ const navigationMenuItems = computed<NavigationMenuItem[]>(() => [
     }"
   >
     <template #title>
-      <span>OEA</span
-      ><span v-if="oeaVersion" class="text-base font-medium text-muted"> v{{ oeaVersion }}</span>
+      <span>{{ appPresentation.name }}</span
+      ><span
+        v-if="appPresentation.variant === AppVariant.Release"
+        class="text-base font-medium text-muted"
+      >
+        v{{ appPresentation.version }}</span
+      >
     </template>
 
     <UNavigationMenu :items="navigationMenuItems" />
@@ -81,7 +88,7 @@ const navigationMenuItems = computed<NavigationMenuItem[]>(() => [
             variant="ghost"
           />
         </UTooltip>
-        <UpdatePopover />
+        <UpdatePopover v-if="updateCapabilities.onlineUpdate" />
         <ThemePicker />
         <UTooltip :text="t('theme.toggleMode')">
           <UColorModeButton />

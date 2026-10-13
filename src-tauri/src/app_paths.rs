@@ -4,9 +4,9 @@
 //! 避免代码依赖运行时的工作目录（cwd）。
 //!
 //! 定位策略（根目录下应有 `resources`、`logs` 等文件夹，OCR 模型位于 `resources/ocr-models/`）：
-//! - 开发期（debug 构建）：以 `CARGO_MANIFEST_DIR`（编译时指向 `src-tauri/`）的
+//! - OEA dev：以 `CARGO_MANIFEST_DIR`（编译时指向 `src-tauri/`）的
 //!   上一级作为项目根，再拼接各资源目录；
-//! - 打包期（release 构建）：以 exe 所在目录作为根目录（便携式分发，资源与 exe 同目录）。
+//! - OEA release：以 exe 所在目录作为根目录（便携式分发，资源与 exe 同目录）。
 //!
 //! 注意：不能用 `env!("CARGO_MANIFEST_DIR")` 直接当作运行时路径——它是编译期常量，
 //! 会把开发机路径（如 `D:\BioHazard\...`）烧进二进制，换机器后必然失效。
@@ -18,21 +18,18 @@ use std::{
 
 use anyhow::Context;
 
+use crate::app_variant::{self, AppVariant};
 use crate::utils::path::resolve_existing_relative_file;
 
-/// 在运行时确定应用根目录，按构建类型分发。
-///
-/// - debug 构建：`CARGO_MANIFEST_DIR`（编译期指向 `src-tauri/`）的上一级即项目根；
-/// - release 构建：`current_exe()` 所在目录即分发根目录。
+/// 应用形态决定资源来源，避免编译优化等级切换资源目录。
 fn get_root_dir() -> Result<PathBuf, String> {
-    if cfg!(debug_assertions) {
-        get_root_dir_for_dev()
-    } else {
-        get_root_dir_for_release()
+    match app_variant::CURRENT {
+        AppVariant::Dev => get_root_dir_for_dev(),
+        AppVariant::Release => get_root_dir_for_release(),
     }
 }
 
-/// 开发期（debug 构建）根目录：`CARGO_MANIFEST_DIR` 的上一级即项目根。
+/// OEA dev 根目录：`CARGO_MANIFEST_DIR` 的上一级即项目根。
 fn get_root_dir_for_dev() -> Result<PathBuf, String> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     manifest_dir
@@ -41,7 +38,7 @@ fn get_root_dir_for_dev() -> Result<PathBuf, String> {
         .map(Path::to_path_buf)
 }
 
-/// 打包期（release 构建）根目录：exe 所在目录即分发根目录。
+/// OEA release 根目录：exe 所在目录即分发根目录。
 fn get_root_dir_for_release() -> Result<PathBuf, String> {
     let exe_path = env::current_exe().map_err(|error| format!("无法获取当前 exe 路径: {error}"))?;
     exe_path
@@ -62,9 +59,8 @@ pub struct AppPaths {
 impl AppPaths {
     /// 解析应用根目录。
     ///
-    /// 根目录在运行时确定：
-    /// - debug 构建（`tauri dev` / `cargo run`）：`CARGO_MANIFEST_DIR` 的上一级 = 项目根；
-    /// - release 构建（`tauri build` / `cargo build --release`）：exe 所在目录。
+    /// - OEA dev：`CARGO_MANIFEST_DIR` 的上一级，即项目根目录。
+    /// - OEA release：当前可执行文件所在的分发目录。
     pub fn new() -> Result<Self, String> {
         get_root_dir()
             .map(Self::with_root_dir)
@@ -78,8 +74,7 @@ impl AppPaths {
     }
 
     /// 应用根目录。
-    /// - debug 构建（`tauri dev` / `cargo run`）：`CARGO_MANIFEST_DIR` 的上一级 = 项目根；
-    /// - release 构建（`tauri build` / `cargo build --release`）：exe 所在目录。
+    /// 由 `new()` 解析时，OEA dev 使用项目根目录，OEA release 使用可执行文件所在目录。
     pub fn root_dir(&self) -> &Path {
         &self.root_dir
     }

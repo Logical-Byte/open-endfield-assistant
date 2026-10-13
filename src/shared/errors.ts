@@ -103,7 +103,7 @@ function updateReason(value: unknown): value is UpdateErrorReason {
     case 'invalidMetadata':
     case 'integrity':
     case 'fileAccess':
-    case 'debugBuild':
+    case 'developmentBuild':
     case 'invalidPackage':
     case 'preparation':
     case 'helperStart':
@@ -261,8 +261,8 @@ function formatUpdateError(reason: UpdateErrorReason): string {
       return t('errors.update.integrity');
     case 'fileAccess':
       return t('errors.update.fileAccess');
-    case 'debugBuild':
-      return t('errors.update.debugBuild');
+    case 'developmentBuild':
+      return t('errors.update.developmentBuild');
     case 'invalidPackage':
       return t('errors.update.invalidPackage');
     case 'preparation':

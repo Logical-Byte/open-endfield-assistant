@@ -46,7 +46,7 @@ impl std::error::Error for Error {}
 /// - `packageUnavailable`：目标版本没有可用安装包，`version` 为该版本。
 /// - `integrity`：更新包完整性检查失败。
 /// - `fileAccess`：更新文件读写失败。
-/// - `debugBuild`：开发构建不支持此更新操作。
+/// - `developmentBuild`：OEA dev 不支持此更新操作。
 /// - `invalidPackage`：更新包结构或内容无效。
 /// - `preparation`：更新事务准备失败。
 /// - `helperStart`：无法启动更新辅助进程。
@@ -78,7 +78,7 @@ pub enum Reason {
     },
     Integrity,
     FileAccess,
-    DebugBuild,
+    DevelopmentBuild,
     InvalidPackage,
     Preparation,
     HelperStart,

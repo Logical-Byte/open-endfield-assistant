@@ -122,13 +122,14 @@ fn validate_download_package(paths: &AppPaths, package_path: &Path) -> Result<Pa
 
 /// 构造 `candidate`、原子发布 `transaction`、复制并启动 `helper`，然后请求当前 `v1` 退出。
 ///
-/// 这是普通自动更新唯一需要调用的安装接口。`debug` 构建禁止触碰项目根目录；集成测试应直接
+/// 这是普通自动更新唯一需要调用的安装接口。OEA dev 不执行真实安装；集成测试应直接
 /// 使用 `candidate`、`transaction` 与 `helper` 的语义接口，而非临时 `workspace` module 接口。
 #[tauri::command]
 pub fn install_update(
     manager: tauri::State<'_, UpdateManager>,
     app: tauri::AppHandle,
 ) -> Result<(), update::Error> {
+    update::ensure_enabled()?;
     let install_lease = manager.start_install().inspect_err(|install_error| {
         warn!(
             operation = "install",
@@ -159,13 +160,6 @@ pub fn install_update(
 /// 成功路径会在 helper 启动后调用 `app.exit(0)`，请求当前 v1 退出。末尾的 `Ok(())`
 /// 只用于满足 Tauri command 的返回类型；前端不应在它之后继续安装流程。
 fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<(), update::Error> {
-    if cfg!(debug_assertions) {
-        return Err(update::Error::failed(
-            Reason::DebugBuild,
-            anyhow::anyhow!("开发构建禁止执行真实自更新，请使用临时目录集成测试"),
-        ));
-    }
-
     emit_install_stage(&app, InstallStage::Preparing);
     let paths = AppPaths::new()?;
     let package_zip = validate_download_package(&paths, package_path)

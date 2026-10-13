@@ -34,7 +34,7 @@ pub(super) fn create(
     })?;
     // 动态建窗口才能指定便携数据目录，因此不在 `tauri.conf.json` 中声明窗口。
     let builder = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
-        .title("OEA")
+        .title(super::variant_name())
         .inner_size(1024.0, 640.0)
         .min_inner_size(864.0, 540.0)
         .resizable(true)

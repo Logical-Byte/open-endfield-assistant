@@ -14,7 +14,8 @@ import {
 } from '@/features/settings/settings';
 import { checkUpdate, updateCheckState, updateOperationBusy } from '@/features/update/update';
 import { uiScale } from '@/features/appearance/uiScale';
-import { oeaVersion } from '@/version';
+import { updateCapabilities } from '@/features/update/variantPolicy';
+import { appVersion } from '@/app/build';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -79,7 +80,7 @@ async function manualCheckUpdate(): Promise<void> {
   if (updateCheckState.value.status === 'upToDate') {
     useTranslatedToast().add({ icon: 'i-lucide-check-circle', color: 'success' }, () => ({
       title: t('update.check.upToDate'),
-      description: `v${oeaVersion}`,
+      description: `v${appVersion}`,
     }));
   }
 }
@@ -357,164 +358,169 @@ const stopScrollToHash = router.afterEach((to) => {
           icon="i-lucide-download"
           :title="t('settings.update.section')"
         >
-          <SettingsItem
-            :description="t('settings.update.source.description')"
-            icon="i-lucide-cloud-download"
-            :title="t('settings.update.source.title')"
-          >
-            <USelect
-              v-if="draftSettings"
-              :aria-label="t('settings.update.source.title')"
-              class="w-56"
-              :items="updateSourceItems"
-              :model-value="draftSettings.updateSource"
-              @update:model-value="editSettings({ updateSource: $event })"
-            />
-            <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
-            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-          </SettingsItem>
-
-          <SettingsItem
-            :description="t('settings.update.autoDownload.description')"
-            icon="i-lucide-cloud-download"
-            :title="t('settings.update.autoDownload.title')"
-          >
-            <USwitch
-              v-if="draftSettings"
-              :aria-label="t('settings.update.autoDownload.title')"
-              :model-value="draftSettings.autoDownloadUpdates"
-              @update:model-value="editSettings({ autoDownloadUpdates: $event })"
-            />
-            <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
-            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-          </SettingsItem>
-
-          <SettingsItem
-            :description="t('settings.update.autoInstall.description')"
-            icon="i-lucide-rocket"
-            :title="t('settings.update.autoInstall.title')"
-          >
-            <USwitch
-              v-if="draftSettings"
-              :aria-label="t('settings.update.autoInstall.title')"
-              :model-value="draftSettings.autoInstallUpdates"
-              @update:model-value="editSettings({ autoInstallUpdates: $event })"
-            />
-            <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
-            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-          </SettingsItem>
-
-          <SettingsItem icon="i-lucide-key-round" :title="t('settings.update.cdk.title')">
-            <template #description>
-              <div class="space-y-1 text-sm text-dimmed">
-                <p>
-                  <TranslationComponent :translation="t('settings.update.mirror.service')">
-                    <template #service
-                      ><ULink
-                        class="text-primary hover:text-primary/75"
-                        to="https://mirrorchyan.com/"
-                        >MirrorChyan</ULink
-                      ></template
-                    >
-                  </TranslationComponent>
-                </p>
-                <p>
-                  <TranslationComponent :translation="t('settings.update.mirror.free')">
-                    <template #releases
-                      ><ULink
-                        class="text-primary hover:text-primary/75"
-                        rel="noopener noreferrer"
-                        target="_blank"
-                        to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
-                        >GitHub Releases</ULink
-                      ></template
-                    >
-                  </TranslationComponent>
-                </p>
-              </div>
-            </template>
-            <div v-if="draftSettings" class="flex flex-col items-center gap-1">
-              <UInput
-                v-model.lazy="mirrorchyanCdk"
-                :aria-label="t('settings.update.cdk.title')"
+          <p v-if="!updateCapabilities.onlineUpdate" class="text-sm text-muted">
+            {{ t('settings.update.developmentBuild') }}
+          </p>
+          <template v-else>
+            <SettingsItem
+              :description="t('settings.update.source.description')"
+              icon="i-lucide-cloud-download"
+              :title="t('settings.update.source.title')"
+            >
+              <USelect
+                v-if="draftSettings"
+                :aria-label="t('settings.update.source.title')"
                 class="w-56"
-                :placeholder="t('settings.update.cdk.placeholder')"
-                type="password"
+                :items="updateSourceItems"
+                :model-value="draftSettings.updateSource"
+                @update:model-value="editSettings({ updateSource: $event })"
+              />
+              <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
+              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
+            </SettingsItem>
+
+            <SettingsItem
+              :description="t('settings.update.autoDownload.description')"
+              icon="i-lucide-cloud-download"
+              :title="t('settings.update.autoDownload.title')"
+            >
+              <USwitch
+                v-if="draftSettings"
+                :aria-label="t('settings.update.autoDownload.title')"
+                :model-value="draftSettings.autoDownloadUpdates"
+                @update:model-value="editSettings({ autoDownloadUpdates: $event })"
+              />
+              <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
+              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
+            </SettingsItem>
+
+            <SettingsItem
+              :description="t('settings.update.autoInstall.description')"
+              icon="i-lucide-rocket"
+              :title="t('settings.update.autoInstall.title')"
+            >
+              <USwitch
+                v-if="draftSettings"
+                :aria-label="t('settings.update.autoInstall.title')"
+                :model-value="draftSettings.autoInstallUpdates"
+                @update:model-value="editSettings({ autoInstallUpdates: $event })"
+              />
+              <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
+              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
+            </SettingsItem>
+
+            <SettingsItem icon="i-lucide-key-round" :title="t('settings.update.cdk.title')">
+              <template #description>
+                <div class="space-y-1 text-sm text-dimmed">
+                  <p>
+                    <TranslationComponent :translation="t('settings.update.mirror.service')">
+                      <template #service
+                        ><ULink
+                          class="text-primary hover:text-primary/75"
+                          to="https://mirrorchyan.com/"
+                          >MirrorChyan</ULink
+                        ></template
+                      >
+                    </TranslationComponent>
+                  </p>
+                  <p>
+                    <TranslationComponent :translation="t('settings.update.mirror.free')">
+                      <template #releases
+                        ><ULink
+                          class="text-primary hover:text-primary/75"
+                          rel="noopener noreferrer"
+                          target="_blank"
+                          to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
+                          >GitHub Releases</ULink
+                        ></template
+                      >
+                    </TranslationComponent>
+                  </p>
+                </div>
+              </template>
+              <div v-if="draftSettings" class="flex flex-col items-center gap-1">
+                <UInput
+                  v-model.lazy="mirrorchyanCdk"
+                  :aria-label="t('settings.update.cdk.title')"
+                  class="w-56"
+                  :placeholder="t('settings.update.cdk.placeholder')"
+                  type="password"
+                  @keydown.enter="($event.target as HTMLInputElement).blur()"
+                />
+                <template v-if="draftSettings.mirrorchyanCdk === null">
+                  <p class="max-w-56 text-sm text-warning">
+                    {{ t('settings.update.cdk.unreadable') }}
+                  </p>
+                  <UButton
+                    color="neutral"
+                    :label="t('settings.update.cdk.clear')"
+                    variant="link"
+                    @click="editSettings({ mirrorchyanCdk: '' })"
+                  />
+                </template>
+                <ULink
+                  class="text-sm text-primary hover:text-primary/75"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  to="https://mirrorchyan.com/?source=oea"
+                >
+                  <span class="flex items-center gap-1"
+                    >{{ t('settings.update.cdk.subscribe') }}<UIcon name="i-lucide-external-link"
+                  /></span>
+                </ULink>
+              </div>
+              <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
+              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
+            </SettingsItem>
+
+            <SettingsItem
+              :description="t('settings.update.proxy.description')"
+              icon="i-lucide-network"
+              :title="t('settings.update.proxy.title')"
+            >
+              <USelect
+                v-if="draftSettings"
+                :aria-label="t('settings.update.proxy.title')"
+                class="w-56"
+                :items="proxyModeItems"
+                :model-value="draftSettings.updateProxyMode"
+                @update:model-value="editSettings({ updateProxyMode: $event })"
+              />
+              <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
+              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
+            </SettingsItem>
+
+            <SettingsItem
+              v-if="draftSettings?.updateProxyMode === 'custom'"
+              :description="t('settings.update.proxyUrl.description')"
+              icon="i-lucide-link"
+              :title="t('settings.update.proxyUrl.title')"
+            >
+              <UInput
+                v-model.lazy="updateProxyUrl"
+                :aria-label="t('settings.update.proxyUrl.title')"
+                class="w-56"
+                placeholder="http://127.0.0.1:7890"
                 @keydown.enter="($event.target as HTMLInputElement).blur()"
               />
-              <template v-if="draftSettings.mirrorchyanCdk === null">
-                <p class="max-w-56 text-sm text-warning">
-                  {{ t('settings.update.cdk.unreadable') }}
-                </p>
-                <UButton
-                  color="neutral"
-                  :label="t('settings.update.cdk.clear')"
-                  variant="link"
-                  @click="editSettings({ mirrorchyanCdk: '' })"
-                />
-              </template>
-              <ULink
-                class="text-sm text-primary hover:text-primary/75"
-                rel="noopener noreferrer"
-                target="_blank"
-                to="https://mirrorchyan.com/?source=oea"
-              >
-                <span class="flex items-center gap-1"
-                  >{{ t('settings.update.cdk.subscribe') }}<UIcon name="i-lucide-external-link"
-                /></span>
-              </ULink>
-            </div>
-            <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
-            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-          </SettingsItem>
-
-          <SettingsItem
-            :description="t('settings.update.proxy.description')"
-            icon="i-lucide-network"
-            :title="t('settings.update.proxy.title')"
-          >
-            <USelect
-              v-if="draftSettings"
-              :aria-label="t('settings.update.proxy.title')"
-              class="w-56"
-              :items="proxyModeItems"
-              :model-value="draftSettings.updateProxyMode"
-              @update:model-value="editSettings({ updateProxyMode: $event })"
-            />
-            <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
-            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-          </SettingsItem>
-
-          <SettingsItem
-            v-if="draftSettings?.updateProxyMode === 'custom'"
-            :description="t('settings.update.proxyUrl.description')"
-            icon="i-lucide-link"
-            :title="t('settings.update.proxyUrl.title')"
-          >
-            <UInput
-              v-model.lazy="updateProxyUrl"
-              :aria-label="t('settings.update.proxyUrl.title')"
-              class="w-56"
-              placeholder="http://127.0.0.1:7890"
-              @keydown.enter="($event.target as HTMLInputElement).blur()"
-            />
-          </SettingsItem>
-          <SettingsItem
-            :description="t('settings.update.check.description')"
-            icon="i-lucide-refresh-cw"
-            :title="t('settings.update.check.title')"
-          >
-            <USkeleton v-if="settingsInitializing" class="h-8 w-32" />
-            <UButton
-              v-else-if="settingsCanCheckUpdate"
-              :disabled="updateOperationBusy"
+            </SettingsItem>
+            <SettingsItem
+              :description="t('settings.update.check.description')"
               icon="i-lucide-refresh-cw"
-              :label="t('settings.update.check.button')"
-              :loading="updateCheckState.status === 'checking'"
-              @click="manualCheckUpdate"
-            />
-            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-          </SettingsItem>
+              :title="t('settings.update.check.title')"
+            >
+              <USkeleton v-if="settingsInitializing" class="h-8 w-32" />
+              <UButton
+                v-else-if="settingsCanCheckUpdate"
+                :disabled="updateOperationBusy"
+                icon="i-lucide-refresh-cw"
+                :label="t('settings.update.check.button')"
+                :loading="updateCheckState.status === 'checking'"
+                @click="manualCheckUpdate"
+              />
+              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
+            </SettingsItem>
+          </template>
         </SettingsCard>
 
         <DeveloperSettings :unsupported="settingsUnsupported" />

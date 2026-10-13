@@ -13,6 +13,7 @@ import { initLogState } from '@/features/log/logState';
 import { initScannedItems } from '@/features/archiveScan/scannedItems';
 import { initUpdateState } from '@/features/update/update';
 import { initUiScale } from '@/features/appearance/uiScale';
+import { appPresentation } from '@/app/presentation';
 import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';
@@ -69,7 +70,7 @@ const themeColor = computed(() => (colorMode.value === 'dark' ? '#18181b' : '#ff
 const { style, link } = useTheme();
 
 useHead({
-  title: computed(() => t('application.title')),
+  title: computed(() => appPresentation.title()),
   htmlAttrs: { lang: locale },
   style,
   link,

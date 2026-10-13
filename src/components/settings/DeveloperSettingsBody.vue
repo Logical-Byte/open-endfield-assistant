@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
 import { simulateArchiveScan } from '@/features/archiveScan/workerType';
+import { updateCapabilities } from '@/features/update/variantPolicy';
 import {
   developerInstallBusy,
   developerInstallTrace,
@@ -46,6 +47,9 @@ const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
       :label="t('settings.unsupported.label')"
       variant="soft"
     />
+    <p v-else-if="!updateCapabilities.localInstall" class="text-sm text-muted">
+      {{ t('settings.update.developmentBuild') }}
+    </p>
     <div v-else class="flex w-96 flex-col items-end gap-2">
       <UButton
         color="warning"

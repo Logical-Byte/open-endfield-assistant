@@ -117,7 +117,7 @@ pub fn init_tray(app_handle: &AppHandle) -> anyhow::Result<()> {
 
     let tray = TrayIconBuilder::new()
         .icon(icon)
-        .tooltip("OEA")
+        .tooltip(super::variant_name())
         .menu(&menu)
         // 左键单击不弹菜单，由 on_tray_icon_event 处理为"显示主窗口"
         .show_menu_on_left_click(false)

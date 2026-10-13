@@ -13,7 +13,7 @@
  * - `packageUnavailable`：目标版本没有可用安装包，`version` 为该版本。
  * - `integrity`：更新包完整性检查失败。
  * - `fileAccess`：更新文件读写失败。
- * - `debugBuild`：开发构建不支持此更新操作。
+ * - `developmentBuild`：OEA dev 不支持此更新操作。
  * - `invalidPackage`：更新包结构或内容无效。
  * - `preparation`：更新事务准备失败。
  * - `helperStart`：无法启动更新辅助进程。
@@ -35,4 +35,4 @@ actual: string, } | { "kind": "packageUnavailable",
 /**
  * 缺少下载包的版本。
  */
-version: string, } | { "kind": "integrity" } | { "kind": "fileAccess" } | { "kind": "debugBuild" } | { "kind": "invalidPackage" } | { "kind": "preparation" } | { "kind": "helperStart" } | { "kind": "failed" };
+version: string, } | { "kind": "integrity" } | { "kind": "fileAccess" } | { "kind": "developmentBuild" } | { "kind": "invalidPackage" } | { "kind": "preparation" } | { "kind": "helperStart" } | { "kind": "failed" };
