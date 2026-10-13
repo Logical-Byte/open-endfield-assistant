@@ -84,7 +84,7 @@ export function useSettingsFields<T extends object>(
       ...options,
       kind: 'switch',
       read: (): boolean | undefined => read(key) as boolean | undefined,
-      write: (value: boolean): void => write(key, value),
+      write: (value: boolean) => write(key, value),
     };
   }
 
@@ -94,7 +94,7 @@ export function useSettingsFields<T extends object>(
       ...options,
       kind: 'slider',
       read: (): number | undefined => read(key) as number | undefined,
-      write: (value: number): void => write(key, value),
+      write: (value: number) => write(key, value),
     };
   }
 
@@ -109,7 +109,7 @@ export function useSettingsFields<T extends object>(
       kind: 'select',
       items,
       read: (): string | undefined => read(key) as string | undefined,
-      write: (value: string): void => write(key, value),
+      write: (value: string) => write(key, value),
     };
   }
 
@@ -119,7 +119,7 @@ export function useSettingsFields<T extends object>(
       ...options,
       kind: 'input',
       read: (): string | null | undefined => read(key) as string | null | undefined,
-      write: (value: string): void => write(key, value),
+      write: (value: string) => write(key, value),
     };
   }
 
@@ -134,7 +134,7 @@ export function useSettingsFields<T extends object>(
       kind: 'choice-buttons',
       items,
       read: (): string | undefined => read(key) as string | undefined,
-      write: (value: string): void => write(key, value),
+      write: (value: string) => write(key, value),
     };
   }
 

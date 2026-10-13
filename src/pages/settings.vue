@@ -146,7 +146,7 @@ function scrollToSection(id: string): void {
   activeSectionId.value = id;
   isProgrammaticScroll = true;
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  window.setTimeout((): void => {
+  window.setTimeout(() => {
     isProgrammaticScroll = false;
   }, 700);
 }
@@ -159,7 +159,7 @@ function scrollToHashSection(): void {
   }
 }
 
-onMounted((): void => {
+onMounted(() => {
   // `UMain` 渲染为 <main>，是实际滚动容器。
   document
     .querySelector('main')
@@ -167,13 +167,13 @@ onMounted((): void => {
   void nextTick().then(scrollToHashSection);
 });
 
-onBeforeUnmount((): void => {
+onBeforeUnmount(() => {
   document.querySelector('main')?.removeEventListener('scroll', updateActiveSection);
   stopScrollToHash();
 });
 
 // 相同 hash 的重复导航也会经过 afterEach，滚离更新区域后仍可用齿轮重新定位。
-const stopScrollToHash = router.afterEach((to: RouteLocationNormalized): void => {
+const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
   if (to.path === '/settings') {
     void nextTick().then(scrollToHashSection);
   }
@@ -285,7 +285,7 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized): void =>
               kind: 'slider',
               state: scaleItemState,
               read: (): number => uiScale,
-              write: (value: number): void => {
+              write: (value: number) => {
                 uiScale = value;
               },
               min: 0.5,
