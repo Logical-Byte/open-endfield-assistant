@@ -3,6 +3,13 @@ import { useTranslatedToast } from '@/shared/i18n/toast';
 import { TranslationComponent } from 'i18next-vue';
 import { useAppI18n } from '@/shared/i18n';
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
+import SettingsControl from '@/components/settings/SettingsControl.vue';
+import { useSettingsFields } from '@/components/settings/useSettingsFields';
+import type {
+  SettingsControl as Control,
+  SettingsItemState,
+} from '@/components/settings/settingsItem';
+import type { DraftSettings } from '@/features/settings/settingsStore';
 import {
   settingsSaveError,
   editSettings,
@@ -46,34 +53,6 @@ const settingsCanCheckUpdate = computed(
   () => readySettings.value !== null || settingsInitializeError.value !== null,
 );
 
-/** UI 缩放（本地数字中转）。`USlider` 会短暂回写 `[v]` 数组，这里只允许 number 进入 `uiScale`。 */
-const uiScaleNumber = computed<number>({
-  get() {
-    return uiScale.value;
-  },
-  set(value: number) {
-    if (typeof value === 'number') {
-      uiScale.value = value;
-    }
-  },
-});
-
-function updateSoundVolume(value: number | number[] | undefined): void {
-  if (typeof value === 'number') {
-    editSettings({ soundVolume: value });
-  }
-}
-
-// UInput 自带 lazy 提交，输入中间值留在控件内。普通失焦不会产生修改。
-const mirrorchyanCdk = computed<string>({
-  get: () => draftSettings.value?.mirrorchyanCdk ?? '',
-  set: (value: string) => editSettings({ mirrorchyanCdk: value }),
-});
-const updateProxyUrl = computed<string>({
-  get: () => draftSettings.value?.updateProxyUrl ?? '',
-  set: (value: string) => editSettings({ updateProxyUrl: value }),
-});
-
 /** 手动检查更新。 */
 async function manualCheckUpdate(): Promise<void> {
   await checkUpdate();
@@ -84,6 +63,76 @@ async function manualCheckUpdate(): Promise<void> {
     }));
   }
 }
+
+// 字段读写在这里连接一次，控件描述只保留选项和独立业务规则。
+const fields = useSettingsFields<DraftSettings>(draftSettings, editSettings);
+const controls = {
+  language: fields.choices('uiLocale', [
+    { value: 'zh-CN', label: '简体中文' },
+    { value: 'en-US', label: 'English' },
+  ]),
+  gameLanguage: { kind: 'button', label: '简体中文', variant: 'solid' },
+  tray: fields.switch('minimizeToTray'),
+  guide: fields.switch('scanGuideEnabled'),
+  volume: fields.slider('soundVolume', {
+    min: 0,
+    max: 1,
+    step: 0.05,
+    formatValue: (value: number) => n(value, 'percent'),
+  }),
+  source: fields.select('updateSource', updateSourceItems),
+  autoDownload: fields.switch('autoDownloadUpdates'),
+  autoInstall: fields.switch('autoInstallUpdates'),
+  cdk: fields.input('mirrorchyanCdk', {
+    type: 'password',
+    placeholder: () => t('settings.update.cdk.placeholder'),
+  }),
+  proxy: fields.select('updateProxyMode', proxyModeItems),
+  proxyUrl: fields.input('updateProxyUrl', { placeholder: 'http://127.0.0.1:7890' }),
+  scale: {
+    kind: 'slider',
+    read: () => uiScale.value,
+    write: (value: number) => {
+      uiScale.value = value;
+    },
+    min: 0.5,
+    max: 2,
+    step: 0.05,
+    marks: [0.5, 1, 1.5, 2],
+    tooltip: true,
+    formatValue: (value: number) => n(value, 'percent'),
+  },
+  checkUpdate: {
+    kind: 'button',
+    label: () => t('settings.update.check.button'),
+    icon: 'i-lucide-refresh-cw',
+    onClick: manualCheckUpdate,
+    disabled: () => updateOperationBusy.value,
+    loading: () => updateCheckState.value.status === 'checking',
+  },
+} satisfies Record<string, Control>;
+
+const persistedItemState = computed<SettingsItemState>(() => {
+  if (settingsInitializing.value) return { status: 'loading' };
+  return draftSettings.value
+    ? { status: 'ready' }
+    : { status: 'unavailable', label: unavailableLabel.value };
+});
+// 语言按钮保持可见，加载或不可用时只禁用，不替换为 skeleton/badge。
+const languageItemState = computed<SettingsItemState>(() => ({
+  status: draftSettings.value ? 'ready' : 'disabled',
+}));
+const scaleItemState = computed<SettingsItemState>(() =>
+  settingsUnsupported.value
+    ? { status: 'unavailable', label: t('settings.unsupported.label'), variant: 'subtle' }
+    : { status: 'ready' },
+);
+const checkUpdateItemState = computed<SettingsItemState>(() => {
+  if (settingsInitializing.value) return { status: 'loading' };
+  return settingsCanCheckUpdate.value
+    ? { status: 'ready' }
+    : { status: 'unavailable', label: unavailableLabel.value };
+});
 
 /** 设置分类目录：`id` 同时用作滚动锚点。 */
 const sections = computed(() => [
@@ -212,38 +261,20 @@ const stopScrollToHash = router.afterEach((to) => {
           :title="t('settings.language.section')"
         >
           <SettingsItem
+            :control="controls.language"
             :description="t('settings.language.application.description')"
             icon="i-lucide-languages"
+            :state="languageItemState"
             :title="t('settings.language.application.title')"
-          >
-            <div class="flex shrink-0 flex-wrap gap-2">
-              <UButton
-                :disabled="!draftSettings"
-                label="简体中文"
-                :variant="draftSettings?.uiLocale === 'zh-CN' ? 'solid' : 'outline'"
-                @click="editSettings({ uiLocale: 'zh-CN' })"
-              />
-              <UButton
-                :disabled="!draftSettings"
-                label="English"
-                :variant="draftSettings?.uiLocale === 'en-US' ? 'solid' : 'outline'"
-                @click="editSettings({ uiLocale: 'en-US' })"
-              />
-            </div>
-          </SettingsItem>
+          />
           <div>
             <SettingsItem
+              :control="controls.gameLanguage"
               :description="t('settings.language.game.description')"
               icon="i-lucide-gamepad-2"
+              :state="languageItemState"
               :title="t('settings.language.game.title')"
-            >
-              <UButton
-                class="shrink-0"
-                :disabled="!draftSettings"
-                label="简体中文"
-                variant="solid"
-              />
-            </SettingsItem>
+            />
             <UAlert
               class="mt-4"
               color="warning"
@@ -260,66 +291,26 @@ const stopScrollToHash = router.afterEach((to) => {
           :title="t('settings.interface.section')"
         >
           <SettingsItem
+            :control="controls.scale"
             :description="t('settings.interface.scale.description')"
             icon="i-lucide-zoom-in"
+            :state="scaleItemState"
             :title="t('settings.interface.scale.title')"
-          >
-            <div v-if="!settingsUnsupported" class="flex w-56 items-center gap-2">
-              <div class="flex-1">
-                <USlider
-                  v-model="uiScaleNumber"
-                  :aria-label="t('settings.interface.scale.title')"
-                  :max="2"
-                  :min="0.5"
-                  :step="0.05"
-                  tooltip
-                />
-                <div class="mt-1 flex justify-between text-xs text-dimmed tabular-nums">
-                  <span>{{ n(0.5, 'percent') }}</span>
-                  <span>{{ n(1, 'percent') }}</span>
-                  <span>{{ n(1.5, 'percent') }}</span>
-                  <span>{{ n(2, 'percent') }}</span>
-                </div>
-              </div>
-              <span class="w-12 shrink-0 text-end text-sm tabular-nums">{{
-                n(uiScaleNumber, 'percent')
-              }}</span>
-            </div>
-            <UBadge
-              v-else
-              color="neutral"
-              :label="t('settings.unsupported.label')"
-              variant="subtle"
-            />
-          </SettingsItem>
+          />
           <SettingsItem
+            :control="controls.tray"
             :description="t('settings.interface.tray.description')"
             icon="i-lucide-panel-bottom-close"
+            :state="persistedItemState"
             :title="t('settings.interface.tray.title')"
-          >
-            <USwitch
-              v-if="draftSettings"
-              :aria-label="t('settings.interface.tray.title')"
-              :model-value="draftSettings.minimizeToTray"
-              @update:model-value="editSettings({ minimizeToTray: $event })"
-            />
-            <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
-            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-          </SettingsItem>
+          />
           <SettingsItem
+            :control="controls.guide"
             :description="t('settings.interface.guide.description')"
             icon="i-lucide-circle-help"
+            :state="persistedItemState"
             :title="t('settings.interface.guide.title')"
-          >
-            <USwitch
-              v-if="draftSettings"
-              :aria-label="t('settings.interface.guide.title')"
-              :model-value="draftSettings.scanGuideEnabled"
-              @update:model-value="editSettings({ scanGuideEnabled: $event })"
-            />
-            <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
-            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-          </SettingsItem>
+          />
         </SettingsCard>
 
         <SettingsCard
@@ -329,27 +320,12 @@ const stopScrollToHash = router.afterEach((to) => {
           :title="t('settings.sound.section')"
         >
           <SettingsItem
+            :control="controls.volume"
             :description="t('settings.sound.volume.description')"
             icon="i-lucide-volume-2"
+            :state="persistedItemState"
             :title="t('settings.sound.volume.title')"
-          >
-            <div v-if="draftSettings" class="flex w-56 items-center gap-2">
-              <USlider
-                :aria-label="t('settings.sound.volume.title')"
-                class="flex-1"
-                :max="1"
-                :min="0"
-                :model-value="draftSettings.soundVolume"
-                :step="0.05"
-                @update:model-value="updateSoundVolume"
-              />
-              <span class="w-10 text-end text-sm tabular-nums">
-                {{ n(draftSettings.soundVolume, 'percent') }}
-              </span>
-            </div>
-            <USkeleton v-else-if="settingsInitializing" class="h-5 w-56" />
-            <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-          </SettingsItem>
+          />
         </SettingsCard>
 
         <SettingsCard
@@ -363,53 +339,35 @@ const stopScrollToHash = router.afterEach((to) => {
           </p>
           <template v-else>
             <SettingsItem
+              :control="controls.source"
               :description="t('settings.update.source.description')"
               icon="i-lucide-cloud-download"
+              :state="persistedItemState"
               :title="t('settings.update.source.title')"
-            >
-              <USelect
-                v-if="draftSettings"
-                :aria-label="t('settings.update.source.title')"
-                class="w-56"
-                :items="updateSourceItems"
-                :model-value="draftSettings.updateSource"
-                @update:model-value="editSettings({ updateSource: $event })"
-              />
-              <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
-              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-            </SettingsItem>
+            />
 
             <SettingsItem
+              :control="controls.autoDownload"
               :description="t('settings.update.autoDownload.description')"
               icon="i-lucide-cloud-download"
+              :state="persistedItemState"
               :title="t('settings.update.autoDownload.title')"
-            >
-              <USwitch
-                v-if="draftSettings"
-                :aria-label="t('settings.update.autoDownload.title')"
-                :model-value="draftSettings.autoDownloadUpdates"
-                @update:model-value="editSettings({ autoDownloadUpdates: $event })"
-              />
-              <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
-              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-            </SettingsItem>
+            />
 
             <SettingsItem
+              :control="controls.autoInstall"
               :description="t('settings.update.autoInstall.description')"
               icon="i-lucide-rocket"
+              :state="persistedItemState"
               :title="t('settings.update.autoInstall.title')"
-            >
-              <USwitch
-                v-if="draftSettings"
-                :aria-label="t('settings.update.autoInstall.title')"
-                :model-value="draftSettings.autoInstallUpdates"
-                @update:model-value="editSettings({ autoInstallUpdates: $event })"
-              />
-              <USkeleton v-else-if="settingsInitializing" class="h-5 w-10 rounded-full" />
-              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-            </SettingsItem>
+            />
 
-            <SettingsItem icon="i-lucide-key-round" :title="t('settings.update.cdk.title')">
+            <SettingsItem
+              icon="i-lucide-key-round"
+              skeleton="input"
+              :state="persistedItemState"
+              :title="t('settings.update.cdk.title')"
+            >
               <template #description>
                 <div class="space-y-1 text-sm text-dimmed">
                   <p>
@@ -438,16 +396,12 @@ const stopScrollToHash = router.afterEach((to) => {
                   </p>
                 </div>
               </template>
-              <div v-if="draftSettings" class="flex flex-col items-center gap-1">
-                <UInput
-                  v-model.lazy="mirrorchyanCdk"
+              <div class="flex flex-col items-center gap-1">
+                <SettingsControl
                   :aria-label="t('settings.update.cdk.title')"
-                  class="w-56"
-                  :placeholder="t('settings.update.cdk.placeholder')"
-                  type="password"
-                  @keydown.enter="($event.target as HTMLInputElement).blur()"
+                  :control="controls.cdk"
                 />
-                <template v-if="draftSettings.mirrorchyanCdk === null">
+                <template v-if="draftSettings?.mirrorchyanCdk === null">
                   <p class="max-w-56 text-sm text-warning">
                     {{ t('settings.update.cdk.unreadable') }}
                   </p>
@@ -455,7 +409,7 @@ const stopScrollToHash = router.afterEach((to) => {
                     color="neutral"
                     :label="t('settings.update.cdk.clear')"
                     variant="link"
-                    @click="editSettings({ mirrorchyanCdk: '' })"
+                    @click="controls.cdk.write('')"
                   />
                 </template>
                 <ULink
@@ -469,57 +423,31 @@ const stopScrollToHash = router.afterEach((to) => {
                   /></span>
                 </ULink>
               </div>
-              <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
-              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
             </SettingsItem>
 
             <SettingsItem
+              :control="controls.proxy"
               :description="t('settings.update.proxy.description')"
               icon="i-lucide-network"
+              :state="persistedItemState"
               :title="t('settings.update.proxy.title')"
-            >
-              <USelect
-                v-if="draftSettings"
-                :aria-label="t('settings.update.proxy.title')"
-                class="w-56"
-                :items="proxyModeItems"
-                :model-value="draftSettings.updateProxyMode"
-                @update:model-value="editSettings({ updateProxyMode: $event })"
-              />
-              <USkeleton v-else-if="settingsInitializing" class="h-8 w-56" />
-              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-            </SettingsItem>
+            />
 
             <SettingsItem
               v-if="draftSettings?.updateProxyMode === 'custom'"
+              :control="controls.proxyUrl"
               :description="t('settings.update.proxyUrl.description')"
               icon="i-lucide-link"
+              :state="persistedItemState"
               :title="t('settings.update.proxyUrl.title')"
-            >
-              <UInput
-                v-model.lazy="updateProxyUrl"
-                :aria-label="t('settings.update.proxyUrl.title')"
-                class="w-56"
-                placeholder="http://127.0.0.1:7890"
-                @keydown.enter="($event.target as HTMLInputElement).blur()"
-              />
-            </SettingsItem>
+            />
             <SettingsItem
+              :control="controls.checkUpdate"
               :description="t('settings.update.check.description')"
               icon="i-lucide-refresh-cw"
+              :state="checkUpdateItemState"
               :title="t('settings.update.check.title')"
-            >
-              <USkeleton v-if="settingsInitializing" class="h-8 w-32" />
-              <UButton
-                v-else-if="settingsCanCheckUpdate"
-                :disabled="updateOperationBusy"
-                icon="i-lucide-refresh-cw"
-                :label="t('settings.update.check.button')"
-                :loading="updateCheckState.status === 'checking'"
-                @click="manualCheckUpdate"
-              />
-              <UBadge v-else color="neutral" :label="unavailableLabel" variant="soft" />
-            </SettingsItem>
+            />
           </template>
         </SettingsCard>
 

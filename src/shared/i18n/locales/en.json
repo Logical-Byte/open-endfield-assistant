@@ -421,6 +421,17 @@
       }
     }
   },
+  "settingsPrototype": {
+    "description": "In-memory demonstration using the real settings store. Choose a scenario, edit controls, and compare draft with effective. No user settings are read or saved.",
+    "initializeError": "Load failed",
+    "loading": "Loading",
+    "ready": "Ready",
+    "saveFails": "Fail saves",
+    "snapshot": "Live state",
+    "title": "Declarative settings prototype",
+    "unreadable": "Unreadable CDK",
+    "unsupported": "Browser unavailable"
+  },
   "theme": {
     "change": "Change theme",
     "chineseFont": "Chinese font",
