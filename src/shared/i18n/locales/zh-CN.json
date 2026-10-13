@@ -294,6 +294,22 @@
     "viewScreenshot": "查看完整档案截图"
   },
   "settings": {
+    "about": {
+      "community": "反馈交流群",
+      "dev": "开发版",
+      "devUnavailable": "dev 版不可用",
+      "downloading": "正在下载 {{percent}}",
+      "initializing": "正在加载设置",
+      "lastChecked": "上次检查：{{time}}",
+      "notChecked": "尚未检查",
+      "releaseNotes": "更新内容",
+      "restart": "重启并更新到 {{version}}",
+      "retryDownload": "重试下载",
+      "title": "关于 OEA",
+      "update": "更新到 {{version}}",
+      "updateBusy": "请先完成当前更新操作",
+      "website": "官网"
+    },
     "developer": {
       "close": "关闭开发者选项",
       "description": "显示仅用于开发和故障排查的高级工具",

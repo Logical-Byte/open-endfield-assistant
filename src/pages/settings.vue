@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useTranslatedToast, type ToastText } from '@/shared/i18n/toast';
 import { TranslationComponent } from 'i18next-vue';
 import { useAppI18n } from '@/shared/i18n';
+import AboutOEA from '@/components/settings/AboutOEA.vue';
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import SettingsControl from '@/components/settings/SettingsControl.vue';
 import { useSettingsFields, type SettingsFields } from '@/components/settings/useSettingsFields';
@@ -16,10 +16,8 @@ import {
   proxyModeItems,
   updateSourceItems,
 } from '@/features/settings/settings';
-import { checkUpdate, updateCheckState, updateOperationBusy } from '@/features/update/update';
 import { uiScale } from '@/features/appearance/uiScale';
 import { updateCapabilities } from '@/features/update/variantPolicy';
-import { appVersion } from '@/app/build';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
 
@@ -63,24 +61,6 @@ const settingsInitializeError = computed<Error | null>((): Error | null =>
 const unavailableLabel = computed<string>((): string =>
   settingsUnsupported.value ? t('settings.unsupported.label') : t('settings.unavailable'),
 );
-const settingsCanCheckUpdate = computed<boolean>(
-  (): boolean => readySettings.value !== null || settingsInitializeError.value !== null,
-);
-
-/** 手动检查更新。 */
-async function manualCheckUpdate(): Promise<void> {
-  await checkUpdate();
-  if (updateCheckState.value.status === 'upToDate') {
-    useTranslatedToast().add(
-      { icon: 'i-lucide-check-circle', color: 'success' },
-      (): ToastText => ({
-        title: t('update.check.upToDate'),
-        description: `v${appVersion}`,
-      }),
-    );
-  }
-}
-
 /** 普通持久化字段共用加载与不可用规则，正常编辑保持自动保存。 */
 const persistedItemState = computed<SettingsItemState>((): SettingsItemState => {
   if (settingsInitializing.value) return { status: 'loading' };
@@ -98,20 +78,13 @@ const scaleItemState = computed<SettingsItemState>((): SettingsItemState =>
     ? { status: 'unavailable', label: t('settings.unsupported.label'), variant: 'subtle' }
     : { status: 'ready' },
 );
-/** 初始化失败仍允许检查更新，初始化中显示 skeleton，浏览器模式不可用。 */
-const checkUpdateItemState = computed<SettingsItemState>((): SettingsItemState => {
-  if (settingsInitializing.value) return { status: 'loading' };
-  return settingsCanCheckUpdate.value
-    ? { status: 'ready' }
-    : { status: 'unavailable', label: unavailableLabel.value };
-});
-
 const fields: SettingsFields<DraftSettings> = useSettingsFields(draftSettings, editSettings, {
   defaults: { state: persistedItemState },
 });
 
 /** 设置分类目录：`id` 同时用作滚动锚点。 */
 const sections = computed<SettingsSection[]>((): SettingsSection[] => [
+  { id: 'about', icon: 'i-lucide-info', title: t('settings.about.title') },
   { id: 'language', icon: 'i-lucide-languages', title: t('settings.language.section') },
   { id: 'interface', icon: 'i-lucide-layout-panel-left', title: t('settings.interface.section') },
   { id: 'sound', icon: 'i-lucide-headphones', title: t('settings.sound.section') },
@@ -120,7 +93,7 @@ const sections = computed<SettingsSection[]>((): SettingsSection[] => [
 ]);
 
 /** 当前高亮的设置分类 id。 */
-const activeSectionId = ref<string>('language');
+const activeSectionId = ref<string>('about');
 
 /** 点击目录触发程序化滚动期间，暂停滚动监听，避免平滑滚动途中高亮抖动。 */
 let isProgrammaticScroll = false;
@@ -206,6 +179,7 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
       </template>
 
       <UPageBody>
+        <AboutOEA />
         <UAlert
           v-if="settingsInitializeError"
           :actions="[{ label: t('settings.initialize.retry'), onClick: initOeaSettings }]"
@@ -447,20 +421,6 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
               icon="i-lucide-link"
               :item="fields.input('updateProxyUrl', { placeholder: 'http://127.0.0.1:7890' })"
               :title="t('settings.update.proxyUrl.title')"
-            />
-            <SettingsItem
-              :description="t('settings.update.check.description')"
-              icon="i-lucide-refresh-cw"
-              :item="{
-                kind: 'button',
-                state: checkUpdateItemState,
-                label: (): string => t('settings.update.check.button'),
-                icon: 'i-lucide-refresh-cw',
-                onClick: manualCheckUpdate,
-                disabled: (): boolean => updateOperationBusy,
-                loading: (): boolean => updateCheckState.status === 'checking',
-              }"
-              :title="t('settings.update.check.title')"
             />
           </template>
         </SettingsCard>
