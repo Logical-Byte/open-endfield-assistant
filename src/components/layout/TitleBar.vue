@@ -88,7 +88,7 @@ onUnmounted(() => {
         type="button"
         @click="appWindow?.minimize"
       >
-        <WindowMinimizeIcon class="size-4" />
+        <UIcon class="size-4" name="i-lucide-minus" />
       </button>
       <button
         class="flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-accented hover:text-toned"
@@ -96,8 +96,8 @@ onUnmounted(() => {
         type="button"
         @click="appWindow?.toggleMaximize"
       >
-        <WindowRestoreIcon v-if="isMaximized" class="size-4" />
-        <WindowMaximizeIcon v-else class="size-4" />
+        <UIcon v-if="isMaximized" class="size-3 rotate-180" name="i-lucide-copy" />
+        <UIcon v-else class="size-3" name="i-lucide-square" />
       </button>
       <button
         class="flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-red-500 hover:text-white"
@@ -105,7 +105,7 @@ onUnmounted(() => {
         type="button"
         @click="appWindow?.close"
       >
-        <WindowCloseIcon class="size-4" />
+        <UIcon class="size-4" name="i-lucide-x" />
       </button>
     </div>
   </div>
