@@ -11,7 +11,7 @@ use crate::{
         TemplateTarget, capabilities,
     },
     platform::input::Contact,
-    utils::region::Region2D,
+    utils::{point::Point2D, region::Region2D},
     vision::{ImageRegion, template_matching},
 };
 
@@ -84,7 +84,7 @@ impl Drag for Session {
             for step in 1..=steps {
                 self.check_stop()?;
                 let ratio = f64::from(step) / f64::from(steps);
-                let point = crate::utils::point::Point2D {
+                let point = Point2D {
                     x: (f64::from(from.x) + f64::from(to.x - from.x) * ratio).round() as i32,
                     y: (f64::from(from.y) + f64::from(to.y - from.y) * ratio).round() as i32,
                 };

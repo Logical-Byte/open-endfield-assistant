@@ -62,7 +62,7 @@ impl Worker {
                 let mut session = Session::connect(&self.ocr, stop)?;
                 session.check_stop()?;
                 if let Err(error) = platform::window::ensure_foreground_and_topmost(session.hwnd) {
-                    warn!(error = ?error, "无法将游戏窗口置于前台，继续尝试基质扫描");
+                    warn!(error = %error, "无法将游戏窗口置于前台，继续尝试基质扫描");
                 }
                 let mut io = Capture::new(&mut session);
                 let result = workflow::scan(&mut io, self.data.essences().catalog(), reporter);

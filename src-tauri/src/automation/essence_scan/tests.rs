@@ -20,6 +20,7 @@ struct Inventory {
     clicks: Vec<Point720p>,
     count: usize,
     offset: u32,
+    bottom_center: i32,
     stop_after: Option<usize>,
     matcher: Option<template_matching::LazyTemplateLoader>,
 }
@@ -43,6 +44,7 @@ impl Inventory {
             clicks: Vec::new(),
             count: 2,
             offset: 0,
+            bottom_center: 547,
             stop_after: None,
             matcher: None,
         }
@@ -83,7 +85,7 @@ impl Inventory {
     }
 
     fn max_offset(&self) -> u32 {
-        (layout::row_y(((self.count - 1) / 9) as u32, 0) - 547).max(0) as u32
+        (layout::row_y(((self.count - 1) / 9) as u32, 0) - self.bottom_center).max(0) as u32
     }
 }
 
@@ -305,4 +307,24 @@ fn follows_observed_scroll_positions_through_a_partial_last_row() {
         report.progress.outcome,
         Some(super::model::Outcome::Completed)
     ));
+}
+
+#[test]
+fn includes_the_last_partial_row_at_the_eer_container_bottom() {
+    let data = essence::Database::load(&AppPaths::new().unwrap()).unwrap();
+    let store = Arc::new(ReportStore::default());
+    let reporter = Reporter::begin(
+        Arc::clone(&store),
+        Arc::new(RecordingEventSink::default()),
+        automation::WorkerType::Simulation,
+    );
+    let mut io = Inventory::scrolling(65);
+    // 独立来源：EER dynamic.py 的容器底边 960、卡片尺寸 145，缩放后中心约 592。
+    io.bottom_center = 592;
+    let result = workflow::scan(&mut io, data.catalog(), &reporter);
+    reporter.finish(&result);
+    assert!(result.is_ok(), "{result:?}");
+    let report = store.snapshot().unwrap();
+    assert_eq!(report.records.len(), 65);
+    assert_eq!((report.records[64].row, report.records[64].column), (8, 2));
 }
