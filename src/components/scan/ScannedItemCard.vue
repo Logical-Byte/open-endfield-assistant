@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useEvidencePopover } from './useEvidencePopover';
 import type { ScanCardState } from './scanCardState';
 import type { ScannedItemView } from '@/features/archiveScan/resultView';
@@ -12,6 +12,7 @@ import ArchiveAssignmentPicker from './ArchiveAssignmentPicker.vue';
 const { t } = useAppI18n();
 const props = defineProps<{ item: ScannedItemView; selected?: boolean }>();
 const state = defineModel<ScanCardState>('state', { required: true });
+const pickerRevision = ref(0);
 const emit = defineEmits<{
   choose: [id: ArchiveId | null];
   locateArchive: [id: ArchiveId];
@@ -51,6 +52,8 @@ function cancelEdit(): void {
     draftArchiveId: props.item.archive?.id ?? null,
     draftTouched: false,
   };
+  // 放弃编辑时也重置输入控件内部的文字和弹出状态。
+  pickerRevision.value++;
 }
 function submit(): void {
   if (!changed.value) return;
@@ -138,6 +141,7 @@ const cropImageStyle: CSSProperties = {
         @submit.prevent="submit"
       >
         <ArchiveAssignmentPicker
+          :key="pickerRevision"
           v-model:search="state.search"
           :archives="item.options"
           :recommended="item.recommendations"

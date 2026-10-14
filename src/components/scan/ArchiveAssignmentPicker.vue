@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onMounted } from 'vue';
 import ArchiveLabel from './ArchiveLabel.vue';
 import { useAppI18n } from '@/shared/i18n';
 import type { ArchiveDetails } from '@/features/archiveScan/resultView';
@@ -12,6 +12,21 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ select: [id: ArchiveId | null]; focus: [] }>();
 const search = defineModel<string>('search', { required: true });
+// UInputMenu 挂载后的 nextTick 会清空搜索词。保留列表外的草稿，
+// 等这次内部初始化结束后，再接收正常的输入与选择事件。
+let acceptingSearchUpdates = false;
+onMounted((): void => {
+  void nextTick((): void => {
+    acceptingSearchUpdates = true;
+  });
+});
+function updateSearch(value: string): void {
+  if (acceptingSearchUpdates) search.value = value;
+}
+// UInputMenu 将额外属性转交给底层 ComboboxInput，显示值也从保留的草稿读取。
+function displaySearch(archive: ArchiveDetails | undefined): string {
+  return search.value || archive?.title || '';
+}
 const { t } = useAppI18n();
 const selectedArchive = computed((): ArchiveDetails | undefined =>
   props.archives.find((archive): boolean => archive.id === props.selected),
@@ -34,11 +49,11 @@ function onInput(event: Event): void {
 <template>
   <div class="relative min-w-0">
     <UInputMenu
-      v-model:search-term="search"
       :aria-label="t('scan.chooseArchive')"
       by="id"
       class="w-full min-w-0"
       :content="{ side: 'top' }"
+      :display-value="displaySearch"
       ignore-filter
       :items="items"
       label-key="title"
@@ -46,6 +61,8 @@ function onInput(event: Event): void {
       open-on-click
       open-on-focus
       :placeholder="t('scan.chooseArchiveHint')"
+      :reset-search-term-on-blur="false"
+      :search-term="search"
       trailing-icon=""
       :ui="{
         base: selectedArchive && !search ? 'caret-default text-transparent!' : '',
@@ -54,6 +71,7 @@ function onInput(event: Event): void {
       @focus="emit('focus')"
       @input="onInput"
       @update:model-value="emit('select', ($event as ArchiveDetails).id)"
+      @update:search-term="updateSearch"
     >
       <template #item-label="{ item }">
         <ArchiveLabel
