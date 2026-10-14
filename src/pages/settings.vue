@@ -17,7 +17,6 @@ import {
   updateSourceItems,
 } from '@/features/settings/settings';
 import { uiScale } from '@/features/appearance/uiScale';
-import { updateCapabilities } from '@/features/update/variantPolicy';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
 
@@ -312,9 +311,6 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
           icon="i-lucide-download"
           :title="t('settings.update.section')"
         >
-          <p v-if="!updateCapabilities.onlineUpdate" class="text-sm text-muted">
-            {{ t('settings.update.developmentBuild') }}
-          </p>
           <SettingsItem
             :description="t('settings.update.source.description')"
             icon="i-lucide-cloud-download"
