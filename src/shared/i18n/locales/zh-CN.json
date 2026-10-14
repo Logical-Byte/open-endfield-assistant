@@ -297,6 +297,12 @@
     "about": {
       "community": "反馈交流群",
       "dev": "开发版",
+      "devRestrictions": {
+        "automaticUpdates": "自动下载、自动安装设置不会触发上述操作。",
+        "localInstall": "开发者选项中的“手动安装更新包”已禁用。",
+        "title": "开发版功能限制",
+        "updates": "检查更新、下载更新和安装更新均已禁用。"
+      },
       "devUnavailable": "dev 版不可用",
       "downloading": "正在下载 {{percent}}",
       "initializing": "正在加载设置",
