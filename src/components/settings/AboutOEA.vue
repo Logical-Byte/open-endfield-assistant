@@ -222,6 +222,20 @@ async function updateApplication(): Promise<void> {
           </div>
         </div>
       </div>
+      <section
+        v-if="appPresentation.variant === AppVariant.Dev"
+        class="mt-6 border-t border-default pt-5"
+      >
+        <h3 class="mb-3 flex items-center gap-2 text-sm font-medium text-toned">
+          <UIcon class="size-4" name="i-lucide-info" />
+          {{ t('settings.about.devRestrictions.title') }}
+        </h3>
+        <ul class="list-disc space-y-2 pl-5 text-sm text-muted">
+          <li>{{ t('settings.about.devRestrictions.updates') }}</li>
+          <li>{{ t('settings.about.devRestrictions.automaticUpdates') }}</li>
+          <li>{{ t('settings.about.devRestrictions.localInstall') }}</li>
+        </ul>
+      </section>
     </template>
   </SettingsCard>
 </template>

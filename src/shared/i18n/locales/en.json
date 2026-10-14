@@ -302,6 +302,12 @@
     "about": {
       "community": "QQ community",
       "dev": "Dev build",
+      "devRestrictions": {
+        "automaticUpdates": "Automatic download and installation settings do not trigger these operations.",
+        "localInstall": "Manual update package installation in Developer options is disabled.",
+        "title": "Dev build limitations",
+        "updates": "Update checks, downloads, and installation are disabled."
+      },
       "devUnavailable": "Unavailable in dev builds",
       "downloading": "Downloading {{percent}}",
       "initializing": "Loading settings",
