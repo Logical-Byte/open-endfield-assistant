@@ -107,32 +107,6 @@ onBeforeUnmount(() => {
       </template>
 
       <UPageBody class="space-y-8">
-        <!-- 头部：官网 / GitHub / QQ 交流群 -->
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            icon="i-lucide-globe"
-            :label="t('help.website')"
-            rel="noopener noreferrer"
-            target="_blank"
-            to="https://ef.yituliu.cn/resources/oea"
-          />
-          <UButton
-            color="neutral"
-            icon="i-simple-icons:github"
-            :label="t('help.repository')"
-            rel="noopener noreferrer"
-            target="_blank"
-            to="https://github.com/Logical-Byte/open-endfield-assistant"
-          />
-          <UButton
-            icon="i-simple-icons:qq"
-            :label="t('help.feedback.group')"
-            rel="noopener noreferrer"
-            target="_blank"
-            to="https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms"
-          />
-        </div>
-
         <!-- 新手提示 -->
         <UCard id="getting-started" class="scroll-mt-8">
           <template #header>

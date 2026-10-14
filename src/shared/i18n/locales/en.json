@@ -299,6 +299,22 @@
     "viewScreenshot": "View full archive screenshot"
   },
   "settings": {
+    "about": {
+      "community": "QQ community",
+      "dev": "Dev build",
+      "devUnavailable": "Unavailable in dev builds",
+      "downloading": "Downloading {{percent}}",
+      "initializing": "Loading settings",
+      "lastChecked": "Last checked: {{time}}",
+      "notChecked": "Not checked yet",
+      "releaseNotes": "What's new",
+      "restart": "Restart and update to {{version}}",
+      "retryDownload": "Retry download",
+      "title": "About OEA",
+      "update": "Update to {{version}}",
+      "updateBusy": "Complete the current update operation first",
+      "website": "Website"
+    },
     "developer": {
       "close": "Hide developer options",
       "description": "Show advanced tools for development and troubleshooting.",
