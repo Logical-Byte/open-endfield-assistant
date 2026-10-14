@@ -12,7 +12,7 @@ use crate::{
     app_paths::AppPaths,
     automation::{self, game_environment},
     controller::Controller,
-    data::archive,
+    data::{archive, essence},
     platform, settings,
 };
 
@@ -80,6 +80,12 @@ pub fn get_automation_status(state: tauri::State<Controller>) -> automation::Sta
 #[tauri::command]
 pub fn get_archive_catalog<'a>(state: tauri::State<'a, Controller>) -> &'a archive::Catalog {
     state.inner().archive_catalog()
+}
+
+/// 返回前端展示及规则选择使用的基质词条和武器目录。
+#[tauri::command]
+pub fn get_essence_catalog<'a>(state: tauri::State<'a, Controller>) -> &'a essence::Catalog {
+    state.inner().essence_catalog()
 }
 
 /// 退出程序。

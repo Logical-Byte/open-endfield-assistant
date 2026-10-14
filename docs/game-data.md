@@ -24,6 +24,10 @@ pnpm makedata
 
 - `resources/data/prts.json`：档案层级、顺序、名称和标题。
 - `resources/data/archive_contract.json`：档案分类、图标、获取方式及参数。
+- `resources/data/essence.json`：基质词条目录。
+- `resources/data/weapons.json`：武器目录及对应的基质词条。
+
+基质与武器的独立生成命令、图片打包和一致性检查见 [数据管线](data-pipeline.md#基质与武器数据)。
 
 ## 数据表与标题差异
 

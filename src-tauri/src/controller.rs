@@ -12,7 +12,7 @@ use tracing::{info, warn};
 
 use crate::{
     automation::{self, archive_scan},
-    data::{AppData, archive},
+    data::{AppData, archive, essence},
     navigation::Navigator,
     settings,
     update::UpdateManager,
@@ -68,6 +68,10 @@ impl Controller {
     /// 前端需要的有序精简档案目录。
     pub fn archive_catalog(&self) -> &archive::Catalog {
         self.app_data.archives().catalog()
+    }
+
+    pub fn essence_catalog(&self) -> &essence::Catalog {
+        self.app_data.essences().catalog()
     }
 
     // ========== 启动 / 停止 / 退出 ==========

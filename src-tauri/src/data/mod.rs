@@ -16,6 +16,7 @@ use tracing::info;
 use crate::app_paths::AppPaths;
 
 pub mod archive;
+pub mod essence;
 
 /// 读取并解析一个 JSON 文件；失败时错误信息带完整文件路径。
 fn load_json<T: DeserializeOwned>(path: &Path) -> anyhow::Result<T> {
@@ -36,6 +37,7 @@ fn load_resource_json<T: DeserializeOwned>(
 /// 各领域的运行时数据，启动时加载并只读共享。
 pub struct AppData {
     archives: archive::Database,
+    essences: essence::Database,
 }
 
 impl AppData {
@@ -45,10 +47,20 @@ impl AppData {
             "已加载档案目录（{} 个档案条目）",
             archives.catalog().archives.len()
         );
-        Ok(Self { archives })
+        let essences = essence::Database::load(app_paths)?;
+        info!(
+            "已加载基质目录（{} 个词条、{} 把武器）",
+            essences.catalog().terms.len(),
+            essences.catalog().weapons.len()
+        );
+        Ok(Self { archives, essences })
     }
 
     pub fn archives(&self) -> &archive::Database {
         &self.archives
+    }
+
+    pub fn essences(&self) -> &essence::Database {
+        &self.essences
     }
 }

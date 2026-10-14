@@ -87,6 +87,9 @@ export default defineConfig(({ command }) => {
       createHtmlPlugin({ minify: true }),
     ],
 
+    // 图片源文件由 resources 管理，开发时直接提供，构建时复制进前端产物。
+    publicDir: 'resources/assets',
+
     define: {
       __OEA_VERSION__: JSON.stringify(appVersion),
       // command 是 Vite 的运行方式：开发服务器为 serve，产物构建为 build。

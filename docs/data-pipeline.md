@@ -139,3 +139,15 @@ Tagged union 生成 TypeScript 时可能丢失分支或字段的注释；需要�
 ## 增加其他数据领域
 
 新增数据领域时，可以沿用 `resource` 生成、后端从 `resource` 投影、定义并生成前端契约的流程，分别拥有自己的 namespace 和生成文件目录。
+
+## 基质与武器数据
+
+`pnpm makedata` 同时生成 `resources/data/essence.json`（词条目录）和 `resources/data/weapons.json`（武器目录）。只更新这两个文件时，运行 `pnpm makedata:essence`，输入仍由 `ENDFIELD_DATA_DIR` 指定。基质生成只读取所需的六张表，独立命令与完整生成入口复用同一读取函数。
+
+生成脚本 [makeEssence.ts](../scripts/data/tasks/makeEssence.ts) 关联 `WeaponBasicTable.weaponSkillList`、`SkillPatchTable.SkillPatchDataBundle[0].tagId`、`GemTagIdTable` 和 `GemTable`，按 `termType` 确定词条类别。武器名称与图标来自 `ItemTable`，中文名称解析自 `I18nTextTable_CN`。部分武器的附加属性词条为空。
+
+生成侧文件 schema 位于 [scripts/data/models/resources/essence.ts](../scripts/data/models/resources/essence.ts)。Rust 的 [data/essence/](../src-tauri/src/data/essence/) 加载两份文件，检查版本、重复身份、显示名称、词条外键与类别、图标 ID，并建立按 ID 查询的索引。`AppData` 在启动时加载目录，`get_essence_catalog` 命令将精简 `Catalog` 传给前端。共享类型由 `ts-rs` 导出到 `src/shared/types/generated/essence/`，业务代码从 `src/shared/types/essence.ts` 导入。
+
+游戏展示图片源文件位于 `resources/assets/itemicon/<iconId>.png`。Vite 的 `publicDir` 指向 `resources/assets`，开发时提供 `/itemicon/<iconId>.png`，构建时复制到 `dist/itemicon/`。前端使用 `itemIconUrl` 生成 URL，无需从后端读取图片。便携包排除外部 `resources/assets` 副本，业务 JSON、OCR 模型和识别模板仍作为外部资源分发。
+
+一致性检查及图片完整性测试均在 Rust。运行 `cargo test --lib data::essence::tests` 检查生成资源以及它们引用的 PNG 是否存在并能解码。只检查被引用的图片，允许未引用的资产存在。图片检查针对开发与 CI 的源文件，发布后的应用启动不会要求外部图片目录。
