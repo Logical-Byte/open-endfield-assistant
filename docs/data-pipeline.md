@@ -6,6 +6,8 @@
 - 从 `resources` 文件到后端内存：后端单独维护一份 `resources` 的文件 schema，然后投影为后端内存中经过类型检查的数据类型。
 - 从后端到前端：主要通过 Tauri IPC 传输。命令参数、返回值、事件和 Channel 的共享数据类型由 `ts-rs` 从 Rust 生成 TypeScript 类型，维护规则见下文。
 
+参考正文仅为人工白名单条目生成可选 `contentPreview`，包含中英文首个非空源文本行。白名单和提取规则见 [contentPreview.ts](../scripts/data/tasks/contentPreview.ts)，具体决策见 [档案匹配设计](archive-matching.md)。
+
 相关 schema 和类型定义位置：
 
 - 解包数据 schema 定义：[scripts/data/models/tableCfg/](../scripts/data/models/tableCfg/)、[scripts/data/models/json/](../scripts/data/models/json/)（TS）
@@ -46,9 +48,9 @@ flowchart TB
     end
 
     subgraph usage[业务用途]
-        ocr("后端 OCR 匹配与纠错")
+        ocr("后端 自动精确匹配与候选推荐")
         view("前端结果展示")
-        correction("前端人工纠错与档案匹配")
+        correction("前端人工选择与档案匹配")
         export("OEM 收集状态导出")
     end
 

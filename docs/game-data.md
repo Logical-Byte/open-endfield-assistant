@@ -22,7 +22,7 @@ pnpm makedata
 
 命令生成并覆盖：
 
-- `resources/data/prts.json`：档案层级、顺序、名称和标题。
+- `resources/data/prts.json`：档案层级、顺序、名称、标题及人工白名单条目的可选双语正文首行。
 - `resources/data/archive_contract.json`：档案分类、图标、获取方式及参数。
 
 ## 数据表与标题差异

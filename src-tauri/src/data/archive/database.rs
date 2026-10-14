@@ -133,6 +133,9 @@ fn project(prts: source::Prts, contract: source::Contract) -> anyhow::Result<Cat
     for (id, archive) in &prts.archives {
         validate_text(&archive.name, &format!("archive {id}"), "name")?;
         validate_text(&archive.title, &format!("archive {id}"), "title")?;
+        if let Some(preview) = &archive.content_preview {
+            validate_text(preview, &format!("archive {id}"), "contentPreview")?;
+        }
     }
     let mut methods = HashMap::new();
     for (category, rows) in contract.categories {
@@ -237,6 +240,7 @@ fn project(prts: source::Prts, contract: source::Contract) -> anyhow::Result<Cat
                         id: archive.id.clone(),
                         category: category.category_id,
                         title: archive.title.clone(),
+                        content_preview: archive.content_preview.clone(),
                         acquisition_method: method,
                     });
                 }

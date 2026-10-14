@@ -105,6 +105,8 @@ export interface PrtsAllItem {
    * 文档 / 文本则以 contentId 在富文本表中查找，查不到时回退为名称。
    */
   title: LocalizedText;
+  /** 人工指定条目的双语正文首行，其余条目省略。 */
+  contentPreview?: LocalizedText;
   /** 条目所属页面类型 */
   type: PrtsPageType;
 }

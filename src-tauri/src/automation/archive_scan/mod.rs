@@ -2,7 +2,7 @@
 //!
 //! 封装档案扫描工作流、逐条扫描记录上报和 [`Worker`](super::runtime::Worker) adapter。
 
-mod ocr_correction;
+mod matching;
 mod reporting;
 mod simulation_worker;
 mod worker;

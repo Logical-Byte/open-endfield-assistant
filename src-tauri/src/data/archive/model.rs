@@ -120,6 +120,10 @@ pub struct ArchiveEntry {
     pub category: Category,
     /// 档案详情的完整标题，用于展示和 OCR 候选匹配。
     pub title: LocalizedText,
+    /// 人工指定条目的参考正文首行，用于区分同名档案。
+    #[serde(rename = "contentPreview", skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub content_preview: Option<LocalizedText>,
     /// 获取途径，用于显示和地图拾取筛选。
     pub acquisition_method: AcquisitionMethod,
 }

@@ -7,7 +7,7 @@ import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import {
   useArchiveScanResults,
   type ArchiveScanSource,
-  type ScanCorrection,
+  type ScanEdit,
 } from '@/features/archiveScan/useArchiveScanResults';
 import type { ArchiveId } from '@/shared/types/archive';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
@@ -37,8 +37,8 @@ const {
   archiveCategory,
   scanCategory,
   mapOnly,
-  corrections,
-  correct: correctTitle,
+  edits,
+  choose: chooseArchive,
   undo,
   clear: clearRecords,
   revealScan,
@@ -109,15 +109,15 @@ watch(
     const states: Record<number, ScanCardState> = {};
     for (const item of items) {
       const state = cardStates.value[item.scannedItemId] ?? createScanCardState(item);
-      if (!state.editing) state.draft = item.correctedTitle ?? item.ocrResult;
+      if (!state.editing) state.draftArchiveId = item.archive?.id ?? null;
       states[item.scannedItemId] = state;
     }
     cardStates.value = states;
   },
   { immediate: true, flush: 'sync' },
 );
-watch(corrections, (edits: readonly ScanCorrection[]): void => {
-  const valid = new Set(edits.map((edit: ScanCorrection): number => edit.key));
+watch(edits, (edits: readonly ScanEdit[]): void => {
+  const valid = new Set(edits.map((edit: ScanEdit): number => edit.key));
   for (const [key, id] of editToasts) {
     if (!valid.has(key)) {
       toast.remove(id);
@@ -128,11 +128,11 @@ watch(corrections, (edits: readonly ScanCorrection[]): void => {
 onUnmounted((): void => {
   for (const id of editToasts.values()) toast.remove(id);
 });
-function correct(id: ScannedItemId, title: string): void {
-  const correction = correctTitle(id, title);
-  const matched =
-    scans.value.find((item: ScannedItemView): boolean => item.scannedItemId === id)!.archives
-      .length > 0;
+function choose(id: ScannedItemId, archiveId: ArchiveId | null): void {
+  const editRecord = chooseArchive(id, archiveId);
+  const selected = scans.value.find(
+    (item: ScannedItemView): boolean => item.scannedItemId === id,
+  )!.archive;
   const notification = translatedToast.add(
     {
       duration: 20000,
@@ -140,15 +140,17 @@ function correct(id: ScannedItemId, title: string): void {
       close: { color: 'neutral', variant: 'outline' },
     },
     () => ({
-      title: t('scan.correction', { id, title }),
-      description: matched ? undefined : t('scan.titleUnmatched'),
+      title: selected
+        ? t('scan.assignment', { id, title: selected.title })
+        : t('scan.assignmentCleared', { id }),
+
       actions: [
         {
           label: t('scan.undo'),
           color: 'neutral',
           variant: 'outline',
           onClick: (): void => {
-            undo(correction);
+            undo(editRecord);
             const state = cardStates.value[id];
             if (state) state.expanded = undefined;
             toast.remove(notification.id);
@@ -157,7 +159,7 @@ function correct(id: ScannedItemId, title: string): void {
       ],
     }),
   );
-  editToasts.set(correction.key, notification.id);
+  editToasts.set(editRecord.key, notification.id);
 }
 // 解除筛选后先等虚拟列表收到新 items，再按索引定位未挂载的记录。
 async function locateScan(id: ScannedItemId): Promise<void> {
@@ -385,8 +387,8 @@ watch(scans, (): void => {
             v-model:state="cardStates[item.scannedItemId]!"
             :item="item"
             :selected="selectedScanId === item.scannedItemId"
+            @choose="choose(item.scannedItemId, $event)"
             @clear-highlight="clearArchiveHighlight"
-            @correct="correct(item.scannedItemId, $event)"
             @locate-archive="locateArchive"
           />
         </ArchiveVirtualList>

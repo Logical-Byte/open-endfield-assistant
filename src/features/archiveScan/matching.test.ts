@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { deriveArchiveMatching } from './matching';
 import type { ArchiveEntry, ArchiveId } from '@/shared/types/archive';
-import type { ScannedItem } from './types/scannedItem';
+import type { ScannedItemRecord } from './types/scannedItem';
 
 const archives: ArchiveEntry[] = [
   {
@@ -23,28 +23,28 @@ const archives: ArchiveEntry[] = [
     title: { 'zh-CN': '字条', 'en-US': '字条' },
   },
 ];
-const firstScan: ScannedItem = {
-  status: 'success',
+const firstScan: ScannedItemRecord = {
+  scannedItemId: 1 as ScannedItemRecord['scannedItemId'],
+  manualChoice: { kind: 'automatic' },
   gameLocale: 'zh-CN',
   foundInPage: 'text',
   foundInCategory: 'paper',
   image: '',
   ocrResult: '字条',
-  correctedTitle: '字条',
-  correctedMatchItemIds: ['first' as ArchiveId],
+  matching: { kind: 'exact', archiveId: 'first' as ArchiveId },
 };
 
 describe('deriveArchiveMatching', () => {
-  it('保留多条扫描与同分类同名档案的全部双向关联', () => {
-    const secondScan: ScannedItem = {
+  it('同名档案只关联各自命中的扫描记录', () => {
+    const secondScan: ScannedItemRecord = {
       ...firstScan,
-      correctedMatchItemIds: ['second' as ArchiveId],
+      matching: { kind: 'exact', archiveId: 'second' as ArchiveId },
     };
     const matching = deriveArchiveMatching(archives, [firstScan, secondScan]);
-    expect(matching.scansByArchiveId.get('first' as ArchiveId)).toEqual([firstScan, secondScan]);
-    expect(matching.scansByArchiveId.get('second' as ArchiveId)).toEqual([firstScan, secondScan]);
+    expect(matching.scansByArchiveId.get('first' as ArchiveId)).toEqual([firstScan]);
+    expect(matching.scansByArchiveId.get('second' as ArchiveId)).toEqual([secondScan]);
     expect(matching.scansByArchiveId.get('otherCategory' as ArchiveId)).toEqual([]);
-    expect(matching.archiveIdsByScan.get(firstScan)).toEqual(['first', 'second']);
-    expect(matching.archiveIdsByScan.get(secondScan)).toEqual(['first', 'second']);
+    expect(matching.archiveIdByScan.get(firstScan)).toBe('first');
+    expect(matching.archiveIdByScan.get(secondScan)).toBe('second');
   });
 });

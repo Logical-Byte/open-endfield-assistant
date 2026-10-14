@@ -14,27 +14,11 @@ use ts_rs::TS;
 
 use crate::automation::{Event, EventSink};
 
-/// 单条扫描记录的识别状态，不表示自动化任务本身是否成功。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export, export_to = "archiveScan/")]
-pub(crate) enum ScannedItemStatus {
-    /// 已匹配到档案候选。
-    Success,
-    /// 有 OCR 文本，但未匹配到可靠候选。
-    Unrecognized,
-    /// OCR 文本为空或识别失败。
-    Failed,
-}
-
 /// 对单个档案详情页面进行一次识别产生的一条扫描记录。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "archiveScan/")]
 pub(crate) struct ScannedItem {
-    /// 识别状态：`success`（纠错成功）/ `unrecognized`（识别到文本但无法纠错）/
-    /// `failed`（OCR 结果为空）
-    pub status: ScannedItemStatus,
     /// 识别时的具体游戏语言，人工纠正和 UI 语言变化保留此语境。
     pub game_locale: GameLocale,
     /// 扫描时所在的档案页面 ID（`pageType`：`multi_media` / `text` / `document`）。
@@ -45,10 +29,8 @@ pub(crate) struct ScannedItem {
     pub image: String,
     /// 原始 OCR 识别结果（人工纠错时保留）
     pub ocr_result: String,
-    /// 纠错后的档案标题（无法识别时为 `None`）
-    pub corrected_title: Option<String>,
-    /// 纠错命中的档案 ID（`allItems` 的 ID，当前档案分类下同标题档案有多个时返回全部）。
-    pub corrected_match_item_ids: Vec<archive::ArchiveId>,
+    /// 后端自动结果，人工决定由前端独立保存。
+    pub matching: super::matching::MatchResult,
 }
 
 /// 截图编码为 data URL 前的最大宽度（等比缩小，控制事件体积与内存占用）。
@@ -96,28 +78,15 @@ impl ScanReporter {
         found_in_category: archive::Category,
         screenshot: &RgbaImage,
         ocr_result: String,
-        corrected: Option<super::ocr_correction::Corrected>,
+        matching: super::matching::MatchResult,
     ) {
-        let status = if ocr_result.is_empty() {
-            ScannedItemStatus::Failed
-        } else if corrected.is_some() {
-            ScannedItemStatus::Success
-        } else {
-            ScannedItemStatus::Unrecognized
-        };
-        let (corrected_title, corrected_match_item_ids) = match corrected {
-            Some(c) => (Some(c.title), c.item_ids),
-            None => (None, Vec::new()),
-        };
         self.events.publish(Event::ArchiveItemScanned(ScannedItem {
-            status,
             game_locale: GameLocale::ZhCn,
             found_in_page,
             found_in_category,
             image: encode_png_data_url(screenshot),
             ocr_result,
-            corrected_title,
-            corrected_match_item_ids,
+            matching,
         }));
     }
 }

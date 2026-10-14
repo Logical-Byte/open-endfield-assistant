@@ -1,45 +1,33 @@
 import type { ArchiveEntry, ArchiveId } from '@/shared/types/archive';
-import type { ScannedItem } from './types/scannedItem';
+import type { ScannedItemRecord } from './types/scannedItem';
 
-type ScanEvidence = Pick<ScannedItem, 'status'> & {
-  readonly correctedMatchItemIds: readonly ArchiveId[];
-};
+type ScanEvidence = Pick<ScannedItemRecord, 'matching' | 'manualChoice'>;
+
+/** 人工决定优先，推荐候选永远不直接成为匹配。 */
+export function matchedArchiveId(scan: ScanEvidence): ArchiveId | null {
+  if (scan.manualChoice.kind === 'manual') return scan.manualChoice.archiveId;
+  return scan.matching.kind === 'exact' ? scan.matching.archiveId : null;
+}
 
 export interface ArchiveMatching<T extends ScanEvidence> {
   readonly scansByArchiveId: ReadonlyMap<ArchiveId, readonly T[]>;
-  // 以输入记录对象为键，导出复用匹配规则时无需依赖前端扫描 ID。
-  readonly archiveIdsByScan: ReadonlyMap<T, readonly ArchiveId[]>;
+  readonly archiveIdByScan: ReadonlyMap<T, ArchiveId | null>;
 }
 
-/** 同分类、同标题共享成功扫描证据，保留全部记录及双向关系。 */
+/** 只按具体档案 ID 关联证据，每条扫描记录最多关联一个档案。 */
 export function deriveArchiveMatching<T extends ScanEvidence>(
   archives: readonly ArchiveEntry[],
   scannedItems: readonly T[],
 ): ArchiveMatching<T> {
-  const byId = new Map(archives.map((archive) => [archive.id, archive]));
-  const scansByGroup = new Map<string, T[]>();
+  const scansByArchiveId = new Map<ArchiveId, T[]>(
+    archives.map((archive): [ArchiveId, T[]] => [archive.id, []]),
+  );
+  const archiveIdByScan = new Map<T, ArchiveId | null>();
   for (const scan of scannedItems) {
-    if (scan.status !== 'success') continue;
-    const groups = new Set<string>();
-    for (const id of scan.correctedMatchItemIds) {
-      const archive = byId.get(id);
-      if (archive) groups.add(JSON.stringify([archive.category, archive.title['zh-CN']]));
-    }
-    for (const group of groups) {
-      const scans = scansByGroup.get(group) ?? [];
-      scans.push(scan);
-      scansByGroup.set(group, scans);
-    }
+    const id = matchedArchiveId(scan);
+    const evidence = id ? scansByArchiveId.get(id) : undefined;
+    archiveIdByScan.set(scan, evidence ? id : null);
+    if (evidence) evidence.push(scan);
   }
-
-  const scansByArchiveId = new Map<ArchiveId, readonly T[]>();
-  const archiveIdsByScan = new Map<T, ArchiveId[]>();
-  for (const scan of scannedItems) archiveIdsByScan.set(scan, []);
-  for (const archive of archives) {
-    const scans =
-      scansByGroup.get(JSON.stringify([archive.category, archive.title['zh-CN']])) ?? [];
-    scansByArchiveId.set(archive.id, scans);
-    for (const scan of scans) archiveIdsByScan.get(scan)!.push(archive.id);
-  }
-  return { scansByArchiveId, archiveIdsByScan };
+  return { scansByArchiveId, archiveIdByScan };
 }

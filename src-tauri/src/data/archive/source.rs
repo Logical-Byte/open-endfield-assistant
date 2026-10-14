@@ -61,6 +61,7 @@ pub(super) struct SourceArchive {
     pub first_lv_id: FirstLvId,
     pub category_id: Category,
     pub title: LocalizedText,
+    pub content_preview: Option<LocalizedText>,
     pub order: i64,
     pub r#type: Page,
 }

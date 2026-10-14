@@ -16,10 +16,7 @@ use crate::{
     data::{AppData, archive},
 };
 
-use super::{
-    ocr_correction::{DEFAULT_CORRECTION_OVERRIDES, match_with_correction},
-    reporting::ScanReporter,
-};
+use super::{matching::match_title, reporting::ScanReporter};
 
 pub(crate) struct SimulationWorker {
     app_data: Arc<AppData>,
@@ -98,14 +95,9 @@ impl runtime::Worker for SimulationWorker {
             let (page, category, ocr_result) = sample_ocr_result(sequence);
             sequence += 1;
 
-            let corrected = match_with_correction(
-                self.app_data.archives(),
-                category,
-                &ocr_result,
-                Some(&DEFAULT_CORRECTION_OVERRIDES),
-            );
+            let matching = match_title(self.app_data.archives(), category, &ocr_result);
             tracing::debug!(sequence, "上报模拟档案扫描结果");
-            reporter.report(page, category, &image, ocr_result, corrected);
+            reporter.report(page, category, &image, ocr_result, matching);
         };
 
         if result

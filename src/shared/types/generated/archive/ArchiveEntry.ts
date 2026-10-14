@@ -21,6 +21,10 @@ category: Category,
  */
 title: LocalizedText, 
 /**
+ * 人工指定条目的参考正文首行，用于区分同名档案。
+ */
+contentPreview?: LocalizedText, 
+/**
  * 获取途径，用于显示和地图拾取筛选。
  */
 acquisitionMethod: AcquisitionMethod, };
