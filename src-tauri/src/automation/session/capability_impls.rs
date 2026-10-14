@@ -7,7 +7,7 @@ use tracing::debug;
 
 use crate::{
     automation::{
-        Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
+        Clock, Drag, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
         TemplateTarget, capabilities,
     },
     platform::input::Contact,
@@ -67,11 +67,53 @@ impl Input for Session {
     }
 }
 
+impl Drag for Session {
+    fn drag(&mut self, from: Point720p, to: Point720p) -> Result<(), capabilities::Error> {
+        self.check_stop()?;
+        let from = self.resolution_transform.to_physical(from);
+        let to = self.resolution_transform.to_physical(to);
+        self.input
+            .touch_down(Contact::Left, from)
+            .map_err(|error| {
+                debug!(error = ?error, "开始拖动失败");
+                capabilities::Error::ExecutionFailed
+            })?;
+        let result: Result<(), capabilities::Error> = (|| {
+            // 分步移动并等待，让游戏识别为拖动。EER WindowActions.progressive_drag 同样采用分步输入。
+            let steps = (from.y.abs_diff(to.y) / 8).max(1);
+            for step in 1..=steps {
+                self.check_stop()?;
+                let ratio = f64::from(step) / f64::from(steps);
+                let point = crate::utils::point::Point2D {
+                    x: (f64::from(from.x) + f64::from(to.x - from.x) * ratio).round() as i32,
+                    y: (f64::from(from.y) + f64::from(to.y - from.y) * ratio).round() as i32,
+                };
+                self.input
+                    .touch_move(Contact::Left, point)
+                    .map_err(|error| {
+                        debug!(error = ?error, "拖动游戏列表失败");
+                        capabilities::Error::ExecutionFailed
+                    })?;
+                thread::sleep(Duration::from_millis(10));
+            }
+            Ok(())
+        })();
+        // 停止或移动失败时也释放鼠标，避免留下按下状态。
+        let release = self.input.touch_up(Contact::Left, to).map_err(|error| {
+            debug!(error = ?error, "结束拖动失败");
+            capabilities::Error::ExecutionFailed
+        });
+        result?;
+        release?;
+        self.move_mouse_to_safe_position()
+    }
+}
+
 impl TemplateMatching for Session {
     fn find_template(
         &mut self,
         screenshot: &RgbaImage,
-        target: &TemplateTarget,
+        target: &TemplateTarget<'_>,
     ) -> Result<Option<TemplateMatch>, capabilities::Error> {
         let matched = template_matching::find(
             &ImageRegion::new(screenshot, target.roi).map_err(|error| {

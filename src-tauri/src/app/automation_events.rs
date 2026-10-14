@@ -118,5 +118,11 @@ fn emit_event(app_handle: &AppHandle, event: automation::Event) -> tauri::Result
         automation::Event::ArchiveItemScanned(result) => {
             app_handle.emit("archive-item-scanned", result)
         }
+        automation::Event::EssenceItemScanned(record) => {
+            app_handle.emit("essence-item-scanned", record)
+        }
+        automation::Event::EssenceScanProgress(progress) => {
+            app_handle.emit("essence-scan-progress", progress)
+        }
     }
 }

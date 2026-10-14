@@ -9,6 +9,8 @@ use super::{archive_scan::ScannedItem, runtime::Status};
 pub(crate) enum Event {
     StatusChanged(Status),
     ArchiveItemScanned(ScannedItem),
+    EssenceItemScanned(super::essence_scan::ScanRecord),
+    EssenceScanProgress(super::essence_scan::Progress),
 }
 
 /// 自动化事件 [`Event`] 的观察出口。

@@ -240,7 +240,7 @@ where
 /// 档案标题 OCR 区域，基于 1280 × 720 画面。
 pub(crate) const OCR_ROI: Region2D<u32> = ltwh!(350, 58, 578, 42);
 
-const NEXT_ITEM_TARGETS: [(&str, TemplateTarget); 2] = [
+const NEXT_ITEM_TARGETS: [(&str, TemplateTarget<'static>); 2] = [
     (
         "下一篇",
         TemplateTarget {
@@ -358,7 +358,7 @@ mod tests {
         fn find_template(
             &mut self,
             _: &RgbaImage,
-            _: &TemplateTarget,
+            _: &TemplateTarget<'_>,
         ) -> Result<Option<TemplateMatch>, capabilities::Error> {
             unreachable!()
         }

@@ -88,6 +88,14 @@ pub fn get_essence_catalog<'a>(state: tauri::State<'a, Controller>) -> &'a essen
     state.inner().essence_catalog()
 }
 
+/// 当前或最近一次基质扫描报告，应用退出后不保留。
+#[tauri::command]
+pub(crate) fn get_essence_scan_report(
+    state: tauri::State<Controller>,
+) -> Option<automation::essence_scan::Report> {
+    state.essence_scan_report()
+}
+
 /// 退出程序。
 #[tauri::command]
 pub fn quit(state: tauri::State<Controller>, app_handle: tauri::AppHandle) {

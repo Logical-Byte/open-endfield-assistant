@@ -18,6 +18,7 @@ pub(crate) mod archive_scan;
 mod cancellation;
 pub mod capabilities;
 mod error;
+pub(crate) mod essence_scan;
 mod events;
 pub(crate) mod game_environment;
 mod runtime;
@@ -31,7 +32,7 @@ mod stats;
 pub(crate) use cancellation::new_stop_token;
 use cancellation::{StopToken, is_stop_requested, request_stop};
 pub use capabilities::{
-    Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
+    Clock, Drag, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
     TemplateTarget,
 };
 pub use error::{Error, RuntimeError, WorkerError};
@@ -46,12 +47,17 @@ pub use runtime::{LastRun, RunOutcome, Status};
 #[ts(export, export_to = "automation/")]
 pub enum TaskKind {
     ArchiveScan,
+    EssenceScan,
 }
 
 #[derive(serde::Deserialize, TS)]
 #[serde(tag = "taskKind", rename_all = "camelCase")]
 #[ts(export, export_to = "automation/")]
 pub(crate) enum StartRequest {
+    EssenceScan {
+        #[serde(rename = "workerType")]
+        worker_type: WorkerType,
+    },
     ArchiveScan {
         /// 档案扫描使用的真实或模拟执行方式。
         #[serde(rename = "workerType")]
@@ -62,7 +68,7 @@ pub(crate) enum StartRequest {
 /// 自动化工作者的执行方式：
 /// - `production`：连接游戏并实际执行工作流。
 /// - `simulation`：使用任务提供的模拟工作者。
-#[derive(serde::Deserialize, TS)]
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "automation/")]
 pub(crate) enum WorkerType {

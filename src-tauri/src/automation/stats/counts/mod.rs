@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 pub struct CapabilityCallCounts {
     pub screenshot: u64,
     pub click: u64,
+    pub drag: u64,
     pub press_key: u64,
     pub move_mouse_to_safe_position: u64,
     pub find_template: u64,
@@ -138,7 +139,7 @@ mod tests {
         fn find_template(
             &mut self,
             _screenshot: &RgbaImage,
-            _target: &TemplateTarget,
+            _target: &TemplateTarget<'_>,
         ) -> Result<Option<TemplateMatch>, capabilities::Error> {
             Ok(None)
         }
@@ -184,6 +185,7 @@ mod tests {
             CapabilityCallCounts {
                 screenshot: 1,
                 click: 1,
+                drag: 0,
                 press_key: 1,
                 move_mouse_to_safe_position: 1,
                 find_template: 1,

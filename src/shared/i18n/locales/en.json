@@ -55,6 +55,48 @@
       "versionMismatch": "The download source version {{actual}} does not match the expected version {{expected}}. Try again later."
     }
   },
+  "essenceScan": {
+    "abandoned": "Discarded",
+    "counts": "Scanned {{count}} essences, {{incomplete}} incompletely recognized",
+    "empty": "No scan records",
+    "idle": "No scan started",
+    "image": "View detail image",
+    "instructions": "Open the Simplified Chinese essence inventory, clear filters and keep the sort order unchanged. Scanning uses the 720p layout and only reads essence states.",
+    "issue": {
+      "abandoned": "Unknown discard state",
+      "level": "Level {{position}} is unknown",
+      "locked": "Unknown lock state",
+      "rarity": "Unknown rarity",
+      "term": "Term {{position}} is unknown",
+      "termLayout": "Duplicate term categories require inspection"
+    },
+    "locked": "Locked",
+    "notAbandoned": "Not discarded",
+    "outcome": {
+      "completed": "Traversed the currently visible essence list",
+      "stopped": "Stopped with partial results"
+    },
+    "phase": {
+      "finished": "Scan ended",
+      "preparing": "Connecting and returning to the top",
+      "scanning": "Scanning",
+      "scrolling": "Scrolling"
+    },
+    "position": "Row {{row}}, column {{column}}",
+    "rarity": {
+      "five": "Flawless essence (5)",
+      "four": "High-purity essence (4)",
+      "other": "Other rarity",
+      "unknown": "Unknown rarity"
+    },
+    "simulate": "Simulate scan",
+    "simulationNotice": "Simulated data verifies the list and task controls only. Game recognition and scrolling still require Windows validation.",
+    "start": "Start scan",
+    "stop": "Stop",
+    "title": "Essence scan",
+    "unknown": "Unknown",
+    "unlocked": "Unlocked"
+  },
   "footer": {
     "poweredBy": "Powered by"
   },

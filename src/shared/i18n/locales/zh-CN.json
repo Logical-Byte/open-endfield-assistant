@@ -55,6 +55,48 @@
       "versionMismatch": "下载源版本 {{actual}} 与预期版本 {{expected}} 不一致，请稍后重试。"
     }
   },
+  "essenceScan": {
+    "abandoned": "已弃用",
+    "counts": "已扫描 {{count}} 枚，其中 {{incomplete}} 枚识别不完整",
+    "empty": "暂无扫描记录",
+    "idle": "尚未开始扫描",
+    "image": "查看详情截图",
+    "instructions": "进入简体中文的武器基质背包，清除筛选，保持排序不变。扫描使用 720p 基准布局，只读取基质状态。",
+    "issue": {
+      "abandoned": "弃用状态未识别",
+      "level": "第 {{position}} 个等级未识别",
+      "locked": "锁定状态未识别",
+      "rarity": "稀有度未识别",
+      "term": "第 {{position}} 个词条未识别",
+      "termLayout": "词条类别重复，需要检查"
+    },
+    "locked": "已锁定",
+    "notAbandoned": "未弃用",
+    "outcome": {
+      "completed": "已遍历当前显示的基质列表",
+      "stopped": "已停止，保留部分结果"
+    },
+    "phase": {
+      "finished": "扫描结束",
+      "preparing": "正在连接游戏并回到列表顶部",
+      "scanning": "正在扫描",
+      "scrolling": "正在翻页"
+    },
+    "position": "第 {{row}} 行，第 {{column}} 列",
+    "rarity": {
+      "five": "无瑕基质（5）",
+      "four": "高纯基质（4）",
+      "other": "其他稀有度",
+      "unknown": "稀有度未识别"
+    },
+    "simulate": "模拟扫描",
+    "simulationNotice": "当前使用模拟数据，仅验证列表展示与任务控制。真实游戏识别和翻页尚待 Windows 验收。",
+    "start": "开始扫描",
+    "stop": "停止",
+    "title": "基质扫描",
+    "unknown": "未识别",
+    "unlocked": "未锁定"
+  },
   "footer": {
     "poweredBy": "基于"
   },

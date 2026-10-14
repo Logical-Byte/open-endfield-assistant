@@ -7,13 +7,20 @@ use image::RgbaImage;
 
 use crate::{
     automation::{
-        Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
+        Clock, Drag, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
         TemplateTarget,
     },
     utils::region::Region2D,
 };
 
 use super::Capture;
+
+impl<C: Drag + ?Sized> Drag for Capture<'_, C> {
+    fn drag(&mut self, from: Point720p, to: Point720p) -> Result<(), capabilities::Error> {
+        self.calls.drag += 1;
+        self.inner.drag(from, to)
+    }
+}
 
 impl<C: Input + ?Sized> Input for Capture<'_, C> {
     fn click(&mut self, point: Point720p) -> Result<(), capabilities::Error> {
@@ -43,7 +50,7 @@ impl<C: TemplateMatching + ?Sized> TemplateMatching for Capture<'_, C> {
     fn find_template(
         &mut self,
         screenshot: &RgbaImage,
-        target: &TemplateTarget,
+        target: &TemplateTarget<'_>,
     ) -> Result<Option<TemplateMatch>, capabilities::Error> {
         self.calls.find_template += 1;
         self.inner.find_template(screenshot, target)

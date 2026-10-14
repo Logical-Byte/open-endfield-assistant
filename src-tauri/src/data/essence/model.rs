@@ -6,6 +6,13 @@ use ts_rs::TS;
 #[ts(export, export_to = "essence/")]
 pub struct TermId(String);
 
+impl TermId {
+    /// 模板文件使用游戏词条 ID 命名。
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// 游戏中的稳定武器身份。
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, TS)]
 #[ts(export, export_to = "essence/")]

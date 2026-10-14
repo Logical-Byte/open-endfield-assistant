@@ -114,7 +114,7 @@ mod tests {
         fn find_template(
             &mut self,
             _screenshot: &RgbaImage,
-            target: &TemplateTarget,
+            target: &TemplateTarget<'_>,
         ) -> Result<Option<TemplateMatch>, capabilities::Error> {
             let matches = self.frame_recognizable
                 && matches!(
@@ -174,7 +174,7 @@ mod tests {
         fn find_template(
             &mut self,
             _screenshot: &RgbaImage,
-            target: &TemplateTarget,
+            target: &TemplateTarget<'_>,
         ) -> Result<Option<TemplateMatch>, capabilities::Error> {
             let matches = match (self.visible, target.template_name) {
                 (ArchiveVisibleUi::Detail, "情报档案库/档案详情装饰.png") => true,
@@ -304,7 +304,7 @@ mod tests {
             fn find_template(
                 &mut self,
                 _: &RgbaImage,
-                _: &TemplateTarget,
+                _: &TemplateTarget<'_>,
             ) -> Result<Option<TemplateMatch>, capabilities::Error> {
                 unreachable!()
             }

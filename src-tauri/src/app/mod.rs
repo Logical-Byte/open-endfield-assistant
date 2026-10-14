@@ -53,6 +53,7 @@ pub fn run() {
             commands::get_automation_status,
             commands::get_archive_catalog,
             commands::get_essence_catalog,
+            commands::get_essence_scan_report,
             commands::quit,
             commands::open_log_dir,
             commands::load_oea_settings,
