@@ -17,11 +17,11 @@ const selectedArchive = computed((): ArchiveDetails | undefined =>
   props.archives.find((archive): boolean => archive.id === props.selected),
 );
 const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[] => {
-  const prefix = search.value.toLowerCase();
-  const visible = prefix
-    ? props.archives.filter((archive): boolean => archive.title.toLowerCase().startsWith(prefix))
+  const query = search.value;
+  const visible = query
+    ? props.archives.filter((archive): boolean => archive.title.includes(query))
     : [...props.recommended];
-  return prefix
+  return query || !visible.length
     ? visible
     : [{ type: 'label' as const, title: t('scan.recommendations') }, ...visible];
 });
@@ -45,11 +45,11 @@ function onInput(event: Event): void {
       :model-value="selectedArchive"
       open-on-click
       open-on-focus
-      :placeholder="t('scan.archivePrefix')"
+      :placeholder="t('scan.chooseArchiveHint')"
       trailing-icon=""
       :ui="{
         base: selectedArchive && !search ? 'caret-default text-transparent!' : '',
-        content: 'max-h-64',
+        content: 'max-h-64 bg-elevated shadow-xl ring-accented',
       }"
       @focus="emit('focus')"
       @input="onInput"
@@ -61,7 +61,14 @@ function onInput(event: Event): void {
           :title="item.title"
         />
       </template>
-      <template #empty>{{ search ? t('scan.noArchives') : t('scan.noRecommendations') }}</template>
+      <template #empty>
+        <div class="space-y-2 text-left">
+          <p v-if="!search" class="font-medium text-default">{{ t('scan.recommendations') }}</p>
+          <p class="text-muted">
+            {{ search ? t('scan.noArchives') : t('scan.noRecommendations') }}
+          </p>
+        </div>
+      </template>
     </UInputMenu>
     <!-- 输入时显示搜索文字，其余时候在完整输入框内使用统一的档案展示。 -->
     <div

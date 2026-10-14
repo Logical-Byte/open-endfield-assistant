@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
 import { computed } from 'vue';
+import { useEvidencePopover } from './useEvidencePopover';
 import type { ScanCardState } from './scanCardState';
 import type { ScannedItemView } from '@/features/archiveScan/resultView';
 import type { ArchiveId } from '@/shared/types/archive';
@@ -16,6 +17,11 @@ const emit = defineEmits<{
   locateArchive: [id: ArchiveId];
   clearHighlight: [];
 }>();
+const {
+  open: floatingMatchesOpen,
+  cancelClose,
+  scheduleClose,
+} = useEvidencePopover((): void => emit('clearHighlight'));
 const expanded = computed((): boolean => state.value.expanded ?? !props.item.archive);
 const currentTitle = computed((): string => props.item.archive?.title ?? props.item.ocrResult);
 const changed = computed(
@@ -173,14 +179,55 @@ const cropImageStyle: CSSProperties = {
           />
           <div class="mt-2 flex items-center justify-between gap-1">
             <span class="text-xs text-muted">{{ item.categoryLabel }}</span>
-            <UButton
-              color="neutral"
-              icon="i-lucide-arrow-left"
-              :label="t('scan.locateArchive')"
-              size="xs"
-              variant="outline"
-              @click="emit('locateArchive', item.archive.id)"
-            />
+            <UPopover
+              v-model:open="floatingMatchesOpen"
+              :content="{ side: 'bottom', align: 'end', sideOffset: 5 }"
+              mode="click"
+              :ui="{
+                content: 'w-80 max-w-[calc(100vw-24px)] bg-elevated p-3 shadow-xl ring-accented',
+              }"
+            >
+              <UButton
+                :aria-expanded="floatingMatchesOpen"
+                class="h-7 w-32 justify-center"
+                color="neutral"
+                icon="i-lucide-link"
+                :label="t('scan.matches', { count: 1 })"
+                size="xs"
+                trailing-icon="i-lucide-chevron-down"
+                variant="outline"
+                @mouseenter="cancelClose"
+                @mouseleave="scheduleClose"
+              />
+              <template #content>
+                <div @mouseenter="cancelClose" @mouseleave="scheduleClose">
+                  <p class="mb-2 text-xs text-muted">
+                    {{ t('scan.linkedSummary', { id: item.scannedItemId, count: 1 }) }}
+                  </p>
+                  <div
+                    class="flex items-center justify-between gap-2 rounded border border-default px-2 py-1.5"
+                  >
+                    <div class="min-w-0">
+                      <ArchiveLabel
+                        :content-preview="item.archive.contentPreview"
+                        :title="item.archive.title"
+                      />
+                      <p class="truncate font-mono text-[10px] text-dimmed">
+                        {{ item.archive.id }}
+                      </p>
+                    </div>
+                    <UButton
+                      color="neutral"
+                      icon="i-lucide-arrow-left"
+                      :label="t('scan.locateArchive')"
+                      size="xs"
+                      variant="outline"
+                      @click="emit('locateArchive', item.archive.id)"
+                    />
+                  </div>
+                </div>
+              </template>
+            </UPopover>
           </div>
         </div>
         <UButton
