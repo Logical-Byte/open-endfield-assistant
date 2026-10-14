@@ -413,7 +413,7 @@
         "description": "Check the update service for available updates.",
         "title": "Check for updates manually"
       },
-      "developmentBuild": "Updates are disabled in the OEA dev version.",
+      "developmentBuild": "Update settings can be saved in OEA dev. Update checks, downloads, and installation are disabled.",
       "mirror": {
         "free": "OEA is free and also provides free downloads. Download and use it for free from {releases}.",
         "service": "{service} is an independent third-party accelerated download service that requires a paid subscription."

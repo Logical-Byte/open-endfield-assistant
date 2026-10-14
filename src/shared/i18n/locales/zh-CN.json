@@ -408,7 +408,7 @@
         "description": "通过更新服务检查是否存在可用更新",
         "title": "手动检查更新"
       },
-      "developmentBuild": "OEA dev 版本已禁用更新。",
+      "developmentBuild": "OEA dev 版本可保存更新设置，但不会检查、下载或安装更新。",
       "mirror": {
         "free": "OEA 本身不收取任何费用，也提供免费的下载渠道。您可以前往 {releases} 免费下载和使用。",
         "service": "{service} 是独立的第三方加速下载服务，需要付费使用。"

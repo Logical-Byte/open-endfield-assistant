@@ -315,114 +315,112 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
           <p v-if="!updateCapabilities.onlineUpdate" class="text-sm text-muted">
             {{ t('settings.update.developmentBuild') }}
           </p>
-          <template v-else>
-            <SettingsItem
-              :description="t('settings.update.source.description')"
-              icon="i-lucide-cloud-download"
-              :item="fields.select('updateSource', updateSourceItems)"
-              :title="t('settings.update.source.title')"
-            />
+          <SettingsItem
+            :description="t('settings.update.source.description')"
+            icon="i-lucide-cloud-download"
+            :item="fields.select('updateSource', updateSourceItems)"
+            :title="t('settings.update.source.title')"
+          />
 
-            <SettingsItem
-              :description="t('settings.update.autoDownload.description')"
-              icon="i-lucide-cloud-download"
-              :item="fields.switch('autoDownloadUpdates')"
-              :title="t('settings.update.autoDownload.title')"
-            />
+          <SettingsItem
+            :description="t('settings.update.autoDownload.description')"
+            icon="i-lucide-cloud-download"
+            :item="fields.switch('autoDownloadUpdates')"
+            :title="t('settings.update.autoDownload.title')"
+          />
 
-            <SettingsItem
-              :description="t('settings.update.autoInstall.description')"
-              icon="i-lucide-rocket"
-              :item="fields.switch('autoInstallUpdates')"
-              :title="t('settings.update.autoInstall.title')"
-            />
+          <SettingsItem
+            :description="t('settings.update.autoInstall.description')"
+            icon="i-lucide-rocket"
+            :item="fields.switch('autoInstallUpdates')"
+            :title="t('settings.update.autoInstall.title')"
+          />
 
-            <SettingsItem
-              icon="i-lucide-key-round"
-              :item="
-                fields.input('mirrorchyanCdk', {
-                  type: 'password',
-                  placeholder: (): string => t('settings.update.cdk.placeholder'),
-                })
-              "
-              :title="t('settings.update.cdk.title')"
-            >
-              <template #description>
-                <div class="space-y-1 text-sm text-dimmed">
-                  <p>
-                    <TranslationComponent :translation="t('settings.update.mirror.service')">
-                      <template #service
-                        ><ULink
-                          class="text-primary hover:text-primary/75"
-                          to="https://mirrorchyan.com/"
-                          >MirrorChyan</ULink
-                        ></template
-                      >
-                    </TranslationComponent>
+          <SettingsItem
+            icon="i-lucide-key-round"
+            :item="
+              fields.input('mirrorchyanCdk', {
+                type: 'password',
+                placeholder: (): string => t('settings.update.cdk.placeholder'),
+              })
+            "
+            :title="t('settings.update.cdk.title')"
+          >
+            <template #description>
+              <div class="space-y-1 text-sm text-dimmed">
+                <p>
+                  <TranslationComponent :translation="t('settings.update.mirror.service')">
+                    <template #service
+                      ><ULink
+                        class="text-primary hover:text-primary/75"
+                        to="https://mirrorchyan.com/"
+                        >MirrorChyan</ULink
+                      ></template
+                    >
+                  </TranslationComponent>
+                </p>
+                <p>
+                  <TranslationComponent :translation="t('settings.update.mirror.free')">
+                    <template #releases
+                      ><ULink
+                        class="text-primary hover:text-primary/75"
+                        rel="noopener noreferrer"
+                        target="_blank"
+                        to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
+                        >GitHub Releases</ULink
+                      ></template
+                    >
+                  </TranslationComponent>
+                </p>
+              </div>
+            </template>
+            <template #default="{ item: cdkItem, disabled }">
+              <div class="flex flex-col items-center gap-1">
+                <SettingsControl
+                  :aria-label="t('settings.update.cdk.title')"
+                  :disabled="disabled"
+                  :item="cdkItem!"
+                />
+                <template v-if="draftSettings?.mirrorchyanCdk === null">
+                  <p class="max-w-56 text-sm text-warning">
+                    {{ t('settings.update.cdk.unreadable') }}
                   </p>
-                  <p>
-                    <TranslationComponent :translation="t('settings.update.mirror.free')">
-                      <template #releases
-                        ><ULink
-                          class="text-primary hover:text-primary/75"
-                          rel="noopener noreferrer"
-                          target="_blank"
-                          to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
-                          >GitHub Releases</ULink
-                        ></template
-                      >
-                    </TranslationComponent>
-                  </p>
-                </div>
-              </template>
-              <template #default="{ item: cdkItem, disabled }">
-                <div class="flex flex-col items-center gap-1">
-                  <SettingsControl
-                    :aria-label="t('settings.update.cdk.title')"
+                  <UButton
+                    color="neutral"
                     :disabled="disabled"
-                    :item="cdkItem!"
+                    :label="t('settings.update.cdk.clear')"
+                    variant="link"
+                    @click="editSettings({ mirrorchyanCdk: '' })"
                   />
-                  <template v-if="draftSettings?.mirrorchyanCdk === null">
-                    <p class="max-w-56 text-sm text-warning">
-                      {{ t('settings.update.cdk.unreadable') }}
-                    </p>
-                    <UButton
-                      color="neutral"
-                      :disabled="disabled"
-                      :label="t('settings.update.cdk.clear')"
-                      variant="link"
-                      @click="editSettings({ mirrorchyanCdk: '' })"
-                    />
-                  </template>
-                  <ULink
-                    class="text-sm text-primary hover:text-primary/75"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                    to="https://mirrorchyan.com/?source=oea"
-                  >
-                    <span class="flex items-center gap-1"
-                      >{{ t('settings.update.cdk.subscribe') }}<UIcon name="i-lucide-external-link"
-                    /></span>
-                  </ULink>
-                </div>
-              </template>
-            </SettingsItem>
+                </template>
+                <ULink
+                  class="text-sm text-primary hover:text-primary/75"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  to="https://mirrorchyan.com/?source=oea"
+                >
+                  <span class="flex items-center gap-1"
+                    >{{ t('settings.update.cdk.subscribe') }}<UIcon name="i-lucide-external-link"
+                  /></span>
+                </ULink>
+              </div>
+            </template>
+          </SettingsItem>
 
-            <SettingsItem
-              :description="t('settings.update.proxy.description')"
-              icon="i-lucide-network"
-              :item="fields.select('updateProxyMode', proxyModeItems)"
-              :title="t('settings.update.proxy.title')"
-            />
+          <SettingsItem
+            :description="t('settings.update.proxy.description')"
+            icon="i-lucide-network"
+            :item="fields.select('updateProxyMode', proxyModeItems)"
+            :title="t('settings.update.proxy.title')"
+          />
 
-            <SettingsItem
-              v-if="draftSettings?.updateProxyMode === 'custom'"
-              :description="t('settings.update.proxyUrl.description')"
-              icon="i-lucide-link"
-              :item="fields.input('updateProxyUrl', { placeholder: 'http://127.0.0.1:7890' })"
-              :title="t('settings.update.proxyUrl.title')"
-            />
-          </template>
+          <SettingsItem
+            v-if="draftSettings?.updateProxyMode === 'custom'"
+            :description="t('settings.update.proxyUrl.description')"
+            icon="i-lucide-link"
+            :item="fields.input('updateProxyUrl', { placeholder: 'http://127.0.0.1:7890' })"
+            :title="t('settings.update.proxyUrl.title')"
+          />
         </SettingsCard>
 
         <DeveloperSettings :unsupported="settingsUnsupported" />
