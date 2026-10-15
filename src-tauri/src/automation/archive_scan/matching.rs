@@ -82,20 +82,25 @@ impl BodyMatch {
     /// 只从第一次查询的候选中选取 ID，因此硬编码解释不会建立分类或同名组之外的匹配。
     /// 原始 OCR 观察由扫描记录保存，本函数仅生成用于比较的临时文本。
     pub(super) fn resolve(self, body: Option<&str>) -> MatchResult {
-        let matched_id = body.and_then(|body| match self.discriminator {
-            BodyDiscriminator::BambooNotes => match_bamboo_notes_body(body),
-        });
-        match matched_id.and_then(|id| {
-            self.candidates
-                .iter()
-                .find(|candidate| candidate.as_str() == id)
-        }) {
-            Some(id) => MatchResult::Exact {
-                archive_id: id.clone(),
+        let matched_id = match body {
+            Some(body) => match self.discriminator {
+                BodyDiscriminator::BambooNotes => match_bamboo_notes_body(body),
             },
-            None => MatchResult::Recommendations {
-                archive_ids: self.candidates,
-            },
+            None => None,
+        };
+
+        if let Some(matched_id) = matched_id {
+            for candidate in &self.candidates {
+                if candidate.as_str() == matched_id {
+                    return MatchResult::Exact {
+                        archive_id: candidate.clone(),
+                    };
+                }
+            }
+        }
+
+        MatchResult::Recommendations {
+            archive_ids: self.candidates,
         }
     }
 }
