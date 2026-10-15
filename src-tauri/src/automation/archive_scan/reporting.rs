@@ -29,6 +29,12 @@ pub(crate) struct ScannedItem {
     pub image: String,
     /// 原始 OCR 识别结果（人工纠错时保留）
     pub ocr_result: String,
+    /// 正文区域的原始 OCR 文本，保留空白与标点，独立于用于判别的规范化文本。
+    /// 仅在已知同名组请求正文且取得识别文本时填写。未识别正文、未检测到文字或
+    /// 识别失败时省略，空字符串表示 OCR 已返回文本但内容为空。本轮不用于前端展示。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub body_ocr_result: Option<String>,
     /// 后端自动结果，人工决定由前端独立保存。
     pub matching: super::matching::MatchResult,
 }
@@ -78,6 +84,7 @@ impl ScanReporter {
         found_in_category: archive::Category,
         screenshot: &RgbaImage,
         ocr_result: String,
+        body_ocr_result: Option<String>,
         matching: super::matching::MatchResult,
     ) {
         self.events.publish(Event::ArchiveItemScanned(ScannedItem {
@@ -86,6 +93,7 @@ impl ScanReporter {
             found_in_category,
             image: encode_png_data_url(screenshot),
             ocr_result,
+            body_ocr_result,
             matching,
         }));
     }

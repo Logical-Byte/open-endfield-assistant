@@ -171,7 +171,14 @@ where
 {
     let screenshot = cx.screenshot()?;
     let ocr_text = read_title(cx, &screenshot, count)?;
-    let result = matching::match_title(archives, category, &ocr_text);
+    let (result, body_ocr_result) = match matching::match_title(archives, category, &ocr_text) {
+        matching::TitleMatch::Complete(result) => (result, None),
+        matching::TitleMatch::NeedsBody(context) => {
+            // 继续使用标题截图，避免两次采集之间翻页导致标题和正文来自不同档案。
+            let body = read_body(cx, &screenshot, context.ocr_roi(), count)?;
+            (context.resolve(body.as_deref()), body)
+        }
+    };
     match &result {
         matching::MatchResult::Exact { archive_id } => {
             info!("第 {count} 份档案精确匹配：{archive_id}")
@@ -180,7 +187,14 @@ where
             info!("第 {count} 份档案待核对，推荐 {} 个候选", archive_ids.len())
         }
     }
-    reporter.report(page, category, &screenshot, ocr_text, result);
+    reporter.report(
+        page,
+        category,
+        &screenshot,
+        ocr_text,
+        body_ocr_result,
+        result,
+    );
     Ok(())
 }
 
@@ -204,6 +218,26 @@ fn read_title<C: Ocr>(
             debug!("OCR 识别失败（第 {count} 份）: {error:#}");
             info!("第 {count} 份档案标题：（OCR 识别失败）");
             Ok(String::new())
+        }
+    }
+}
+
+/// 按需读取正文并保留原始观察。普通 OCR 失败只放弃正文确认，用户停止仍立即传播。
+fn read_body<C: Ocr>(
+    cx: &mut C,
+    screenshot: &RgbaImage,
+    roi: Region2D<u32>,
+    count: u32,
+) -> Result<Option<String>, capabilities::Error> {
+    match cx.recognize_text(screenshot, roi) {
+        Ok(body) => {
+            debug!(count, body = ?body, "读取同名档案正文");
+            Ok(body)
+        }
+        Err(error) if error.is_stopped_by_user() => Err(error),
+        Err(error) => {
+            debug!(count, error = %error, "正文 OCR 识别失败，保留标题推荐");
+            Ok(None)
         }
     }
 }
@@ -322,6 +356,147 @@ mod tests {
         },
         navigation::{Navigator, UiState},
     };
+
+    /// 替代窗口截图和 OCR 系统能力，测试仍执行真实单项扫描、匹配与事件上报。
+    struct PageObservation {
+        texts: std::collections::VecDeque<Result<Option<String>, capabilities::Error>>,
+        captures: usize,
+    }
+
+    impl ScreenCapture for PageObservation {
+        fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
+            self.captures += 1;
+            Ok(RgbaImage::from_pixel(
+                1280,
+                720,
+                image::Rgba([20, 30, 40, 255]),
+            ))
+        }
+    }
+
+    impl crate::automation::Ocr for PageObservation {
+        fn recognize_text(
+            &mut self,
+            screenshot: &RgbaImage,
+            _: crate::utils::region::Region2D<u32>,
+        ) -> Result<Option<String>, capabilities::Error> {
+            assert_eq!(screenshot.get_pixel(0, 0).0, [20, 30, 40, 255]);
+            self.texts.pop_front().expect("不应执行额外 OCR")
+        }
+    }
+
+    fn scan_observation(
+        title: &str,
+        body: Option<Result<Option<String>, capabilities::Error>>,
+        category: crate::data::archive::Category,
+    ) -> (
+        Result<(), automation::WorkerError>,
+        Vec<crate::automation::Event>,
+        PageObservation,
+    ) {
+        use crate::{
+            app_paths::AppPaths, automation::events::testing::RecordingEventSink, data::archive,
+        };
+        use std::sync::Arc;
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let index = archive::Database::load(&AppPaths::with_root_dir(root)).unwrap();
+        let sink = Arc::new(RecordingEventSink::default());
+        let reporter = super::ScanReporter::new(sink.clone());
+        let mut cx = PageObservation {
+            texts: std::iter::once(Ok(Some(title.into())))
+                .chain(body)
+                .collect(),
+            captures: 0,
+        };
+        let result =
+            super::scan_current_item(&mut cx, &index, &reporter, archive::Page::Text, category, 1);
+        let events = sink.wait_for_events(usize::from(result.is_ok()));
+        (result, events, cx)
+    }
+
+    #[test]
+    fn known_duplicate_reads_body_from_same_frame_and_reports_original_observation() {
+        use crate::{automation::Event, data::archive};
+        let body = " 保佑寨子■■■■ ";
+        let (result, events, cx) = scan_observation(
+            "挂在竹子上的字条",
+            Some(Ok(Some(body.into()))),
+            archive::Category::Paper,
+        );
+        result.unwrap();
+        let Event::ArchiveItemScanned(item) = &events[0] else {
+            panic!("应上报扫描记录")
+        };
+        assert_eq!(
+            item.matching,
+            super::matching::MatchResult::Exact {
+                archive_id: archive::ArchiveId::new("nar_paper_map02_93_2"),
+            }
+        );
+        assert_eq!(item.body_ocr_result.as_deref(), Some(body));
+        assert_eq!(cx.captures, 1);
+        assert!(cx.texts.is_empty());
+    }
+
+    #[test]
+    fn title_only_results_skip_body_ocr() {
+        use crate::{automation::Event, data::archive};
+        for (title, category) in [
+            ("泰拉", archive::Category::Document),
+            ("挂在竹子上的纸条", archive::Category::Paper),
+            ("", archive::Category::Paper),
+        ] {
+            // 未准备正文返回值，多余的 OCR 请求会使测试失败。
+            let (result, events, cx) = scan_observation(title, None, category);
+            result.unwrap();
+            let Event::ArchiveItemScanned(item) = &events[0] else {
+                panic!("应上报扫描记录")
+            };
+            assert!(item.body_ocr_result.is_none());
+            assert!(
+                serde_json::to_value(item)
+                    .unwrap()
+                    .get("bodyOcrResult")
+                    .is_none()
+            );
+            assert_eq!(cx.captures, 1);
+        }
+    }
+
+    #[test]
+    fn unavailable_body_preserves_recommendations_but_user_stop_aborts_reporting() {
+        use crate::{automation::Event, data::archive};
+        for body in [
+            Ok(None),
+            Ok(Some(String::new())),
+            Err(capabilities::Error::ExecutionFailed),
+        ] {
+            let (result, events, _) =
+                scan_observation("挂在竹子上的字条", Some(body), archive::Category::Paper);
+            result.unwrap();
+            let Event::ArchiveItemScanned(item) = &events[0] else {
+                panic!("应上报扫描记录")
+            };
+            assert_eq!(
+                item.matching,
+                super::matching::MatchResult::Recommendations {
+                    archive_ids: vec![
+                        archive::ArchiveId::new("nar_paper_map02_93_1"),
+                        archive::ArchiveId::new("nar_paper_map02_93_2")
+                    ],
+                }
+            );
+        }
+        let (result, events, _) = scan_observation(
+            "挂在竹子上的字条",
+            Some(Err(capabilities::Error::StoppedByUser)),
+            archive::Category::Paper,
+        );
+        assert!(result.unwrap_err().is_stopped_by_user());
+        assert!(events.is_empty());
+    }
 
     struct FailedCapture(Option<capabilities::Error>);
 

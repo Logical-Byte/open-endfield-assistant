@@ -16,7 +16,10 @@ use crate::{
     data::{AppData, archive},
 };
 
-use super::{matching::match_title, reporting::ScanReporter};
+use super::{
+    matching::{TitleMatch, match_title},
+    reporting::ScanReporter,
+};
 
 pub(crate) struct SimulationWorker {
     app_data: Arc<AppData>,
@@ -95,9 +98,12 @@ impl runtime::Worker for SimulationWorker {
             let (page, category, ocr_result) = sample_ocr_result(sequence);
             sequence += 1;
 
-            let matching = match_title(self.app_data.archives(), category, &ocr_result);
+            let matching = match match_title(self.app_data.archives(), category, &ocr_result) {
+                TitleMatch::Complete(result) => result,
+                TitleMatch::NeedsBody(context) => context.resolve(None),
+            };
             tracing::debug!(sequence, "上报模拟档案扫描结果");
-            reporter.report(page, category, &image, ocr_result, matching);
+            reporter.report(page, category, &image, ocr_result, None, matching);
         };
 
         if result
