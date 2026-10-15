@@ -436,6 +436,4 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
       </UPageBody>
     </UPage>
   </UContainer>
-
-  <AppFooter />
 </template>
