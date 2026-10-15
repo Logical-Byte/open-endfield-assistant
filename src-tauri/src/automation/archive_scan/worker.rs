@@ -236,7 +236,7 @@ fn read_body<C: Ocr>(
         }
         Err(error) if error.is_stopped_by_user() => Err(error),
         Err(error) => {
-            debug!(count, error = %error, "正文 OCR 识别失败，保留标题推荐");
+            debug!(count, error = ?error, "正文 OCR 识别失败，保留标题推荐");
             Ok(None)
         }
     }
@@ -345,16 +345,19 @@ enum ScanSound {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{sync::Arc, time::Duration};
 
     use image::RgbaImage;
 
     use crate::{
+        app_paths::AppPaths,
         automation::{
-            self, Clock, Input, Key, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
-            TemplateTarget, capabilities,
+            self, Clock, Event, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch,
+            TemplateMatching, TemplateTarget, capabilities, events::testing::RecordingEventSink,
         },
+        data::archive,
         navigation::{Navigator, UiState},
+        utils::region::Region2D,
     };
 
     /// 替代窗口截图和 OCR 系统能力，测试仍执行真实单项扫描、匹配与事件上报。
@@ -374,11 +377,11 @@ mod tests {
         }
     }
 
-    impl crate::automation::Ocr for PageObservation {
+    impl Ocr for PageObservation {
         fn recognize_text(
             &mut self,
             screenshot: &RgbaImage,
-            _: crate::utils::region::Region2D<u32>,
+            _: Region2D<u32>,
         ) -> Result<Option<String>, capabilities::Error> {
             assert_eq!(screenshot.get_pixel(0, 0).0, [20, 30, 40, 255]);
             self.texts.pop_front().expect("不应执行额外 OCR")
@@ -388,22 +391,19 @@ mod tests {
     fn scan_observation(
         title: &str,
         body: Option<Result<Option<String>, capabilities::Error>>,
-        category: crate::data::archive::Category,
+        category: archive::Category,
     ) -> (
         Result<(), automation::WorkerError>,
-        Vec<crate::automation::Event>,
+        Vec<Event>,
         PageObservation,
     ) {
-        use crate::{
-            app_paths::AppPaths, automation::events::testing::RecordingEventSink, data::archive,
-        };
-        use std::sync::Arc;
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap();
         let index = archive::Database::load(&AppPaths::with_root_dir(root)).unwrap();
         let sink = Arc::new(RecordingEventSink::default());
-        let reporter = super::ScanReporter::new(sink.clone());
+        let event_sink = Arc::clone(&sink);
+        let reporter = super::ScanReporter::new(event_sink);
         let mut cx = PageObservation {
             texts: std::iter::once(Ok(Some(title.into())))
                 .chain(body)
@@ -418,7 +418,6 @@ mod tests {
 
     #[test]
     fn known_duplicate_reads_body_from_same_frame_and_reports_original_observation() {
-        use crate::{automation::Event, data::archive};
         let body = " 保佑寨子■■■■ ";
         let (result, events, cx) = scan_observation(
             "挂在竹子上的字条",
@@ -442,7 +441,6 @@ mod tests {
 
     #[test]
     fn title_only_results_skip_body_ocr() {
-        use crate::{automation::Event, data::archive};
         for (title, category) in [
             ("泰拉", archive::Category::Document),
             ("挂在竹子上的纸条", archive::Category::Paper),
@@ -467,7 +465,6 @@ mod tests {
 
     #[test]
     fn unavailable_body_preserves_recommendations_but_user_stop_aborts_reporting() {
-        use crate::{automation::Event, data::archive};
         for body in [
             Ok(None),
             Ok(Some(String::new())),
