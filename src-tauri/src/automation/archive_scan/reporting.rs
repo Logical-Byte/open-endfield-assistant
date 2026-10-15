@@ -31,7 +31,7 @@ pub(crate) struct ScannedItem {
     pub ocr_result: String,
     /// 正文区域的原始 OCR 文本，保留空白与标点，独立于用于判别的规范化文本。
     /// 仅在已知同名组请求正文且取得识别文本时填写。未识别正文、未检测到文字或
-    /// 识别失败时省略，空字符串表示 OCR 已返回文本但内容为空。本轮不用于前端展示。
+    /// 识别失败时省略，空字符串表示 OCR 已返回文本但内容为空。
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub body_ocr_result: Option<String>,
