@@ -26,7 +26,7 @@ pub(super) enum Op {
     /// 点击能力返回的技术错误会直接传播。
     FindAndClickTemplate {
         /// 模板名称、搜索区域和最低匹配得分。
-        target: TemplateTarget,
+        target: TemplateTarget<'static>,
         /// 模板未匹配时可以直接点击的 720p 基准坐标。
         fallback: Option<Point720p>,
     },

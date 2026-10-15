@@ -73,7 +73,7 @@ struct RecognitionContext<'a> {
 }
 
 impl RecognitionContext<'_> {
-    fn matches(&mut self, target: &TemplateTarget) -> Result<bool, navigation::Error> {
+    fn matches(&mut self, target: &TemplateTarget<'_>) -> Result<bool, navigation::Error> {
         Ok(self
             .templates
             .find_template(self.screenshot, target)?
@@ -195,7 +195,7 @@ mod tests {
         fn find_template(
             &mut self,
             _screenshot: &RgbaImage,
-            target: &TemplateTarget,
+            target: &TemplateTarget<'_>,
         ) -> Result<Option<TemplateMatch>, capabilities::Error> {
             if self.fail_template == Some(target.template_name) {
                 return Err(capabilities::Error::ExecutionFailed);

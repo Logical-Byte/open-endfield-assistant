@@ -53,6 +53,8 @@ const stagingDir = path.join(outDir, bundleName);
 const WINDOWS_PACKAGE_EXCLUDED_PATHS = new Set([
   path.join(rootDir, 'resources', 'icons'),
   path.join(rootDir, 'resources', 'dev'),
+  // 游戏展示图片已由 Vite publicDir 纳入前端产物，不再分发外部副本。
+  path.join(rootDir, 'resources', 'assets'),
 ]);
 
 async function main() {

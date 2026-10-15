@@ -11,8 +11,8 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    automation::{self, archive_scan},
-    data::{AppData, archive},
+    automation::{self, archive_scan, essence_scan},
+    data::{AppData, archive, essence},
     navigation::Navigator,
     settings,
     update::UpdateManager,
@@ -31,6 +31,7 @@ pub struct Controller {
     automation_runtime: Arc<automation::Runtime>,
     /// 各领域的只读运行时数据，启动时统一加载
     app_data: Arc<AppData>,
+    essence_reports: Arc<essence_scan::ReportStore>,
 }
 
 impl Controller {
@@ -48,6 +49,7 @@ impl Controller {
             navigator,
             automation_runtime,
             app_data: Arc::new(app_data),
+            essence_reports: Arc::new(essence_scan::ReportStore::default()),
         }
     }
 
@@ -70,11 +72,30 @@ impl Controller {
         self.app_data.archives().catalog()
     }
 
+    pub fn essence_catalog(&self) -> &essence::Catalog {
+        self.app_data.essences().catalog()
+    }
+
+    pub(crate) fn essence_scan_report(&self) -> Option<essence_scan::Report> {
+        self.essence_reports.snapshot()
+    }
+
     // ========== 启动 / 停止 / 退出 ==========
 
     /// 启动指定种类的自动化任务。
     pub(crate) fn start_automation(&self, request: automation::StartRequest) {
         match request {
+            automation::StartRequest::EssenceScan { worker_type } => {
+                self.automation_runtime
+                    .start(automation::TaskKind::EssenceScan, || {
+                        Box::new(essence_scan::Worker::new(
+                            worker_type,
+                            Arc::clone(&self.ocr),
+                            Arc::clone(&self.app_data),
+                            Arc::clone(&self.essence_reports),
+                        ))
+                    })
+            }
             automation::StartRequest::ArchiveScan { worker_type } => {
                 self.automation_runtime
                     .start(automation::TaskKind::ArchiveScan, || match worker_type {

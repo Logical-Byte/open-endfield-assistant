@@ -20,6 +20,7 @@
     "submodules:init": "git submodule update --init --recursive",
     "tauri": "tauri",
     "makedata": "jiti scripts/data/makeAllData.ts",
+    "makedata:essence": "jiti scripts/data/makeEssenceData.ts",
     "download:models": "jiti scripts/dev/downloadModels.ts",
     "package": "tauri build --no-bundle && jiti scripts/release/package.ts",
     "bump:version": "jiti scripts/release/bumpVersion.ts",

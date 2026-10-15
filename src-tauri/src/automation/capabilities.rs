@@ -36,9 +36,9 @@ pub enum Key {
 
 /// 一次模板搜索的逻辑目标。
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct TemplateTarget {
+pub struct TemplateTarget<'a> {
     /// 模板资源的逻辑名称。
-    pub template_name: &'static str,
+    pub template_name: &'a str,
     /// 720p 基准截图中的搜索区域。
     pub roi: Region2D<u32>,
     /// 视为匹配成功的最低分数。
@@ -70,6 +70,11 @@ pub trait Input {
     fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error>;
 }
 
+/// 列表工作流使用的拖动能力，坐标与点击共用 720p 基准。
+pub trait Drag {
+    fn drag(&mut self, from: Point720p, to: Point720p) -> Result<(), capabilities::Error>;
+}
+
 /// 在工作流提供的截图中查找模板。
 ///
 /// `Ok(None)` 是目标不存在这一业务结果；模板加载或匹配失败通过 `Err` 传播。
@@ -78,7 +83,7 @@ pub trait TemplateMatching {
     fn find_template(
         &mut self,
         screenshot: &RgbaImage,
-        target: &TemplateTarget,
+        target: &TemplateTarget<'_>,
     ) -> Result<Option<TemplateMatch>, capabilities::Error>;
 }
 

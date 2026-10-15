@@ -14,6 +14,18 @@ const navigationMenuItems = computed<NavigationMenuItem[]>(() => [
     to: '/',
   },
   {
+    label: t('essenceScan.title'),
+    icon: 'i-lucide-gem',
+    to: '/essence-scan',
+    badge: {
+      label: 'Beta',
+      color: 'success',
+      variant: 'subtle',
+      size: 'xs',
+      class: 'rounded-full',
+    },
+  },
+  {
     label: t('navigation.logs'),
     icon: 'i-lucide-scroll-text',
     to: '/log',
