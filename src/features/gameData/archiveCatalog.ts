@@ -15,7 +15,6 @@ export class ArchiveCatalog {
   private readonly archivesById: Map<ArchiveId, Readonly<ArchiveEntry>>;
   private readonly categoriesById: Map<Category, Readonly<CategoryEntry>>;
   private readonly pagesById: Map<Page, Readonly<PageEntry>>;
-  private readonly archivesByTitle: Map<Category, Map<string, ArchiveId[]>> = new Map();
 
   constructor(readonly catalog: DeepReadonly<Catalog>) {
     this.archivesById = new Map(
@@ -32,14 +31,6 @@ export class ArchiveCatalog {
     this.pagesById = new Map(
       catalog.pages.map((row: Readonly<PageEntry>): [Page, Readonly<PageEntry>] => [row.id, row]),
     );
-    // 游戏标题与纠正候选固定中文，不由应用界面语言决定。
-    for (const archive of catalog.archives) {
-      const titles = this.archivesByTitle.get(archive.category) ?? new Map<string, ArchiveId[]>();
-      const ids = titles.get(archive.title['zh-CN']) ?? [];
-      ids.push(archive.id);
-      titles.set(archive.title['zh-CN'], ids);
-      this.archivesByTitle.set(archive.category, titles);
-    }
   }
 
   archive(id: ArchiveId): Readonly<ArchiveEntry> | undefined {
@@ -52,14 +43,6 @@ export class ArchiveCatalog {
 
   page(id: Page): Readonly<PageEntry> | undefined {
     return this.pagesById.get(id);
-  }
-
-  titles(category: Category): readonly string[] {
-    return [...(this.archivesByTitle.get(category)?.keys() ?? [])];
-  }
-
-  idsByTitle(category: Category, title: string): readonly ArchiveId[] {
-    return this.archivesByTitle.get(category)?.get(title) ?? [];
   }
 }
 

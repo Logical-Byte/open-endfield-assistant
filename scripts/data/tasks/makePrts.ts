@@ -41,6 +41,7 @@ import {
   richContentTable,
 } from '../archiveData';
 import type { PrtsAllItemEntry, PrtsFirstLvEntry } from '../models';
+import { CONTENT_PREVIEW_ARCHIVE_IDS, firstContentLine } from './contentPreview';
 
 /** 档案库页面展示顺序：音像存档、见闻辑录、中枢档案 */
 const PAGE_ORDER = ['multi_media', 'text', 'document'] as const;
@@ -143,6 +144,23 @@ function resolveItemTitle(entry: PrtsAllItemEntry, name: LocalizedText): Localiz
     return name;
   }
   return getArchiveText(content.title, entry.id, 'title');
+}
+
+/** 只读取白名单条目的正文，保留第一非空源文本行。 */
+function resolveContentPreview(entry: PrtsAllItemEntry): LocalizedText | undefined {
+  if (!CONTENT_PREVIEW_ARCHIVE_IDS.has(entry.id)) return undefined;
+  const content = richContentTable[entry.contentId];
+  if (!content) throw new Error(`[makePrts] ${entry.id} 的参考正文 ${entry.contentId} 缺失`);
+  const segments = content.contentList.map((segment): LocalizedText =>
+    getArchiveText(segment.content, entry.id, 'contentPreview'),
+  );
+  const preview = {
+    'zh-CN': firstContentLine(segments.map((segment): string => segment['zh-CN']).join('\n')),
+    'en-US': firstContentLine(segments.map((segment): string => segment['en-US']).join('\n')),
+  };
+  if (!preview['zh-CN'] || !preview['en-US'])
+    throw new Error(`[makePrts] ${entry.id} 的参考正文首行为空`);
+  return preview;
 }
 
 /**
@@ -290,6 +308,7 @@ export function makePrts(): PrtsData {
     if (redundantItemIds.has(entry.id)) continue;
     const name = getArchiveText(entry.name, entry.id, 'name');
     const title = resolveItemTitle(entry, name);
+    const contentPreview = resolveContentPreview(entry);
     // 标题与名称不一致时打印警告，便于核对源数据是否有误
     if (title['zh-CN'] !== name['zh-CN']) {
       console.warn(
@@ -304,6 +323,7 @@ export function makePrts(): PrtsData {
       name,
       order: entry.order,
       title,
+      ...(contentPreview ? { contentPreview } : {}),
       type: entry.type as PrtsPageType,
     };
   }

@@ -1,2 +1,2 @@
 export type { ScannedItem } from './generated/archiveScan/ScannedItem';
-export type { ScannedItemStatus } from './generated/archiveScan/ScannedItemStatus';
+export type { MatchResult } from './generated/archiveScan/MatchResult';

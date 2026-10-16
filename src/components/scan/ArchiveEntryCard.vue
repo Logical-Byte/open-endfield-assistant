@@ -3,6 +3,7 @@ import { useAppI18n } from '@/shared/i18n';
 import { useEvidencePopover } from './useEvidencePopover';
 import type { ArchiveEntryView } from '@/features/archiveScan/resultView';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
+import ArchiveLabel from './ArchiveLabel.vue';
 defineProps<{ entry: ArchiveEntryView; selected?: boolean }>();
 function iconStroke(svg: string): string {
   return svg.replace(/stroke-width="2"/g, 'stroke-width="1.5"');
@@ -27,11 +28,11 @@ const acquisitionIcons: Record<string, string> = {
     <div
       class="flex min-w-0 items-baseline gap-2 self-start group-data-[compact=true]/archive:contents"
     >
-      <span
-        class="min-w-0 truncate text-base leading-6 font-medium group-data-[compact=true]/archive:col-span-full group-data-[compact=true]/archive:row-start-1 group-data-[compact=true]/archive:line-clamp-2 group-data-[compact=true]/archive:self-start group-data-[compact=true]/archive:whitespace-normal"
+      <ArchiveLabel
+        class="flex-1 text-base leading-6 group-data-[compact=true]/archive:col-span-full"
+        :content-preview="entry.contentPreview"
         :title="entry.title"
-        >{{ entry.title }}</span
-      >
+      />
       <span
         class="shrink-0 text-xs text-muted group-data-[compact=true]/archive:col-start-1 group-data-[compact=true]/archive:row-start-2 group-data-[compact=true]/archive:self-center"
         :title="entry.categoryLabel"
@@ -74,7 +75,9 @@ const acquisitionIcons: Record<string, string> = {
                 <div class="min-w-0 flex-1">
                   <p class="text-xs">
                     #{{ scan.scannedItemId }}
-                    {{ scan.manuallyCorrected ? t('scan.manual') : t('scan.automatic') }}
+                    {{
+                      scan.manualChoice.kind === 'manual' ? t('scan.manual') : t('scan.automatic')
+                    }}
                   </p>
                   <p class="mt-1 truncate text-xs text-muted">
                     {{ t('scan.ocrValue', { text: scan.ocrResult || t('scan.noTextShort') }) }}

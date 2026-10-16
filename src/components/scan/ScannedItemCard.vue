@@ -7,18 +7,14 @@ import type { ScannedItemView } from '@/features/archiveScan/resultView';
 import type { ArchiveId } from '@/shared/types/archive';
 import { openImagePreview } from '@/composables/image-preview';
 import type { CSSProperties } from 'vue';
+import ArchiveLabel from './ArchiveLabel.vue';
+import ArchiveAssignmentPicker from './ArchiveAssignmentPicker.vue';
 const { t } = useAppI18n();
-const candidatesOpen = ref(false);
-const candidatesTrigger = ref<HTMLSpanElement | null>(null);
-// 候选按钮属于输入菜单，点击时由按钮切换开关，避免外部点击先关闭菜单。
-function onCandidatePointerOutside(event: Event): void {
-  if (candidatesTrigger.value?.contains(event.target as Node | null)) event.preventDefault();
-}
-
 const props = defineProps<{ item: ScannedItemView; selected?: boolean }>();
 const state = defineModel<ScanCardState>('state', { required: true });
+const pickerRevision = ref(0);
 const emit = defineEmits<{
-  correct: [title: string];
+  choose: [id: ArchiveId | null];
   locateArchive: [id: ArchiveId];
   clearHighlight: [];
 }>();
@@ -27,31 +23,43 @@ const {
   cancelClose,
   scheduleClose,
 } = useEvidencePopover((): void => emit('clearHighlight'));
-const expanded = computed((): boolean => state.value.expanded ?? !props.item.archives.length);
-const currentTitle = computed((): string => props.item.correctedTitle ?? props.item.ocrResult);
+const expanded = computed((): boolean => state.value.expanded ?? !props.item.archive);
+const currentTitle = computed((): string => props.item.archive?.title ?? props.item.ocrResult);
 const changed = computed(
   (): boolean =>
     state.value.editing &&
-    !!state.value.draft.trim() &&
-    state.value.draft.trim() !== currentTitle.value,
+    !state.value.search &&
+    (state.value.draftArchiveId !== (props.item.archive?.id ?? null) ||
+      (state.value.draftTouched && props.item.manualChoice.kind === 'automatic')),
 );
 function beginEdit(): void {
-  state.value = { ...state.value, editing: true };
+  if (state.value.editing) return;
+  state.value = {
+    ...state.value,
+    editing: true,
+    draftArchiveId: props.item.archive?.id ?? null,
+    draftTouched: false,
+  };
+}
+function chooseArchive(id: ArchiveId | null): void {
+  state.value = { ...state.value, draftArchiveId: id, draftTouched: true, search: '' };
 }
 function cancelEdit(): void {
-  state.value = { ...state.value, editing: false, draft: currentTitle.value };
-}
-function submit(): void {
-  if (!changed.value) return;
-  const title = state.value.draft.trim();
   state.value = {
     ...state.value,
     editing: false,
-    expanded: undefined,
-    showOcr: false,
-    draft: title,
+    search: '',
+    draftArchiveId: props.item.archive?.id ?? null,
+    draftTouched: false,
   };
-  emit('correct', title);
+  // 放弃编辑时也重置输入控件内部的文字和弹出状态。
+  pickerRevision.value++;
+}
+function submit(): void {
+  if (!changed.value) return;
+  const id = state.value.draftArchiveId;
+  state.value = { ...state.value, editing: false, expanded: undefined, showOcr: false, search: '' };
+  emit('choose', id);
 }
 // 后端截图统一为 1280×720，缩略图只裁出标题区域，完整原图仍可打开。
 const cropContainerStyle: CSSProperties = { aspectRatio: '516 / 86' };
@@ -76,8 +84,8 @@ const cropImageStyle: CSSProperties = {
         expanded && 'border-b border-default',
       ]"
       :color="state.editing ? 'primary' : 'neutral'"
-      :icon="item.archives.length ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'"
-      :ui="{ leadingIcon: item.archives.length ? 'text-success' : 'text-warning' }"
+      :icon="item.archive ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'"
+      :ui="{ leadingIcon: item.archive ? 'text-success' : 'text-warning' }"
       :variant="state.editing ? 'soft' : 'subtle'"
       @click="state = { ...state, expanded: !expanded }"
     >
@@ -120,52 +128,27 @@ const cropImageStyle: CSSProperties = {
         </UButton>
       </div>
       <div
-        v-if="!item.archives.length || state.editing"
+        v-if="!item.archive || state.editing"
         class="flex items-start gap-3 rounded border border-default bg-elevated/50 px-3 py-2 text-sm"
       >
         <span class="shrink-0 text-xs leading-5 text-muted">{{ t('scan.ocr') }}</span>
         <p class="min-w-0 break-words">{{ item.ocrResult || t('scan.noText') }}</p>
       </div>
       <form
-        v-if="!item.archives.length || state.editing"
+        v-if="!item.archive || state.editing"
         class="space-y-2 p-2 transition-colors"
         :class="state.editing ? 'rounded-md bg-primary/20' : 'border-t border-default'"
         @submit.prevent="submit"
       >
-        <div class="flex justify-end">
-          <UTooltip :content="{ side: 'top' }" :text="t('scan.titleHelp')"
-            ><UIcon class="size-4 shrink-0" name="i-lucide-circle-help" tabindex="0"
-          /></UTooltip>
-        </div>
-        <div class="flex items-center gap-1">
-          <UInputMenu
-            :id="`title-${item.scannedItemId}`"
-            v-model:open="candidatesOpen"
-            :aria-label="t('scan.matchTitle')"
-            class="min-w-0 flex-1"
-            :content="{ side: 'top', onPointerDownOutside: onCandidatePointerOutside }"
-            :items="[...item.candidates]"
-            mode="autocomplete"
-            :model-value="state.draft"
-            :placeholder="t('scan.chooseTitle')"
-            trailing-icon=""
-            :ui="{ content: 'max-h-48' }"
-            @focus="beginEdit"
-            @update:model-value="state = { ...state, draft: $event, editing: true }"
-          >
-            <template #empty>{{ t('scan.noTitle') }}</template>
-          </UInputMenu>
-          <span ref="candidatesTrigger">
-            <UButton
-              :aria-expanded="candidatesOpen"
-              :aria-label="t('scan.showCandidates')"
-              color="neutral"
-              icon="i-lucide-chevron-down"
-              variant="outline"
-              @click="candidatesOpen = !candidatesOpen"
-            />
-          </span>
-        </div>
+        <ArchiveAssignmentPicker
+          :key="pickerRevision"
+          v-model:search="state.search"
+          :archives="item.options"
+          :recommended="item.recommendations"
+          :selected="state.editing ? state.draftArchiveId : (item.archive?.id ?? null)"
+          @focus="beginEdit"
+          @select="chooseArchive"
+        />
         <div class="flex items-center justify-end gap-2">
           <UButton
             color="neutral"
@@ -174,20 +157,15 @@ const cropImageStyle: CSSProperties = {
             @click="cancelEdit"
             >{{ t('scan.cancelEdit') }}</UButton
           >
-          <UButton
-            :color="changed ? 'primary' : 'neutral'"
-            :disabled="!changed"
-            icon="i-lucide-check"
-            type="submit"
-            :variant="changed ? 'solid' : 'outline'"
-            >{{ t('scan.confirmEdit') }}</UButton
-          >
+          <UButton :disabled="!changed" icon="i-lucide-check" type="submit">{{
+            t('scan.confirmEdit')
+          }}</UButton>
         </div>
       </form>
       <div v-else class="space-y-3 border-t border-default pt-3">
         <div class="rounded border border-success/30 bg-success/5 p-3">
           <UButton
-            :aria-label="t('scan.editTitle')"
+            :aria-label="t('scan.editArchive')"
             class="float-right"
             color="neutral"
             icon="i-lucide-pencil"
@@ -196,57 +174,64 @@ const cropImageStyle: CSSProperties = {
             @click="beginEdit"
           />
           <p class="mb-1 text-xs text-muted">
-            {{ item.manuallyCorrected ? t('scan.manual') : t('scan.automatic') }}
+            {{ item.manualChoice.kind === 'manual' ? t('scan.manual') : t('scan.automatic') }}
           </p>
-          <p class="text-base font-medium break-words">{{ currentTitle }}</p>
+          <ArchiveLabel
+            class="text-base"
+            :content-preview="item.archive.contentPreview"
+            :title="item.archive.title"
+          />
           <div class="mt-2 flex items-center justify-between gap-1">
             <span class="text-xs text-muted">{{ item.categoryLabel }}</span>
             <UPopover
               v-model:open="floatingMatchesOpen"
               :content="{ side: 'bottom', align: 'end', sideOffset: 5 }"
               mode="click"
-              :ui="{ content: 'w-80 max-w-[calc(100vw-24px)] p-3' }"
-              ><UButton
+              :ui="{
+                content: 'w-80 max-w-[calc(100vw-24px)] bg-elevated p-3 shadow-xl ring-accented',
+              }"
+            >
+              <UButton
                 :aria-expanded="floatingMatchesOpen"
                 class="h-7 w-32 justify-center"
                 color="neutral"
                 icon="i-lucide-link"
-                :label="t('scan.linkedArchives', { count: item.archives.length })"
+                :label="t('scan.matches', { count: 1 })"
                 size="xs"
                 trailing-icon="i-lucide-chevron-down"
                 variant="outline"
                 @mouseenter="cancelClose"
-                @mouseleave="scheduleClose" /><template #content
-                ><div @mouseenter="cancelClose" @mouseleave="scheduleClose">
+                @mouseleave="scheduleClose"
+              />
+              <template #content>
+                <div @mouseenter="cancelClose" @mouseleave="scheduleClose">
                   <p class="mb-2 text-xs text-muted">
-                    {{
-                      t('scan.linkedSummary', {
-                        id: item.scannedItemId,
-                        count: item.archives.length,
-                      })
-                    }}
+                    {{ t('scan.linkedSummary', { id: item.scannedItemId, count: 1 }) }}
                   </p>
-                  <div class="max-h-64 space-y-1.5 overflow-y-auto">
-                    <div
-                      v-for="archive in item.archives"
-                      :key="archive.id"
-                      class="flex items-center justify-between gap-2 rounded border border-default px-2 py-1.5"
-                    >
-                      <div class="min-w-0">
-                        <p class="text-xs">{{ archive.title }}</p>
-                        <p class="truncate font-mono text-[10px] text-dimmed">{{ archive.id }}</p>
-                      </div>
-                      <UButton
-                        color="neutral"
-                        icon="i-lucide-arrow-left"
-                        :label="t('scan.locateArchive')"
-                        size="xs"
-                        variant="outline"
-                        @click="emit('locateArchive', archive.id)"
+                  <div
+                    class="flex items-center justify-between gap-2 rounded border border-default px-2 py-1.5"
+                  >
+                    <div class="min-w-0">
+                      <ArchiveLabel
+                        :content-preview="item.archive.contentPreview"
+                        :title="item.archive.title"
                       />
+                      <p class="truncate font-mono text-[10px] text-dimmed">
+                        {{ item.archive.id }}
+                      </p>
                     </div>
-                  </div></div></template
-            ></UPopover>
+                    <UButton
+                      color="neutral"
+                      icon="i-lucide-arrow-left"
+                      :label="t('scan.locateArchive')"
+                      size="xs"
+                      variant="outline"
+                      @click="emit('locateArchive', item.archive.id)"
+                    />
+                  </div>
+                </div>
+              </template>
+            </UPopover>
           </div>
         </div>
         <UButton

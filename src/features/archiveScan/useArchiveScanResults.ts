@@ -1,12 +1,12 @@
 import { t } from '@/shared/i18n';
-import type { Category } from '@/shared/types/archive';
+import type { ArchiveId, Category } from '@/shared/types/archive';
 import { computed, ref, watch, type Ref, type ComputedRef } from 'vue';
 import { archiveCatalog, type ArchiveCatalog } from '@/features/gameData/archiveCatalog';
 import {
   scannedItems,
-  correctScannedItem,
+  chooseScannedItemArchive,
   clearScannedItems,
-  restoreScannedItemCorrection,
+  restoreScannedItemChoice,
 } from './scannedItems';
 import { deriveArchiveScanView, type ArchiveEntryView, type ScannedItemView } from './resultView';
 import type { ScannedItemId, ScannedItemRecord } from './types/scannedItem';
@@ -15,16 +15,16 @@ import type { ScannedItemId, ScannedItemRecord } from './types/scannedItem';
 export interface ArchiveScanSource {
   readonly data: Readonly<Ref<ArchiveCatalog | null>>;
   readonly scans: Readonly<Ref<readonly Readonly<ScannedItemRecord>[]>>;
-  correct: (id: ScannedItemId, title: string) => void;
+  choose: (id: ScannedItemId, archiveId: ArchiveId | null) => void;
   clear: () => void;
   restore: (previous: Readonly<ScannedItemRecord>) => void;
 }
 const liveSource: ArchiveScanSource = {
   data: archiveCatalog,
   scans: scannedItems,
-  correct: correctScannedItem,
+  choose: chooseScannedItemArchive,
   clear: clearScannedItems,
-  restore: restoreScannedItemCorrection,
+  restore: restoreScannedItemChoice,
 };
 export type MatchingFilter = 'unmatched' | 'matched' | 'all';
 function acceptsMatch(filter: MatchingFilter, matched: boolean): boolean {
@@ -37,7 +37,7 @@ interface CategoryOption {
   label: string;
   value: CategoryFilter;
 }
-export interface ScanCorrection {
+export interface ScanEdit {
   readonly key: number;
   readonly before: Readonly<ScannedItemRecord>;
   readonly after: Readonly<ScannedItemRecord>;
@@ -58,9 +58,9 @@ interface ArchiveScanResultsState {
   archiveCategory: Ref<CategoryFilter>;
   scanCategory: Ref<CategoryFilter>;
   mapOnly: Ref<boolean>;
-  corrections: Ref<ScanCorrection[]>;
-  correct: (id: ScannedItemId, title: string) => ScanCorrection;
-  undo: (correction: ScanCorrection) => void;
+  edits: Ref<ScanEdit[]>;
+  choose: (id: ScannedItemId, archiveId: ArchiveId | null) => ScanEdit;
+  undo: (editRecord: ScanEdit) => void;
   clear: () => void;
   revealScan: () => void;
   revealArchive: () => void;
@@ -83,8 +83,8 @@ export function useArchiveScanResults(
   const archiveCategory: Ref<CategoryFilter> = ref<CategoryFilter>(ALL_CATEGORIES);
   const scanCategory: Ref<CategoryFilter> = ref<CategoryFilter>(ALL_CATEGORIES);
   const mapOnly: Ref<boolean> = ref(false);
-  const corrections: Ref<ScanCorrection[]> = ref([]);
-  let nextCorrection = 0;
+  const edits: Ref<ScanEdit[]> = ref([]);
+  let nextEdit = 0;
   const archives = computed((): readonly ArchiveEntryView[] => view.value.archives);
   const scans = computed((): readonly ScannedItemView[] => view.value.scans);
   const matchedArchives = computed(
@@ -92,7 +92,7 @@ export function useArchiveScanResults(
       archives.value.filter((a: ArchiveEntryView): boolean => a.scans.length > 0).length,
   );
   const matchedScans = computed(
-    (): number => scans.value.filter((s: ScannedItemView): boolean => s.archives.length > 0).length,
+    (): number => scans.value.filter((s: ScannedItemView): boolean => s.archive !== null).length,
   );
   const categories = computed((): CategoryOption[] => [
     { label: t('scan.allCategories'), value: ALL_CATEGORIES },
@@ -113,9 +113,9 @@ export function useArchiveScanResults(
   const visibleScans = computed((): ScannedItemView[] =>
     scans.value.filter(
       (s: ScannedItemView): boolean =>
-        acceptsMatch(scanFilter.value, s.archives.length > 0) &&
+        acceptsMatch(scanFilter.value, s.archive !== null) &&
         (scanCategory.value === ALL_CATEGORIES || s.foundInCategory === scanCategory.value) &&
-        [s.ocrResult, s.correctedTitle ?? ''].some((title: string): boolean =>
+        [s.ocrResult, s.archive?.title ?? ''].some((title: string): boolean =>
           title.includes(scanSearch.value),
         ),
     ),
@@ -127,39 +127,38 @@ export function useArchiveScanResults(
       const ids = new Set(
         items.map((item: Readonly<ScannedItemRecord>): ScannedItemId => item.scannedItemId),
       );
-      corrections.value = corrections.value.filter((edit: ScanCorrection): boolean =>
+      edits.value = edits.value.filter((edit: ScanEdit): boolean =>
         ids.has(edit.before.scannedItemId),
       );
     },
     { flush: 'sync' },
   );
-  function correct(id: ScannedItemId, title: string): ScanCorrection {
+  function choose(id: ScannedItemId, archiveId: ArchiveId | null): ScanEdit {
     const before = source.scans.value.find(
       (item: Readonly<ScannedItemRecord>): boolean => item.scannedItemId === id,
     )!;
-    source.correct(id, title);
+    source.choose(id, archiveId);
     const after = source.scans.value.find(
       (item: Readonly<ScannedItemRecord>): boolean => item.scannedItemId === id,
     )!;
-    const correction: ScanCorrection = { key: ++nextCorrection, before, after, undone: false };
-    corrections.value.push(correction);
-    return correction;
+    const editRecord: ScanEdit = { key: ++nextEdit, before, after, undone: false };
+    edits.value.push(editRecord);
+    return editRecord;
   }
-  function undo(correction: ScanCorrection): void {
-    const history = corrections.value.filter(
-      (edit: ScanCorrection): boolean =>
-        edit.before.scannedItemId === correction.before.scannedItemId,
+  function undo(editRecord: ScanEdit): void {
+    const history = edits.value.filter(
+      (edit: ScanEdit): boolean => edit.before.scannedItemId === editRecord.before.scannedItemId,
     );
-    const edit = history.find((entry: ScanCorrection): boolean => entry.key === correction.key);
+    const edit = history.find((entry: ScanEdit): boolean => entry.key === editRecord.key);
     if (!edit || edit.undone) return;
     edit.undone = true;
     // 撤销较早的编辑时保留后续编辑。全部撤销才恢复第一次编辑前的结果。
-    const remaining = history.filter((entry: ScanCorrection): boolean => !entry.undone);
+    const remaining = history.filter((entry: ScanEdit): boolean => !entry.undone);
     source.restore(remaining[remaining.length - 1]?.after ?? history[0]!.before);
   }
   function clear(): void {
     source.clear();
-    corrections.value = [];
+    edits.value = [];
   }
   // 定位前解除目标栏筛选，避免关联记录被当前条件隐藏。
   function revealScan(): void {
@@ -188,8 +187,8 @@ export function useArchiveScanResults(
     archiveCategory,
     scanCategory,
     mapOnly,
-    corrections,
-    correct,
+    edits,
+    choose,
     undo,
     clear,
     revealScan,

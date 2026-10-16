@@ -7,6 +7,7 @@ import { deriveArchiveMatching } from './matching';
 export interface ArchiveDetails {
   readonly id: ArchiveId;
   readonly title: string;
+  readonly contentPreview?: string;
   readonly category: Category;
   readonly categoryLabel: string;
   readonly acquisitionMethod: AcquisitionMethod;
@@ -21,8 +22,9 @@ export interface ArchiveEntryView extends ArchiveDetails {
 
 export interface ScannedItemView extends Readonly<ScannedItemRecord> {
   readonly categoryLabel: string;
-  readonly candidates: readonly string[];
-  readonly archives: readonly ArchiveDetails[];
+  readonly options: readonly ArchiveDetails[];
+  readonly recommendations: readonly ArchiveDetails[];
+  readonly archive: ArchiveDetails | null;
 }
 
 export interface ArchiveScanView {
@@ -54,6 +56,7 @@ export function deriveArchiveScanView(
     archiveById.set(archive.id, {
       id: archive.id,
       title: archive.title['zh-CN'],
+      contentPreview: archive.contentPreview?.['zh-CN'],
       category: archive.category,
       categoryLabel: categoryLabel(category.page, archive.category),
       acquisitionMethod: archive.acquisitionMethod,
@@ -65,13 +68,19 @@ export function deriveArchiveScanView(
   }
   return {
     archives: [...archiveById.values()],
-    scans: scans.map((scan): ScannedItemView => ({
-      ...scan,
-      categoryLabel: categoryLabel(scan.foundInPage, scan.foundInCategory),
-      candidates: data?.titles(scan.foundInCategory) ?? [],
-      archives: (matching.archiveIdsByScan.get(scan) ?? []).map((id): ArchiveDetails =>
-        archiveById.get(id)!,
-      ),
-    })),
+    scans: scans.map((scan): ScannedItemView => {
+      const ids =
+        scan.matching.kind === 'exact' ? [scan.matching.archiveId] : scan.matching.archiveIds;
+      const id = matching.archiveIdByScan.get(scan);
+      return {
+        ...scan,
+        categoryLabel: categoryLabel(scan.foundInPage, scan.foundInCategory),
+        options: [...archiveById.values()].filter(
+          (archive): boolean => archive.category === scan.foundInCategory,
+        ),
+        recommendations: ids.map((id): ArchiveDetails => archiveById.get(id)!),
+        archive: id ? archiveById.get(id)! : null,
+      };
+    }),
   };
 }

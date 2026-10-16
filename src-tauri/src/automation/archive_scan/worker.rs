@@ -24,7 +24,7 @@ use crate::{
     vision,
 };
 
-use super::{ocr_correction, reporting::ScanReporter};
+use super::{matching, reporting::ScanReporter};
 
 /// 一次真实扫描所需的协作者，由控制器在任务获准启动后创建。
 pub(crate) struct Worker {
@@ -171,27 +171,16 @@ where
 {
     let screenshot = cx.screenshot()?;
     let ocr_text = read_title(cx, &screenshot, count)?;
-    let corrected = ocr_correction::match_with_correction(
-        archives,
-        category,
-        &ocr_text,
-        Some(&ocr_correction::DEFAULT_CORRECTION_OVERRIDES),
-    );
-    match &corrected {
-        Some(c) => info!(
-            "第 {} 份档案纠错为：{}（id: {}）",
-            count,
-            c.title,
-            c.item_ids
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        None if !ocr_text.is_empty() => info!("第 {count} 份档案标题无法识别"),
-        None => {}
+    let result = matching::match_title(archives, category, &ocr_text);
+    match &result {
+        matching::MatchResult::Exact { archive_id } => {
+            info!("第 {count} 份档案精确匹配：{archive_id}")
+        }
+        matching::MatchResult::Recommendations { archive_ids } => {
+            info!("第 {count} 份档案待核对，推荐 {} 个候选", archive_ids.len())
+        }
     }
-    reporter.report(page, category, &screenshot, ocr_text, corrected);
+    reporter.report(page, category, &screenshot, ocr_text, result);
     Ok(())
 }
 
