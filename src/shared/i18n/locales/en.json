@@ -272,6 +272,7 @@
     "ocrEmpty": "OCR recognized no text",
     "ocrValue": "OCR result: {{text}}",
     "recommendations": "Recommended archives",
+    "reselectArchive": "Clear and choose again",
     "resize": "Resize archive and scan panes",
     "results": "Scan results",
     "review": "Needs review",
