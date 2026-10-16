@@ -104,10 +104,6 @@
     "hdr": {
       "disable": "关闭 HDR"
     },
-    "issues": {
-      "sharedTitle": "存在 2 个不同的档案，名称都为「{title}」。OEA 目前无法区分二者，只要识别到其一就认为 2 个档案都已收集。",
-      "title": "已知问题"
-    },
     "repository": "GitHub 仓库",
     "scan": {
       "start": "开始扫描"
