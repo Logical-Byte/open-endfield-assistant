@@ -81,11 +81,21 @@ const inputModelModifiers: { lazy: boolean } = { lazy: true };
     <UButton
       v-for="choice in items"
       :key="choice.value"
+      class="relative"
       :disabled="disabled"
       :label="choice.label"
       :variant="value === choice.value ? 'solid' : 'outline'"
       @click="updateChoice(choice.value)"
-    />
+    >
+      <template v-if="choice.badge" #trailing>
+        <!-- 不透明底层隔开按钮颜色，保留 subtle 自带的浅色底和描边。 -->
+        <span
+          class="pointer-events-none absolute -top-2 -right-2 inline-flex rounded-full bg-default"
+        >
+          <UBadge v-bind="choice.badge" class="rounded-full" size="xs" variant="subtle" />
+        </span>
+      </template>
+    </UButton>
   </div>
   <UButton
     v-else
