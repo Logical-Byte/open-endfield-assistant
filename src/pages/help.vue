@@ -30,7 +30,6 @@ const faqItems = computed<AccordionItem[]>(() => [
 const sections = computed(() => [
   { id: 'getting-started', icon: 'i-lucide-rocket', title: t('help.start.title') },
   { id: 'usage', icon: 'i-lucide-keyboard', title: t('help.usage.title') },
-  { id: 'known-issues', icon: 'i-lucide-triangle-alert', title: t('help.issues.title') },
   { id: 'faq', icon: 'i-lucide-circle-help', title: t('help.faq.title') },
   { id: 'feedback', icon: 'i-lucide-message-circle', title: t('help.feedback.title') },
   { id: 'credits', icon: 'i-lucide-heart', title: t('help.credits.title') },
@@ -237,23 +236,6 @@ onBeforeUnmount(() => {
               </ul>
             </div>
           </div>
-        </UCard>
-
-        <!-- 已知问题 -->
-        <UCard id="known-issues" class="scroll-mt-8">
-          <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-triangle-alert" />
-              <span class="font-semibold text-highlighted">{{ t('help.issues.title') }}</span>
-            </div>
-          </template>
-          <ol class="list-disc space-y-3 text-toned">
-            <li>
-              <TranslationComponent :translation="t('help.issues.sharedTitle')"
-                ><template #title><span>挂在竹子上的字条</span></template></TranslationComponent
-              >
-            </li>
-          </ol>
         </UCard>
 
         <!-- 常见问题 -->

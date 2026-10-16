@@ -104,10 +104,6 @@
     "hdr": {
       "disable": "Disable HDR"
     },
-    "issues": {
-      "sharedTitle": "Two different archives share the title “{title}”. OEA currently cannot distinguish them. Recognizing either one marks both as collected.",
-      "title": "Known issues"
-    },
     "repository": "GitHub repository",
     "scan": {
       "start": "Start scan"
