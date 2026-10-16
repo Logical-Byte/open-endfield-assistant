@@ -89,7 +89,7 @@ const fields: SettingsFields<DraftSettings> = useSettingsFields(draftSettings, e
 
 const applicationLanguageChoices: SettingsChoice<UiLocale>[] = [
   { value: 'zh-CN', label: '简体中文' },
-  { value: 'en-US', label: 'English' },
+  { value: 'en-US', label: 'English', badge: { label: 'beta', color: 'success' } },
 ];
 const applicationLanguageItem: ChoiceButtonsSettingsItem = isTauri()
   ? fields.choices('uiLocale', applicationLanguageChoices, { state: languageItemState })

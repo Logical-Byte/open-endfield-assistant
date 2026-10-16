@@ -81,11 +81,21 @@ const inputModelModifiers: { lazy: boolean } = { lazy: true };
     <UButton
       v-for="choice in items"
       :key="choice.value"
+      class="relative"
       :disabled="disabled"
       :label="choice.label"
       :variant="value === choice.value ? 'solid' : 'outline'"
       @click="updateChoice(choice.value)"
-    />
+    >
+      <template v-if="choice.badge" #trailing>
+        <UBadge
+          v-bind="choice.badge"
+          class="pointer-events-none absolute -top-2 -right-2 rounded-full"
+          size="xs"
+          variant="solid"
+        />
+      </template>
+    </UButton>
   </div>
   <UButton
     v-else

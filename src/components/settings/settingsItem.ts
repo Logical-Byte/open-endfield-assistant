@@ -34,6 +34,8 @@ export interface SettingsChoice<T extends string = string> {
   label: string;
   /** 写回字段的业务值。 */
   value: T;
+  /** 按钮右上角的可选标记。 */
+  badge?: Pick<BadgeProps, 'label' | 'color'>;
 }
 
 /** 布尔字段设置项，loading 时使用开关形状的 skeleton。 */
