@@ -92,7 +92,7 @@ const inputModelModifiers: { lazy: boolean } = { lazy: true };
           v-bind="choice.badge"
           class="pointer-events-none absolute -top-2 -right-2 rounded-full"
           size="xs"
-          variant="solid"
+          variant="soft"
         />
       </template>
     </UButton>
