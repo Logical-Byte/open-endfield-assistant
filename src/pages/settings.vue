@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { TranslationComponent } from 'i18next-vue';
-import { useAppI18n } from '@/shared/i18n';
+import { i18n, useAppI18n } from '@/shared/i18n';
+import { isTauri } from '@tauri-apps/api/core';
 import AboutOEA from '@/components/settings/AboutOEA.vue';
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import SettingsControl from '@/components/settings/SettingsControl.vue';
 import { useSettingsFields, type SettingsFields } from '@/components/settings/useSettingsFields';
-import type { SettingsItemState } from '@/components/settings/settingsItem';
+import type {
+  ChoiceButtonsSettingsItem,
+  SettingsChoice,
+  SettingsItemState,
+} from '@/components/settings/settingsItem';
+import type { UiLocale } from '@/shared/types/locale';
 import type { DraftSettings, SettingsState } from '@/features/settings/settingsStore';
 import {
   settingsSaveError,
@@ -20,7 +26,7 @@ import { uiScale } from '@/features/appearance/uiScale';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
 
-const { t, n } = useAppI18n();
+const { t, n, locale } = useAppI18n();
 const route = useRoute();
 const router = useRouter();
 
@@ -80,6 +86,22 @@ const scaleItemState = computed<SettingsItemState>((): SettingsItemState =>
 const fields: SettingsFields<DraftSettings> = useSettingsFields(draftSettings, editSettings, {
   defaults: { state: persistedItemState },
 });
+
+const applicationLanguageChoices: SettingsChoice<UiLocale>[] = [
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'en-US', label: 'English' },
+];
+const applicationLanguageItem: ChoiceButtonsSettingsItem = isTauri()
+  ? fields.choices('uiLocale', applicationLanguageChoices, { state: languageItemState })
+  : {
+      // 浏览器预览直接切换界面语言，无需加载或保存后端设置。
+      kind: 'choice-buttons',
+      items: applicationLanguageChoices,
+      read: (): string => locale.value,
+      write: (value: string): void => {
+        void i18n.changeLanguage(value);
+      },
+    };
 
 /** 设置分类目录：`id` 同时用作滚动锚点。 */
 const sections = computed<SettingsSection[]>((): SettingsSection[] => [
@@ -212,16 +234,7 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
           <SettingsItem
             :description="t('settings.language.application.description')"
             icon="i-lucide-languages"
-            :item="
-              fields.choices(
-                'uiLocale',
-                [
-                  { value: 'zh-CN', label: '简体中文' },
-                  { value: 'en-US', label: 'English' },
-                ],
-                { state: languageItemState },
-              )
-            "
+            :item="applicationLanguageItem"
             :title="t('settings.language.application.title')"
           />
           <div>

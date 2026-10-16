@@ -133,12 +133,12 @@ impl SettingsStore {
     }
 }
 
-/// 默认应用语言由系统界面语言选择，不改变已保存的语言设置。
+/// 默认应用语言由系统界面语言选择，无法获取时使用简体中文，不改变已保存的语言设置。
 pub(crate) fn system_ui_locale() -> UiLocale {
     platform::locale::user_interface_language()
         .as_deref()
         .map(UiLocale::from_language_tag)
-        .unwrap_or(UiLocale::EnUs)
+        .unwrap_or(UiLocale::ZhCn)
 }
 
 /// 启动早期只读取语言字段，不初始化缓存或覆盖设置文件。

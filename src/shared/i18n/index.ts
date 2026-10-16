@@ -11,7 +11,7 @@ export type MessageParams = Record<string, string | number> & { count?: number }
 export const i18n = createInstance();
 // 所有资源随应用打包，初始化同步完成，不依赖网络或语言探测。
 void i18n.init({
-  lng: 'en-US',
+  lng: 'zh-CN',
   fallbackLng: false,
   load: 'currentOnly',
   initAsync: false,
