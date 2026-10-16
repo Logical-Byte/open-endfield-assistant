@@ -216,9 +216,6 @@ const cropImageStyle: CSSProperties = {
                         :content-preview="item.archive.contentPreview"
                         :title="item.archive.title"
                       />
-                      <p class="truncate font-mono text-[10px] text-dimmed">
-                        {{ item.archive.id }}
-                      </p>
                     </div>
                     <UButton
                       color="neutral"
