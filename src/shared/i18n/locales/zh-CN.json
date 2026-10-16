@@ -239,11 +239,11 @@
     "filters": "目录筛选",
     "gotIt": "我知道了",
     "guide": {
-      "archive": "终末地打开档案库界面",
-      "export": "扫完点击全部档案栏的导出收集状态",
-      "hdr": "关闭 HDR，关闭性能监控软件",
-      "open": "打开终末地，调成 1280 × 720、简体中文",
-      "scan": "点击扫描结果栏的开始扫描"
+      "archive": "终末地打开{archive}",
+      "export": "扫完点击全部档案栏的{export}",
+      "hdr": "{hdr}，关闭性能监控软件",
+      "open": "打开终末地，调成 {resolution}、{language}",
+      "scan": "点击扫描结果栏的{scan}"
     },
     "hasRecords": "有记录",
     "hideGuide": "下次更新前不再提示",
