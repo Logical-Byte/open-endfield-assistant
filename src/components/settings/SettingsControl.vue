@@ -88,12 +88,12 @@ const inputModelModifiers: { lazy: boolean } = { lazy: true };
       @click="updateChoice(choice.value)"
     >
       <template v-if="choice.badge" #trailing>
-        <UBadge
-          v-bind="choice.badge"
-          class="pointer-events-none absolute -top-2 -right-2 rounded-full"
-          size="xs"
-          variant="soft"
-        />
+        <!-- 不透明底层隔开按钮颜色，保留 subtle 自带的浅色底和描边。 -->
+        <span
+          class="pointer-events-none absolute -top-2 -right-2 inline-flex rounded-full bg-default"
+        >
+          <UBadge v-bind="choice.badge" class="rounded-full" size="xs" variant="subtle" />
+        </span>
       </template>
     </UButton>
   </div>
