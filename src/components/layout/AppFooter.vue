@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import Lark from '@/components/icons/Lark.vue';
+import { useAppI18n } from '@/shared/i18n';
 import LogicalByteLogoSolid from '@/components/icons/LogicalByteLogoSolid.vue';
 import Nga from '@/components/icons/Nga.vue';
 import Skland from '@/components/icons/Skland.vue';
 import { Component } from 'vue';
+
+const { t } = useAppI18n();
 
 interface FooterLink {
   icon: string | Component;
@@ -43,12 +45,12 @@ const rightLinks: FooterLink[] = [
   {
     icon: 'i-simple-icons:bilibili',
     label: '哔哩哔哩',
-    to: 'https://space.bilibili.com/37179776',
+    to: 'https://space.bilibili.com/688411531',
   },
   {
     icon: Skland,
     label: '森空岛',
-    to: 'https://www.skland.com/profile?id=1138552273321',
+    to: 'https://www.skland.com/profile?id=3679911155887',
   },
   {
     icon: Nga,
@@ -56,19 +58,19 @@ const rightLinks: FooterLink[] = [
     to: 'https://bbs.nga.cn/thread.php?authorid=60824354',
   },
   {
-    icon: 'i-simple-icons:qq',
-    label: 'QQ',
-    to: 'https://qm.qq.com/q/5Lo35ydL0I',
+    icon: 'i-simple-icons:tiktok',
+    label: '抖音',
+    to: 'https://www.douyin.com/user/MS4wLjABAAAAObl3owR4oOSC-OPUBF_LhqnVLdVzzSDMvgcxBiYqjTIDaIKML95YRyBY_fPpRMUy',
   },
   {
-    icon: Lark,
-    label: '飞书',
-    to: 'https://my.feishu.cn/wiki/V5VcwWMkeiz64mkuL9Vcot7unqd',
+    icon: 'i-simple-icons:qq',
+    label: 'QQ',
+    to: 'https://qm.qq.com/cgi-bin/qm/qr?k=WBgxAB_VBXczwq-4GsS3iLS7QIOfhcZx',
   },
   {
     icon: 'i-simple-icons:github',
     label: 'GitHub',
-    to: 'https://github.com/BiologyHazard/riic-yituliu',
+    to: 'https://github.com/Logical-Byte/open-endfield-assistant',
   },
 ];
 </script>
@@ -78,7 +80,7 @@ const rightLinks: FooterLink[] = [
 
   <UFooter>
     <template #left>
-      <p class="text-sm text-muted">Powered by</p>
+      <p class="text-sm text-muted">{{ t('footer.poweredBy') }}</p>
       <UTooltip v-for="({ icon, label, to }, index) in leftLinks" :key="index" :text="label">
         <UButton
           :aria-label="label"

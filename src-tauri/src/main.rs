@@ -1,14 +1,26 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(
+    all(not(debug_assertions), not(feature = "cli")),
+    windows_subsystem = "windows"
+)]
 
-fn main() {
-    // 启动时自动请求管理员权限（仅 release；用户取消则继续以普通权限运行）
-    #[cfg(target_os = "windows")]
-    oea_lib::windows_ops::admin::elevate_at_startup();
-
-    // 尽早安装全局 panic hook：任何 panic（含 Tauri setup 失败导致的 panic）都会
-    // 独立写入 logs/crash-*.log，保证 release（无控制台）下也有可回溯记录。
-    oea_lib::crash::install_panic_hook();
-
+fn main() -> std::process::ExitCode {
+    #[cfg(feature = "cli")]
+    if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("dev")) {
+        // `dev` owns its argv and exits before any Tauri initialization.
+        return oea_lib::run_dev_cli(std::env::args_os().skip(1));
+    }
+    if let Some((root, executable_name, locale)) =
+        oea_lib::update::install::helper_request_from_args(std::env::args_os())
+    {
+        if let Err(error) =
+            oea_lib::update::install::run_helper_request_with_logging(root, executable_name, locale)
+        {
+            eprintln!("更新 helper 失败: {error}");
+            std::process::exit(1);
+        }
+        return std::process::ExitCode::SUCCESS;
+    }
     oea_lib::run();
+    std::process::ExitCode::SUCCESS
 }

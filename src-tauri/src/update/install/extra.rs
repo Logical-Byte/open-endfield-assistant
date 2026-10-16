@@ -1,0 +1,184 @@
+//! 开发者选项的本地更新包入口。
+
+use crate::update::error::Reason;
+use std::{
+    fs::{self, File, OpenOptions},
+    io,
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+use crate::app_paths::AppPaths;
+use crate::update;
+use crate::update::UpdateManager;
+use tracing::{debug, error, info, warn};
+
+/// 选择、暂存并安装本地 ZIP，不向 WebView 暴露文件路径。
+#[tauri::command]
+pub fn developer_install_update(
+    manager: tauri::State<'_, UpdateManager>,
+    app: tauri::AppHandle,
+) -> Result<bool, update::Error> {
+    update::ensure_enabled()?;
+    let install_lease = manager
+        .start_developer_install()
+        .inspect_err(|install_error| {
+            warn!(
+                operation = "install",
+                install_kind = "developer_package",
+                error = %install_error,
+                "开发者更新安装请求被状态机拒绝"
+            );
+        })?;
+    debug!(
+        operation = "install",
+        install_kind = "developer_package",
+        "开发者更新包选择流程开始"
+    );
+    info!("请选择用于安装的开发者更新包");
+    let package_path = match choose_and_stage_developer_package() {
+        Ok(Some(package_path)) => package_path,
+        Ok(None) => return Ok(false),
+        Err(install_error) => {
+            error!(
+                operation = "install",
+                install_kind = "developer_package",
+                error = %install_error,
+                "开发者更新包选择或暂存失败"
+            );
+            return Err(install_error);
+        }
+    };
+    if let Err(install_error) = super::install_update_inner(app, &package_path) {
+        error!(
+            operation = "install",
+            install_kind = "developer_package",
+            error = %install_error,
+            "开发者更新安装失败"
+        );
+        return Err(install_error);
+    }
+    install_lease.complete();
+    Ok(true)
+}
+
+fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, update::Error> {
+    debug!(
+        operation = "install",
+        install_kind = "developer_package",
+        "正在打开开发者更新包选择器"
+    );
+    let paths = AppPaths::new()?;
+    let downloads = paths.downloads_dir();
+    fs::create_dir_all(&downloads).map_err(|error| format!("创建更新下载目录失败: {error}"))?;
+    let Some(selected) = crate::platform::update::extra::choose_update_package(&downloads)
+        .map_err(|error| format!("选择更新包失败: {error}"))?
+    else {
+        debug!(
+            operation = "install",
+            install_kind = "developer_package",
+            result = "cancelled",
+            "用户取消选择或确认开发者更新包"
+        );
+        info!("已取消安装开发者更新包");
+        return Ok(None);
+    };
+    let staged = stage_developer_package(&paths, &selected)
+        .map_err(|error| update::Error::failed(Reason::InvalidPackage, anyhow::anyhow!(error)))?;
+    debug!(
+        operation = "install",
+        install_kind = "developer_package",
+        staged_package = %staged.display(),
+        "开发者更新包已暂存"
+    );
+    info!("开发者更新包已导入，准备安装");
+    Ok(Some(staged))
+}
+
+/// 导入用户明确选择的外部包到 `cache/downloads`；目录内的包直接复用。
+fn stage_developer_package(paths: &AppPaths, selected: &Path) -> Result<PathBuf, String> {
+    if !selected
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+    {
+        return Err("请选择 .zip 更新包".to_string());
+    }
+
+    let downloads = paths.downloads_dir();
+    fs::create_dir_all(&downloads).map_err(|error| format!("创建更新下载目录失败: {error}"))?;
+    let selected = selected
+        .canonicalize()
+        .map_err(|error| format!("解析所选更新包路径失败: {error}"))?;
+    let canonical_downloads = downloads
+        .canonicalize()
+        .map_err(|error| format!("解析更新下载目录失败: {error}"))?;
+    if selected.starts_with(&canonical_downloads) {
+        Ok(selected)
+    } else {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| format!("生成更新包暂存名称失败: {error}"))?
+            .as_nanos();
+        let staged = downloads.join(format!(
+            "developer-update-{}-{timestamp}.zip",
+            std::process::id()
+        ));
+        copy_to_new_file(&selected, &staged)?;
+        staged
+            .canonicalize()
+            .map_err(|error| format!("解析已复制更新包路径失败: {error}"))
+    }
+}
+
+/// 以 `create_new` 创建暂存文件，任何命名碰撞都不得覆盖另一个安装正在读取的包。
+fn copy_to_new_file(source: &Path, target: &Path) -> Result<(), String> {
+    let mut source = File::open(source).map_err(|error| format!("打开所选更新包失败: {error}"))?;
+    let mut target_file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(target)
+        .map_err(|error| format!("创建更新包暂存文件失败: {error}"))?;
+    if let Err(error) = io::copy(&mut source, &mut target_file) {
+        let message = format!("复制所选更新包到下载目录失败: {error}");
+        return match fs::remove_file(target) {
+            Ok(()) => Err(message),
+            Err(cleanup_error) if cleanup_error.kind() == io::ErrorKind::NotFound => Err(message),
+            Err(cleanup_error) => Err(format!(
+                "{message}；清理未完成的暂存文件 [{}] 也失败: {cleanup_error}",
+                target.display()
+            )),
+        };
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn developer_package_is_staged_in_controlled_download_directory() {
+        let root = tempfile::Builder::new()
+            .prefix("oea-update-developer-package-")
+            .tempdir()
+            .unwrap();
+        let external = tempfile::Builder::new()
+            .prefix("oea-update-external-package-")
+            .tempdir()
+            .unwrap();
+        let paths = AppPaths::with_root_dir(root.path());
+        let selected = external.path().join("selected.zip");
+        fs::write(&selected, "first package").unwrap();
+
+        let first_staged = stage_developer_package(&paths, &selected).unwrap();
+        fs::write(&selected, "second package").unwrap();
+        let second_staged = stage_developer_package(&paths, &selected).unwrap();
+
+        let downloads = paths.downloads_dir().canonicalize().unwrap();
+        assert!(first_staged.starts_with(&downloads));
+        assert!(second_staged.starts_with(downloads));
+        assert_ne!(first_staged, second_staged);
+        assert_eq!(fs::read_to_string(first_staged).unwrap(), "first package");
+        assert_eq!(fs::read_to_string(second_staged).unwrap(), "second package");
+    }
+}

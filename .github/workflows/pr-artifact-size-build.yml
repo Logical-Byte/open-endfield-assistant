@@ -1,0 +1,702 @@
+name: PR artifact size build
+run-name: 'Artifact size PR #${{ inputs.pr }} request ${{ inputs.request_id }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number, supplied by the comment controller
+        required: true
+        type: string
+      request_id:
+        description: Command comment ID, supplied by the comment controller
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: oea-size-build-${{ inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    outputs:
+      base_artifact_id: ${{ steps.upload_base.outputs.artifact-id }}
+    env:
+      PR_NUMBER: ${{ inputs.pr }}
+      REQUEST_ID: ${{ inputs.request_id }}
+    steps:
+      - name: Read the trusted request
+        id: request
+        uses: actions/github-script@v8
+        with:
+          script: |
+            if (context.ref !== `refs/heads/${context.payload.repository.default_branch}`) {
+              throw new Error('Package measurements must use the default-branch workflow.');
+            }
+            if (!/^\d+$/.test(process.env.PR_NUMBER) || !/^\d+$/.test(process.env.REQUEST_ID)) {
+              throw new Error('Invalid request identity.');
+            }
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo, issue_number: Number(process.env.PR_NUMBER), per_page: 100,
+            });
+            const report = comments.find(comment => comment.user?.login === 'github-actions[bot]'
+              && comment.body?.startsWith('<!-- oea-artifact-size-report -->'));
+            const encoded = report?.body.match(/<!-- oea-size-request ([A-Za-z0-9+/=]+) -->/)?.[1];
+            if (!encoded) throw new Error('The controller request is missing.');
+            const request = JSON.parse(Buffer.from(encoded, 'base64').toString());
+            if (request.requestId !== process.env.REQUEST_ID) {
+              core.notice('This request has been superseded.');
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo, pull_number: request.pr,
+            });
+            if (pr.state !== 'open') return;
+            if (!/^[0-9a-f]{40}$/.test(request.baseSha) || !/^[0-9a-f]{40}$/.test(request.headSha)) {
+              throw new Error('Invalid source commit.');
+            }
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const output = path.join(process.env.RUNNER_TEMP, 'oea-size-result');
+            fs.mkdirSync(output, { recursive: true });
+            const prefix = `oea-size-stats-v1-windows-x86_64-pr-${request.pr}-commit-${request.baseSha}-run-`;
+            core.setOutput('active', 'true');
+            core.setOutput('base_sha', request.baseSha);
+            core.setOutput('head_sha', request.headSha);
+            core.setOutput('head_repository', request.headRepository);
+            core.setOutput('rebuild_base', String(request.rebuildBase));
+            core.setOutput('base_prefix', prefix);
+
+      - name: Restore base measurements
+        if: steps.request.outputs.active == 'true' && steps.request.outputs.rebuild_base != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/oea-size-base/manifest.json
+          key: ${{ steps.request.outputs.base_prefix }}lookup-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ steps.request.outputs.base_prefix }}
+
+      - name: Validate cached base measurements
+        id: base_cache
+        if: steps.request.outputs.active == 'true'
+        uses: actions/github-script@v8
+        env:
+          BASE_SHA: ${{ steps.request.outputs.base_sha }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const file = path.join(process.env.RUNNER_TEMP, 'oea-size-base', 'manifest.json');
+            try {
+              if (fs.statSync(file).size > 16384) throw new Error('Oversized manifest.');
+              const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+              const fields = ['total', 'application', 'ocr', 'data', 'other', 'overhead'];
+              if (data.schemaVersion !== 1 || data.sourceSha !== process.env.BASE_SHA
+                || data.sourceRepository !== `${context.repo.owner}/${context.repo.repo}`
+                || data.pr !== Number(process.env.PR_NUMBER)
+                || !fields.every(key => Number.isSafeInteger(data.bytes?.[key]) && data.bytes[key] >= 0)
+                || data.bytes.total <= 0
+                || fields.slice(1).reduce((sum, key) => sum + data.bytes[key], 0) !== data.bytes.total
+                || !/^\d+$/.test(String(data.runId)) || !Number.isFinite(Date.parse(data.measuredAt))) {
+                throw new Error('Invalid cached measurements.');
+              }
+              fs.copyFileSync(file, path.join(process.env.RUNNER_TEMP, 'oea-size-result', 'base.json'));
+              core.setOutput('hit', 'true');
+            } catch {
+              core.notice('No valid base measurements; a base build is required.');
+            }
+
+      - name: Checkout base
+        if: steps.request.outputs.active == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.request.outputs.base_sha }}
+          path: app
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Setup pnpm
+        if: steps.request.outputs.active == 'true'
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: app/package.json
+
+      - name: Setup Node
+        if: steps.request.outputs.active == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Setup Rust
+        if: steps.request.outputs.active == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Cargo dependencies
+        if: steps.request.outputs.active == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: oea-size-rust-v1
+          shared-key: pr-${{ inputs.pr }}-windows-x86_64-release
+          add-job-id-key: false
+          workspaces: app/src-tauri -> target
+
+      - name: Install the temporary ZIP reader
+        if: steps.request.outputs.active == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: &install_zip_reader |
+            const path = require('node:path');
+            await exec.exec('npm', [
+              'install', '--prefix', path.join(process.env.RUNNER_TEMP, 'oea-size-tools'),
+              '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund', 'yauzl@3.4.0',
+            ]);
+
+      - name: Install base dependencies
+        id: base_install
+        if: steps.request.outputs.active == 'true' && steps.base_cache.outputs.hit != 'true'
+        continue-on-error: true
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+
+      - name: Build base portable ZIP
+        id: base_build
+        if: steps.base_install.outcome == 'success'
+        continue-on-error: true
+        working-directory: app
+        run: pnpm package
+
+      - name: Measure base ZIP
+        if: steps.base_build.outcome == 'success'
+        continue-on-error: true
+        uses: actions/github-script@v8
+        env:
+          SOURCE_SHA: ${{ steps.request.outputs.base_sha }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          MEASUREMENT: base
+        with:
+          script: &measure_zip |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const yauzl = require(path.join(process.env.RUNNER_TEMP, 'oea-size-tools/node_modules/yauzl'));
+            const directory = path.join(process.env.GITHUB_WORKSPACE, 'app', 'releases');
+            const packages = fs.readdirSync(directory).filter(name => name.endsWith('.zip'));
+            if (packages.length !== 1) throw new Error('Expected exactly one portable ZIP.');
+            const file = path.join(directory, packages[0]);
+            const bytes = { total: fs.statSync(file).size, application: 0, ocr: 0, data: 0, other: 0, overhead: 0 };
+            await new Promise((resolve, reject) => {
+              yauzl.open(file, { lazyEntries: true }, (error, zip) => {
+                if (error) return reject(error);
+                zip.on('error', reject);
+                zip.on('entry', entry => {
+                  if (!entry.fileName.endsWith('/')) {
+                    const name = entry.fileName.toLowerCase();
+                    const category = name === 'oea.exe' ? 'application'
+                      : name.startsWith('resources/ocr-models/') ? 'ocr'
+                      : /^resources\/(data|templates)\//.test(name) ? 'data' : 'other';
+                    bytes[category] += entry.compressedSize;
+                  }
+                  zip.readEntry();
+                });
+                zip.on('end', resolve);
+                zip.readEntry();
+              });
+            });
+            bytes.overhead = bytes.total - bytes.application - bytes.ocr - bytes.data - bytes.other;
+            if (bytes.overhead < 0) throw new Error('Invalid ZIP sizes.');
+            const manifest = {
+              schemaVersion: 1, pr: Number(process.env.PR_NUMBER),
+              sourceSha: process.env.SOURCE_SHA, sourceRepository: process.env.SOURCE_REPOSITORY,
+              measuredAt: new Date().toISOString(), runId: context.runId,
+              runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT), bytes,
+            };
+            fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'oea-size-result',
+              `${process.env.MEASUREMENT}.json`), JSON.stringify(manifest));
+
+      - name: Upload base measurements before executing PR code
+        id: upload_base
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: oea-size-base-measurements
+          path: ${{ runner.temp }}/oea-size-result/base.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Remove downloaded base OCR models
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // 在 resources 子仓库内清理下载的模型，保留 Git 跟踪的文件。
+            await exec.exec('git', ['clean', '-fdX', '--', 'ocr-models'], {
+              cwd: require('node:path').join(process.env.GITHUB_WORKSPACE, 'app', 'resources'),
+            });
+
+      # clean:false 保留同一 runner 上的 Cargo target。前端和打包产物单独清理。
+      - name: Checkout PR head
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
+        uses: actions/checkout@v7
+        with:
+          # PR head（包括 fork）可通过父仓库的 PR 提交访问，保持 origin 相同以保留 target。
+          repository: ${{ github.repository }}
+          ref: ${{ steps.request.outputs.head_sha }}
+          path: app
+          submodules: recursive
+          persist-credentials: false
+          clean: false
+
+      - name: Remove previous packaging outputs
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            for (const name of ['dist', 'releases']) {
+              fs.rmSync(path.join(process.env.GITHUB_WORKSPACE, 'app', name), { recursive: true, force: true });
+            }
+
+      - name: Install PR dependencies
+        id: pr_install
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
+        continue-on-error: true
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+
+      - name: Build PR portable ZIP
+        id: pr_build
+        if: ${{ !cancelled() && steps.pr_install.outcome == 'success' }}
+        continue-on-error: true
+        working-directory: app
+        run: pnpm package
+
+      - name: Measure PR ZIP
+        id: pr_measure
+        if: ${{ !cancelled() && steps.pr_build.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/github-script@v8
+        env:
+          SOURCE_SHA: ${{ steps.request.outputs.head_sha }}
+          SOURCE_REPOSITORY: ${{ steps.request.outputs.head_repository }}
+          MEASUREMENT: pr
+        with:
+          script: *measure_zip
+
+      - name: Upload PR measurements
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: oea-size-pr-measurements
+          path: ${{ runner.temp }}/oea-size-result/pr.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Propagate PR build failure
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' && steps.pr_measure.outcome != 'success' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            core.setFailed('The PR package could not be measured. See the installation, build and measurement steps.');
+
+  # 新 runner 只处理 JSON 和正式发布 ZIP，不执行 PR 代码，也不持有评论写权限。
+  collect:
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: windows-latest
+    env:
+      PR_NUMBER: ${{ inputs.pr }}
+      REQUEST_ID: ${{ inputs.request_id }}
+    steps:
+      - name: Read the latest request and stable cache identity
+        id: request
+        uses: actions/github-script@v8
+        with:
+          script: |
+            if (context.ref !== `refs/heads/${context.payload.repository.default_branch}`
+              || !/^\d+$/.test(process.env.PR_NUMBER) || !/^\d+$/.test(process.env.REQUEST_ID)) return;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo, issue_number: Number(process.env.PR_NUMBER), per_page: 100,
+            });
+            const report = comments.find(comment => comment.user?.login === 'github-actions[bot]'
+              && comment.body?.startsWith('<!-- oea-artifact-size-report -->'));
+            const encoded = report?.body.match(/<!-- oea-size-request ([A-Za-z0-9+/=]+) -->/)?.[1];
+            if (!encoded) return;
+            const request = JSON.parse(Buffer.from(encoded, 'base64').toString());
+            if (request.requestId !== process.env.REQUEST_ID) return;
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: request.pr });
+            if (pr.state !== 'open') return;
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const crypto = require('node:crypto');
+            fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'oea-size-request.json'), JSON.stringify(request));
+            const key = sha => `oea-size-stats-v1-windows-x86_64-pr-${request.pr}-commit-${sha}-run-${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}`;
+            core.setOutput('active', 'true');
+            core.setOutput('base_key', key(request.baseSha));
+            core.setOutput('pr_key', key(request.headSha));
+            if (request.stable) {
+              const fingerprint = crypto.createHash('sha256').update(JSON.stringify([
+                request.stable.updatedAt, request.stable.size, request.stable.digest,
+              ])).digest('hex');
+              core.setOutput('stable_key', `oea-size-stable-v1-windows-x86_64-asset-${request.stable.assetId}-${fingerprint}`);
+            }
+
+      - name: Download base measurements
+        if: steps.request.outputs.active == 'true' && needs.build.outputs.base_artifact_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          # 固定到 PR 代码执行前上传的 artifact，避免读取后续同名替代品。
+          artifact-ids: ${{ needs.build.outputs.base_artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/oea-size-raw
+
+      - name: Download PR measurements
+        if: steps.request.outputs.active == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: oea-size-pr-measurements
+          path: ${{ runner.temp }}/oea-size-raw
+
+      - name: Restore stable measurements
+        id: stable_cache
+        if: steps.request.outputs.active == 'true' && steps.request.outputs.stable_key != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/oea-size-stable/manifest.json
+          key: ${{ steps.request.outputs.stable_key }}
+
+      - name: Install the temporary ZIP reader
+        if: steps.request.outputs.active == 'true' && steps.request.outputs.stable_key != ''
+        continue-on-error: true
+        uses: actions/github-script@v8
+        with:
+          script: *install_zip_reader
+
+      - name: Validate measurements and collect stable sizes
+        id: measurements
+        if: steps.request.outputs.active == 'true'
+        uses: actions/github-script@v8
+        env:
+          STABLE_KEY: ${{ steps.request.outputs.stable_key }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const request = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'oea-size-request.json'), 'utf8'));
+            const fields = ['total', 'application', 'ocr', 'data', 'other', 'overhead'];
+            function read(file) {
+              if (fs.statSync(file).size > 16384) throw new Error('Oversized manifest.');
+              const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+              if (data.schemaVersion !== 1
+                || !fields.every(key => Number.isSafeInteger(data.bytes?.[key]) && data.bytes[key] >= 0)
+                || data.bytes.total <= 0 || data.bytes.total > 1e12
+                || fields.slice(1).reduce((sum, key) => sum + data.bytes[key], 0) !== data.bytes.total
+                || !/^\d+$/.test(String(data.runId)) || !Number.isFinite(Date.parse(data.measuredAt))) {
+                throw new Error('Invalid measurements.');
+              }
+              return data;
+            }
+            function persist(name, data) {
+              const directory = path.join(process.env.RUNNER_TEMP, `oea-size-${name}`);
+              fs.mkdirSync(directory, { recursive: true });
+              fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(data));
+            }
+            const result = { schemaVersion: 1, requestId: request.requestId, base: null, pr: null, stable: null, notes: [] };
+            for (const name of ['base', 'pr']) {
+              try {
+                const data = read(path.join(process.env.RUNNER_TEMP, 'oea-size-raw', `${name}.json`));
+                const expectedSha = name === 'base' ? request.baseSha : request.headSha;
+                const expectedRepo = name === 'base' ? `${context.repo.owner}/${context.repo.repo}` : request.headRepository;
+                if (data.pr !== request.pr || data.sourceSha !== expectedSha || data.sourceRepository !== expectedRepo) {
+                  throw new Error('Measurement source does not match the request.');
+                }
+                const fresh = data.runId === context.runId && data.runAttempt === Number(process.env.GITHUB_RUN_ATTEMPT);
+                if (name === 'pr' && !fresh) throw new Error('The PR must be measured for this run.');
+                result[name] = data;
+                if (fresh) {
+                  persist(name === 'pr' ? 'head' : 'base', data);
+                  core.setOutput(`save_${name}`, 'true');
+                }
+              } catch {
+                result.notes.push(name === 'base'
+                  ? 'Base measurements are unavailable. Check the base build steps.'
+                  : 'The PR build failed or did not produce valid package measurements.');
+              }
+            }
+            // base/head SHA 相同时优先保存成功的 PR 记录，避免同一 key 保存两次。
+            if (result.pr && request.baseSha === request.headSha) core.setOutput('save_base', 'false');
+
+            if (request.stable) {
+              const cached = path.join(process.env.RUNNER_TEMP, 'oea-size-stable', 'manifest.json');
+              try {
+                const data = read(cached);
+                if (data.cacheKey !== process.env.STABLE_KEY || data.bytes.total !== request.stable.size) {
+                  throw new Error('Stable measurements do not match the release asset.');
+                }
+                result.stable = data;
+              } catch {
+                try {
+                  const { Readable } = require('node:stream');
+                  const { pipeline } = require('node:stream/promises');
+                  const yauzl = require(path.join(process.env.RUNNER_TEMP, 'oea-size-tools/node_modules/yauzl'));
+                  const file = path.join(process.env.RUNNER_TEMP, 'oea-stable.zip');
+                  const response = await fetch(request.stable.downloadUrl, { signal: AbortSignal.timeout(180000) });
+                  if (!response.ok) throw new Error(`Release download failed: ${response.status}`);
+                  await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(file));
+                  if (fs.statSync(file).size !== request.stable.size) throw new Error('Release ZIP size mismatch.');
+                  const bytes = { total: request.stable.size, application: 0, ocr: 0, data: 0, other: 0, overhead: 0 };
+                  await new Promise((resolve, reject) => {
+                    yauzl.open(file, { lazyEntries: true }, (error, zip) => {
+                      if (error) return reject(error);
+                      zip.on('error', reject);
+                      zip.on('entry', entry => {
+                        if (!entry.fileName.endsWith('/')) {
+                          const name = entry.fileName.toLowerCase();
+                          const category = name === 'oea.exe' ? 'application'
+                            : name.startsWith('resources/ocr-models/') ? 'ocr'
+                            : /^resources\/(data|templates)\//.test(name) ? 'data' : 'other';
+                          bytes[category] += entry.compressedSize;
+                        }
+                        zip.readEntry();
+                      });
+                      zip.on('end', resolve);
+                      zip.readEntry();
+                    });
+                  });
+                  bytes.overhead = bytes.total - bytes.application - bytes.ocr - bytes.data - bytes.other;
+                  if (bytes.overhead < 0) throw new Error('Invalid release ZIP sizes.');
+                  result.stable = {
+                    schemaVersion: 1, cacheKey: process.env.STABLE_KEY, bytes,
+                    measuredAt: new Date().toISOString(), runId: context.runId,
+                  };
+                  persist('stable', result.stable);
+                  core.setOutput('save_stable', 'true');
+                } catch {
+                  result.stable = { bytes: { total: request.stable.size } };
+                  result.notes.push('Stable component measurements are unavailable; total size comes from release metadata.');
+                }
+              }
+            } else {
+              result.notes.push('No matching stable release ZIP is available.');
+            }
+            fs.mkdirSync(path.join(process.env.RUNNER_TEMP, 'oea-size-report'), { recursive: true });
+            fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'oea-size-report', 'report.json'), JSON.stringify(result));
+
+      - name: Save fresh base measurements
+        if: steps.measurements.outputs.save_base == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/oea-size-base/manifest.json
+          key: ${{ steps.request.outputs.base_key }}
+
+      - name: Save fresh PR measurements
+        if: steps.measurements.outputs.save_pr == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const directory = path.join(process.env.RUNNER_TEMP, 'oea-size-base');
+            fs.mkdirSync(directory, { recursive: true });
+            // Cache version 包含 path。所有 commit 统计使用同一路径，才能互相恢复。
+            fs.copyFileSync(path.join(process.env.RUNNER_TEMP, 'oea-size-head', 'manifest.json'),
+              path.join(directory, 'manifest.json'));
+
+      - name: Cache fresh PR measurements
+        if: steps.measurements.outputs.save_pr == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/oea-size-base/manifest.json
+          key: ${{ steps.request.outputs.pr_key }}
+
+      - name: Save stable measurements
+        if: steps.measurements.outputs.save_stable == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/oea-size-stable/manifest.json
+          key: ${{ steps.request.outputs.stable_key }}
+
+      - name: Upload the validated report
+        if: ${{ !cancelled() && steps.request.outputs.active == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: oea-size-report
+          path: ${{ runner.temp }}/oea-size-report/report.json
+          if-no-files-found: error
+          retention-days: 7
+
+  # 评论发布使用独立 runner 和 job 权限，不依赖跨 workflow 的完成事件。
+  publish:
+    needs: [build, collect]
+    if: ${{ always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    concurrency:
+      group: oea-size-comment-${{ inputs.pr }}
+      cancel-in-progress: false
+    steps:
+      - name: Download the validated measurements
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: oea-size-report
+          path: size-report
+
+      - name: Update the same report comment
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ inputs.pr }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          COLLECT_RESULT: ${{ needs.collect.result }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const repo = context.repo;
+            const number = Number(process.env.PR_NUMBER);
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...repo, issue_number: number, per_page: 100,
+            });
+            const reportMarker = '<!-- oea-artifact-size-report -->';
+            const outdatedMarker = '<!-- oea-size-outdated -->';
+            const report = comments.find(comment => comment.user?.login === 'github-actions[bot]'
+              && comment.body?.startsWith(reportMarker));
+            const encoded = report?.body.match(/<!-- oea-size-request ([A-Za-z0-9+/=]+) -->/)?.[1];
+            if (!encoded) return;
+            const request = JSON.parse(Buffer.from(encoded, 'base64').toString());
+            if (request.requestId !== process.env.REQUEST_ID || request.pr !== number) return;
+            const { data: pr } = await github.rest.pulls.get({ ...repo, pull_number: number });
+            if (pr.state !== 'open') return;
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              ...repo, run_id: context.runId,
+            });
+            if (run.run_attempt !== Number(process.env.GITHUB_RUN_ATTEMPT)) return;
+            const root = `${context.serverUrl}/${repo.owner}/${repo.repo}`;
+            const runUrl = `${root}/actions/runs/${run.id}`;
+            const isOutdated = pr.head.sha !== request.headSha || report.body.includes(outdatedMarker);
+            function markOutdated(body) {
+              const updated = body.replace(/^\*\*Status: (working|completed|failed|outdated)\*\*$/m,
+                '**Status: outdated**');
+              return updated.includes(outdatedMarker) ? updated : updated + '\n\n' + outdatedMarker +
+                '\n\nThis report is outdated. Comment `/ci-show-artifact-size` on an open PR to update it.';
+            }
+
+            let data = { pr: null, base: null, stable: null, notes: [] };
+            try {
+              const file = path.join(process.env.GITHUB_WORKSPACE, 'size-report', 'report.json');
+              if (fs.statSync(file).size > 65536) throw new Error('Oversized report.');
+              const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+              if (parsed.schemaVersion !== 1 || parsed.requestId !== request.requestId) {
+                throw new Error('Report request mismatch.');
+              }
+              // 只渲染数字和可信请求身份，artifact 中的文本不能变成评论或链接。
+              const fields = ['total', 'application', 'ocr', 'data', 'other', 'overhead'];
+              for (const name of ['pr', 'base', 'stable']) {
+                const item = parsed[name];
+                if (!item) continue;
+                for (const key of fields) {
+                  if (item.bytes?.[key] !== undefined
+                    && (!Number.isSafeInteger(item.bytes[key]) || item.bytes[key] < 0 || item.bytes[key] > 1e12)) {
+                    throw new Error('Invalid report sizes.');
+                  }
+                }
+                if (name !== 'stable') {
+                  if (!fields.every(key => Number.isSafeInteger(item.bytes?.[key]) && item.bytes[key] >= 0)
+                    || item.bytes.total <= 0
+                    || fields.slice(1).reduce((sum, key) => sum + item.bytes[key], 0) !== item.bytes.total) {
+                    throw new Error('Incomplete component measurements.');
+                  }
+                  const sha = name === 'pr' ? request.headSha : request.baseSha;
+                  const source = name === 'pr' ? request.headRepository : `${repo.owner}/${repo.repo}`;
+                  if (item.sourceSha !== sha || item.sourceRepository !== source || item.pr !== number
+                    || !/^\d+$/.test(String(item.runId)) || !Number.isFinite(Date.parse(item.measuredAt))) {
+                    throw new Error('Invalid report source.');
+                  }
+                }
+              }
+              if (parsed.pr && (parsed.pr.runId !== run.id || parsed.pr.runAttempt !== run.run_attempt)) {
+                throw new Error('PR measurements belong to another run.');
+              }
+              data = parsed;
+            } catch {
+              core.notice('No valid measurements artifact is available.');
+            }
+
+            const completed = Boolean(data.pr)
+              && process.env.BUILD_RESULT === 'success' && process.env.COLLECT_RESULT === 'success';
+            const escape = value => value.replace(/[\\`\[\]]/g, '\\$&');
+            const lines = [
+              reportMarker, `<!-- oea-size-request ${encoded} -->`,
+              '### Windows x86_64 portable ZIP size report', '',
+              `**Status: ${completed ? 'completed' : 'failed'}**`, '',
+              `- **PR:** [\`${request.headSha.slice(0, 7)}\`](${context.serverUrl}/${request.headRepository}/commit/${request.headSha})`,
+              `- **Base:** [\`${escape(request.baseRef)}@${request.baseSha.slice(0, 7)}\`](${root}/commit/${request.baseSha})`,
+              `- **Stable:** ${request.stable ? `[\`${escape(request.stable.tag)}\`](${request.stable.releaseUrl})` : 'N/A'}`, '',
+            ];
+            if (completed) {
+              const mib = bytes => Number.isSafeInteger(bytes) ? (bytes / 1024 / 1024).toFixed(2) : 'N/A';
+              function difference(current, baseline) {
+                if (!Number.isSafeInteger(current) || !Number.isSafeInteger(baseline)) return 'N/A';
+                const delta = current - baseline;
+                const sign = delta > 0 ? '+' : delta < 0 ? '-' : '';
+                const rate = baseline === 0 ? 'N/A' :
+                  `${sign}${Math.abs(delta / baseline * 100).toFixed(2)}%`;
+                return `${sign}${mib(Math.abs(delta))} (${rate})`;
+              }
+              lines.push('All sizes are in MiB. Component sizes are compressed sizes within the ZIP.',
+                'Changes compare the PR build with each baseline.', '',
+                '| Component | Stable | Base | PR | Change vs. stable | Change vs. base |',
+                '| --- | ---: | ---: | ---: | ---: | ---: |');
+              for (const [key, label] of [
+                ['total', '**Total ZIP**'], ['application', 'Application (includes frontend)'],
+                ['ocr', 'OCR models'], ['data', 'Data and templates'], ['other', 'Other files'],
+                ['overhead', 'ZIP overhead'],
+              ]) {
+                const current = data.pr.bytes[key];
+                const stable = data.stable?.bytes[key];
+                const base = data.base?.bytes[key];
+                lines.push(`| ${label} | ${mib(stable)} | ${mib(base)} | ${mib(current)} | ${difference(current, stable)} | ${difference(current, base)} |`);
+              }
+            } else {
+              lines.push('The CI run failed or was cancelled before a valid report could be completed.');
+            }
+            lines.push('', '<details>', '<summary>Build details and rerun commands</summary>', '', '**Data sources**', '');
+            if (data.pr) lines.push('- **PR:** Built for this request.');
+            if (data.base) {
+              lines.push(data.base.runId === run.id
+                ? '- **Base:** Built for this request.'
+                : `- **Base:** Reused cached measurements from ${new Date(data.base.measuredAt).toISOString()}.`);
+            } else {
+              lines.push('- **Base:** Measurements are unavailable. Check the base build steps.');
+            }
+            lines.push(data.stable
+              ? '- **Stable:** Measured from the published release ZIP; cached measurements are reused when available.'
+              : '- **Stable:** No matching release measurements are available.');
+            if (data.stable && data.stable.bytes.application === undefined) {
+              lines.push('- Stable component measurements are unavailable. Total size comes from release metadata.');
+            }
+            lines.push('', '**Links**', '', `[Current workflow run](${runUrl})`);
+            if (data.base && data.base.runId !== run.id) {
+              lines.push(`[Original base measurement](${root}/actions/runs/${data.base.runId})`);
+            }
+            lines.push('', '**Rerun**', '',
+              'Comment `/ci-show-artifact-size` to measure the latest PR commit.',
+              'Add `--rebuild-base` to rebuild and measure the base as well.', '', '</details>');
+            let body = lines.join('\n');
+            if (isOutdated) body = markOutdated(body);
+            await github.rest.issues.updateComment({ ...repo, comment_id: report.id, body });

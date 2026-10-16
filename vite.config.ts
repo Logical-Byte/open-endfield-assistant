@@ -3,11 +3,13 @@ import vue from '@vitejs/plugin-vue';
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
 import { fileURLToPath, URL } from 'node:url';
-import { valid } from 'semver';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vite';
 import { createHtmlPlugin } from 'vite-plugin-html';
 import vueRouter from 'vue-router/vite';
+
+import { parseStrictSemver } from './scripts/release/semver';
+import { AppVariant } from './src/shared/types/app';
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -42,14 +44,14 @@ function resourcesFavicon(): Plugin {
  * 从 `src-tauri/tauri.conf.json` 读取应用版本，并用 semver 严格校验
  * （编译期注入，与打包产物版本保持一致）。
  */
-function readOeaVersion(): string {
+function readAppVersion(): string {
   const config = JSON.parse(
     readFileSync(fileURLToPath(new URL('./src-tauri/tauri.conf.json', import.meta.url)), 'utf-8'),
   ) as { version?: string };
   if (!config.version) {
     throw new Error('`src-tauri/tauri.conf.json` 缺少 `version` 字段');
   }
-  if (valid(config.version) !== config.version) {
+  if (!parseStrictSemver(config.version)) {
     throw new Error(
       `\`src-tauri/tauri.conf.json\` 的 \`version\` 不是干净的 semver（如 \`0.1.0\`，不接受 \`v\` 前缀或构建元数据）: ${config.version}`,
     );
@@ -58,8 +60,8 @@ function readOeaVersion(): string {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(() => {
-  const oeaVersion = readOeaVersion();
+export default defineConfig(({ command }) => {
+  const appVersion = readAppVersion();
 
   return {
     plugins: [
@@ -69,6 +71,12 @@ export default defineConfig(() => {
       }),
       vue(),
       ui({
+        icon: {
+          clientBundle: {
+            // 同时扫描 Vue 模板和 TS 中的完整图标名称（例如 toast、对象映射）。
+            scan: { globInclude: ['src/**/*.{vue,ts}'] },
+          },
+        },
         ui: {
           colors: {
             primary: 'pink',
@@ -80,7 +88,12 @@ export default defineConfig(() => {
     ],
 
     define: {
-      __OEA_VERSION__: JSON.stringify(oeaVersion),
+      __OEA_VERSION__: JSON.stringify(appVersion),
+      // command 是 Vite 的运行方式：开发服务器为 serve，产物构建为 build。
+      // OEA dev 启动开发服务器，OEA release 构建前端产物，因此可在这里选择应用形态。
+      __OEA_APP_VARIANT__: JSON.stringify(
+        command === 'serve' ? AppVariant.Dev : AppVariant.Release,
+      ),
     },
 
     resolve: {
@@ -89,7 +102,7 @@ export default defineConfig(() => {
       },
     },
 
-    // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+    // Vite options for OEA dev and OEA release.
     //
     // 1. prevent Vite from obscuring rust errors
     clearScreen: false,

@@ -1,4 +1,6 @@
 import App from '@/App.vue';
+import { i18n } from '@/shared/i18n';
+import I18NextVue from 'i18next-vue';
 import '@/assets/css/main.css';
 import ui from '@nuxt/ui/vue-plugin';
 import { createHead } from '@unhead/vue/client';
@@ -6,11 +8,7 @@ import { createApp } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import { handleHotUpdate, routes } from 'vue-router/auto-routes';
 
-// 重导出常量，以便在 Vue 模板中使用
-/** 应用版本号（编译期注入，来自 `src-tauri/tauri.conf.json`）。 */
-export const oeaVersion = __OEA_VERSION__;
-
-export const app = createApp(App);
+const app = createApp(App);
 
 const head = createHead();
 const router = createRouter({
@@ -18,6 +16,7 @@ const router = createRouter({
   history: createWebHistory(),
 });
 
+app.use(I18NextVue, { i18next: i18n });
 app.use(head);
 app.use(router);
 app.use(ui);

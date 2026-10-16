@@ -1,0 +1,74 @@
+//! 导出扫描结果到地图集（OEM）。
+//!
+//! 流程：构建 upload 数据 → gzip 压缩（单流、无文件名）→ URL-safe Base64 → 打开
+//! `https://oem.re/i/<base64>`（由 opener 插件交给系统浏览器）。
+
+import type { UploadData } from '@/features/archiveScan/types/upload';
+import { archiveCatalog } from '@/features/gameData/archiveCatalog';
+import { scannedItems } from '@/features/archiveScan/scannedItems';
+import { deriveArchiveCollection } from '@/features/archiveScan/collection';
+import { logDebug, logError, logInfo } from '@/features/log/ipc';
+import { appVersion } from '@/app/build';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { gzipSync, strToU8 } from 'fflate';
+
+/** 地图集导入地址前缀（`<base64>` 为 gzip 压缩后 JSON 的 URL-safe Base64）。 */
+const OEM_IMPORT_URL_PREFIX = 'https://oem.re/i/';
+
+/**
+ * 构建上传数据：已收集 / 未收集档案 id 列表。
+ *
+ * - 已收集 = 扫描记录的有效匹配指向的档案 ID 集合；
+ * - 未收集 = 所有档案去掉已收集。
+ * 两个列表均按 目录的展示顺序排列。
+ */
+function buildUploadData(): UploadData {
+  const archives = archiveCatalog.value?.catalog.archives ?? [];
+  const collection = deriveArchiveCollection(archives, scannedItems.value);
+  return {
+    majorVersion: 0,
+    minorVersion: 0,
+    data: {
+      oeaVersion: appVersion,
+      prtsAllItems: {
+        collected: collection.collectedIds,
+        notCollected: collection.notCollectedIds,
+      },
+    },
+  };
+}
+
+/** Uint8Array → URL-safe Base64（RFC 4648 §5 base64url，无 `=` 填充）。 */
+function bytesToBase64Url(bytes: Uint8Array): string {
+  // 参考 MDN：`Array.from` 逐个映射避免 `...` 展开的栈溢出，无需分块
+  const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join('');
+  return btoa(binString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** 导出扫描结果到地图集：在系统浏览器中打开导入链接。 */
+export async function exportToOem(): Promise<boolean> {
+  if (archiveCatalog.value === null) {
+    logError('导出到地图集失败：档案库数据尚未加载');
+    return false;
+  }
+  try {
+    // 构建上传数据
+    const uploadData = buildUploadData();
+    // JSON 序列化
+    const json = JSON.stringify(uploadData);
+    // gzip 压缩
+    const gzip = gzipSync(strToU8(json));
+    // URL-safe Base64
+    const base64Url = bytesToBase64Url(gzip);
+    // 构造导入链接
+    const url = `${OEM_IMPORT_URL_PREFIX}OEA-0-${base64Url}`;
+    logDebug(`导出到地图集数据：${json}`);
+    logDebug(`导出到地图集链接：${url}`);
+    await openUrl(url);
+    logInfo(`导出到地图集成功：${json.length} 字节 → ${base64Url.length} 字节`);
+    return true;
+  } catch (error) {
+    logError(`导出到地图集失败: ${String(error)}`);
+    return false;
+  }
+}

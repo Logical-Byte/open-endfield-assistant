@@ -4,9 +4,9 @@
 //! 避免代码依赖运行时的工作目录（cwd）。
 //!
 //! 定位策略（根目录下应有 `resources`、`logs` 等文件夹，OCR 模型位于 `resources/ocr-models/`）：
-//! - 开发期（debug 构建）：以 `CARGO_MANIFEST_DIR`（编译时指向 `src-tauri/`）的
+//! - OEA dev：以 `CARGO_MANIFEST_DIR`（编译时指向 `src-tauri/`）的
 //!   上一级作为项目根，再拼接各资源目录；
-//! - 打包期（release 构建）：以 exe 所在目录作为根目录（便携式分发，资源与 exe 同目录）。
+//! - OEA release：以 exe 所在目录作为根目录（便携式分发，资源与 exe 同目录）。
 //!
 //! 注意：不能用 `env!("CARGO_MANIFEST_DIR")` 直接当作运行时路径——它是编译期常量，
 //! 会把开发机路径（如 `D:\BioHazard\...`）烧进二进制，换机器后必然失效。
@@ -16,35 +16,34 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 
-/// 在运行时确定应用根目录，按构建类型分发。
-///
-/// - debug 构建：`CARGO_MANIFEST_DIR`（编译期指向 `src-tauri/`）的上一级即项目根；
-/// - release 构建：`current_exe()` 所在目录即分发根目录。
-fn get_root_dir() -> Result<PathBuf> {
-    if cfg!(debug_assertions) {
-        get_root_dir_for_dev()
-    } else {
-        get_root_dir_for_release()
+use crate::app_variant::{self, AppVariant};
+use crate::utils::path::resolve_existing_relative_file;
+
+/// 应用形态决定资源来源，避免编译优化等级切换资源目录。
+fn get_root_dir() -> Result<PathBuf, String> {
+    match app_variant::CURRENT {
+        AppVariant::Dev => get_root_dir_for_dev(),
+        AppVariant::Release => get_root_dir_for_release(),
     }
 }
 
-/// 开发期（debug 构建）根目录：`CARGO_MANIFEST_DIR` 的上一级即项目根。
-fn get_root_dir_for_dev() -> Result<PathBuf> {
+/// OEA dev 根目录：`CARGO_MANIFEST_DIR` 的上一级即项目根。
+fn get_root_dir_for_dev() -> Result<PathBuf, String> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     manifest_dir
         .parent()
-        .context("无法定位项目根目录（src-tauri 的上一级）")
+        .ok_or_else(|| "无法定位项目根目录（src-tauri 的上一级）".to_string())
         .map(Path::to_path_buf)
 }
 
-/// 打包期（release 构建）根目录：exe 所在目录即分发根目录。
-fn get_root_dir_for_release() -> Result<PathBuf> {
-    let exe_path = env::current_exe().context("无法获取当前 exe 路径")?;
+/// OEA release 根目录：exe 所在目录即分发根目录。
+fn get_root_dir_for_release() -> Result<PathBuf, String> {
+    let exe_path = env::current_exe().map_err(|error| format!("无法获取当前 exe 路径: {error}"))?;
     exe_path
         .parent()
-        .context("无法定位 exe 所在目录")
+        .ok_or_else(|| "无法定位 exe 所在目录".to_string())
         .map(Path::to_path_buf)
 }
 
@@ -60,11 +59,12 @@ pub struct AppPaths {
 impl AppPaths {
     /// 解析应用根目录。
     ///
-    /// 根目录在运行时确定：
-    /// - debug 构建（`tauri dev` / `cargo run`）：`CARGO_MANIFEST_DIR` 的上一级 = 项目根；
-    /// - release 构建（`tauri build` / `cargo build --release`）：exe 所在目录。
-    pub fn new() -> Result<Self> {
-        Ok(Self::with_root_dir(get_root_dir()?))
+    /// - OEA dev：`CARGO_MANIFEST_DIR` 的上一级，即项目根目录。
+    /// - OEA release：当前可执行文件所在的分发目录。
+    pub fn new() -> Result<Self, String> {
+        get_root_dir()
+            .map(Self::with_root_dir)
+            .map_err(|error| format!("无法定位应用根目录: {error}"))
     }
 
     pub fn with_root_dir(root_dir: impl Into<PathBuf>) -> Self {
@@ -74,8 +74,7 @@ impl AppPaths {
     }
 
     /// 应用根目录。
-    /// - debug 构建（`tauri dev` / `cargo run`）：`CARGO_MANIFEST_DIR` 的上一级 = 项目根；
-    /// - release 构建（`tauri build` / `cargo build --release`）：exe 所在目录。
+    /// 由 `new()` 解析时，OEA dev 使用项目根目录，OEA release 使用可执行文件所在目录。
     pub fn root_dir(&self) -> &Path {
         &self.root_dir
     }
@@ -85,9 +84,15 @@ impl AppPaths {
         self.root_dir.join("resources")
     }
 
+    /// 解析并验证共享资源目录内当前存在的文件。
+    pub fn resolve_resource_file(&self, relative_path: &str) -> anyhow::Result<PathBuf> {
+        resolve_existing_relative_file(&self.resources_dir(), relative_path)
+            .with_context(|| format!("解析资源文件失败: {relative_path:?}"))
+    }
+
     /// OCR 模型目录（`<root_dir>/resources/ocr-models`）。
     pub fn models_dir(&self) -> PathBuf {
-        self.root_dir.join("resources").join("ocr-models")
+        self.resources_dir().join("ocr-models")
     }
 
     /// 运行日志目录（`<root_dir>/logs`）。
@@ -100,6 +105,11 @@ impl AppPaths {
         self.root_dir.join("cache")
     }
 
+    /// 更新包下载目录（`<root_dir>/cache/downloads`）。
+    pub fn downloads_dir(&self) -> PathBuf {
+        self.cache_dir().join("downloads")
+    }
+
     /// WebView2 用户数据目录（`<root_dir>/cache/webview-data`，不写入 `%LOCALAPPDATA%`，）。
     pub fn webview_data_dir(&self) -> PathBuf {
         self.cache_dir().join("webview-data")
@@ -110,13 +120,37 @@ impl AppPaths {
         self.resources_dir().join("templates")
     }
 
-    /// 配置文件目录（`<root_dir>/config`）。
+    /// 设置文件目录（`<root_dir>/config`）。
     pub fn config_dir(&self) -> PathBuf {
         self.root_dir.join("config")
     }
 
-    /// OEA 应用配置文件（`<root_dir>/config/oea_config.json`）。
-    pub fn oea_config_file(&self) -> PathBuf {
+    /// OEA 用户设置文件。为兼容现有安装，磁盘路径仍为 `<root_dir>/config/oea_config.json`。
+    pub fn oea_settings_file(&self) -> PathBuf {
         self.config_dir().join("oea_config.json")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::AppPaths;
+
+    #[test]
+    fn resolves_an_existing_resource_file() {
+        let root = tempfile::tempdir().unwrap();
+        let sounds_dir = root.path().join("resources").join("sounds");
+        fs::create_dir_all(&sounds_dir).unwrap();
+        let sound_file = sounds_dir.join("enable.wav");
+        fs::write(&sound_file, b"wav").unwrap();
+        let app_paths = AppPaths::with_root_dir(root.path());
+
+        assert_eq!(
+            app_paths
+                .resolve_resource_file("sounds/enable.wav")
+                .unwrap(),
+            sound_file.canonicalize().unwrap()
+        );
     }
 }

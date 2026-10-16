@@ -2,13 +2,46 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
+    tags:
+      - 'v*'
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect backend changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Detect backend changes
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            backend:
+              - '.cargo/**'
+              - '.github/workflows/ci.yml'
+              - '.gitattributes'
+              - '.gitmodules'
+              - 'resources'
+              - 'rust-toolchain'
+              - 'rust-toolchain.toml'
+              - 'src-tauri/**'
+              - 'src/shared/types/generated/**'
+
   frontend-ci:
     name: Frontend CI
     runs-on: windows-latest
@@ -34,6 +67,9 @@ jobs:
       - name: Frontend build
         run: pnpm run build
 
+      - name: Frontend test
+        run: pnpm run test
+
       - name: Frontend typecheck
         run: pnpm run typecheck
 
@@ -45,6 +81,8 @@ jobs:
 
   backend-ci:
     name: Backend CI
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || needs.changes.outputs.backend == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -62,18 +100,36 @@ jobs:
         with:
           workspaces: 'src-tauri -> target'
 
-      - name: Backend check
-        working-directory: src-tauri
-        run: cargo check --all-targets
-
-      - name: Backend clippy
-        working-directory: src-tauri
-        run: cargo clippy --all-targets -- -D warnings
-
       - name: Backend format check
+        id: fmt
+        continue-on-error: true
         working-directory: src-tauri
         run: cargo fmt --all -- --check
 
       - name: Backend test
+        id: test
+        continue-on-error: true
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --features cli
+
+      - name: Check generated TypeScript types
+        shell: pwsh
+        run: |
+          $changes = git status --porcelain -- src/shared/types/generated/
+          if ($changes) {
+            $changes
+            git diff -- src/shared/types/generated/
+            throw "Generated TypeScript types are out of date. Run pnpm generate:types and commit the generated files."
+          }
+
+      - name: Backend clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Propagate backend failures
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          if ("${{ steps.fmt.outcome }}" -eq "failure" -or "${{ steps.test.outcome }}" -eq "failure") {
+            exit 1
+          }

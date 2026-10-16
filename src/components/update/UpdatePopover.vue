@@ -1,41 +1,36 @@
 <script setup lang="ts">
-import { oeaVersion } from '@/main';
-import { MirrorchyanResourcesLatestResponseData } from '@/types/mirrorchyan';
-import { UpdateProxyMode, UpdateSource } from '@/types/oeaConfig';
-import { UpdateCheckStatus, UpdateDownloadStatus } from '@/types/update';
-import { appStatus } from '@/utils/app/appStatus';
-import { mirrorchyanCdk, oeaConfig, proxyModeItems, updateSourceItems } from '@/utils/app/config';
+import { useAppI18n } from '@/shared/i18n';
+import { formatBackendError } from '@/shared/errors';
+import { DownloadProgress } from '@/features/update/types/update';
+import { automationStatus } from '@/features/automation/state';
 import {
   cancelDownload,
   checkUpdate,
-  downloadProgress,
-  downloadStatus,
+  downloadState,
   startDownload,
   startInstall,
-  updateCheckResult,
-} from '@/utils/app/update';
-import { renderMarkdown } from '@/utils/markdown';
-import { updatePopoverOpen } from '@/utils/uiState';
-import { computed, ref } from 'vue';
+  updateCheckState,
+} from '@/features/update/update';
+import { renderMarkdown } from '@/shared/markdown';
+import { updatePopoverOpen } from '@/features/update/updatePopover';
+import { appVersion } from '@/app/build';
+import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 
-const settingsOpen = ref(false);
+const { t, n } = useAppI18n();
 
-/** 检查到新版本时的数据快照（未检测到更新时为 `null`）。 */
-const checkUpdateData = computed<MirrorchyanResourcesLatestResponseData | null>(() => {
-  if (
-    updateCheckResult.value.status !== UpdateCheckStatus.HasUpdate ||
-    !updateCheckResult.value.result.data
-  ) {
-    return null;
-  }
-  return updateCheckResult.value.result.data;
-});
+const router = useRouter();
+
+function navigateToUpdateSettings(): void {
+  updatePopoverOpen.value = false;
+  void router.push('/settings#update');
+}
 
 const maybeStatusChipColor = computed<string | null>(() => {
-  switch (updateCheckResult.value.status) {
-    case UpdateCheckStatus.HasUpdate:
+  switch (updateCheckState.value.status) {
+    case 'available':
       return 'bg-success';
-    case UpdateCheckStatus.Error:
+    case 'error':
       return 'bg-error';
     default:
       return null;
@@ -44,25 +39,32 @@ const maybeStatusChipColor = computed<string | null>(() => {
 
 /** 按钮 tooltip 与 aria-label 的状态文案。 */
 const statusText = computed<string>(() => {
-  switch (updateCheckResult.value.status) {
-    case UpdateCheckStatus.Idle:
-      return '检查更新';
-    case UpdateCheckStatus.Checking:
-      return '正在检查更新';
-    case UpdateCheckStatus.HasUpdate:
-      return '发现新版本';
-    case UpdateCheckStatus.NoUpdate:
-      return '当前已是最新版本';
-    case UpdateCheckStatus.Error:
-      return '检查更新失败';
+  switch (updateCheckState.value.status) {
+    case 'unknown':
+      return t('update.check.action');
+    case 'checking':
+      return t('update.check.checking');
+    case 'available':
+      return t('update.check.available');
+    case 'upToDate':
+      return t('update.check.upToDate');
+    case 'error':
+      return t('update.check.failed');
     default:
-      return '检查更新';
+      return t('update.check.action');
   }
+});
+
+const visibleProgress = computed<DownloadProgress>(() => {
+  if (downloadState.value.status === 'downloading' || downloadState.value.status === 'cancelling') {
+    return downloadState.value.progress;
+  }
+  return { downloadedSize: 0, totalSize: 0, speed: 0, progress: 0 };
 });
 
 /** 下载进度文案：已下载 / 总大小（总大小未知时只显示已下载）。 */
 const progressText = computed<string>(() => {
-  const { downloadedSize, totalSize } = downloadProgress.value;
+  const { downloadedSize, totalSize } = visibleProgress.value;
   if (totalSize > 0) {
     return `${formatBytes(downloadedSize)} / ${formatBytes(totalSize)}`;
   }
@@ -71,18 +73,14 @@ const progressText = computed<string>(() => {
 
 /** 剩余时间估算（速度 > 0 且总大小已知时）。 */
 const etaText = computed<string | null>(() => {
-  const { downloadedSize, totalSize, speed } = downloadProgress.value;
+  const { downloadedSize, totalSize, speed } = visibleProgress.value;
   if (totalSize <= 0 || speed <= 0 || downloadedSize >= totalSize) {
     return null;
   }
   const seconds = Math.ceil((totalSize - downloadedSize) / speed);
-  if (seconds < 60) {
-    return ` · 约 ${seconds} 秒`;
-  }
-  if (seconds < 3600) {
-    return ` · 约 ${Math.ceil(seconds / 60)} 分钟`;
-  }
-  return ` · 约 ${(seconds / 3600).toFixed(1)} 小时`;
+  if (seconds < 60) return t('update.download.etaSeconds', { count: seconds });
+  if (seconds < 3600) return t('update.download.etaMinutes', { count: Math.ceil(seconds / 60) });
+  return t('update.download.etaHours', { count: Math.ceil(seconds / 3600) });
 });
 
 /** 字节数格式化为人类可读单位。 */
@@ -93,7 +91,7 @@ function formatBytes(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB'];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** index;
-  return `${value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
+  return `${n(value, { maximumFractionDigits: value >= 100 || index === 0 ? 0 : 1 })} ${units[index]}`;
 }
 
 /** 速度格式化为人类可读单位。 */
@@ -104,11 +102,7 @@ function formatSpeed(bytesPerSecond: number): string {
 
 <template>
   <UPopover
-    v-if="
-      [UpdateCheckStatus.HasUpdate, UpdateCheckStatus.Error, UpdateCheckStatus.Checking].includes(
-        updateCheckResult.status,
-      )
-    "
+    v-if="['available', 'error', 'checking'].includes(updateCheckState.status)"
     v-model:open="updatePopoverOpen"
     :ui="{
       content:
@@ -121,7 +115,7 @@ function formatSpeed(bytesPerSecond: number): string {
           :aria-label="statusText"
           color="neutral"
           icon="i-lucide-cloud-download"
-          :loading="updateCheckResult.status === UpdateCheckStatus.Checking"
+          :loading="updateCheckState.status === 'checking'"
           :variant="updatePopoverOpen ? 'soft' : 'ghost'"
         />
         <span
@@ -133,70 +127,79 @@ function formatSpeed(bytesPerSecond: number): string {
     </UTooltip>
 
     <template #content>
-      <template v-if="updateCheckResult.status === UpdateCheckStatus.Checking">
+      <template v-if="updateCheckState.status === 'checking'">
         <div class="flex items-center justify-center gap-2 py-2">
           <UIcon class="size-5 animate-spin text-primary" name="i-lucide-loader-circle" />
-          <p class="text-sm font-medium text-toned">正在检查更新…</p>
+          <p class="text-sm font-medium text-toned">{{ t('update.check.checking') }}</p>
         </div>
       </template>
 
-      <template v-else-if="updateCheckResult.status === UpdateCheckStatus.Error">
+      <template v-else-if="updateCheckState.status === 'error'">
         <div class="flex items-center gap-2">
           <UIcon class="size-5 text-error" name="i-lucide-circle-alert" />
-          <p class="font-semibold">检查更新失败</p>
+          <p class="font-semibold">{{ t('update.check.failed') }}</p>
         </div>
         <p class="text-sm whitespace-pre-wrap text-toned">
-          {{ updateCheckResult.error.message }}
+          {{ formatBackendError(updateCheckState.error) }}
         </p>
-        <UButton block icon="i-lucide-rotate-cw" label="重试" @click="checkUpdate" />
+        <UButton color="neutral" :label="t('update.viewLogs')" to="/log" variant="link" />
+        <UButton block icon="i-lucide-rotate-cw" :label="t('update.retry')" @click="checkUpdate" />
       </template>
 
-      <template v-else-if="updateCheckResult.status === UpdateCheckStatus.HasUpdate">
+      <template v-else-if="updateCheckState.status === 'available'">
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <UIcon class="text-xl text-primary" name="i-lucide-circle-arrow-up" />
-            <p class="font-semibold">发现新版本</p>
+            <p class="font-semibold">{{ t('update.check.available') }}</p>
           </div>
           <div class="flex items-center gap-1.5">
-            <UBadge color="neutral" variant="subtle">v{{ oeaVersion }}</UBadge>
+            <UBadge color="neutral" variant="subtle">v{{ appVersion }}</UBadge>
             <UIcon class="text-toned" name="i-lucide-arrow-right" />
             <UBadge color="primary" variant="subtle">{{
-              checkUpdateData?.version_name ?? '未知'
+              updateCheckState.update.versionName
             }}</UBadge>
           </div>
         </div>
 
         <div class="flex min-h-0 flex-col gap-2 rounded-md bg-muted p-3 pr-1 ring ring-default">
-          <p class="text-xs font-medium text-toned">更新日志</p>
+          <p class="text-xs font-medium text-toned">{{ t('update.releaseNotes.title') }}</p>
           <!-- eslint-disable vue/no-v-html 渲染结果经 DOMPurify 消毒 -->
           <div
             class="markdown-body max-h-128 min-h-0 scrollbar-gutter-stable overflow-y-auto pr-1"
-            v-html="renderMarkdown(checkUpdateData?.release_note ?? '暂无更新日志')"
+            v-html="
+              renderMarkdown(updateCheckState.update.releaseNote || t('update.releaseNotes.empty'))
+            "
           />
           <!-- eslint-enable vue/no-v-html -->
         </div>
 
         <!-- 下载状态区 -->
         <div
-          v-if="downloadStatus === UpdateDownloadStatus.Downloading"
+          v-if="downloadState.status === 'downloading'"
           class="space-y-2 rounded-md bg-muted p-3"
         >
           <div class="flex items-center justify-between text-xs text-toned">
             <span class="flex items-center gap-1.5">
-              <UIcon class="size-3.5 animate-spin" name="i-lucide-loader-circle" />
-              正在下载
-            </span>
+              <UIcon class="size-3.5 animate-spin" name="i-lucide-loader-circle" />{{
+                t('update.download.downloading')
+              }}</span
+            >
             <span class="tabular-nums">{{ progressText }}</span>
           </div>
-          <UProgress size="sm" :value="downloadProgress.progress" />
+          <UProgress size="sm" :value="visibleProgress.progress" />
           <div class="flex items-center justify-between text-xs text-dimmed">
             <span class="tabular-nums"
-              >{{ downloadProgress.progress.toFixed(1) }}% · {{ formatSpeed(downloadProgress.speed)
-              }}{{ etaText }}</span
+              >{{
+                t('update.download.progress', {
+                  percent: n(visibleProgress.progress / 100, 'percent'),
+                  speed: formatSpeed(visibleProgress.speed),
+                })
+              }}
+              {{ etaText }}</span
             >
             <UButton
               color="neutral"
-              label="取消"
+              :label="t('update.cancel')"
               size="xs"
               variant="ghost"
               @click="cancelDownload"
@@ -205,132 +208,54 @@ function formatSpeed(bytesPerSecond: number): string {
         </div>
 
         <div
-          v-else-if="downloadStatus === UpdateDownloadStatus.Cancelling"
+          v-else-if="downloadState.status === 'cancelling'"
           class="flex items-center gap-2 rounded-md bg-muted p-3 text-sm text-toned"
         >
-          <UIcon class="size-4 animate-spin text-primary" name="i-lucide-loader-circle" />
-          正在取消…
+          <UIcon class="size-4 animate-spin text-primary" name="i-lucide-loader-circle" />{{
+            t('update.download.cancelling')
+          }}
         </div>
 
-        <div v-else-if="downloadStatus === UpdateDownloadStatus.Completed" class="space-y-2">
-          <div class="rounded-md bg-success/10 p-3 text-sm text-success">下载完成</div>
+        <div v-else-if="downloadState.status === 'completed'" class="space-y-2">
+          <div class="rounded-md bg-success/10 p-3 text-sm text-success">
+            {{ t('update.download.completed') }}
+          </div>
           <UButton
             block
             color="primary"
-            :disabled="appStatus.running"
+            :disabled="automationStatus.state !== 'idle'"
             icon="i-lucide-package-check"
-            label="立即安装"
+            :label="t('update.install.action')"
             @click="startInstall"
           />
-          <p v-if="appStatus.running" class="text-xs text-dimmed">
-            扫描任务运行中，扫描结束后将自动安装
+          <p v-if="automationStatus.state !== 'idle'" class="text-xs text-dimmed">
+            {{ t('update.install.afterTask') }}
           </p>
         </div>
 
         <div
-          v-else-if="downloadStatus === UpdateDownloadStatus.Failed"
+          v-else-if="downloadState.status === 'failed'"
           class="flex items-center justify-between gap-2 rounded-md bg-error/10 p-3"
         >
-          <p class="text-sm text-error">下载失败</p>
+          <p class="text-sm text-error">{{ formatBackendError(downloadState.error) }}</p>
           <UButton
-            v-if="checkUpdateData"
             color="error"
-            label="重试"
+            :label="t('update.retry')"
             size="xs"
             variant="soft"
-            @click="startDownload(checkUpdateData)"
+            @click="startDownload"
           />
         </div>
 
-        <!-- 仅下载前（Idle）显示「立即更新」与下载设置；下载中/已下载/失败均不显示 -->
-        <div v-if="downloadStatus === UpdateDownloadStatus.Idle" class="flex w-full gap-2">
+        <!-- 仅下载前（Idle）显示「立即更新」与前往唯一编辑入口的设置按钮。 -->
+        <div v-if="downloadState.status === 'idle'" class="flex w-full gap-2">
+          <UButton block icon="i-lucide-download" :label="t('update.now')" @click="startDownload" />
           <UButton
-            v-if="checkUpdateData"
-            block
-            icon="i-lucide-download"
-            label="立即更新"
-            @click="startDownload(checkUpdateData)"
+            :aria-label="t('update.settings')"
+            icon="i-lucide-settings-2"
+            variant="subtle"
+            @click="navigateToUpdateSettings"
           />
-          <UPopover v-model:open="settingsOpen">
-            <UButton aria-label="下载设置" icon="i-lucide-settings-2" variant="subtle" />
-            <template #content>
-              <div class="w-64 space-y-4 p-4">
-                <UFormField label="下载源">
-                  <USelect
-                    v-model="oeaConfig.updateSource"
-                    class="w-full"
-                    :items="updateSourceItems"
-                  />
-                </UFormField>
-
-                <UFormField
-                  v-if="oeaConfig.updateSource === UpdateSource.Mirrorchyan"
-                  label="Mirror酱 CDK"
-                >
-                  <template #help>
-                    <span class="text-xs leading-none text-dimmed"
-                      ><ULink
-                        class="text-primary hover:text-primary/75"
-                        to="https://mirrorchyan.com/"
-                        >Mirror酱</ULink
-                      >
-                      是独立的第三方加速下载服务，需要付费使用。
-                      <br />
-                      <ULink
-                        class="text-primary hover:text-primary/75"
-                        rel="noopener noreferrer"
-                        target="_blank"
-                        to="https://ef.yituliu.cn/resources/oea"
-                        >OEA</ULink
-                      >
-                      本身不收取任何费用，也提供免费的下载渠道。您可以前往
-                      <ULink
-                        class="text-primary hover:text-primary/75"
-                        rel="noopener noreferrer"
-                        target="_blank"
-                        to="https://github.com/Logical-Byte/open-endfield-assistant/releases"
-                        >GitHub Release</ULink
-                      >
-                      免费下载和使用。</span
-                    ></template
-                  >
-                  <template #hint
-                    ><ULink
-                      class="flex items-center gap-1 text-xs text-primary hover:text-primary/75"
-                      rel="noopener noreferrer"
-                      target="_blank"
-                      to="https://mirrorchyan.com/?source=oea"
-                      >获取 CDK<UIcon name="i-lucide-external-link" /></ULink
-                  ></template>
-                  <UInput
-                    v-model="mirrorchyanCdk"
-                    class="w-full"
-                    placeholder="未填写时使用 GitHub 下载"
-                    type="password"
-                  />
-                </UFormField>
-
-                <UFormField label="下载代理">
-                  <USelect
-                    v-model="oeaConfig.updateProxyMode"
-                    class="w-full"
-                    :items="proxyModeItems"
-                  />
-                </UFormField>
-
-                <UFormField
-                  v-if="oeaConfig.updateProxyMode === UpdateProxyMode.Custom"
-                  label="自定义代理"
-                >
-                  <UInput
-                    v-model="oeaConfig.updateProxyUrl"
-                    class="w-full"
-                    placeholder="http://127.0.0.1:7890"
-                  />
-                </UFormField>
-              </div>
-            </template>
-          </UPopover>
         </div>
       </template>
     </template>
