@@ -139,9 +139,7 @@ jobs:
         with:
           tag_name: ${{ needs.build.outputs.tag }}
           name: ${{ needs.build.outputs.tag }}
-          files: |
-            release-artifact/*.zip
-            release-artifact/*.zip.sha256
+          files: release-artifact/*.zip
           fail_on_unmatched_files: true
           generate_release_notes: true
 
