@@ -39,3 +39,6 @@ tsconfig.node.tsbuildinfo
 
 # Release packages
 /releases
+
+# Local agent settings
+AGENTS.local.md
