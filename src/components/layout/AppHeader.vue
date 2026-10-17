@@ -24,26 +24,9 @@ const navigationMenuItems = computed<NavigationMenuItem[]>(() => [
     to: '/monitor',
   },
   {
-    label: t('navigation.settings'),
-    icon: 'i-lucide-settings',
-    to: '/settings',
-  },
-  {
     label: t('navigation.help'),
     icon: 'i-lucide-circle-help',
     to: '/help',
-  },
-  {
-    label: t('navigation.yituliu'),
-    icon: 'i-mdi-numeric-1-box-outline',
-    to: 'https://ef.yituliu.cn/',
-    target: '_blank',
-  },
-  {
-    label: t('navigation.maps'),
-    icon: 'i-lucide-map',
-    to: 'https://oem.re/',
-    target: '_blank',
   },
 ]);
 </script>
@@ -89,9 +72,14 @@ const navigationMenuItems = computed<NavigationMenuItem[]>(() => [
           />
         </UTooltip>
         <UpdatePopover v-if="updateCapabilities.onlineUpdate" />
-        <ThemePicker />
-        <UTooltip :text="t('theme.toggleMode')">
-          <UColorModeButton />
+        <UTooltip :text="t('navigation.settings')">
+          <UButton
+            :aria-label="t('navigation.settings')"
+            color="neutral"
+            icon="i-lucide-settings"
+            to="/settings#interface"
+            :variant="$route.path === '/settings' ? 'soft' : 'ghost'"
+          />
         </UTooltip>
       </div>
     </template>

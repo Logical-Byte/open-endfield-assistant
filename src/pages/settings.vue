@@ -3,6 +3,7 @@ import { TranslationComponent } from 'i18next-vue';
 import { i18n, useAppI18n } from '@/shared/i18n';
 import { isTauri } from '@tauri-apps/api/core';
 import AboutOEA from '@/components/settings/AboutOEA.vue';
+import AppearanceSettings from '@/components/settings/AppearanceSettings.vue';
 import DeveloperSettings from '@/components/settings/DeveloperSettings.vue';
 import SettingsControl from '@/components/settings/SettingsControl.vue';
 import { useSettingsFields, type SettingsFields } from '@/components/settings/useSettingsFields';
@@ -22,7 +23,6 @@ import {
   proxyModeItems,
   updateSourceItems,
 } from '@/features/settings/settings';
-import { uiScale } from '@/features/appearance/uiScale';
 import { computed, nextTick, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
 import { onBeforeRouteUpdate, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
 
@@ -77,12 +77,6 @@ const persistedItemState = computed<SettingsItemState>((): SettingsItemState => 
 const languageItemState = computed<SettingsItemState>((): SettingsItemState => ({
   status: draftSettings.value ? 'ready' : 'disabled',
 }));
-/** 缩放使用独立的本地状态，后端设置加载或加载失败时仍允许调整。 */
-const scaleItemState = computed<SettingsItemState>((): SettingsItemState =>
-  settingsUnsupported.value
-    ? { status: 'unavailable', label: t('settings.unsupported.label'), variant: 'subtle' }
-    : { status: 'ready' },
-);
 const fields: SettingsFields<DraftSettings> = useSettingsFields(draftSettings, editSettings, {
   defaults: { state: persistedItemState },
 });
@@ -240,30 +234,15 @@ onBeforeUnmount(stopResetScroll);
             />
           </div>
         </SettingsCard>
+        <h1 v-if="activeSectionId === 'interface'" class="text-2xl font-semibold text-highlighted">
+          {{ t('settings.interface.section') }}
+        </h1>
+        <AppearanceSettings v-if="activeSectionId === 'interface'" />
         <SettingsCard
           v-if="activeSectionId === 'interface'"
-          icon="i-lucide-layout-panel-left"
-          :title="t('settings.interface.section')"
+          icon="i-lucide-panels-top-left"
+          :title="t('settings.interface.behavior.section')"
         >
-          <SettingsItem
-            :description="t('settings.interface.scale.description')"
-            icon="i-lucide-zoom-in"
-            :item="{
-              kind: 'slider',
-              state: scaleItemState,
-              read: (): number => uiScale,
-              write: (value: number) => {
-                uiScale = value;
-              },
-              min: 0.5,
-              max: 2,
-              step: 0.05,
-              marks: [0.5, 1, 1.5, 2],
-              tooltip: true,
-              formatValue: (value: number): string => n(value, 'percent'),
-            }"
-            :title="t('settings.interface.scale.title')"
-          />
           <SettingsItem
             :description="t('settings.interface.tray.description')"
             icon="i-lucide-panel-bottom-close"

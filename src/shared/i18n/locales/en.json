@@ -345,15 +345,36 @@
       "retry": "Retry initialization"
     },
     "interface": {
+      "appearance": {
+        "modeDescription": "Choose light, dark, or follow the system.",
+        "neutralDescription": "Used for backgrounds, text, and borders.",
+        "primaryDescription": "Used for buttons, selections, and other highlights.",
+        "reset": "Restore defaults for appearance and colors only",
+        "section": "Appearance and colors"
+      },
+      "behavior": {
+        "section": "Window and hints"
+      },
+      "fonts": {
+        "chineseSample": "受困者的录音，探索塔卫二的故事。",
+        "reset": "Restore font defaults only",
+        "section": "Fonts"
+      },
       "guide": {
         "description": "Show instructions when opening archive scanning. Dismissed instructions stay hidden until updated. You can enable them again at any time.",
         "title": "Show scanning instructions"
       },
+      "restoreDefaults": "Restore defaults",
       "scale": {
         "description": "Set the application window scale to change the size of all interface elements.",
         "title": "Interface scale"
       },
       "section": "Interface",
+      "shape": {
+        "radiusDescription": "Adjust the corners of buttons, inputs, and other controls.",
+        "reset": "Restore shape and scale defaults only",
+        "section": "Shape and scale"
+      },
       "tray": {
         "description": "Hide the window in the system tray when closed. Use the tray menu or Alt+Delete to quit.",
         "title": "Minimize to tray on close"
