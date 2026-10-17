@@ -9,15 +9,18 @@ const { icon = undefined, title = undefined } = defineProps<{
   <UCard class="rounded-xl">
     <template #header>
       <slot name="header">
-        <div class="flex items-center gap-2">
-          <slot name="icon">
-            <UIcon v-if="icon !== undefined" :name="icon" />
-          </slot>
-          <slot name="title">
-            <span v-if="title !== undefined" class="font-semibold text-highlighted">
-              {{ title }}
-            </span>
-          </slot>
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-2">
+            <slot name="icon">
+              <UIcon v-if="icon !== undefined" :name="icon" />
+            </slot>
+            <slot name="title">
+              <span v-if="title !== undefined" class="font-semibold text-highlighted">
+                {{ title }}
+              </span>
+            </slot>
+          </div>
+          <slot name="actions" />
         </div>
       </slot>
     </template>

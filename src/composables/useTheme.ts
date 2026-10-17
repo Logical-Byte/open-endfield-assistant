@@ -418,15 +418,21 @@ function getPreviewFontFamily(
   }
 }
 
-function resetTheme() {
+/** 只恢复该组可见的颜色选项，保留独立的字体与形状偏好。 */
+function resetThemeColors(): void {
   primary.value = defaultTheme.ui.colors.primary;
-  secondary.value = defaultTheme.ui.colors.secondary;
   neutral.value = defaultTheme.ui.colors.neutral;
-  radius.value = themeDefaults.radius;
-  cornerShape.value = themeDefaults.cornerShape;
+}
+
+function resetThemeFonts(): void {
   englishFont.value = themeDefaults.englishFont;
   chineseFont.value = themeDefaults.chineseFont;
   monospaceFont.value = themeDefaults.monospaceFont;
+}
+
+function resetThemeShape(): void {
+  radius.value = themeDefaults.radius;
+  cornerShape.value = themeDefaults.cornerShape;
 }
 
 const fontLabelKeys: Record<string, MessageKey> = {
@@ -470,6 +476,8 @@ export function useTheme() {
     link,
     loadFontCss,
     getPreviewFontFamily,
-    resetTheme,
+    resetThemeColors,
+    resetThemeFonts,
+    resetThemeShape,
   };
 }

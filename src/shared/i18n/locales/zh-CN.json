@@ -341,15 +341,35 @@
       "retry": "重新初始化"
     },
     "interface": {
+      "appearance": {
+        "modeDescription": "选择浅色、深色或跟随系统。",
+        "neutralDescription": "用于背景、文字与边框。",
+        "primaryDescription": "用于按钮、选中状态等强调元素。",
+        "reset": "仅恢复外观与颜色的默认值",
+        "section": "外观与颜色"
+      },
+      "behavior": {
+        "section": "窗口与提示"
+      },
+      "fonts": {
+        "reset": "仅恢复字体的默认值",
+        "section": "字体"
+      },
       "guide": {
         "description": "进入档案扫描页时显示操作指引，关闭后若无更新则不再提示，可随时重新开启",
         "title": "显示新手操作提示"
       },
+      "restoreDefaults": "恢复默认值",
       "scale": {
         "description": "设置应用窗口的缩放比例，影响所有界面元素的大小",
         "title": "缩放比例"
       },
       "section": "界面设置",
+      "shape": {
+        "radiusDescription": "调整按钮、输入框等控件的圆角。",
+        "reset": "仅恢复形状与缩放的默认值",
+        "section": "形状与缩放"
+      },
       "tray": {
         "description": "点击窗口关闭按钮时隐藏到系统托盘而不是退出，可通过托盘菜单或 Alt+Delete 退出",
         "title": "关闭时最小化到托盘"
