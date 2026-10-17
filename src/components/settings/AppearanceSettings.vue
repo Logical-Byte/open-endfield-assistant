@@ -47,6 +47,7 @@ interface FontField {
   sample: string;
 }
 
+// 样例用于比较对应字形，保持固定文本，不随应用语言翻译。
 const fontFields = computed<FontField[]>((): FontField[] => [
   {
     type: 'chinese',
@@ -54,7 +55,7 @@ const fontFields = computed<FontField[]>((): FontField[] => [
     icon: 'i-lucide-quote',
     value: chineseFont,
     options: chineseFontOptions.value,
-    sample: t('settings.interface.fonts.chineseSample'),
+    sample: '受困者的录音，探索塔卫二的故事。',
   },
   {
     type: 'english',
