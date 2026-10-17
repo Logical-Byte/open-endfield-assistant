@@ -106,10 +106,10 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|app_handle, event| {
-            if let tauri::RunEvent::Exit = event {
-                if let Some(background_threads) = app_handle.try_state::<BackgroundThreads>() {
-                    background_threads.shutdown();
-                }
+            if let tauri::RunEvent::Exit = event
+                && let Some(background_threads) = app_handle.try_state::<BackgroundThreads>()
+            {
+                background_threads.shutdown();
             }
         });
 }

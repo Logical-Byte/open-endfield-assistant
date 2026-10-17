@@ -443,10 +443,10 @@ impl LockedTransaction {
             if entries.next().is_some() {
                 return Err(TransactionError::CandidateNotEmpty.to_string());
             }
-            if let Err(error) = fs::remove_dir(&self.site.candidate) {
-                if error.kind() != ErrorKind::NotFound {
-                    warn!("清理空 candidate 目录失败: {error}");
-                }
+            if let Err(error) = fs::remove_dir(&self.site.candidate)
+                && error.kind() != ErrorKind::NotFound
+            {
+                warn!("清理空 candidate 目录失败: {error}");
             }
         }
         Ok(())

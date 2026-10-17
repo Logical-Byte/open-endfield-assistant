@@ -208,7 +208,7 @@ impl FramePoolScreencap {
         }
 
         // bgra_to_bgr: 交换 B 和 R 通道（对应 C++ 的 bgra_to_bgr）
-        for chunk in out.chunks_exact_mut(4) {
+        for chunk in out.as_chunks_mut::<4>().0 {
             chunk.swap(0, 2); // B <-> R
         }
 
