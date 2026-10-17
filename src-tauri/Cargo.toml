@@ -34,14 +34,14 @@ imageproc = "0.27.0"
 indexmap = { version = "2.14.0", features = ["serde"] }
 libc = "0.2.189"
 reqwest = { version = "0.13", features = ["blocking", "native-tls", "query", "stream"], default-features = false }
-rodio = { version = "0.21.1", features = ["hound", "playback", "tracing"], default-features = false }
+rodio = { version = "0.23", default-features = false, features = ["wav", "playback", "tracing"] }
 rten = { version = "0.24", default-features = false, features = ["onnx_format"] }
 scopeguard = "1.2.0"
 semver = "1.0.28"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.11.0"
-tauri = { version = "~2.11", features = ["tray-icon"] }
+tauri = { version = "~2.12", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 tokio = { version = "1.53.1", features = ["sync", "macros", "time", "rt"] }
 tokio-util = { version = "0.7.19", features = ["rt"] }
@@ -60,8 +60,8 @@ debug = false
 overflow-checks = false
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.38"
-windows = { version = "0.61", features = ["Foundation_Metadata", "Graphics_Capture", "Graphics_DirectX", "Graphics_DirectX_Direct3D11", "Security_Authorization_AppCapabilityAccess", "Win32_Devices_Display", "Win32_Foundation", "Win32_Globalization", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Storage_Xps", "Win32_System_IO", "Win32_System_Registry", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WinRT_Direct3D11", "Win32_System_WinRT_Graphics_Capture", "Win32_UI_HiDpi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Foundation_Metadata", "Graphics_Capture", "Graphics_DirectX", "Graphics_DirectX_Direct3D11", "Security_Authorization_AppCapabilityAccess", "Win32_Devices_Display", "Win32_Foundation", "Win32_Globalization", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Storage_Xps", "Win32_System_IO", "Win32_System_Registry", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WinRT_Direct3D11", "Win32_System_WinRT_Graphics_Capture", "Win32_UI_HiDpi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"

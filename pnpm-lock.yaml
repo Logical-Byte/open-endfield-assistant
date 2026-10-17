@@ -173,11 +173,11 @@ importers:
         specifier: ^3.13.39
         version: 3.13.47(vue@3.5.44(typescript@6.0.3))
       '@tauri-apps/api':
-        specifier: ~2.11
-        version: 2.11.1
+        specifier: ~2.12.4
+        version: 2.12.4
       '@tauri-apps/plugin-opener':
-        specifier: ~2.5.4
-        version: 2.5.5
+        specifier: ~2.7.2
+        version: 2.7.2
       '@unhead/vue':
         specifier: ^2.1.16
         version: 2.1.17(vue@3.5.44(typescript@6.0.3))
@@ -225,7 +225,7 @@ importers:
         specifier: ^1.2.99
         version: 1.2.100
       '@tauri-apps/cli':
-        specifier: ^2.11.4
+        specifier: ^2.12.3
         version: 2.12.3
       '@types/node':
         specifier: ^26.1.2
@@ -1390,8 +1390,8 @@ packages:
     peerDependencies:
       vue: ^2.7.0 || ^3.0.0
 
-  '@tauri-apps/api@2.11.1':
-    resolution: {integrity: sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA==}
+  '@tauri-apps/api@2.12.4':
+    resolution: {integrity: sha512-pVmfis+4zT8H0Qhp3xPZx9Ju7kpzvA6rr/PSJPyuwfvucTQ8sVt61NYU9KMkK703UFlYadFmjKA4HhybOtN0gg==}
 
   '@tauri-apps/cli-darwin-arm64@2.12.3':
     resolution: {integrity: sha512-xmVNoJOOKzKLj7GLHXmXLimRby9M42aBIJa0sB80N7o24eKV5JiVmToKTRLVH9yhL05GZ/B6rSSOmbzNFJwBAA==}
@@ -1469,8 +1469,8 @@ packages:
     engines: {node: '>= 10'}
     hasBin: true
 
-  '@tauri-apps/plugin-opener@2.5.5':
-    resolution: {integrity: sha512-xvzGai5aQds8j8R8RsUK/lW6pGG50YgOYIPLzvkqmkwAj7dfySOD7sGtejRzvVdMmv1EQfKVEFh1MvmDp8QR0g==}
+  '@tauri-apps/plugin-opener@2.7.2':
+    resolution: {integrity: sha512-LyybP1VSzTMQiaFYcsbAse47KpivlyXdLZMQzGLEnkgQacGESnpjAfFoQ6h5sqWgAdZDH9szYjPzHMpv0Sz+TQ==}
 
   '@tiptap/core@3.32.0':
     resolution: {integrity: sha512-Ghh2h02GKSqzytQGcLV4espYOG4EHxjj0MsrUB2Vnr47xmlZYRf6r7k2J09H+JpBdaGrWwrTkyBEi5i3c3yy2Q==}
@@ -4864,7 +4864,7 @@ snapshots:
       '@tanstack/virtual-core': 3.19.6
       vue: 3.5.44(typescript@6.0.3)
 
-  '@tauri-apps/api@2.11.1': {}
+  '@tauri-apps/api@2.12.4': {}
 
   '@tauri-apps/cli-darwin-arm64@2.12.3':
     optional: true
@@ -4913,9 +4913,9 @@ snapshots:
       '@tauri-apps/cli-win32-ia32-msvc': 2.12.3
       '@tauri-apps/cli-win32-x64-msvc': 2.12.3
 
-  '@tauri-apps/plugin-opener@2.5.5':
+  '@tauri-apps/plugin-opener@2.7.2':
     dependencies:
-      '@tauri-apps/api': 2.11.1
+      '@tauri-apps/api': 2.12.4
 
   '@tiptap/core@3.32.0(@tiptap/pm@3.32.0)':
     dependencies:

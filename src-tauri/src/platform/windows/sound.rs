@@ -7,11 +7,11 @@
 use std::path::Path;
 use std::{fs::File, io::BufReader, sync::OnceLock};
 
-use rodio::{Decoder, OutputStream, OutputStreamBuilder, source::Source};
+use rodio::{Decoder, DeviceSinkBuilder, MixerDeviceSink, source::Source};
 use tracing::{debug, warn};
 
 /// 全局默认输出流（首次播放时懒初始化，保活到进程退出）。
-static OUTPUT_STREAM: OnceLock<Option<OutputStream>> = OnceLock::new();
+static OUTPUT_SINK: OnceLock<Option<MixerDeviceSink>> = OnceLock::new();
 
 /// 将 `canonicalize` 产生的 verbatim 路径转换为便于阅读的日志路径。
 fn path_for_log(path: &Path) -> String {
@@ -25,10 +25,10 @@ fn path_for_log(path: &Path) -> String {
 
 /// 播放 wav 音效文件（异步，立即返回；`volume` 取值 0.0–1.0）。
 pub(in crate::platform) fn play_wav(path: &Path, volume: f32) {
-    let stream = OUTPUT_STREAM
-        .get_or_init(|| OutputStreamBuilder::open_default_stream().ok())
+    let sink = OUTPUT_SINK
+        .get_or_init(|| DeviceSinkBuilder::open_default_sink().ok())
         .as_ref();
-    let Some(stream) = stream else {
+    let Some(sink) = sink else {
         warn!("打开默认音频输出设备失败，跳过音效: {}", path_for_log(path));
         return;
     };
@@ -38,7 +38,7 @@ pub(in crate::platform) fn play_wav(path: &Path, volume: f32) {
     };
     match Decoder::try_from(BufReader::new(file)) {
         Ok(source) => {
-            stream.mixer().add(source.amplify(volume.clamp(0.0, 1.0)));
+            sink.mixer().add(source.amplify(volume.clamp(0.0, 1.0)));
             debug!("播放音效: {}", path_for_log(path));
         }
         Err(e) => warn!("解码音效失败 ({}): {e}", path_for_log(path)),
