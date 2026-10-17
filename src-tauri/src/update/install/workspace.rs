@@ -130,19 +130,19 @@ impl InstallWorkspace {
             self.target.app_paths.cache_dir().join("old"),
             self.target.app_paths.cache_dir().join("update_extract"),
         ] {
-            if let Err(error) = fs::remove_dir_all(&path) {
-                if error.kind() != std::io::ErrorKind::NotFound {
-                    tracing::warn!("清理更新目录 [{}] 失败: {error}", path.display());
-                }
+            if let Err(error) = fs::remove_dir_all(&path)
+                && error.kind() != std::io::ErrorKind::NotFound
+            {
+                tracing::warn!("清理更新目录 [{}] 失败: {error}", path.display());
             }
         }
-        if let Err(error) = fs::remove_file(self.helper_path()) {
-            if error.kind() != std::io::ErrorKind::NotFound {
-                tracing::warn!(
-                    "清理 helper 副本 [{}] 失败: {error}",
-                    self.helper_path().display()
-                );
-            }
+        if let Err(error) = fs::remove_file(self.helper_path())
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::warn!(
+                "清理 helper 副本 [{}] 失败: {error}",
+                self.helper_path().display()
+            );
         }
     }
 

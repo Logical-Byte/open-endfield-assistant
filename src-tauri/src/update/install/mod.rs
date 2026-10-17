@@ -267,15 +267,15 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
         "已删除完成消费的更新包"
     );
     emit_install_stage(&app, InstallStage::CleaningUp);
-    if let Err(cleanup_error) = fs::remove_dir_all(&package_dir) {
-        if cleanup_error.kind() != std::io::ErrorKind::NotFound {
-            warn!(
-                operation = "install",
-                path = %package_dir.display(),
-                error = %cleanup_error,
-                "清理已解压更新包失败，后端继续交接更新事务"
-            );
-        }
+    if let Err(cleanup_error) = fs::remove_dir_all(&package_dir)
+        && cleanup_error.kind() != std::io::ErrorKind::NotFound
+    {
+        warn!(
+            operation = "install",
+            path = %package_dir.display(),
+            error = %cleanup_error,
+            "清理已解压更新包失败，后端继续交接更新事务"
+        );
     }
 
     let locale = app.state::<Controller>().settings_snapshot().ui_locale;
@@ -312,13 +312,13 @@ fn cleanup_failed_preparation(
     primary_error: String,
 ) -> String {
     let mut cleanup_errors = Vec::new();
-    if let Err(error) = fs::remove_file(package_zip) {
-        if error.kind() != std::io::ErrorKind::NotFound {
-            cleanup_errors.push(format!(
-                "删除下载文件 [{}] 失败: {error}",
-                package_zip.display()
-            ));
-        }
+    if let Err(error) = fs::remove_file(package_zip)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        cleanup_errors.push(format!(
+            "删除下载文件 [{}] 失败: {error}",
+            package_zip.display()
+        ));
     }
     if let Err(error) = InstallWorkspace::new(target).cleanup_inactive_material() {
         cleanup_errors.push(error);

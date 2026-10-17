@@ -1,6 +1,6 @@
 # OEA：终末地档案查漏补缺
 
-[![Rust](https://img.shields.io/badge/Rust-1.85+-orange.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/Rust-1.99+-orange.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Tauri](https://img.shields.io/badge/Tauri-2.x-purple.svg?logo=tauri&logoColor=white)](https://tauri.app/)
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.x-green.svg?logo=vue.js)](https://vuejs.org/)
 [![Nuxt UI](https://img.shields.io/badge/Nuxt%20UI-4.x-lightblue.svg?logo=nuxtdotjs&logoColor=white)](https://ui.nuxt.com/)

@@ -181,10 +181,10 @@ impl StatusWindow {
 impl Drop for StatusWindow {
     fn drop(&mut self) {
         self.state.close.store(true, Ordering::Release);
-        if let Some(thread) = self.thread.take() {
-            if let Err(join_error) = thread.join() {
-                tracing::warn!(error = ?join_error, "更新状态窗线程异常退出");
-            }
+        if let Some(thread) = self.thread.take()
+            && let Err(join_error) = thread.join()
+        {
+            tracing::warn!(error = ?join_error, "更新状态窗线程异常退出");
         }
     }
 }
@@ -204,19 +204,18 @@ unsafe extern "system" fn status_callback(
             return S_FALSE;
         };
         let state = unsafe { state_pointer.as_ref() };
-        if state.close.load(Ordering::Acquire) {
-            if let Err(error) = unsafe {
+        if state.close.load(Ordering::Acquire)
+            && let Err(error) = unsafe {
                 PostMessageW(
                     Some(hwnd),
                     TDM_CLICK_BUTTON.0 as u32,
                     WPARAM(IDOK.0 as usize),
                     LPARAM(0),
                 )
-            } {
-                if !state.close_error_logged.swap(true, Ordering::Relaxed) {
-                    tracing::warn!(error = %error, "关闭更新状态窗失败，将在下一次回调重试");
-                }
             }
+            && !state.close_error_logged.swap(true, Ordering::Relaxed)
+        {
+            tracing::warn!(error = %error, "关闭更新状态窗失败，将在下一次回调重试");
         }
     }
     if message == TDN_BUTTON_CLICKED {

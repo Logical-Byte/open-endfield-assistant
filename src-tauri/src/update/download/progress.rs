@@ -87,15 +87,15 @@ impl ProgressReporter {
 
     pub(super) async fn stop(&mut self) {
         self.signal_stop();
-        if let Some(task) = self.task.take() {
-            if let Err(task_error) = task.await {
-                warn!(
-                    operation = "download",
-                    session_id = self.session_id,
-                    error = %task_error,
-                    "下载进度任务异常结束"
-                );
-            }
+        if let Some(task) = self.task.take()
+            && let Err(task_error) = task.await
+        {
+            warn!(
+                operation = "download",
+                session_id = self.session_id,
+                error = %task_error,
+                "下载进度任务异常结束"
+            );
         }
     }
 
@@ -131,15 +131,15 @@ fn send_progress(
     if delivery_failed.load(Ordering::Relaxed) {
         return;
     }
-    if let Err(send_error) = channel.send(progress) {
-        if !delivery_failed.swap(true, Ordering::Relaxed) {
-            warn!(
-                operation = "download",
-                session_id,
-                error = %send_error,
-                "向前端发送下载进度失败，后端继续执行下载"
-            );
-        }
+    if let Err(send_error) = channel.send(progress)
+        && !delivery_failed.swap(true, Ordering::Relaxed)
+    {
+        warn!(
+            operation = "download",
+            session_id,
+            error = %send_error,
+            "向前端发送下载进度失败，后端继续执行下载"
+        );
     }
 }
 

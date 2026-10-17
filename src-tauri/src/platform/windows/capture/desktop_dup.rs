@@ -72,7 +72,7 @@ impl DesktopDupScreencap {
             for _ in 0..3 {
                 if let Ok(mat) = self.screencap_impl() {
                     // only check alpha of the last pixel
-                    let br_alpha = mat.chunks_exact(4).last().map(|c| c[3]).unwrap_or(0);
+                    let br_alpha = mat.as_chunks::<4>().0.last().map(|c| c[3]).unwrap_or(0);
                     if br_alpha == 255 {
                         self.output_just_initialized = false;
                         break;
@@ -86,7 +86,7 @@ impl DesktopDupScreencap {
 
         // bgra_to_bgr: 交换 B 和 R 通道（对应 C++ 的 bgra_to_bgr）
         let mut bgra = mat;
-        for chunk in bgra.chunks_exact_mut(4) {
+        for chunk in bgra.as_chunks_mut::<4>().0 {
             chunk.swap(0, 2); // B <-> R
         }
 
