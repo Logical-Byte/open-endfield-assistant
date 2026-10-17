@@ -173,7 +173,7 @@ importers:
         specifier: ^3.13.39
         version: 3.13.39(vue@3.5.43(typescript@6.0.3))
       '@tauri-apps/api':
-        specifier: ^2.11.1
+        specifier: ~2.11
         version: 2.11.1
       '@tauri-apps/plugin-opener':
         specifier: ~2.5.4
