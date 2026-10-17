@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { appPresentation } from '@/app/presentation';
 import { AppVariant } from '@/app/build';
-import { useAppI18n } from '@/shared/i18n';
-import { useTranslatedToast, type ToastText } from '@/shared/i18n/toast';
+import { appPresentation } from '@/app/presentation';
 import { automationStatus } from '@/features/automation/state';
 import { settingsState } from '@/features/settings/settings';
-import { updateCapabilities } from '@/features/update/variantPolicy';
 import { UpdateInstallStatus, type UpdateInfo } from '@/features/update/types/update';
 import {
   checkUpdate,
@@ -20,6 +16,10 @@ import {
   updateOperation,
   updateOperationBusy,
 } from '@/features/update/update';
+import { updateCapabilities } from '@/features/update/variantPolicy';
+import { useAppI18n } from '@/shared/i18n';
+import { useTranslatedToast, type ToastText } from '@/shared/i18n/toast';
+import { computed } from 'vue';
 import icon from '../../../resources/icons/icon.png';
 
 const { t, locale, n } = useAppI18n();
@@ -32,6 +32,8 @@ interface AboutLink {
   label: string;
   icon: string;
   to: string;
+  color: 'primary' | 'neutral';
+  variant: 'solid' | 'outline';
 }
 
 const links = computed<AboutLink[]>((): AboutLink[] => [
@@ -39,16 +41,22 @@ const links = computed<AboutLink[]>((): AboutLink[] => [
     label: t('settings.about.website'),
     icon: 'i-lucide-globe',
     to: 'https://ef.yituliu.cn/resources/oea',
+    color: 'primary',
+    variant: 'solid',
   },
   {
     label: 'GitHub',
     icon: 'i-simple-icons:github',
     to: 'https://github.com/Logical-Byte/open-endfield-assistant',
+    color: 'neutral',
+    variant: 'solid',
   },
   {
     label: t('settings.about.community'),
     icon: 'i-simple-icons:qq',
     to: 'https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms',
+    color: 'primary',
+    variant: 'solid',
   },
 ]);
 
@@ -127,7 +135,10 @@ async function manualCheckUpdate(): Promise<void> {
   if (updateCheckState.value.status === 'upToDate') {
     useTranslatedToast().add(
       { icon: 'i-lucide-check-circle', color: 'success' },
-      (): ToastText => ({ title: t('update.check.upToDate'), description: currentVersion.value }),
+      (): ToastText => ({
+        title: t('update.check.upToDate'),
+        description: currentVersion.value,
+      }),
     );
   }
 }
@@ -164,13 +175,13 @@ async function updateApplication(): Promise<void> {
           <UButton
             v-for="link in links"
             :key="link.to"
-            color="neutral"
+            :color="link.color"
             :icon="link.icon"
             :label="link.label"
             rel="noopener noreferrer"
             target="_blank"
             :to="link.to"
-            variant="outline"
+            :variant="link.variant"
           />
           <UTooltip :disabled="!checkDisabledReason" :text="checkDisabledReason">
             <span class="inline-flex" :tabindex="checkDisabledReason ? 0 : undefined">
