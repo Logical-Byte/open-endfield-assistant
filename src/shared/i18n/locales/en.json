@@ -237,11 +237,11 @@
     "filters": "Catalog filters",
     "gotIt": "Got it",
     "guide": {
-      "archive": "Open the archive screen in Endfield.",
-      "export": "After scanning, select Export collection in the archive pane.",
-      "hdr": "Turn off HDR and performance monitoring software.",
-      "open": "Open Endfield and select 1280 × 720 resolution and Simplified Chinese.",
-      "scan": "Select Start scan in the scan results pane."
+      "archive": "Open the {archive} in Endfield.",
+      "export": "After scanning, select {export} in the all archives pane.",
+      "hdr": "{hdr} and turn off performance monitoring software.",
+      "open": "Open Endfield and set {resolution} resolution and {language}.",
+      "scan": "Select {scan} in the scan results pane."
     },
     "hasRecords": "With evidence",
     "hideGuide": "Hide until the next guide update",

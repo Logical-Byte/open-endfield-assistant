@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
 import { editSettings, settingsState } from '@/features/settings/settings';
+import { TranslationComponent } from 'i18next-vue';
 import { computed, ref } from 'vue';
 
 /**
@@ -53,23 +54,56 @@ function dismissScanGuide(): void {
     <ol class="inline-flex flex-col gap-5 text-left text-2xl leading-relaxed font-semibold">
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">1.</span>
-        <span>{{ t('scan.guide.open') }}</span>
+        <span
+          ><TranslationComponent :translation="t('scan.guide.open')"
+            ><template #resolution><strong class="text-primary">1280 × 720</strong></template
+            ><template #language
+              ><strong class="text-primary">{{
+                t('settings.language.game.fixed')
+              }}</strong></template
+            ></TranslationComponent
+          ></span
+        >
       </li>
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">2.</span>
-        <span>{{ t('scan.guide.hdr') }}</span>
+        <span
+          ><TranslationComponent :translation="t('scan.guide.hdr')"
+            ><template #hdr
+              ><strong class="text-primary">{{ t('help.hdr.disable') }}</strong></template
+            ></TranslationComponent
+          ></span
+        >
       </li>
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">3.</span>
-        <span>{{ t('scan.guide.archive') }}</span>
+        <span
+          ><TranslationComponent :translation="t('scan.guide.archive')"
+            ><template #archive
+              ><strong class="text-primary">{{ t('help.archive.main') }}</strong></template
+            ></TranslationComponent
+          ></span
+        >
       </li>
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">4.</span>
-        <span>{{ t('scan.guide.scan') }}</span>
+        <span
+          ><TranslationComponent :translation="t('scan.guide.scan')"
+            ><template #scan
+              ><strong class="text-primary">{{ t('help.scan.start') }}</strong></template
+            ></TranslationComponent
+          ></span
+        >
       </li>
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">5.</span>
-        <span>{{ t('scan.guide.export') }}</span>
+        <span
+          ><TranslationComponent :translation="t('scan.guide.export')"
+            ><template #export
+              ><strong class="text-primary">{{ t('help.export') }}</strong></template
+            ></TranslationComponent
+          ></span
+        >
       </li>
     </ol>
 
