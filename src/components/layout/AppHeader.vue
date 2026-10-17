@@ -73,6 +73,9 @@ const navigationMenuItems = computed<NavigationMenuItem[]>(() => [
           />
         </UTooltip>
         <UpdatePopover v-if="updateCapabilities.onlineUpdate" />
+        <UTooltip :text="t('theme.toggleMode')">
+          <UColorModeButton class="text-muted" />
+        </UTooltip>
         <UTooltip :text="t('navigation.settings')">
           <UButton
             :aria-label="t('navigation.settings')"
