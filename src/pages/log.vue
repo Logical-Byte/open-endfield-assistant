@@ -19,7 +19,7 @@ useScrollToBottom(logContainerRef, filteredLogLines);
 </script>
 
 <template>
-  <UContainer class="flex h-full flex-col gap-4 py-4">
+  <UContainer class="flex h-full max-w-none flex-col gap-4 p-0!">
     <div class="flex flex-wrap gap-2">
       <UButton
         class="mr-auto"

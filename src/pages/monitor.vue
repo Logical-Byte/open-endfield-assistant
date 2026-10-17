@@ -119,7 +119,7 @@ onBeforeUnmount(stopMonitor);
 </script>
 
 <template>
-  <UContainer class="flex h-full flex-col gap-4 py-4">
+  <UContainer class="flex h-full max-w-none flex-col gap-4 p-0!">
     <div class="flex flex-wrap items-center gap-2">
       <USelect
         v-model="fps"

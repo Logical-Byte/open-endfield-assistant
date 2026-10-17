@@ -137,12 +137,19 @@ onBeforeUnmount(stopResetScroll);
 </script>
 
 <template>
-  <UContainer ref="settingsPage" class="min-h-full">
-    <UPage>
+  <UContainer ref="settingsPage" class="min-h-full max-w-none p-0!">
+    <UPage
+      :ui="{
+        root: 'grid grid-cols-[144px_minmax(0,1fr)] gap-4 lg:grid-cols-[144px_minmax(0,1fr)] lg:gap-4',
+        left: 'col-span-1 lg:col-span-1',
+        center: 'col-span-1 min-w-0 lg:col-span-1',
+      }"
+    >
       <template #left>
         <UPageAside
           :ui="{
-            root: 'lg:sticky lg:top-0 lg:max-h-[calc(100lvh-var(--ui-header-height)-var(--ui-title-height))] lg:self-start lg:overflow-y-auto',
+            root: 'sticky top-0 m-0 block max-h-[calc(100dvh-var(--ui-title-height)-2rem)] self-start overflow-y-auto p-0 lg:top-0 lg:ms-0 lg:max-h-[calc(100dvh-var(--ui-title-height)-2rem)] lg:ps-0 lg:pe-0',
+            container: 'py-0',
           }"
         >
           <nav :aria-label="t('navigation.settings')" class="flex flex-col gap-1">
@@ -156,27 +163,14 @@ onBeforeUnmount(stopResetScroll);
               :icon="section.icon"
               :label="section.title"
               :to="{ hash: `#${section.id}` }"
-              :ui="{ label: 'overflow-visible text-start text-clip whitespace-normal' }"
+              :ui="{ label: 'overflow-visible text-start text-clip whitespace-nowrap' }"
               :variant="activeSectionId === section.id ? 'soft' : 'ghost'"
             />
           </nav>
         </UPageAside>
       </template>
 
-      <UPageBody class="space-y-4" :data-settings-section="activeSectionId">
-        <USelect
-          :aria-label="t('navigation.settings')"
-          class="w-full lg:hidden"
-          :icon="
-            sections.find((section: SettingsSection): boolean => section.id === activeSectionId)
-              ?.icon
-          "
-          :items="sections"
-          label-key="title"
-          :model-value="activeSectionId"
-          value-key="id"
-          @update:model-value="router.push({ hash: `#${$event}` })"
-        />
+      <UPageBody class="my-0! space-y-4" :data-settings-section="activeSectionId">
         <UAlert
           v-if="settingsInitializeError"
           :actions="[{ label: t('settings.initialize.retry'), onClick: initOeaSettings }]"

@@ -107,15 +107,18 @@ void initApp();
     <UApp :locale="componentLocale" :toaster="{ position: 'bottom-right', max: 8, expand: true }">
       <div class="flex h-full flex-col">
         <TitleBar />
-        <AppHeader class="static z-auto backdrop-blur-none" />
-
-        <UMain class="min-h-0 flex-1 overflow-y-auto">
-          <RouterView />
-        </UMain>
+        <UDashboardGroup
+          class="relative! inset-auto! flex min-h-0 flex-1"
+          :persistent="false"
+          unit="px"
+        >
+          <AppSidebar />
+          <main class="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-2">
+            <RouterView />
+          </main>
+        </UDashboardGroup>
 
         <InstallUpdateModal />
-
-        <!-- <AppFooter /> -->
 
         <AppImagePreview />
       </div>
