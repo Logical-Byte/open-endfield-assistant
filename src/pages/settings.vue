@@ -24,7 +24,7 @@ import {
 } from '@/features/settings/settings';
 import { uiScale } from '@/features/appearance/uiScale';
 import { computed, nextTick, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
-import { useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
+import { onBeforeRouteUpdate, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
 
 const { t, n, locale } = useAppI18n();
 const route = useRoute();
@@ -121,6 +121,13 @@ const activeSectionId = computed<string>((): string => {
     : 'language';
 });
 const settingsPage = useTemplateRef('settingsPage');
+
+onBeforeRouteUpdate((): void => {
+  // 在分类卸载前结束编辑，让 lazy 输入通过原有 change 事件提交。
+  const element = settingsPage.value?.$el as HTMLElement | undefined;
+  const input = document.activeElement;
+  if (input instanceof HTMLInputElement && element?.contains(input)) input.blur();
+});
 
 function resetScroll(): void {
   const element = settingsPage.value?.$el as HTMLElement | undefined;
