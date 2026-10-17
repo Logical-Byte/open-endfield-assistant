@@ -20,23 +20,13 @@ const colorMode = useColorMode();
       <UButton
         :aria-label="colorMode === 'dark' ? color.darkLabel : color.lightLabel"
         :aria-pressed="modelValue === color.id"
-        class="size-8 justify-center p-1"
+        class="size-8 justify-center bg-(--color-light) p-1 hover:bg-(--color-light) active:bg-(--color-light) dark:bg-(--color-dark) dark:hover:bg-(--color-dark) dark:active:bg-(--color-dark)"
+        :class="modelValue === color.id ? 'outline-highlighted outline-2 outline-offset-2' : ''"
         color="neutral"
+        :style="color.chipStyle"
         variant="outline"
         @click="emit('update:modelValue', color.id)"
-      >
-        <span
-          class="flex size-5 items-center justify-center rounded-full bg-(--color-light) text-white dark:bg-(--color-dark)"
-          :style="color.chipStyle"
-        >
-          <UIcon
-            v-if="modelValue === color.id"
-            class="size-3"
-            :class="color.id === 'grayscale' ? 'dark:text-black' : ''"
-            name="i-lucide-check"
-          />
-        </span>
-      </UButton>
+      />
     </UTooltip>
   </div>
 </template>
