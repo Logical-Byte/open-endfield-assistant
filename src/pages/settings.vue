@@ -23,8 +23,8 @@ import {
   updateSourceItems,
 } from '@/features/settings/settings';
 import { uiScale } from '@/features/appearance/uiScale';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
+import { computed, nextTick, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
+import { onBeforeRouteUpdate, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
 
 const { t, n, locale } = useAppI18n();
 const route = useRoute();
@@ -33,9 +33,9 @@ const router = useRouter();
 /** 成功加载后供设置页读取的草稿、生效值与保存错误。 */
 type ReadySettingsState = Extract<SettingsState, { status: 'ready' }>;
 
-/** 设置分类目录的展示信息，与滚动锚点共用 id。 */
+/** 设置分类的导航信息，id 与 URL hash 共用。 */
 interface SettingsSection {
-  /** 设置卡片的 DOM id，也是目录导航目标。 */
+  /** 分类标识，同时用于直接打开该分类。 */
   id: string;
   /** 目录和卡片共用的完整图标名。 */
   icon: string;
@@ -103,79 +103,47 @@ const applicationLanguageItem: ChoiceButtonsSettingsItem = isTauri()
       },
     };
 
-/** 设置分类目录：`id` 同时用作滚动锚点。 */
+/** 设置分类：桌面侧栏和窄屏选择框共用。 */
 const sections = computed<SettingsSection[]>((): SettingsSection[] => [
-  { id: 'about', icon: 'i-lucide-info', title: t('settings.about.title') },
   { id: 'language', icon: 'i-lucide-languages', title: t('settings.language.section') },
   { id: 'interface', icon: 'i-lucide-layout-panel-left', title: t('settings.interface.section') },
   { id: 'sound', icon: 'i-lucide-headphones', title: t('settings.sound.section') },
   { id: 'update', icon: 'i-lucide-download', title: t('settings.update.section') },
   { id: 'developer', icon: 'i-lucide-code-2', title: t('settings.developer.section') },
+  { id: 'about', icon: 'i-lucide-info', title: t('settings.about.title') },
 ]);
 
-/** 当前高亮的设置分类 id。 */
-const activeSectionId = ref<string>('about');
+/** URL 是当前分类的事实来源，支持直接链接与浏览器前进、后退。 */
+const activeSectionId = computed<string>((): string => {
+  const id = route.hash.slice(1);
+  return sections.value.some((section: SettingsSection): boolean => section.id === id)
+    ? id
+    : 'language';
+});
+const settingsPage = useTemplateRef('settingsPage');
 
-/** 点击目录触发程序化滚动期间，暂停滚动监听，避免平滑滚动途中高亮抖动。 */
-let isProgrammaticScroll = false;
-
-/** 更新当前高亮分类：取顶部越过阈值、最靠下的分类。 */
-function updateActiveSection(): void {
-  if (isProgrammaticScroll) {
-    return;
-  }
-  const offset = 120;
-  let current = sections.value[0].id;
-  for (const section of sections.value) {
-    const el = document.getElementById(section.id);
-    if (el !== null && el.getBoundingClientRect().top <= offset) {
-      current = section.id;
-    }
-  }
-  activeSectionId.value = current;
-}
-
-/** 点击目录跳转到对应分类并立即高亮。 */
-function scrollToSection(id: string): void {
-  activeSectionId.value = id;
-  isProgrammaticScroll = true;
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  window.setTimeout(() => {
-    isProgrammaticScroll = false;
-  }, 700);
-}
-
-/** 支持从更新弹窗直接定位到更新设置，也支持在本页再次点击该入口。 */
-function scrollToHashSection(): void {
-  const sectionId = route.hash.slice(1);
-  if (sections.value.some((section: SettingsSection): boolean => section.id === sectionId)) {
-    scrollToSection(sectionId);
-  }
-}
-
-onMounted(() => {
-  // `UMain` 渲染为 <main>，是实际滚动容器。
-  document
-    .querySelector('main')
-    ?.addEventListener('scroll', updateActiveSection, { passive: true });
-  void nextTick().then(scrollToHashSection);
+onBeforeRouteUpdate((): void => {
+  // 在分类卸载前结束编辑，让 lazy 输入通过原有 change 事件提交。
+  const element = settingsPage.value?.$el as HTMLElement | undefined;
+  const input = document.activeElement;
+  if (input instanceof HTMLInputElement && element?.contains(input)) input.blur();
 });
 
-onBeforeUnmount(() => {
-  document.querySelector('main')?.removeEventListener('scroll', updateActiveSection);
-  stopScrollToHash();
-});
+function resetScroll(): void {
+  const element = settingsPage.value?.$el as HTMLElement | undefined;
+  element?.closest('main')?.scrollTo({ top: 0, behavior: 'instant' });
+}
 
-// 相同 hash 的重复导航也会经过 afterEach，滚离更新区域后仍可用齿轮重新定位。
-const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
-  if (to.path === '/settings') {
-    void nextTick().then(scrollToHashSection);
-  }
+onMounted(resetScroll);
+// 包含重复访问同一分类的导航，例如再次点击页头的语言设置入口。
+const stopResetScroll = router.afterEach((to: RouteLocationNormalized) => {
+  if (to.path === '/settings') void nextTick(resetScroll);
 });
+onBeforeUnmount(stopResetScroll);
 </script>
 
 <template>
-  <UContainer class="min-h-[calc(100lvh-var(--ui-header-height)-var(--ui-title-height))]">
+  <UContainer ref="settingsPage" class="min-h-full">
     <UPage>
       <template #left>
         <UPageAside
@@ -183,24 +151,38 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
             root: 'lg:sticky lg:top-0 lg:max-h-[calc(100lvh-var(--ui-header-height)-var(--ui-title-height))] lg:self-start lg:overflow-y-auto',
           }"
         >
-          <nav class="flex flex-col gap-1">
+          <nav :aria-label="t('navigation.settings')" class="flex flex-col gap-1">
             <UButton
               v-for="section in sections"
               :key="section.id"
+              :active="activeSectionId === section.id"
+              :aria-current="activeSectionId === section.id ? 'location' : undefined"
               class="w-full justify-start"
               :color="activeSectionId === section.id ? 'primary' : 'neutral'"
               :icon="section.icon"
               :label="section.title"
+              :to="{ hash: `#${section.id}` }"
               :ui="{ label: 'overflow-visible text-start text-clip whitespace-normal' }"
               :variant="activeSectionId === section.id ? 'soft' : 'ghost'"
-              @click="scrollToSection(section.id)"
             />
           </nav>
         </UPageAside>
       </template>
 
-      <UPageBody>
-        <AboutOEA />
+      <UPageBody class="space-y-4" :data-settings-section="activeSectionId">
+        <USelect
+          :aria-label="t('navigation.settings')"
+          class="w-full lg:hidden"
+          :icon="
+            sections.find((section: SettingsSection): boolean => section.id === activeSectionId)
+              ?.icon
+          "
+          :items="sections"
+          label-key="title"
+          :model-value="activeSectionId"
+          value-key="id"
+          @update:model-value="router.push({ hash: `#${$event}` })"
+        />
         <UAlert
           v-if="settingsInitializeError"
           :actions="[{ label: t('settings.initialize.retry'), onClick: initOeaSettings }]"
@@ -225,9 +207,9 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
           :description="t('settings.save.failed.description')"
           :title="t('settings.save.failed.title')"
         />
+        <AboutOEA v-if="activeSectionId === 'about'" />
         <SettingsCard
-          id="language"
-          class="scroll-mt-8"
+          v-if="activeSectionId === 'language'"
           icon="i-lucide-languages"
           :title="t('settings.language.section')"
         >
@@ -259,8 +241,7 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
           </div>
         </SettingsCard>
         <SettingsCard
-          id="interface"
-          class="scroll-mt-8"
+          v-if="activeSectionId === 'interface'"
           icon="i-lucide-layout-panel-left"
           :title="t('settings.interface.section')"
         >
@@ -298,8 +279,7 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
         </SettingsCard>
 
         <SettingsCard
-          id="sound"
-          class="scroll-mt-8"
+          v-if="activeSectionId === 'sound'"
           icon="i-lucide-headphones"
           :title="t('settings.sound.section')"
         >
@@ -319,8 +299,7 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
         </SettingsCard>
 
         <SettingsCard
-          id="update"
-          class="scroll-mt-8"
+          v-if="activeSectionId === 'update'"
           icon="i-lucide-download"
           :title="t('settings.update.section')"
         >
@@ -432,7 +411,10 @@ const stopScrollToHash = router.afterEach((to: RouteLocationNormalized) => {
           />
         </SettingsCard>
 
-        <DeveloperSettings :unsupported="settingsUnsupported" />
+        <DeveloperSettings
+          v-if="activeSectionId === 'developer'"
+          :unsupported="settingsUnsupported"
+        />
       </UPageBody>
     </UPage>
   </UContainer>

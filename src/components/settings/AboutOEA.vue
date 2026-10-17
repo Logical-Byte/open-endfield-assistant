@@ -155,12 +155,7 @@ async function updateApplication(): Promise<void> {
 </script>
 
 <template>
-  <SettingsCard
-    id="about"
-    class="scroll-mt-8"
-    icon="i-lucide-info"
-    :title="t('settings.about.title')"
-  >
+  <SettingsCard icon="i-lucide-info" :title="t('settings.about.title')">
     <template #body>
       <div class="grid items-center gap-5 sm:grid-cols-[max-content_minmax(0,1fr)]">
         <div class="flex items-center gap-3">
