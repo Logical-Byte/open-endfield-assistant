@@ -65,6 +65,7 @@ const navigationMenuItems = computed<NavigationMenuItem[]>(() => [
         <UTooltip :text="t('settings.language.shortcut')">
           <UButton
             :aria-label="t('settings.language.shortcut')"
+            class="text-muted"
             color="neutral"
             icon="i-lucide-languages"
             to="/settings#language"
@@ -75,6 +76,7 @@ const navigationMenuItems = computed<NavigationMenuItem[]>(() => [
         <UTooltip :text="t('navigation.settings')">
           <UButton
             :aria-label="t('navigation.settings')"
+            class="text-muted"
             color="neutral"
             icon="i-lucide-settings"
             to="/settings#interface"
