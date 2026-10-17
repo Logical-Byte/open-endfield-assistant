@@ -71,7 +71,7 @@ const fontFields = computed<FontField[]>((): FontField[] => [
     icon: 'i-lucide-code',
     value: monospaceFont,
     options: monospaceFontOptions.value,
-    sample: 'Archive scan 00:24  0123456789',
+    sample: 'println!("Hello, world!");',
   },
 ]);
 
