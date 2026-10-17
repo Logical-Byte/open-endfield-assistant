@@ -198,16 +198,17 @@ watch(scans, (): void => {
 </script>
 
 <template>
-  <div class="matching-workspace flex min-h-0 w-full flex-1 flex-col">
+  <!-- 两栏至少需要 300 + 16 + 340px，按内容区宽度切换，侧栏拖宽也能生效。 -->
+  <div class="matching-workspace @container/scan flex min-h-0 w-full min-w-0 flex-1 flex-col">
     <div
       ref="splitContainer"
-      class="grid min-h-0 gap-3 min-[848px]:flex-1 min-[848px]:grid-cols-[minmax(300px,var(--left-pane))_16px_minmax(340px,var(--right-pane))] min-[848px]:gap-0"
+      class="grid min-h-0 gap-3 @min-[656px]/scan:flex-1 @min-[656px]/scan:grid-cols-[minmax(300px,var(--left-pane))_16px_minmax(340px,var(--right-pane))] @min-[656px]/scan:gap-0"
       :class="resizing && 'select-none'"
       :style="splitStyle"
     >
       <section
         :aria-label="t('scan.allArchives')"
-        class="min-w-0 rounded-xl border border-default bg-elevated/20 min-[848px]:flex min-[848px]:min-h-0 min-[848px]:flex-col"
+        class="min-w-0 rounded-xl border border-default bg-elevated/20 @min-[656px]/scan:flex @min-[656px]/scan:min-h-0 @min-[656px]/scan:flex-col"
       >
         <header class="space-y-2 border-b border-default p-3">
           <div class="flex items-center justify-between gap-2">
@@ -270,7 +271,7 @@ watch(scans, (): void => {
           ref="archiveList"
           v-slot="{ item: archive }"
           archive-rows
-          class="max-h-[65vh] min-h-0 flex-1 min-[848px]:max-h-none"
+          class="max-h-[65vh] min-h-0 flex-1 @min-[656px]/scan:max-h-none"
           :items="visibleArchives"
         >
           <ArchiveEntryCard
@@ -299,7 +300,7 @@ watch(scans, (): void => {
         :aria-valuemax="Math.round(resizeLimits().max)"
         :aria-valuemin="Math.round(resizeLimits().min)"
         :aria-valuenow="Math.round(leftWidth)"
-        class="split-divider group relative hidden cursor-col-resize touch-none items-center justify-center outline-none min-[848px]:flex"
+        class="split-divider group relative hidden cursor-col-resize touch-none items-center justify-center outline-none @min-[656px]/scan:flex"
         :class="resizing && 'bg-primary/10'"
         role="separator"
         tabindex="0"
@@ -319,7 +320,7 @@ watch(scans, (): void => {
       </div>
       <section
         :aria-label="t('scan.results')"
-        class="min-w-0 rounded-xl border border-default bg-elevated/20 min-[848px]:flex min-[848px]:min-h-0 min-[848px]:flex-col"
+        class="min-w-0 rounded-xl border border-default bg-elevated/20 @min-[656px]/scan:flex @min-[656px]/scan:min-h-0 @min-[656px]/scan:flex-col"
       >
         <header class="space-y-2 border-b border-default p-3">
           <div class="flex items-center justify-between">
@@ -380,7 +381,7 @@ watch(scans, (): void => {
           v-if="visibleScans.length"
           ref="scanList"
           v-slot="{ item }"
-          class="max-h-[65vh] min-h-0 flex-1 p-2 min-[848px]:max-h-none"
+          class="max-h-[65vh] min-h-0 flex-1 p-2 @min-[656px]/scan:max-h-none"
           :items="visibleScans"
         >
           <ScannedItemCard

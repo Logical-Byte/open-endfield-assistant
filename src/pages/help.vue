@@ -81,12 +81,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UContainer class="min-h-[calc(100lvh-var(--ui-header-height)-var(--ui-title-height))]">
-    <UPage>
+  <UContainer class="min-h-full max-w-none p-0!">
+    <UPage
+      :ui="{
+        root: 'grid grid-cols-[144px_minmax(0,1fr)] gap-4 lg:grid-cols-[144px_minmax(0,1fr)] lg:gap-4',
+        left: 'col-span-1 lg:col-span-1',
+        center: 'col-span-1 min-w-0 lg:col-span-1',
+      }"
+    >
       <template #left>
         <UPageAside
           :ui="{
-            root: 'lg:sticky lg:top-0 lg:max-h-[calc(100lvh-var(--ui-header-height)-var(--ui-title-height))] lg:self-start lg:overflow-y-auto',
+            root: 'sticky top-0 m-0 block max-h-[calc(100dvh-var(--ui-title-height)-2rem)] self-start overflow-y-auto p-0 lg:top-0 lg:ms-0 lg:max-h-[calc(100dvh-var(--ui-title-height)-2rem)] lg:ps-0 lg:pe-0',
+            container: 'py-0',
           }"
         >
           <nav class="flex flex-col gap-1">
@@ -97,7 +104,7 @@ onBeforeUnmount(() => {
               :color="activeSectionId === section.id ? 'primary' : 'neutral'"
               :icon="section.icon"
               :label="section.title"
-              :ui="{ label: 'overflow-visible text-start text-clip whitespace-normal' }"
+              :ui="{ label: 'overflow-visible text-start text-clip whitespace-nowrap' }"
               :variant="activeSectionId === section.id ? 'soft' : 'ghost'"
               @click="scrollToSection(section.id)"
             />
@@ -105,7 +112,7 @@ onBeforeUnmount(() => {
         </UPageAside>
       </template>
 
-      <UPageBody class="space-y-8">
+      <UPageBody class="my-0! space-y-8">
         <!-- 新手提示 -->
         <UCard id="getting-started" class="scroll-mt-8">
           <template #header>

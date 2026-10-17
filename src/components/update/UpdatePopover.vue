@@ -16,6 +16,9 @@ import { updatePopoverOpen } from '@/features/update/updatePopover';
 import { appVersion } from '@/app/build';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import SidebarItem from '@/components/layout/SidebarItem.vue';
+
+withDefaults(defineProps<{ collapsed?: boolean }>(), { collapsed: false });
 
 const { t, n } = useAppI18n();
 
@@ -104,27 +107,27 @@ function formatSpeed(bytesPerSecond: number): string {
   <UPopover
     v-if="['available', 'error', 'checking'].includes(updateCheckState.status)"
     v-model:open="updatePopoverOpen"
+    :content="{ side: 'right', align: 'end', sideOffset: 12, collisionPadding: 16 }"
     :ui="{
       content:
-        'flex max-h-[calc(100dvh-var(--ui-header-height)-var(--ui-title-height)-1rem)] w-md flex-col gap-3 p-4',
+        'flex max-h-[calc(100dvh-var(--ui-title-height)-2rem)] w-md max-w-[calc(100vw-2rem)] flex-col gap-3 p-4',
     }"
   >
-    <UTooltip :text="statusText">
-      <div class="relative">
-        <UButton
-          :aria-label="statusText"
-          color="neutral"
-          icon="i-lucide-cloud-download"
-          :loading="updateCheckState.status === 'checking'"
-          :variant="updatePopoverOpen ? 'soft' : 'ghost'"
-        />
+    <SidebarItem
+      :active="updatePopoverOpen"
+      :collapsed="collapsed"
+      icon="i-lucide-cloud-download"
+      :loading="updateCheckState.status === 'checking'"
+      :tooltip="statusText"
+    >
+      <template #indicator>
         <span
           v-if="maybeStatusChipColor"
-          class="absolute top-0 right-0 size-2 rounded-full"
+          class="absolute top-1 right-1 size-2 rounded-full"
           :class="maybeStatusChipColor"
         />
-      </div>
-    </UTooltip>
+      </template>
+    </SidebarItem>
 
     <template #content>
       <template v-if="updateCheckState.status === 'checking'">
