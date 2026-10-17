@@ -17,6 +17,8 @@ pnpm build
 pnpm check
 ```
 
+Nuxt UI 事件回调出现意外的隐式 `any` 错误时，`components.d.ts` 或 `auto-imports.d.ts` 可能已过期。先运行 `pnpm build` 重新生成类型，再运行 `pnpm check`。若仍报错，继续检查实际类型定义。
+
 ## TS 编码风格
 
 - 定义有名字的函数用 `function` 关键字，回调/匿名函数用箭头函数。

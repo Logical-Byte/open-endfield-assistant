@@ -82,6 +82,9 @@ useHead({
   ],
 });
 
+// 设计假设：用户的实际操作发生在 initApp 完成之后。
+// 除非任务明确要求，否则实现与评审均不考虑用户操作和 initApp 初始化之间的竞争。
+// 此假设仅限启动阶段。初始化完成后的设置修改、任务启停等正常交互仍需保证状态切换正确。
 async function initApp(): Promise<void> {
   if (!isTauri()) {
     markSettingsUnsupported();
