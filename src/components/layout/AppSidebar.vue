@@ -204,7 +204,11 @@ const settingsItems = computed<NavigationMenuItem[]>(() => [
           v-show="!collapsed"
           :aria-label="pinned ? t('navigation.sidebar.unpin') : t('navigation.sidebar.pin')"
           :aria-pressed="pinned"
-          class="absolute top-4 z-10 text-muted hover:text-toned"
+          class="absolute top-4 z-10 cursor-pointer text-muted hover:text-toned"
+          :class="
+            !pinned &&
+            'hover:bg-accented/75 hover:ring hover:ring-accented hover:ring-inset focus-visible:bg-accented/75 active:bg-accented/75'
+          "
           color="neutral"
           icon="i-lucide-pin"
           size="xs"
