@@ -192,6 +192,12 @@
     "monitor": "Monitor",
     "scan": "Archive scanning",
     "settings": "Settings",
+    "sidebar": {
+      "collapsed": "Icon sidebar",
+      "resize": "Resize sidebar",
+      "resizeHint": "Drag to resize. Continue dragging left to collapse. Double-click to reset. You can also use the left and right arrow keys.",
+      "width": "Sidebar width {{width}}px"
+    },
     "yituliu": "Yituliu"
   },
   "scan": {

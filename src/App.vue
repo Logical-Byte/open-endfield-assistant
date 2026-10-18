@@ -107,15 +107,19 @@ void initApp();
     <UApp :locale="componentLocale" :toaster="{ position: 'bottom-right', max: 8, expand: true }">
       <div class="flex h-full flex-col">
         <TitleBar />
-        <AppHeader class="static z-auto backdrop-blur-none" />
-
-        <UMain class="min-h-0 flex-1 overflow-y-auto">
-          <RouterView />
-        </UMain>
+        <!-- 侧栏的拖拽手柄也是直接子元素，由中间列统一提供 8px 间距。 -->
+        <UDashboardGroup
+          class="relative! inset-auto! grid min-h-0 flex-1 grid-cols-[auto_8px_minmax(0,1fr)] p-2"
+          :persistent="false"
+          unit="px"
+        >
+          <AppSidebar />
+          <main class="min-h-0 min-w-0 overflow-y-auto">
+            <RouterView />
+          </main>
+        </UDashboardGroup>
 
         <InstallUpdateModal />
-
-        <!-- <AppFooter /> -->
 
         <AppImagePreview />
       </div>
