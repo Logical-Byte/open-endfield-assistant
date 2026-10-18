@@ -7,6 +7,8 @@ import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import type { RunOutcome } from '@/features/automation/types';
 import type { ArchiveId } from '@/shared/types/archive';
 import { archiveCatalog } from '@/features/gameData/archiveCatalog';
+import { logInfo } from '@/features/log/ipc';
+import { matchedArchiveId } from './matching';
 import { onScannedItem } from './ipc';
 import { normalizeBackendError, type ErrorFacts } from '@/shared/errors';
 import { whenever } from '@vueuse/core';
@@ -28,6 +30,30 @@ export function clearScannedItems(): void {
   items.value = [];
 }
 
+/** 只在接收或编辑时记录，派生匹配和筛选不产生副作用。 */
+function logSingleRecommendation(
+  item: Readonly<ScannedItemRecord>,
+  action: 'automatic' | 'manual' | 'undo',
+): void {
+  if (item.matching.kind !== 'recommendations' || item.matching.archiveIds.length !== 1) return;
+  const adoptedArchiveId = item.matching.archiveIds[0]!;
+  const details = {
+    action,
+    scannedItemId: item.scannedItemId,
+    adoptedArchiveId,
+    category: item.foundInCategory,
+    ocrResult: item.ocrResult,
+    title: archiveCatalog.value?.archive(adoptedArchiveId)?.title[item.gameLocale] ?? null,
+    archiveId: matchedArchiveId(item),
+    manualChoice: item.manualChoice,
+  };
+  const message = action === 'automatic' ? '单个推荐已自动采纳' : '单个推荐采纳后的人工决定已变更';
+  // JSON 编码保留原始文字，同时避免 OCR 换行打断日志记录。
+  void logInfo(`${message}：${JSON.stringify(details)}`).catch((error: unknown) => {
+    console.warn('写入单个推荐采纳日志失败', error);
+  });
+}
+
 /** 选择扫描分类内的具体档案，空值表示用户明确保留为未匹配。 */
 export function chooseScannedItemArchive(
   scannedItemId: ScannedItemId,
@@ -40,7 +66,9 @@ export function chooseScannedItemArchive(
   const item = items.value[index]!;
   if (archiveId && archiveCatalog.value?.archive(archiveId)?.category !== item.foundInCategory)
     return;
-  items.value[index] = { ...item, manualChoice: { kind: 'manual', archiveId } };
+  const next: ScannedItemRecord = { ...item, manualChoice: { kind: 'manual', archiveId } };
+  items.value[index] = next;
+  if (matchedArchiveId(item) !== archiveId) logSingleRecommendation(next, 'manual');
 }
 
 /** 撤销一次已确认编辑，只恢复人工决定，保留扫描观察与自动结果。 */
@@ -49,7 +77,10 @@ export function restoreScannedItemChoice(previous: Readonly<ScannedItemRecord>):
     (item): boolean => item.scannedItemId === previous.scannedItemId,
   );
   if (index === -1) return;
-  items.value[index] = { ...items.value[index]!, manualChoice: previous.manualChoice };
+  const item = items.value[index]!;
+  const next: ScannedItemRecord = { ...item, manualChoice: previous.manualChoice };
+  items.value[index] = next;
+  if (matchedArchiveId(item) !== matchedArchiveId(next)) logSingleRecommendation(next, 'undo');
 }
 
 export async function initScannedItems(): Promise<void> {
@@ -78,10 +109,12 @@ export async function initScannedItems(): Promise<void> {
     { flush: 'sync' },
   );
   await onScannedItem((item: ScannedItem) => {
-    items.value.push({
+    const record: ScannedItemRecord = {
       ...item,
       scannedItemId: nextScannedItemId++ as ScannedItemId,
       manualChoice: { kind: 'automatic' },
-    });
+    };
+    items.value.push(record);
+    logSingleRecommendation(record, 'automatic');
   });
 }

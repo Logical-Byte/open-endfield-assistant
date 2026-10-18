@@ -43,15 +43,18 @@ describe('deriveArchiveCollection', () => {
     });
   });
 
-  it('候选为一个或多个时均不计入已收集', () => {
+  it('单个推荐计入已收集，多个推荐保持未匹配', () => {
     for (const ids of [['paperNote'], ['paperNote', 'unrelated']]) {
       const scan: ScannedItemRecord = {
         ...successfulScan,
         matching: { kind: 'recommendations', archiveIds: ids as ArchiveId[] },
       };
       expect(deriveArchiveCollection(allItems, [scan])).toEqual({
-        collectedIds: [],
-        notCollectedIds: ['paperNote', 'unrelated', 'digitalNote'],
+        collectedIds: ids.length === 1 ? ['paperNote'] : [],
+        notCollectedIds:
+          ids.length === 1
+            ? ['unrelated', 'digitalNote']
+            : ['paperNote', 'unrelated', 'digitalNote'],
       });
     }
   });
