@@ -41,25 +41,41 @@ function logSingleRecommendation(
   const after = matchedArchiveId(item);
   if (previous && before === after) return;
 
-  function describeArchive(id: ArchiveId | null): string {
-    if (id === null) return 'null';
-    const title = archiveCatalog.value?.archive(id)?.title[item.gameLocale];
-    return title ? `${JSON.stringify(title)} (${id})` : id;
+  function describeArchive(id: ArchiveId | null): {
+    id: ArchiveId;
+    gameLocale: ScannedItem['gameLocale'];
+    title: string | null;
+    contentPreview: string | null;
+  } | null {
+    if (id === null) return null;
+    const archive = archiveCatalog.value?.archive(id);
+    return {
+      id,
+      gameLocale: item.gameLocale,
+      title: archive?.title[item.gameLocale] ?? null,
+      contentPreview: archive?.contentPreview?.[item.gameLocale] ?? null,
+    };
   }
   const actions = {
     automatic: '系统自动采纳唯一推荐',
     manual: after === null ? '用户清除匹配' : '用户选择档案',
     undo: '用户撤销编辑',
   };
-  // 仅对 OCR 和标题字符串转义，保留日志分段，避免原文换行混入字段标签。
-  const message = [
-    `档案匹配变更（扫描记录 ${item.scannedItemId}）`,
-    `原始扫描结果：分类=${item.foundInCategory}，OCR=${JSON.stringify(item.ocrResult)}，后端唯一推荐=${describeArchive(item.matching.archiveIds[0]!)}`,
-    `操作：${actions[action]}`,
-    `原匹配档案：${describeArchive(before)}`,
-    `现匹配档案：${describeArchive(after)}`,
-  ].join('\n');
-  void logInfo(message).catch((error: unknown) => {
+  const details = {
+    scan: {
+      scannedItemId: item.scannedItemId,
+      gameLocale: item.gameLocale,
+      foundInPage: item.foundInPage,
+      foundInCategory: item.foundInCategory,
+      ocrResult: item.ocrResult,
+      bodyOcrResult: item.bodyOcrResult ?? null,
+      matching: item.matching,
+    },
+    action: actions[action],
+    before: describeArchive(before),
+    after: describeArchive(after),
+  };
+  void logInfo(JSON.stringify(details)).catch((error: unknown) => {
     console.warn('写入单个推荐采纳日志失败', error);
   });
 }
