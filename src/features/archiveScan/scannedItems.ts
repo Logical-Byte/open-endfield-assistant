@@ -35,13 +35,16 @@ export function clearScannedItems(): void {
   items.value = [];
 }
 
-/** 序列化唯一推荐及其后续匹配变更，无需记录时返回 null。 */
+/** 序列化自动采纳与人工匹配变更，无需记录时返回 null。 */
 function serializeArchiveMatchChange(
   item: Readonly<ScannedItemRecord>,
   action: ArchiveMatchAction,
   previous: Readonly<ScannedItemRecord> | null,
 ): string | null {
-  if (item.matching.kind !== 'recommendations' || item.matching.archiveIds.length !== 1)
+  if (
+    action === ArchiveMatchAction.AutoAdopt &&
+    (item.matching.kind !== 'recommendations' || item.matching.archiveIds.length !== 1)
+  )
     return null;
   const before = previous ? matchedArchiveId(previous) : null;
   const after = matchedArchiveId(item);
