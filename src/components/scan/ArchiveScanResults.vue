@@ -3,6 +3,7 @@ import { useTranslatedToast } from '@/shared/i18n/toast';
 import { useAppI18n } from '@/shared/i18n';
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from 'vue';
 import { useResizeObserver } from '@vueuse/core';
+import type { SplitterItem } from '@nuxt/ui';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import {
   useArchiveScanResults,
@@ -52,48 +53,32 @@ const selectedScanId: Ref<ScannedItemId | null> = ref(null);
 const archiveList: Ref<ScrollList | null> = ref(null);
 const scanList: Ref<ScrollList | null> = ref(null);
 
-const splitContainer: Ref<HTMLElement | null> = ref(null);
-const leftWidth: Ref<number> = ref(55.5);
-const resizing: Ref<boolean> = ref(false);
-const splitStyle = computed((): Record<string, string> => ({
-  '--left-pane': `${leftWidth.value}fr`,
-  '--right-pane': `${100 - leftWidth.value}fr`,
-}));
-// 下限与 CSS 的两栏最小宽度一致，拖动时保留标题和操作区所需空间。
-function resizeLimits(): { min: number; max: number } {
-  const width = (splitContainer.value?.clientWidth ?? 0) - 16;
-  const archiveMin = 300;
-  return width >= archiveMin + 340
-    ? { min: (archiveMin / width) * 100, max: ((width - 340) / width) * 100 }
-    : { min: 28, max: 72 };
-}
-function clampSplit(value: number): number {
-  const { min, max } = resizeLimits();
-  return Math.min(max, Math.max(min, value));
-}
-useResizeObserver(splitContainer, (): void => {
-  leftWidth.value = clampSplit(leftWidth.value);
+const workspace: Ref<HTMLElement | null> = ref(null);
+const workspaceWidth = ref(0);
+const workspaceHeight = ref(0);
+const sideBySide = computed((): boolean => workspaceWidth.value >= 648);
+useResizeObserver(workspace, (entries): void => {
+  workspaceWidth.value = entries[0]!.contentRect.width;
+  workspaceHeight.value = entries[0]!.contentRect.height;
 });
-function resizeStart(event: PointerEvent): void {
-  if (event.button !== 0) return;
-  event.preventDefault();
-  resizing.value = true;
-  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-}
-function resizeMove(event: PointerEvent): void {
-  if (!resizing.value) return;
-  const rect = splitContainer.value!.getBoundingClientRect();
-  leftWidth.value = clampSplit(((event.clientX - rect.left - 8) / (rect.width - 16)) * 100);
-}
-function resizeEnd(): void {
-  resizing.value = false;
-}
-function resizeKeyboard(event: KeyboardEvent): void {
-  if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-    event.preventDefault();
-    leftWidth.value = clampSplit(leftWidth.value + (event.key === 'ArrowLeft' ? -2 : 2));
-  }
-}
+// 横向保留 300px / 340px 最小宽度，纵向每栏至少 300px，避免挤压工具区和内容。
+const splitItems = computed<SplitterItem[]>(() => {
+  const availableSize = sideBySide.value
+    ? workspaceWidth.value - 8
+    : Math.max(workspaceHeight.value - 8, 600);
+  return [
+    {
+      slot: 'archives',
+      defaultSize: 55.5,
+      minSize: (300 / availableSize) * 100,
+    },
+    {
+      slot: 'scans',
+      defaultSize: 44.5,
+      minSize: ((sideBySide.value ? 340 : 300) / availableSize) * 100,
+    },
+  ];
+});
 function clearScanHighlight(): void {
   selectedScanId.value = null;
 }
@@ -198,215 +183,218 @@ watch(scans, (): void => {
 </script>
 
 <template>
-  <div class="matching-workspace flex min-h-0 w-full flex-1 flex-col">
-    <div
-      ref="splitContainer"
-      class="grid min-h-0 gap-3 min-[848px]:flex-1 min-[848px]:grid-cols-[minmax(300px,var(--left-pane))_16px_minmax(340px,var(--right-pane))] min-[848px]:gap-0"
-      :class="resizing && 'select-none'"
-      :style="splitStyle"
+  <!-- 两栏至少需要 300 + 8 + 340px。窄布局沿用同一组列表，保留编辑状态和滚动位置。 -->
+  <div
+    ref="workspace"
+    class="matching-workspace @container/scan flex min-h-0 w-full min-w-0 flex-1 flex-col"
+  >
+    <USplitter
+      id="archive-matching"
+      :aria-label="t('scan.resize')"
+      class="min-h-[608px] flex-1 @min-[648px]/scan:min-h-0"
+      :items="splitItems"
+      :keyboard-resize-by="2"
+      :orientation="sideBySide ? 'horizontal' : 'vertical'"
+      :ui="{
+        panel: 'min-h-0 min-w-0 flex-col',
+        handle: 'flex items-center justify-center focus-visible:outline-none',
+      }"
     >
-      <section
-        :aria-label="t('scan.allArchives')"
-        class="min-w-0 rounded-xl border border-default bg-elevated/20 min-[848px]:flex min-[848px]:min-h-0 min-[848px]:flex-col"
-      >
-        <header class="space-y-2 border-b border-default p-3">
-          <div class="flex items-center justify-between gap-2">
-            <h2 class="text-lg font-semibold whitespace-nowrap">
-              {{ t('scan.allArchives') }}
-              <span class="font-normal text-muted">{{ n(archives.length) }}</span>
-            </h2>
-            <ArchiveExportButton
-              :collected="matchedArchives"
-              :total="archives.length"
-              :unmatched="scans.length - matchedScans"
-            />
-          </div>
-          <div class="flex items-center gap-1">
-            <UButton
-              v-for="option in [
-                { value: 'all' as const, label: t('scan.all'), count: archives.length },
-                {
-                  value: 'unmatched' as const,
-                  label: t('scan.noRecords'),
-                  count: archives.length - matchedArchives,
-                },
-                { value: 'matched' as const, label: t('scan.hasRecords'), count: matchedArchives },
-              ]"
-              :key="option.value"
-              :color="archiveFilter === option.value ? 'primary' : 'neutral'"
-              size="xs"
-              :variant="archiveFilter === option.value ? 'subtle' : 'outline'"
-              @click="archiveFilter = option.value"
-              >{{ option.label }} {{ n(option.count) }}</UButton
-            >
-          </div>
-          <div class="flex gap-2">
-            <UInput
-              v-model="archiveSearch"
-              :aria-label="t('scan.searchArchive')"
-              class="min-w-0 flex-1"
-              icon="i-lucide-search"
-              :placeholder="t('scan.searchArchive')"
-              size="sm"
-            /><UPopover
-              ><UButton
-                :aria-label="t('scan.filters')"
-                :color="mapOnly || archiveCategory !== 'all' ? 'primary' : 'neutral'"
-                icon="i-lucide-list-filter"
-                size="sm"
-                variant="outline" /><template #content
-                ><div class="w-64 space-y-3 p-3">
-                  <USelect
-                    v-model="archiveCategory"
-                    :aria-label="t('scan.archiveCategory')"
-                    class="w-full"
-                    :items="categories"
-                  /><UCheckbox v-model="mapOnly" :label="t('scan.mapOnly')" /></div></template
-            ></UPopover>
-          </div>
-        </header>
-        <ArchiveVirtualList
-          v-if="visibleArchives.length"
-          ref="archiveList"
-          v-slot="{ item: archive }"
-          archive-rows
-          class="max-h-[65vh] min-h-0 flex-1 min-[848px]:max-h-none"
-          :items="visibleArchives"
+      <template #archives>
+        <section
+          :aria-label="t('scan.allArchives')"
+          class="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-default bg-elevated/20"
         >
-          <ArchiveEntryCard
-            :entry="archive"
-            :selected="selectedArchiveId === archive.id"
-            @clear-highlight="clearScanHighlight"
-            @locate-scan="locateScan"
-          />
-        </ArchiveVirtualList>
-        <p v-if="!visibleArchives.length" class="flex-1 py-14 text-center text-sm text-muted">
-          {{ t('scan.noArchives') }}
-        </p>
-        <div class="shrink-0 border-t border-default px-3 py-1.5 text-[11px] text-muted">
-          {{
-            t('scan.archiveCount', {
-              visible: n(visibleArchives.length),
-              total: n(archives.length),
-            })
-          }}
-        </div>
-      </section>
-
-      <div
-        :aria-label="t('scan.resize')"
-        aria-orientation="vertical"
-        :aria-valuemax="Math.round(resizeLimits().max)"
-        :aria-valuemin="Math.round(resizeLimits().min)"
-        :aria-valuenow="Math.round(leftWidth)"
-        class="split-divider group relative hidden cursor-col-resize touch-none items-center justify-center outline-none min-[848px]:flex"
-        :class="resizing && 'bg-primary/10'"
-        role="separator"
-        tabindex="0"
-        @keydown="resizeKeyboard"
-        @lostpointercapture="resizeEnd"
-        @pointercancel="resizeEnd"
-        @pointerdown="resizeStart"
-        @pointermove="resizeMove"
-        @pointerup="resizeEnd"
-      >
-        <span
-          class="h-full w-px bg-default transition-colors group-hover:bg-primary group-focus-visible:bg-primary"
-        /><span
-          class="absolute flex h-10 w-3 items-center justify-center rounded-full border border-default bg-elevated text-muted group-hover:border-primary group-hover:text-primary"
-          ><UIcon class="size-3" name="i-lucide-grip-vertical"
-        /></span>
-      </div>
-      <section
-        :aria-label="t('scan.results')"
-        class="min-w-0 rounded-xl border border-default bg-elevated/20 min-[848px]:flex min-[848px]:min-h-0 min-[848px]:flex-col"
-      >
-        <header class="space-y-2 border-b border-default p-3">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold">
-              {{ t('scan.results') }}
-              <span class="font-normal text-muted">{{ n(scans.length) }}</span>
-            </h2>
-            <ArchiveScanButton size="sm" />
-          </div>
-          <div class="flex items-center gap-1">
-            <UButton
-              v-for="option in [
-                {
-                  value: 'unmatched' as const,
-                  label: t('scan.review'),
-                  count: scans.length - matchedScans,
-                },
-                { value: 'matched' as const, label: t('scan.matched'), count: matchedScans },
-                { value: 'all' as const, label: t('scan.all'), count: scans.length },
-              ]"
-              :key="option.value"
-              :color="scanFilter === option.value ? 'primary' : 'neutral'"
-              size="xs"
-              :variant="scanFilter === option.value ? 'subtle' : 'outline'"
-              @click="scanFilter = option.value"
-              >{{ option.label }} {{ n(option.count) }}</UButton
-            ><UTooltip :text="t('scan.clearResults')"
-              ><UButton
-                :aria-label="t('scan.clearResults')"
-                class="ml-auto"
-                color="neutral"
-                :disabled="isActive"
-                icon="i-lucide-trash-2"
-                :label="t('scan.clear')"
+          <header class="space-y-2 border-b border-default p-3">
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="text-lg font-semibold whitespace-nowrap">
+                {{ t('scan.allArchives') }}
+                <span class="font-normal text-muted">{{ n(archives.length) }}</span>
+              </h2>
+              <ArchiveExportButton
+                :collected="matchedArchives"
+                :total="archives.length"
+                :unmatched="scans.length - matchedScans"
+              />
+            </div>
+            <div class="flex items-center gap-1">
+              <UButton
+                v-for="option in [
+                  { value: 'all' as const, label: t('scan.all'), count: archives.length },
+                  {
+                    value: 'unmatched' as const,
+                    label: t('scan.noRecords'),
+                    count: archives.length - matchedArchives,
+                  },
+                  {
+                    value: 'matched' as const,
+                    label: t('scan.hasRecords'),
+                    count: matchedArchives,
+                  },
+                ]"
+                :key="option.value"
+                :color="archiveFilter === option.value ? 'primary' : 'neutral'"
                 size="xs"
-                variant="outline"
-                @click="clearScans"
-            /></UTooltip>
-          </div>
-          <div class="flex gap-2">
-            <UInput
-              v-model="scanSearch"
-              :aria-label="t('scan.searchResults')"
-              class="min-w-0 flex-1"
-              icon="i-lucide-search"
-              :placeholder="t('scan.searchTitle')"
-              size="sm"
-            /><USelect
-              v-model="scanCategory"
-              :aria-label="t('scan.scanCategory')"
-              class="w-28"
-              :items="categories"
-              size="sm"
+                :variant="archiveFilter === option.value ? 'subtle' : 'outline'"
+                @click="archiveFilter = option.value"
+                >{{ option.label }} {{ n(option.count) }}</UButton
+              >
+            </div>
+            <div class="flex gap-2">
+              <UInput
+                v-model="archiveSearch"
+                :aria-label="t('scan.searchArchive')"
+                class="min-w-0 flex-1"
+                icon="i-lucide-search"
+                :placeholder="t('scan.searchArchive')"
+                size="sm"
+              /><UPopover
+                ><UButton
+                  :aria-label="t('scan.filters')"
+                  :color="mapOnly || archiveCategory !== 'all' ? 'primary' : 'neutral'"
+                  icon="i-lucide-list-filter"
+                  size="sm"
+                  variant="outline" /><template #content
+                  ><div class="w-64 space-y-3 p-3">
+                    <USelect
+                      v-model="archiveCategory"
+                      :aria-label="t('scan.archiveCategory')"
+                      class="w-full"
+                      :items="categories"
+                    /><UCheckbox v-model="mapOnly" :label="t('scan.mapOnly')" /></div></template
+              ></UPopover>
+            </div>
+          </header>
+          <ArchiveVirtualList
+            v-if="visibleArchives.length"
+            ref="archiveList"
+            v-slot="{ item: archive }"
+            archive-rows
+            class="min-h-0 flex-1"
+            :items="visibleArchives"
+          >
+            <ArchiveEntryCard
+              :entry="archive"
+              :selected="selectedArchiveId === archive.id"
+              @clear-highlight="clearScanHighlight"
+              @locate-scan="locateScan"
             />
-          </div>
-        </header>
-        <ArchiveVirtualList
-          v-if="visibleScans.length"
-          ref="scanList"
-          v-slot="{ item }"
-          class="max-h-[65vh] min-h-0 flex-1 p-2 min-[848px]:max-h-none"
-          :items="visibleScans"
-        >
-          <ScannedItemCard
-            v-model:state="cardStates[item.scannedItemId]!"
-            :item="item"
-            :selected="selectedScanId === item.scannedItemId"
-            @choose="choose(item.scannedItemId, $event)"
-            @clear-highlight="clearArchiveHighlight"
-            @locate-archive="locateArchive"
-          />
-        </ArchiveVirtualList>
-        <div v-if="!visibleScans.length" class="flex-1 py-14 text-center">
-          <p class="text-sm text-muted">
-            {{
-              !scans.length
-                ? t('scan.startHint')
-                : scanFilter === 'unmatched' && matchedScans === scans.length
-                  ? t('scan.allMatched')
-                  : t('scan.noScans')
-            }}
+          </ArchiveVirtualList>
+          <p v-if="!visibleArchives.length" class="flex-1 py-14 text-center text-sm text-muted">
+            {{ t('scan.noArchives') }}
           </p>
-        </div>
-        <div class="shrink-0 border-t border-default px-3 py-1.5 text-[11px] text-muted">
-          {{ t('scan.scanCount', { visible: n(visibleScans.length), total: n(scans.length) }) }}
-        </div>
-      </section>
-    </div>
+          <div class="shrink-0 border-t border-default px-3 py-1.5 text-[11px] text-muted">
+            {{
+              t('scan.archiveCount', {
+                visible: n(visibleArchives.length),
+                total: n(archives.length),
+              })
+            }}
+          </div>
+        </section>
+      </template>
+      <template #resize-handle>
+        <span
+          class="flex items-center justify-center text-dimmed"
+          :class="sideBySide ? 'h-8 w-2' : 'h-2 w-8'"
+          :title="t('scan.resize')"
+          ><UIcon
+            class="size-4 shrink-0"
+            :name="sideBySide ? 'i-lucide-ellipsis-vertical' : 'i-lucide-ellipsis'"
+        /></span>
+      </template>
+      <template #scans>
+        <section
+          :aria-label="t('scan.results')"
+          class="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-default bg-elevated/20"
+        >
+          <header class="space-y-2 border-b border-default p-3">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold">
+                {{ t('scan.results') }}
+                <span class="font-normal text-muted">{{ n(scans.length) }}</span>
+              </h2>
+              <ArchiveScanButton size="sm" />
+            </div>
+            <div class="flex items-center gap-1">
+              <UButton
+                v-for="option in [
+                  {
+                    value: 'unmatched' as const,
+                    label: t('scan.review'),
+                    count: scans.length - matchedScans,
+                  },
+                  { value: 'matched' as const, label: t('scan.matched'), count: matchedScans },
+                  { value: 'all' as const, label: t('scan.all'), count: scans.length },
+                ]"
+                :key="option.value"
+                :color="scanFilter === option.value ? 'primary' : 'neutral'"
+                size="xs"
+                :variant="scanFilter === option.value ? 'subtle' : 'outline'"
+                @click="scanFilter = option.value"
+                >{{ option.label }} {{ n(option.count) }}</UButton
+              ><UTooltip :text="t('scan.clearResults')"
+                ><UButton
+                  :aria-label="t('scan.clearResults')"
+                  class="ml-auto"
+                  color="neutral"
+                  :disabled="isActive"
+                  icon="i-lucide-trash-2"
+                  :label="t('scan.clear')"
+                  size="xs"
+                  variant="outline"
+                  @click="clearScans"
+              /></UTooltip>
+            </div>
+            <div class="flex gap-2">
+              <UInput
+                v-model="scanSearch"
+                :aria-label="t('scan.searchResults')"
+                class="min-w-0 flex-1"
+                icon="i-lucide-search"
+                :placeholder="t('scan.searchTitle')"
+                size="sm"
+              /><USelect
+                v-model="scanCategory"
+                :aria-label="t('scan.scanCategory')"
+                class="w-28"
+                :items="categories"
+                size="sm"
+              />
+            </div>
+          </header>
+          <ArchiveVirtualList
+            v-if="visibleScans.length"
+            ref="scanList"
+            v-slot="{ item }"
+            class="min-h-0 flex-1 p-2"
+            :items="visibleScans"
+          >
+            <ScannedItemCard
+              v-model:state="cardStates[item.scannedItemId]!"
+              :item="item"
+              :selected="selectedScanId === item.scannedItemId"
+              @choose="choose(item.scannedItemId, $event)"
+              @clear-highlight="clearArchiveHighlight"
+              @locate-archive="locateArchive"
+            />
+          </ArchiveVirtualList>
+          <div v-if="!visibleScans.length" class="flex-1 py-14 text-center">
+            <p class="text-sm text-muted">
+              {{
+                !scans.length
+                  ? t('scan.startHint')
+                  : scanFilter === 'unmatched' && matchedScans === scans.length
+                    ? t('scan.allMatched')
+                    : t('scan.noScans')
+              }}
+            </p>
+          </div>
+          <div class="shrink-0 border-t border-default px-3 py-1.5 text-[11px] text-muted">
+            {{ t('scan.scanCount', { visible: n(visibleScans.length), total: n(scans.length) }) }}
+          </div>
+        </section>
+      </template>
+    </USplitter>
   </div>
 </template>
