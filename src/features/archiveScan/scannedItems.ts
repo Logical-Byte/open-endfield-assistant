@@ -8,6 +8,11 @@ import type { RunOutcome } from '@/features/automation/types';
 import type { ArchiveId } from '@/shared/types/archive';
 import { archiveCatalog } from '@/features/gameData/archiveCatalog';
 import { logInfo } from '@/features/log/ipc';
+import {
+  ArchiveMatchAction,
+  type ArchiveMatchChange,
+  type ArchiveMatchSnapshot,
+} from './types/archiveMatchChange';
 import { matchedArchiveId } from './matching';
 import { onScannedItem } from './ipc';
 import { normalizeBackendError, type ErrorFacts } from '@/shared/errors';
@@ -33,7 +38,7 @@ export function clearScannedItems(): void {
 /** 只在接收或编辑时记录，派生匹配和筛选不产生副作用。 */
 function logSingleRecommendation(
   item: Readonly<ScannedItemRecord>,
-  action: 'automatic' | 'manual' | 'undo',
+  action: ArchiveMatchAction,
   previous: Readonly<ScannedItemRecord> | null,
 ): void {
   if (item.matching.kind !== 'recommendations' || item.matching.archiveIds.length !== 1) return;
@@ -41,12 +46,7 @@ function logSingleRecommendation(
   const after = matchedArchiveId(item);
   if (previous && before === after) return;
 
-  function describeArchive(id: ArchiveId | null): {
-    id: ArchiveId;
-    gameLocale: ScannedItem['gameLocale'];
-    title: string | null;
-    contentPreview: string | null;
-  } | null {
+  function describeArchive(id: ArchiveId | null): ArchiveMatchSnapshot | null {
     if (id === null) return null;
     const archive = archiveCatalog.value?.archive(id);
     return {
@@ -56,12 +56,7 @@ function logSingleRecommendation(
       contentPreview: archive?.contentPreview?.[item.gameLocale] ?? null,
     };
   }
-  const actions = {
-    automatic: '系统自动采纳唯一推荐',
-    manual: after === null ? '用户清除匹配' : '用户选择档案',
-    undo: '用户撤销编辑',
-  };
-  const details = {
+  const details: ArchiveMatchChange = {
     scan: {
       scannedItemId: item.scannedItemId,
       gameLocale: item.gameLocale,
@@ -71,7 +66,7 @@ function logSingleRecommendation(
       bodyOcrResult: item.bodyOcrResult ?? null,
       matching: item.matching,
     },
-    action: actions[action],
+    action,
     before: describeArchive(before),
     after: describeArchive(after),
   };
@@ -94,7 +89,11 @@ export function chooseScannedItemArchive(
     return;
   const next: ScannedItemRecord = { ...item, manualChoice: { kind: 'manual', archiveId } };
   items.value[index] = next;
-  logSingleRecommendation(next, 'manual', item);
+  logSingleRecommendation(
+    next,
+    archiveId === null ? ArchiveMatchAction.ManualClear : ArchiveMatchAction.ManualSelect,
+    item,
+  );
 }
 
 /** 撤销一次已确认编辑，只恢复人工决定，保留扫描观察与自动结果。 */
@@ -106,7 +105,7 @@ export function restoreScannedItemChoice(previous: Readonly<ScannedItemRecord>):
   const item = items.value[index]!;
   const next: ScannedItemRecord = { ...item, manualChoice: previous.manualChoice };
   items.value[index] = next;
-  logSingleRecommendation(next, 'undo', item);
+  logSingleRecommendation(next, ArchiveMatchAction.Undo, item);
 }
 
 export async function initScannedItems(): Promise<void> {
@@ -142,6 +141,6 @@ export async function initScannedItems(): Promise<void> {
     };
     items.value.push(record);
     // 自动采纳前尚未建立前端匹配。
-    logSingleRecommendation(record, 'automatic', null);
+    logSingleRecommendation(record, ArchiveMatchAction.AutoAdopt, null);
   });
 }
