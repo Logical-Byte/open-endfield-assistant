@@ -1,6 +1,6 @@
 <template>
   <UCard
-    class="rounded-none border-b border-default bg-transparent ring-0"
+    class="min-w-0 rounded-xl border border-default ring-0"
     :ui="{
       header: 'flex min-h-14 items-center p-3 sm:px-3 [&>*]:w-full',
       body: 'p-3 sm:p-3',

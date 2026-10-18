@@ -10,11 +10,13 @@ defineProps<{ items: NavigationMenuItem[]; collapsed: boolean }>();
     <ul>
       <li v-for="item in items" :key="item.label">
         <SidebarItem
+          :active="item.active"
           :collapsed="collapsed"
           exact
           :icon="item.icon!"
           :label="item.label"
           :to="item.to"
+          @click="item.onSelect?.($event)"
         />
       </li>
     </ul>

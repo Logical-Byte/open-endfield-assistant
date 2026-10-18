@@ -114,7 +114,7 @@ function resetShape(): void {
 </script>
 
 <template>
-  <div>
+  <div class="space-y-2">
     <SettingsCard icon="i-lucide-palette" :title="t('settings.interface.appearance.section')">
       <template #actions>
         <UTooltip :text="t('settings.interface.appearance.reset')">

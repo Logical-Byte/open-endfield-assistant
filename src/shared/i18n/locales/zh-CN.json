@@ -182,6 +182,7 @@
     "updated": "正以 {{fps}} FPS 监控，最近更新于 {{time}}。"
   },
   "navigation": {
+    "back": "返回",
     "help": "帮助",
     "logs": "日志",
     "maps": "地图集",
@@ -193,9 +194,10 @@
     "scan": "档案扫描",
     "settings": "设置",
     "sidebar": {
-      "collapsed": "图标侧栏",
+      "pin": "固定侧栏",
       "resize": "调整侧栏宽度",
-      "resizeHint": "拖动调整宽度，继续向左拖动可收起，双击恢复默认宽度。也可使用左右方向键。",
+      "resizeHint": "拖动调整宽度，双击恢复默认宽度。也可使用左右方向键。",
+      "unpin": "取消固定侧栏",
       "width": "侧栏宽度 {{width}}px"
     },
     "yituliu": "一图流"
