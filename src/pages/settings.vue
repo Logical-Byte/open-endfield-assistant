@@ -234,9 +234,6 @@ onBeforeUnmount(stopResetScroll);
             />
           </div>
         </SettingsCard>
-        <h1 v-if="activeSectionId === 'interface'" class="text-2xl font-semibold text-highlighted">
-          {{ t('settings.interface.section') }}
-        </h1>
         <AppearanceSettings v-if="activeSectionId === 'interface'" />
         <SettingsCard
           v-if="activeSectionId === 'interface'"
