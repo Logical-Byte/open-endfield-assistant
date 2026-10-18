@@ -37,7 +37,9 @@ const skeletonClass: ComputedRef<string> = computed(
 </script>
 
 <template>
-  <div class="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
+  <div
+    class="flex flex-col items-stretch justify-between gap-4 @min-[640px]/settings:flex-row @min-[640px]/settings:items-center"
+  >
     <div class="flex min-w-0 flex-1 items-center gap-3">
       <slot name="left">
         <slot name="icon">

@@ -11,7 +11,9 @@ const colorMode = useColorMode();
 </script>
 
 <template>
-  <div class="flex max-w-full shrink-0 flex-wrap gap-2 sm:w-96 sm:justify-end">
+  <div
+    class="flex max-w-full shrink-0 flex-wrap gap-2 @min-[640px]/settings:w-96 @min-[640px]/settings:justify-end"
+  >
     <UTooltip
       v-for="color in items"
       :key="color.id"

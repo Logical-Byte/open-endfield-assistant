@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
+import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
+import WorkspaceSection from '@/components/layout/WorkspaceSection.vue';
 import { TranslationComponent } from 'i18next-vue';
 import type { AccordionItem } from '@nuxt/ui';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const { t } = useAppI18n();
 
@@ -67,26 +69,22 @@ function scrollToSection(id: string): void {
     isProgrammaticScroll = false;
   }, 700);
 }
-
-onMounted(() => {
-  // `UMain` 渲染为 <main>，是实际滚动容器。
-  document
-    .querySelector('main')
-    ?.addEventListener('scroll', updateActiveSection, { passive: true });
-});
-
-onBeforeUnmount(() => {
-  document.querySelector('main')?.removeEventListener('scroll', updateActiveSection);
-});
 </script>
 
 <template>
-  <UContainer class="min-h-[calc(100lvh-var(--ui-header-height)-var(--ui-title-height))]">
-    <UPage>
+  <WorkspaceCard body-class="p-0!" @scroll.capture="updateActiveSection">
+    <UPage
+      :ui="{
+        root: 'grid min-h-full grid-cols-[144px_minmax(0,1fr)] gap-0 lg:grid-cols-[144px_minmax(0,1fr)] lg:gap-0',
+        left: 'col-span-1 border-r border-default lg:col-span-1',
+        center: 'col-span-1 min-w-0 lg:col-span-1',
+      }"
+    >
       <template #left>
         <UPageAside
           :ui="{
-            root: 'lg:sticky lg:top-0 lg:max-h-[calc(100lvh-var(--ui-header-height)-var(--ui-title-height))] lg:self-start lg:overflow-y-auto',
+            root: 'sticky top-0 m-0 block max-h-[calc(100dvh-var(--ui-title-height)-2rem)] self-start overflow-y-auto p-0 lg:top-0 lg:ms-0 lg:max-h-[calc(100dvh-var(--ui-title-height)-2rem)] lg:ps-0 lg:pe-0',
+            container: 'p-3',
           }"
         >
           <nav class="flex flex-col gap-1">
@@ -97,7 +95,7 @@ onBeforeUnmount(() => {
               :color="activeSectionId === section.id ? 'primary' : 'neutral'"
               :icon="section.icon"
               :label="section.title"
-              :ui="{ label: 'overflow-visible text-start text-clip whitespace-normal' }"
+              :ui="{ label: 'overflow-visible text-start text-clip whitespace-nowrap' }"
               :variant="activeSectionId === section.id ? 'soft' : 'ghost'"
               @click="scrollToSection(section.id)"
             />
@@ -105,9 +103,9 @@ onBeforeUnmount(() => {
         </UPageAside>
       </template>
 
-      <UPageBody class="space-y-8">
+      <UPageBody class="my-0! space-y-0 [&>:last-child]:border-b-0">
         <!-- 新手提示 -->
-        <UCard id="getting-started" class="scroll-mt-8">
+        <WorkspaceSection id="getting-started" class="scroll-mt-8">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-rocket" />
@@ -169,10 +167,10 @@ onBeforeUnmount(() => {
               >
             </li>
           </ol>
-        </UCard>
+        </WorkspaceSection>
 
         <!-- 操作说明 -->
-        <UCard id="usage" class="scroll-mt-8">
+        <WorkspaceSection id="usage" class="scroll-mt-8">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-keyboard" />
@@ -236,10 +234,10 @@ onBeforeUnmount(() => {
               </ul>
             </div>
           </div>
-        </UCard>
+        </WorkspaceSection>
 
         <!-- 常见问题 -->
-        <UCard id="faq" class="scroll-mt-8">
+        <WorkspaceSection id="faq" class="scroll-mt-8">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-circle-help" />
@@ -289,10 +287,10 @@ onBeforeUnmount(() => {
               </div></template
             >
           </UAccordion>
-        </UCard>
+        </WorkspaceSection>
 
         <!-- 反馈交流 -->
-        <UCard id="feedback" class="scroll-mt-8">
+        <WorkspaceSection id="feedback" class="scroll-mt-8">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-message-circle" />
@@ -323,10 +321,10 @@ onBeforeUnmount(() => {
               >
             </p>
           </div>
-        </UCard>
+        </WorkspaceSection>
 
         <!-- 致谢 -->
-        <UCard id="credits" class="scroll-mt-8">
+        <WorkspaceSection id="credits" class="scroll-mt-8">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-heart" />
@@ -425,10 +423,10 @@ onBeforeUnmount(() => {
               variant="link"
             />
           </div>
-        </UCard>
+        </WorkspaceSection>
 
         <!-- 说明 -->
-        <UCard id="disclaimer" class="scroll-mt-8">
+        <WorkspaceSection id="disclaimer" class="scroll-mt-8">
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-file-text" />
@@ -443,10 +441,9 @@ onBeforeUnmount(() => {
             <li>{{ t('help.disclaimer.risk') }}</li>
             <li>{{ t('help.disclaimer.acceptance') }}</li>
           </ol>
-        </UCard>
+        </WorkspaceSection>
       </UPageBody>
     </UPage>
-  </UContainer>
-
-  <AppFooter />
+    <AppFooter />
+  </WorkspaceCard>
 </template>
