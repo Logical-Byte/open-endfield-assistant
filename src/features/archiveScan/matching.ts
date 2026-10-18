@@ -3,10 +3,11 @@ import type { ScannedItemRecord } from './types/scannedItem';
 
 type ScanEvidence = Pick<ScannedItemRecord, 'matching' | 'manualChoice'>;
 
-/** 人工决定优先，推荐候选永远不直接成为匹配。 */
+/** 人工决定优先，否则采用精确匹配或唯一推荐，保留原始建议。 */
 export function matchedArchiveId(scan: ScanEvidence): ArchiveId | null {
   if (scan.manualChoice.kind === 'manual') return scan.manualChoice.archiveId;
-  return scan.matching.kind === 'exact' ? scan.matching.archiveId : null;
+  if (scan.matching.kind === 'exact') return scan.matching.archiveId;
+  return scan.matching.archiveIds.length === 1 ? scan.matching.archiveIds[0]! : null;
 }
 
 export interface ArchiveMatching<T extends ScanEvidence> {
