@@ -82,7 +82,13 @@ function logArchiveMatchChange(
 ): void {
   const message = serializeArchiveMatchChange(item, action, previous);
   if (message === null) return;
-  void logInfo(message).catch((error: unknown) => {
+  const descriptions: Record<ArchiveMatchAction, string> = {
+    [ArchiveMatchAction.AutoAdopt]: '系统自动采纳了唯一推荐。',
+    [ArchiveMatchAction.ManualSelect]: '用户改选了匹配档案。',
+    [ArchiveMatchAction.ManualClear]: '用户清除了档案匹配。',
+    [ArchiveMatchAction.Undo]: '用户撤销了匹配编辑。',
+  };
+  void logInfo(`${descriptions[action]} ${message}`).catch((error: unknown) => {
     console.warn('写入档案匹配变更日志失败', error);
   });
 }
