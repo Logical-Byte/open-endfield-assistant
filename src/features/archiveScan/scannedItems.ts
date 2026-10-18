@@ -35,16 +35,17 @@ export function clearScannedItems(): void {
   items.value = [];
 }
 
-/** 只在接收或编辑时记录，派生匹配和筛选不产生副作用。 */
-function logSingleRecommendation(
+/** 序列化唯一推荐及其后续匹配变更，无需记录时返回 null。 */
+function serializeArchiveMatchChange(
   item: Readonly<ScannedItemRecord>,
   action: ArchiveMatchAction,
   previous: Readonly<ScannedItemRecord> | null,
-): void {
-  if (item.matching.kind !== 'recommendations' || item.matching.archiveIds.length !== 1) return;
+): string | null {
+  if (item.matching.kind !== 'recommendations' || item.matching.archiveIds.length !== 1)
+    return null;
   const before = previous ? matchedArchiveId(previous) : null;
   const after = matchedArchiveId(item);
-  if (previous && before === after) return;
+  if (previous && before === after) return null;
 
   function describeArchive(id: ArchiveId | null): ArchiveMatchSnapshot | null {
     if (id === null) return null;
@@ -70,8 +71,19 @@ function logSingleRecommendation(
     before: describeArchive(before),
     after: describeArchive(after),
   };
-  void logInfo(JSON.stringify(details)).catch((error: unknown) => {
-    console.warn('写入单个推荐采纳日志失败', error);
+  return JSON.stringify(details);
+}
+
+/** 只在接收或编辑时发送日志，派生匹配和筛选不产生副作用。 */
+function logArchiveMatchChange(
+  item: Readonly<ScannedItemRecord>,
+  action: ArchiveMatchAction,
+  previous: Readonly<ScannedItemRecord> | null,
+): void {
+  const message = serializeArchiveMatchChange(item, action, previous);
+  if (message === null) return;
+  void logInfo(message).catch((error: unknown) => {
+    console.warn('写入档案匹配变更日志失败', error);
   });
 }
 
@@ -89,7 +101,7 @@ export function chooseScannedItemArchive(
     return;
   const next: ScannedItemRecord = { ...item, manualChoice: { kind: 'manual', archiveId } };
   items.value[index] = next;
-  logSingleRecommendation(
+  logArchiveMatchChange(
     next,
     archiveId === null ? ArchiveMatchAction.ManualClear : ArchiveMatchAction.ManualSelect,
     item,
@@ -105,7 +117,7 @@ export function restoreScannedItemChoice(previous: Readonly<ScannedItemRecord>):
   const item = items.value[index]!;
   const next: ScannedItemRecord = { ...item, manualChoice: previous.manualChoice };
   items.value[index] = next;
-  logSingleRecommendation(next, ArchiveMatchAction.Undo, item);
+  logArchiveMatchChange(next, ArchiveMatchAction.Undo, item);
 }
 
 export async function initScannedItems(): Promise<void> {
@@ -141,6 +153,6 @@ export async function initScannedItems(): Promise<void> {
     };
     items.value.push(record);
     // 自动采纳前尚未建立前端匹配。
-    logSingleRecommendation(record, ArchiveMatchAction.AutoAdopt, null);
+    logArchiveMatchChange(record, ArchiveMatchAction.AutoAdopt, null);
   });
 }
