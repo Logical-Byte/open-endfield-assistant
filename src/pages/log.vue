@@ -4,6 +4,7 @@ import { useScrollToBottom } from '@/composables/useScrollToBottom';
 import { clearLogs, filteredLogLines, levelOptions, logLevelFilter } from '@/features/log/log';
 import { openLogDir } from '@/features/log/ipc';
 import { useTemplateRef } from 'vue';
+import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
 
 const { t, d } = useAppI18n();
 
@@ -19,39 +20,39 @@ useScrollToBottom(logContainerRef, filteredLogLines);
 </script>
 
 <template>
-  <UContainer class="flex h-full flex-col gap-4 py-4">
-    <div class="flex flex-wrap gap-2">
-      <UButton
-        class="mr-auto"
-        icon="i-lucide-folder-open"
-        :label="t('log.openDirectory')"
-        @click="openLogDir"
-      />
-      <USelect
-        v-model="logLevelFilter"
-        :aria-label="t('log.levelFilter')"
-        class="w-32"
-        :items="levelOptions"
-      />
-      <UButton
-        color="error"
-        icon="i-lucide-trash-2"
-        :label="t('log.clear')"
-        variant="outline"
-        @click="clearLogs"
-      />
-    </div>
-
-    <UCard class="min-h-0 flex-1" :ui="{ body: 'h-full p-0!' }">
-      <div ref="logContainerRef" class="h-full scrollbar-gutter-stable overflow-y-scroll px-6 py-4">
-        <p v-if="filteredLogLines.length === 0" class="font-mono text-muted">
-          {{ t('log.empty') }}
-        </p>
-        <pre
-          v-for="({ time, level, message }, index) in filteredLogLines"
-          :key="index"
-          class="font-mono leading-normal"
-        ><span class="text-dimmed">{{ formatTime(time) }}</span> <span
+  <WorkspaceCard body-class="p-0!" class="h-full">
+    <template #header>
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          class="mr-auto"
+          icon="i-lucide-folder-open"
+          :label="t('log.openDirectory')"
+          @click="openLogDir"
+        />
+        <USelect
+          v-model="logLevelFilter"
+          :aria-label="t('log.levelFilter')"
+          class="w-32"
+          :items="levelOptions"
+        />
+        <UButton
+          color="error"
+          icon="i-lucide-trash-2"
+          :label="t('log.clear')"
+          variant="outline"
+          @click="clearLogs"
+        />
+      </div>
+    </template>
+    <div ref="logContainerRef" class="h-full scrollbar-gutter-stable overflow-y-scroll p-3">
+      <p v-if="filteredLogLines.length === 0" class="font-mono text-muted">
+        {{ t('log.empty') }}
+      </p>
+      <pre
+        v-for="({ time, level, message }, index) in filteredLogLines"
+        :key="index"
+        class="font-mono leading-normal"
+      ><span class="text-dimmed">{{ formatTime(time) }}</span> <span
             :class="{
               'text-dimmed': level === 'TRACE' || level === 'DEBUG',
               'text-info': level === 'INFO',
@@ -60,7 +61,6 @@ useScrollToBottom(logContainerRef, filteredLogLines);
             }"
             >{{ level }}</span
           > <span class="whitespace-pre-wrap wrap-break-word">{{ message }}</span></pre>
-      </div>
-    </UCard>
-  </UContainer>
+    </div>
+  </WorkspaceCard>
 </template>

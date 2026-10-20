@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
 import type { ScreenshotFormat } from '@/features/monitor/types/screenshot';
 import { screenshot } from '@/features/monitor/ipc';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -119,40 +120,42 @@ onBeforeUnmount(stopMonitor);
 </script>
 
 <template>
-  <UContainer class="flex h-full flex-col gap-4 py-4">
-    <div class="flex flex-wrap items-center gap-2">
-      <USelect
-        v-model="fps"
-        :aria-label="t('monitor.frameRate')"
-        class="w-32"
-        :items="fpsOptions"
-      />
-      <USelect
-        v-model="format"
-        :aria-label="t('monitor.format')"
-        class="w-28"
-        :items="formatOptions"
-      />
+  <WorkspaceCard body-class="flex flex-col gap-3 p-3" class="h-full">
+    <template #header>
+      <div class="flex flex-wrap items-center gap-2">
+        <USelect
+          v-model="fps"
+          :aria-label="t('monitor.frameRate')"
+          class="w-32"
+          :items="fpsOptions"
+        />
+        <USelect
+          v-model="format"
+          :aria-label="t('monitor.format')"
+          class="w-28"
+          :items="formatOptions"
+        />
 
-      <UButton
-        v-if="!running"
-        color="success"
-        icon="i-lucide-play"
-        :label="t('monitor.start')"
-        @click="startMonitor"
-      />
-      <UButton
-        v-else
-        color="error"
-        icon="i-lucide-square"
-        :label="t('monitor.stop')"
-        @click="stopMonitor"
-      />
+        <UButton
+          v-if="!running"
+          color="success"
+          icon="i-lucide-play"
+          :label="t('monitor.start')"
+          @click="startMonitor"
+        />
+        <UButton
+          v-else
+          color="error"
+          icon="i-lucide-square"
+          :label="t('monitor.stop')"
+          @click="stopMonitor"
+        />
 
-      <span v-if="running" class="text-sm text-muted">
-        {{ monitoringSummary }}
-      </span>
-    </div>
+        <span v-if="running" class="text-sm text-muted">
+          {{ monitoringSummary }}
+        </span>
+      </div>
+    </template>
 
     <UAlert
       v-if="errorSummary"
@@ -165,16 +168,14 @@ onBeforeUnmount(stopMonitor);
       variant="subtle"
     />
 
-    <UCard class="min-h-0 flex-1" :ui="{ body: 'h-full p-0!' }">
-      <div class="flex h-full items-center justify-center">
-        <img
-          v-if="imageUrl"
-          :alt="t('monitor.imageAlt')"
-          class="max-h-full max-w-full object-contain"
-          :src="imageUrl"
-        />
-        <p v-else class="text-muted">{{ t('monitor.empty') }}</p>
-      </div>
-    </UCard>
-  </UContainer>
+    <div class="flex min-h-0 flex-1 items-center justify-center">
+      <img
+        v-if="imageUrl"
+        :alt="t('monitor.imageAlt')"
+        class="max-h-full max-w-full object-contain"
+        :src="imageUrl"
+      />
+      <p v-else class="text-muted">{{ t('monitor.empty') }}</p>
+    </div>
+  </WorkspaceCard>
 </template>

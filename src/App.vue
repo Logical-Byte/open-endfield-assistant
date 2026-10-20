@@ -107,15 +107,23 @@ void initApp();
     <UApp :locale="componentLocale" :toaster="{ position: 'bottom-right', max: 8, expand: true }">
       <div class="flex h-full flex-col">
         <TitleBar />
-        <AppHeader class="static z-auto backdrop-blur-none" />
-
-        <UMain class="min-h-0 flex-1 overflow-y-auto">
-          <RouterView />
-        </UMain>
+        <!-- 侧栏只为固定宽度或图标栏占位，统一保留 12px 工作区间距。 -->
+        <UDashboardGroup
+          class="relative! inset-auto! grid min-h-0 flex-1 grid-cols-[auto_minmax(0,1fr)] gap-x-3 p-2"
+          :persistent="false"
+          unit="px"
+        >
+          <AppSidebar />
+          <!-- 文档页保留初始 8px 留白，滚动视口延伸到上下边缘，卡片经过时不会被留白裁切。 -->
+          <main
+            class="min-h-0 min-w-0 overflow-y-auto"
+            :class="(route.path === '/help' || route.path === '/settings') && '-my-2 py-2'"
+          >
+            <RouterView />
+          </main>
+        </UDashboardGroup>
 
         <InstallUpdateModal />
-
-        <!-- <AppFooter /> -->
 
         <AppImagePreview />
       </div>

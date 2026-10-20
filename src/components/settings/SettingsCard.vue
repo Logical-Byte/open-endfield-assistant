@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WorkspaceSection from '@/components/layout/WorkspaceSection.vue';
 const { icon = undefined, title = undefined } = defineProps<{
   icon?: string;
   title?: string;
@@ -6,7 +7,7 @@ const { icon = undefined, title = undefined } = defineProps<{
 </script>
 
 <template>
-  <UCard class="rounded-xl">
+  <WorkspaceSection class="@container/settings">
     <template #header>
       <slot name="header">
         <div class="flex items-center justify-between gap-4">
@@ -29,5 +30,5 @@ const { icon = undefined, title = undefined } = defineProps<{
         <slot />
       </div>
     </slot>
-  </UCard>
+  </WorkspaceSection>
 </template>
