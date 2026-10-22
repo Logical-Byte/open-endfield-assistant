@@ -267,6 +267,7 @@ const settingsItems = computed<NavigationMenuItem[]>(() => [
                 <SidebarItem
                   :collapsed="collapsed"
                   :icon="colorMode === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun'"
+                  icon-only
                   :tooltip="t('theme.toggleMode')"
                   @click="toggleColorMode"
                 />
@@ -274,6 +275,7 @@ const settingsItems = computed<NavigationMenuItem[]>(() => [
                   :active="false"
                   :collapsed="collapsed"
                   icon="i-lucide-languages"
+                  icon-only
                   to="/settings#language"
                   :tooltip="t('settings.language.shortcut')"
                 />

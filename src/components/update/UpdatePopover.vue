@@ -117,6 +117,7 @@ function formatSpeed(bytesPerSecond: number): string {
       :active="updatePopoverOpen"
       :collapsed="collapsed"
       icon="i-lucide-cloud-download"
+      icon-only
       :loading="updateCheckState.status === 'checking'"
       :tooltip="statusText"
     >
