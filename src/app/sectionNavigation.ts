@@ -2,6 +2,7 @@ import { ref, shallowRef } from 'vue';
 
 /** 页面与应用侧栏共享分类定义，标题在使用处翻译以响应语言切换。 */
 export const settingsSections = [
+  // 语言设置必须保持第一栏，与设置页的默认分类一致，作为侧栏设置入口的语言切换路径。
   { id: 'language', icon: 'i-lucide-languages', titleKey: 'settings.language.section' },
   { id: 'interface', icon: 'i-lucide-layout-panel-left', titleKey: 'settings.interface.section' },
   { id: 'sound', icon: 'i-lucide-headphones', titleKey: 'settings.sound.section' },

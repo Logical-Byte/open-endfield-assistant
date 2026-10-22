@@ -141,10 +141,6 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
   { label: t('navigation.scan'), icon: 'i-lucide-scan-line', to: '/', exact: true },
   { label: t('navigation.logs'), icon: 'i-lucide-scroll-text', to: '/log' },
   { label: t('navigation.monitor'), icon: 'i-lucide-monitor-play', to: '/monitor' },
-  { label: t('navigation.help'), icon: 'i-lucide-circle-help', to: '/help' },
-]);
-const settingsItems = computed<NavigationMenuItem[]>(() => [
-  { label: t('navigation.settings'), icon: 'i-lucide-settings', to: '/settings' },
 ]);
 </script>
 
@@ -261,26 +257,33 @@ const settingsItems = computed<NavigationMenuItem[]>(() => [
               :collapsed="collapsed"
               :items="sectionPage ? sectionItems : navigationItems"
             />
-            <div v-if="!sectionPage" class="mt-auto flex shrink-0 flex-col items-start pb-2">
-              <div class="w-full px-2">
+            <div v-if="!sectionPage" class="mt-auto shrink-0 px-2 pb-2">
+              <div v-show="!collapsed">
                 <UpdatePopover v-if="updateCapabilities.onlineUpdate" :collapsed="collapsed" />
-                <SidebarItem
-                  :collapsed="collapsed"
-                  :icon="colorMode === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun'"
-                  icon-only
-                  :tooltip="t('theme.toggleMode')"
-                  @click="toggleColorMode"
-                />
-                <SidebarItem
-                  :active="false"
-                  :collapsed="collapsed"
-                  icon="i-lucide-languages"
-                  icon-only
-                  to="/settings#language"
-                  :tooltip="t('settings.language.shortcut')"
-                />
               </div>
-              <SidebarNavigation :collapsed="collapsed" :items="settingsItems" />
+              <!-- 固定工具栏宽度，侧栏动画期间按钮也保持原位。 -->
+              <div class="flex w-30">
+                <SidebarItem
+                  icon="i-lucide-settings"
+                  icon-only
+                  to="/settings"
+                  :tooltip="t('navigation.settings')"
+                />
+                <div class="flex shrink-0" :class="collapsed && 'invisible'">
+                  <SidebarItem
+                    icon="i-lucide-circle-help"
+                    icon-only
+                    to="/help"
+                    :tooltip="t('navigation.help')"
+                  />
+                  <SidebarItem
+                    :icon="colorMode === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun'"
+                    icon-only
+                    :tooltip="t('theme.toggleMode')"
+                    @click="toggleColorMode"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </Transition>

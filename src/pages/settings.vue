@@ -88,7 +88,11 @@ const applicationLanguageItem: ChoiceButtonsSettingsItem = isTauri()
       },
     };
 
-/** URL 是当前分类的事实来源，支持直接链接与浏览器前进、后退。 */
+/**
+ * URL 是当前分类的事实来源，支持直接链接与浏览器前进、后退。
+ * 交互约定：语言设置必须保持为第一栏和默认分类，让用户从侧栏的设置入口直接找到语言切换。
+ * 调整分类顺序时须同步维护 settingsSections，因此侧栏无需单独提供语言快捷按钮。
+ */
 const activeSectionId = computed<string>((): string => {
   const id = route.hash.slice(1);
   return settingsSections.some((section): boolean => section.id === id) ? id : 'language';
@@ -108,7 +112,7 @@ function resetScroll(): void {
 }
 
 onMounted(resetScroll);
-// 包含重复访问同一分类的导航，例如再次点击页头的语言设置入口。
+// 包含重复访问同一分类的导航。
 const stopResetScroll = router.afterEach((to: RouteLocationNormalized) => {
   if (to.path === '/settings') void nextTick(resetScroll);
 });
