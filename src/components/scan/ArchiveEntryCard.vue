@@ -4,21 +4,12 @@ import { useEvidencePopover } from './useEvidencePopover';
 import type { ArchiveEntryView } from '@/features/archiveScan/resultView';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
 import ArchiveLabel from './ArchiveLabel.vue';
+import ArchiveAcquisitionLink from './ArchiveAcquisitionLink.vue';
 defineProps<{ entry: ArchiveEntryView; selected?: boolean }>();
-function iconStroke(svg: string): string {
-  return svg.replace(/stroke-width="2"/g, 'stroke-width="1.5"');
-}
 const { t } = useAppI18n();
 
 const emit = defineEmits<{ locateScan: [id: ScannedItemId]; clearHighlight: [] }>();
 const { open, cancelClose, scheduleClose } = useEvidencePopover((): void => emit('clearHighlight'));
-const acquisitionIcons: Record<string, string> = {
-  map: 'i-lucide-map-pin',
-  mission: 'i-lucide-flag',
-  auto: 'i-lucide-unlock',
-  shop: 'i-lucide-shopping-bag',
-  invstgt: 'i-lucide-file-search',
-};
 </script>
 <template>
   <article
@@ -107,32 +98,13 @@ const acquisitionIcons: Record<string, string> = {
     <div
       class="group-data-[compact=true]/archive:col-start-3 group-data-[compact=true]/archive:row-start-2"
     >
-      <UTooltip v-if="entry.acquisitionMethod" :text="t('scan.viewOem')">
-        <UButton
-          :aria-label="
-            entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
-          "
-          class="w-full justify-center group-data-[compact=true]/archive:h-6 group-data-[compact=true]/archive:py-0"
-          color="neutral"
-          size="xs"
-          target="_blank"
-          :to="entry.acquisitionMethod === 'map' ? entry.oemUrl : entry.intelUrl"
-          variant="outline"
-        >
-          <span class="inline-flex items-center justify-center gap-1.5 text-sm font-normal">
-            <span>{{
-              entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
-            }}</span>
-            <UIcon
-              class="shrink-0"
-              :customize="iconStroke"
-              mode="svg"
-              :name="acquisitionIcons[entry.acquisitionMethod]"
-              :size="18"
-            />
-          </span>
-        </UButton>
-      </UTooltip>
+      <ArchiveAcquisitionLink
+        v-if="entry.acquisitionMethod"
+        :label="
+          entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
+        "
+        :url="entry.acquisitionMethod === 'map' ? entry.oemUrl : entry.intelUrl"
+      />
       <span v-else class="flex h-7 items-center justify-center text-xs text-muted">{{
         t('scan.unknownAcquisition')
       }}</span>
