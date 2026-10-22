@@ -243,6 +243,7 @@
     "exportWarning_other": "{{count}} scans have no matching archive yet. Reviewing them may reduce the uncollected count and improve the export.",
     "failed": "Scan failed",
     "filters": "Catalog filters",
+    "goToOem": "Go to OEM",
     "gotIt": "Got it",
     "guide": {
       "archive": "Open the {archive} in Endfield.",

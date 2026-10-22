@@ -241,6 +241,7 @@
     "exportWarning_other": "有 {{count}} 条扫描结果尚未匹配到已知档案。继续核对可能减少“未收集”的数量，让导出结果更准确。",
     "failed": "扫描失败",
     "filters": "目录筛选",
+    "goToOem": "前往 OEM",
     "gotIt": "我知道了",
     "guide": {
       "archive": "终末地打开{archive}",
