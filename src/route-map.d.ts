@@ -38,6 +38,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/button-prototype': RouteRecordInfo<
+      '/button-prototype',
+      '/button-prototype',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/help': RouteRecordInfo<
       '/help',
       '/help',
@@ -82,6 +89,14 @@ declare module 'vue-router/auto-routes' {
     'src/pages/index.vue': {
       routes:
         | '/'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/button-prototype.vue': {
+      routes:
+        | '/button-prototype'
       views:
         | never
       pathParamNames:

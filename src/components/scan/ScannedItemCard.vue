@@ -153,13 +153,21 @@ const cropImageStyle: CSSProperties = {
           <UButton
             color="neutral"
             :disabled="!state.editing"
-            variant="outline"
+            icon="i-lucide-x"
+            size="xs"
+            :variant="state.editing ? 'solid' : 'outline'"
             @click="cancelEdit"
             >{{ t('scan.cancelEdit') }}</UButton
           >
-          <UButton :disabled="!changed" icon="i-lucide-check" type="submit">{{
-            t('scan.confirmEdit')
-          }}</UButton>
+          <UButton
+            :color="changed ? 'primary' : 'neutral'"
+            :disabled="!changed"
+            icon="i-lucide-check"
+            size="xs"
+            type="submit"
+            :variant="changed ? 'solid' : 'outline'"
+            >{{ t('scan.confirmEdit') }}</UButton
+          >
         </div>
       </form>
       <div v-else class="space-y-3 border-t border-default pt-3">
@@ -193,7 +201,6 @@ const cropImageStyle: CSSProperties = {
             >
               <UButton
                 :aria-expanded="floatingMatchesOpen"
-                class="h-7 w-32 justify-center"
                 color="neutral"
                 icon="i-lucide-link"
                 :label="t('scan.matches', { count: 1 })"

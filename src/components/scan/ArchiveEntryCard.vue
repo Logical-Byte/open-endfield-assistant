@@ -5,9 +5,6 @@ import type { ArchiveEntryView } from '@/features/archiveScan/resultView';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
 import ArchiveLabel from './ArchiveLabel.vue';
 defineProps<{ entry: ArchiveEntryView; selected?: boolean }>();
-function iconStroke(svg: string): string {
-  return svg.replace(/stroke-width="2"/g, 'stroke-width="1.5"');
-}
 const { t } = useAppI18n();
 
 const emit = defineEmits<{ locateScan: [id: ScannedItemId]; clearHighlight: [] }>();
@@ -51,7 +48,6 @@ const acquisitionIcons: Record<string, string> = {
       >
         <UButton
           :aria-expanded="open"
-          class="w-full justify-center group-data-[compact=true]/archive:h-6 group-data-[compact=true]/archive:py-0"
           color="success"
           :label="t('scan.matches', { count: entry.scans.length })"
           size="xs"
@@ -112,26 +108,17 @@ const acquisitionIcons: Record<string, string> = {
           :aria-label="
             entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
           "
-          class="w-full justify-center group-data-[compact=true]/archive:h-6 group-data-[compact=true]/archive:py-0"
+          class="justify-center"
           color="neutral"
+          :label="
+            entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
+          "
           size="xs"
           target="_blank"
           :to="entry.acquisitionMethod === 'map' ? entry.oemUrl : entry.intelUrl"
+          :trailing-icon="acquisitionIcons[entry.acquisitionMethod]"
           variant="outline"
-        >
-          <span class="inline-flex items-center justify-center gap-1.5 text-sm font-normal">
-            <span>{{
-              entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
-            }}</span>
-            <UIcon
-              class="shrink-0"
-              :customize="iconStroke"
-              mode="svg"
-              :name="acquisitionIcons[entry.acquisitionMethod]"
-              :size="18"
-            />
-          </span>
-        </UButton>
+        />
       </UTooltip>
       <span v-else class="flex h-7 items-center justify-center text-xs text-muted">{{
         t('scan.unknownAcquisition')

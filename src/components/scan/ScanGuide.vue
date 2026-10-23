@@ -109,7 +109,7 @@ function dismissScanGuide(): void {
 
     <div class="flex flex-col items-center gap-4">
       <UCheckbox v-model="dismissGuide" :label="t('scan.hideGuide')" />
-      <UButton :label="t('scan.gotIt')" size="lg" @click="dismissScanGuide" />
+      <UButton :label="t('scan.gotIt')" size="sm" @click="dismissScanGuide" />
     </div>
   </div>
 </template>

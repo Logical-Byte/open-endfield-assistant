@@ -213,6 +213,7 @@ watch(scans, (): void => {
               </h2>
               <ArchiveExportButton
                 :collected="matchedArchives"
+                :disabled="!!source"
                 :total="archives.length"
                 :unmatched="scans.length - matchedScans"
               />
@@ -247,13 +248,13 @@ watch(scans, (): void => {
                 class="min-w-0 flex-1"
                 icon="i-lucide-search"
                 :placeholder="t('scan.searchArchive')"
-                size="sm"
+                size="xs"
               /><UPopover
                 ><UButton
                   :aria-label="t('scan.filters')"
                   :color="mapOnly || archiveCategory !== 'all' ? 'primary' : 'neutral'"
                   icon="i-lucide-list-filter"
-                  size="sm"
+                  size="xs"
                   variant="outline" /><template #content
                   ><div class="w-64 space-y-3 p-3">
                     <USelect
@@ -314,7 +315,7 @@ watch(scans, (): void => {
                 {{ t('scan.results') }}
                 <span class="font-normal text-muted">{{ n(scans.length) }}</span>
               </h2>
-              <ArchiveScanButton size="sm" />
+              <ArchiveScanButton :disabled="!!source" size="sm" />
             </div>
             <div class="flex items-center gap-1">
               <UButton
@@ -353,13 +354,13 @@ watch(scans, (): void => {
                 class="min-w-0 flex-1"
                 icon="i-lucide-search"
                 :placeholder="t('scan.searchTitle')"
-                size="sm"
+                size="xs"
               /><USelect
                 v-model="scanCategory"
                 :aria-label="t('scan.scanCategory')"
                 class="w-28"
                 :items="categories"
-                size="sm"
+                size="xs"
               />
             </div>
           </header>
