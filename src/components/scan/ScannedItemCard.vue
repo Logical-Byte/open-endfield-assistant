@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
-import { computed, ref } from 'vue';
+import { computed, ref, type CSSProperties } from 'vue';
 import { useEvidencePopover } from './useEvidencePopover';
 import type { ScanCardState } from './scanCardState';
 import type { ScannedItemView } from '@/features/archiveScan/resultView';
 import type { ArchiveId } from '@/shared/types/archive';
 import { openImagePreview } from '@/composables/image-preview';
-import type { CSSProperties } from 'vue';
 import ArchiveLabel from './ArchiveLabel.vue';
 import ArchiveAssignmentPicker from './ArchiveAssignmentPicker.vue';
 const { t } = useAppI18n();
@@ -71,38 +70,43 @@ const cropImageStyle: CSSProperties = {
 };
 </script>
 <template>
-  <article
-    class="scan-card overflow-hidden rounded-lg border border-default bg-default"
+  <UCard
+    as="form"
+    class="scan-card"
     :class="selected && !state.editing && 'ring-2 ring-primary'"
+    :ui="{
+      header: 'p-0 sm:px-0',
+      body: expanded ? 'p-4 sm:p-4' : 'hidden',
+      footer: expanded ? 'p-2 sm:px-2' : 'hidden',
+    }"
+    @submit.prevent="submit"
   >
-    <UButton
-      :aria-controls="`scan-body-${item.scannedItemId}`"
-      :aria-expanded="expanded"
-      class="w-full justify-start rounded-none py-2 ring-0"
-      :class="[
-        state.editing && 'bg-primary/25 hover:bg-primary/30',
-        expanded && 'border-b border-default',
-      ]"
-      :color="state.editing ? 'primary' : 'neutral'"
-      :icon="item.archive ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'"
-      :ui="{ leadingIcon: item.archive ? 'text-success' : 'text-warning' }"
-      :variant="state.editing ? 'soft' : 'subtle'"
-      @click="state = { ...state, expanded: !expanded }"
-    >
-      <span class="shrink-0 text-xs text-muted">#{{ item.scannedItemId }}</span>
-      <span class="truncate">{{ currentTitle || t('scan.ocrEmpty') }}</span>
-      <span
-        v-if="state.editing"
-        class="ml-auto shrink-0 text-xs font-semibold text-primary"
-        role="status"
-        >{{ t('scan.editing') }}</span
+    <template #header>
+      <UButton
+        :aria-controls="`scan-body-${item.scannedItemId}`"
+        :aria-expanded="expanded"
+        class="w-full justify-start rounded-none py-2 ring-0"
+        color="neutral"
+        :icon="item.archive ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'"
+        :ui="{ leadingIcon: item.archive ? 'text-success' : 'text-warning' }"
+        variant="ghost"
+        @click="state = { ...state, expanded: !expanded }"
       >
-      <UIcon
-        class="ml-auto shrink-0"
-        :name="expanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-      />
-    </UButton>
-    <div v-show="expanded" :id="`scan-body-${item.scannedItemId}`" class="space-y-2 p-2">
+        <span class="shrink-0 text-xs text-muted">#{{ item.scannedItemId }}</span>
+        <span class="truncate">{{ item.ocrResult || t('scan.ocrEmpty') }}</span>
+        <span
+          v-if="state.editing"
+          class="ml-auto shrink-0 text-xs font-semibold text-primary"
+          role="status"
+          >{{ t('scan.editing') }}</span
+        >
+        <UIcon
+          class="ml-auto shrink-0"
+          :name="expanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+        />
+      </UButton>
+    </template>
+    <div :id="`scan-body-${item.scannedItemId}`" class="space-y-4">
       <div>
         <UButton
           :aria-label="t('scan.viewScreenshot')"
@@ -127,70 +131,48 @@ const cropImageStyle: CSSProperties = {
           </ImagePreviewContainer>
         </UButton>
       </div>
-      <div
-        v-if="!item.archive || state.editing"
-        class="flex items-start gap-3 rounded border border-default bg-elevated/50 px-3 py-2 text-sm"
-      >
-        <span class="shrink-0 text-xs leading-5 text-muted">{{ t('scan.ocr') }}</span>
-        <p class="min-w-0 break-words">{{ item.ocrResult || t('scan.noText') }}</p>
-      </div>
-      <form
-        v-if="!item.archive || state.editing"
-        class="space-y-2 p-2 transition-colors"
-        :class="state.editing ? 'rounded-md bg-primary/20' : 'border-t border-default'"
-        @submit.prevent="submit"
-      >
-        <ArchiveAssignmentPicker
-          :key="pickerRevision"
-          v-model:search="state.search"
-          :archives="item.options"
-          :recommended="item.recommendations"
-          :selected="state.editing ? state.draftArchiveId : (item.archive?.id ?? null)"
-          @focus="beginEdit"
-          @select="chooseArchive"
-        />
-        <div class="flex items-center justify-end gap-2">
-          <UButton
-            color="neutral"
-            :disabled="!state.editing"
-            icon="i-lucide-x"
-            size="xs"
-            :variant="state.editing ? 'solid' : 'outline'"
-            @click="cancelEdit"
-            >{{ t('scan.cancelEdit') }}</UButton
-          >
-          <UButton
-            :color="changed ? 'primary' : 'neutral'"
-            :disabled="!changed"
-            icon="i-lucide-check"
-            size="xs"
-            type="submit"
-            :variant="changed ? 'solid' : 'outline'"
-            >{{ t('scan.confirmEdit') }}</UButton
-          >
-        </div>
-      </form>
-      <div v-else class="space-y-3 border-t border-default pt-3">
-        <div class="rounded border border-success/30 bg-success/5 p-3">
-          <UButton
-            :aria-label="t('scan.editArchive')"
-            class="float-right"
-            color="neutral"
-            icon="i-lucide-pencil"
-            size="xs"
-            variant="outline"
-            @click="beginEdit"
+      <USeparator />
+      <div class="space-y-4">
+        <div class="space-y-1">
+          <ArchiveAssignmentPicker
+            v-if="!item.archive || state.editing"
+            :key="pickerRevision"
+            v-model:search="state.search"
+            :archives="item.options"
+            :recommended="item.recommendations"
+            :selected="state.editing ? state.draftArchiveId : (item.archive?.id ?? null)"
+            @focus="beginEdit"
+            @select="chooseArchive"
           />
-          <p class="mb-1 text-xs text-muted">
-            {{ item.manualChoice.kind === 'manual' ? t('scan.manual') : t('scan.automatic') }}
-          </p>
+          <!-- 与编辑入口的 sm 按钮保持相同内边距，并预留右侧图标及间距。 -->
           <ArchiveLabel
-            class="text-base"
+            v-else
+            :category-label="item.archive.categoryLabel"
+            class="px-2.5 py-1.5 pr-8"
             :content-preview="item.archive.contentPreview"
+            layout="stacked"
             :title="item.archive.title"
           />
-          <div class="mt-2 flex items-center justify-between gap-1">
-            <span class="text-xs text-muted">{{ item.categoryLabel }}</span>
+          <div
+            v-if="!item.archive || state.editing"
+            class="space-y-1 rounded-md bg-elevated p-2 text-sm"
+          >
+            <p class="text-xs text-muted">{{ t('scan.ocr') }}</p>
+            <p class="break-words">{{ item.ocrResult || t('scan.noText') }}</p>
+          </div>
+          <div
+            v-else
+            class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-elevated p-2"
+          >
+            <p class="flex min-w-0 items-center gap-1.5 text-xs text-muted">
+              <UIcon
+                class="size-3.5 shrink-0"
+                :name="item.manualChoice.kind === 'manual' ? 'i-lucide-hand' : 'i-lucide-scan-text'"
+              />
+              <span>{{
+                item.manualChoice.kind === 'manual' ? t('scan.manual') : t('scan.automatic')
+              }}</span>
+            </p>
             <UPopover
               v-model:open="floatingMatchesOpen"
               :content="{ side: 'bottom', align: 'end', sideOffset: 5 }"
@@ -201,12 +183,11 @@ const cropImageStyle: CSSProperties = {
             >
               <UButton
                 :aria-expanded="floatingMatchesOpen"
-                color="neutral"
-                icon="i-lucide-link"
+                color="success"
                 :label="t('scan.matches', { count: 1 })"
                 size="xs"
                 trailing-icon="i-lucide-chevron-down"
-                variant="outline"
+                variant="subtle"
                 @mouseenter="cancelClose"
                 @mouseleave="scheduleClose"
               />
@@ -220,6 +201,7 @@ const cropImageStyle: CSSProperties = {
                   >
                     <div class="min-w-0">
                       <ArchiveLabel
+                        :category-label="item.archive.categoryLabel"
                         :content-preview="item.archive.contentPreview"
                         :title="item.archive.title"
                       />
@@ -238,6 +220,38 @@ const cropImageStyle: CSSProperties = {
             </UPopover>
           </div>
         </div>
+
+        <div
+          v-if="item.archive && !state.editing && state.showOcr"
+          class="rounded border border-default bg-elevated/50 p-3 text-sm break-words"
+        >
+          <p class="mb-1 text-xs text-muted">{{ t('scan.ocr') }}</p>
+          {{ item.ocrResult || t('scan.noText') }}
+        </div>
+      </div>
+    </div>
+    <template #footer>
+      <div v-if="!item.archive || state.editing" class="flex items-center justify-end gap-2">
+        <UButton
+          color="neutral"
+          :disabled="!state.editing"
+          icon="i-lucide-x"
+          size="xs"
+          :variant="state.editing ? 'solid' : 'outline'"
+          @click="cancelEdit"
+          >{{ t('scan.cancelEdit') }}</UButton
+        >
+        <UButton
+          :color="changed ? 'primary' : 'neutral'"
+          :disabled="!changed"
+          icon="i-lucide-check"
+          size="xs"
+          type="submit"
+          :variant="changed ? 'solid' : 'outline'"
+          >{{ t('scan.confirmEdit') }}</UButton
+        >
+      </div>
+      <div v-else class="flex flex-wrap items-center justify-between gap-2">
         <UButton
           :aria-expanded="state.showOcr"
           color="neutral"
@@ -248,14 +262,15 @@ const cropImageStyle: CSSProperties = {
         >
           {{ state.showOcr ? t('scan.hideOcr') : t('scan.viewOcr') }}
         </UButton>
-        <div
-          v-if="state.showOcr"
-          class="rounded border border-default bg-elevated/50 p-3 text-sm break-words"
-        >
-          <p class="mb-1 text-xs text-muted">{{ t('scan.ocr') }}</p>
-          {{ item.ocrResult || t('scan.noText') }}
-        </div>
+        <UButton
+          color="neutral"
+          icon="i-lucide-pencil"
+          :label="t('scan.editArchive')"
+          size="xs"
+          variant="outline"
+          @click="beginEdit"
+        />
       </div>
-    </div>
-  </article>
+    </template>
+  </UCard>
 </template>

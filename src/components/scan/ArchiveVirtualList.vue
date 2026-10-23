@@ -24,7 +24,7 @@ const virtualizer = useVirtualizer(
     > => ({
       count: props.items.length,
       getScrollElement: (): HTMLElement | null => root.value,
-      estimateSize: (): number => (props.archiveRows ? (compact.value ? 69 : 44) : 320),
+      estimateSize: (): number => (props.archiveRows ? (compact.value ? 108 : 76) : 320),
       getItemKey: (index: number): string | number =>
         props.items[index]!.id ?? props.items[index]!.scannedItemId!,
       overscan: 8,

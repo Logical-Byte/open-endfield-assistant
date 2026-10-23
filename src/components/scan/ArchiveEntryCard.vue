@@ -19,25 +19,17 @@ const acquisitionIcons: Record<string, string> = {
 </script>
 <template>
   <article
-    class="archive-row grid h-11 grid-cols-[minmax(0,1fr)_86px_112px] items-center gap-2 border-b border-default/60 px-3 py-2 transition-colors group-data-[compact=true]/archive:h-auto group-data-[compact=true]/archive:gap-y-1"
+    class="archive-row grid grid-cols-[minmax(0,1fr)_86px_112px] items-center gap-2 border-b border-default/60 px-3 py-2 transition-colors"
     :class="selected && 'bg-primary/20'"
   >
+    <ArchiveLabel
+      :category-label="entry.categoryLabel"
+      class="text-base leading-6 group-data-[compact=true]/archive:col-span-full"
+      :content-preview="entry.contentPreview"
+      :title="entry.title"
+    />
     <div
-      class="flex min-w-0 items-baseline gap-2 self-start group-data-[compact=true]/archive:contents"
-    >
-      <ArchiveLabel
-        class="flex-1 text-base leading-6 group-data-[compact=true]/archive:col-span-full"
-        :content-preview="entry.contentPreview"
-        :title="entry.title"
-      />
-      <span
-        class="shrink-0 text-xs text-muted group-data-[compact=true]/archive:col-start-1 group-data-[compact=true]/archive:row-start-2 group-data-[compact=true]/archive:self-center"
-        :title="entry.categoryLabel"
-        >{{ entry.categoryLabel.split('/').slice(-1)[0] }}</span
-      >
-    </div>
-    <div
-      class="group-data-[compact=true]/archive:col-start-2 group-data-[compact=true]/archive:row-start-2"
+      class="group-data-[compact=true]/archive:col-start-1 group-data-[compact=true]/archive:row-start-2"
     >
       <UPopover
         v-if="entry.scans.length"
@@ -94,14 +86,14 @@ const acquisitionIcons: Record<string, string> = {
       </UPopover>
       <UTooltip v-else :text="t('scan.noEvidence')">
         <span
-          class="flex h-6 w-full items-center justify-center rounded border border-default bg-elevated text-xs text-toned"
+          class="inline-flex h-6 items-center justify-center rounded border border-default bg-elevated px-2 text-xs text-toned"
           tabindex="0"
           >{{ t('scan.unmatched') }}</span
         >
       </UTooltip>
     </div>
     <div
-      class="group-data-[compact=true]/archive:col-start-3 group-data-[compact=true]/archive:row-start-2"
+      class="group-data-[compact=true]/archive:col-span-2 group-data-[compact=true]/archive:col-start-2 group-data-[compact=true]/archive:row-start-2 group-data-[compact=true]/archive:justify-self-end"
     >
       <UTooltip v-if="entry.acquisitionMethod" :text="t('scan.viewOem')">
         <UButton
