@@ -15,13 +15,8 @@ const pickerRevision = ref(0);
 const emit = defineEmits<{
   choose: [id: ArchiveId | null];
   locateArchive: [id: ArchiveId];
-  clearHighlight: [];
 }>();
-const {
-  open: floatingMatchesOpen,
-  cancelClose,
-  scheduleClose,
-} = useEvidencePopover((): void => emit('clearHighlight'));
+const { open: floatingMatchesOpen, cancelClose, scheduleClose } = useEvidencePopover();
 const expanded = computed((): boolean => state.value.expanded ?? !props.item.archive);
 const currentTitle = computed((): string => props.item.archive?.title ?? props.item.ocrResult);
 const changed = computed(
@@ -72,8 +67,10 @@ const cropImageStyle: CSSProperties = {
 <template>
   <UCard
     as="form"
-    class="scan-card"
-    :class="selected && !state.editing && 'ring-2 ring-primary'"
+    class="scan-card outline-2 transition-[outline-color] motion-reduce:transition-none"
+    :class="
+      selected && !state.editing ? 'outline-primary duration-0' : 'outline-transparent duration-400'
+    "
     :ui="{
       header: 'p-0 sm:px-0',
       body: expanded ? 'p-4 sm:p-4' : 'hidden',

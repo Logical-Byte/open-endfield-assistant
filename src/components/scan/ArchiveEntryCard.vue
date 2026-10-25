@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, useId, watch } from 'vue';
+import { useId } from 'vue';
 import { useAppI18n } from '@/shared/i18n';
 import type { ArchiveEntryView } from '@/features/archiveScan/resultView';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
@@ -9,44 +9,20 @@ defineProps<{ entry: ArchiveEntryView; selected?: boolean }>();
 const expanded = defineModel<boolean>('expanded', { default: false });
 const emit = defineEmits<{
   locateScan: [id: ScannedItemId];
-  clearHighlight: [id: ScannedItemId];
 }>();
 const { t } = useAppI18n();
 const bodyId = useId();
-let locatedScan: ScannedItemId | null = null;
-
-function locateScan(id: ScannedItemId): void {
-  locatedScan = id;
-  emit('locateScan', id);
-}
-function clearHighlight(): void {
-  if (locatedScan === null) return;
-  emit('clearHighlight', locatedScan);
-  locatedScan = null;
-}
-function clearHighlightOnFocusLeave(event: FocusEvent): void {
-  if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)) {
-    clearHighlight();
-  }
-}
-watch(expanded, (value: boolean): void => {
-  if (!value) clearHighlight();
-});
-// 虚拟滚动或筛选卸载来源卡片时，也不能留下对侧的定位高亮。
-onUnmounted(clearHighlight);
 </script>
 
 <template>
   <UCard
     as="article"
-    class="archive-row"
-    :class="selected && 'ring-2 ring-primary'"
+    class="archive-row outline-2 transition-[outline-color] motion-reduce:transition-none"
+    :class="selected ? 'outline-primary duration-0' : 'outline-transparent duration-400'"
     :ui="{
       header: 'p-0 sm:px-0',
       body: expanded ? 'p-3 sm:p-3' : 'hidden',
     }"
-    @focusout="clearHighlightOnFocusLeave"
-    @mouseleave="clearHighlight"
   >
     <template #header>
       <UButton
@@ -134,7 +110,7 @@ onUnmounted(clearHighlight);
               size="xs"
               trailing-icon="i-lucide-arrow-right"
               variant="outline"
-              @click="locateScan(scan.scannedItemId)"
+              @click="emit('locateScan', scan.scannedItemId)"
             />
           </div>
         </dd>

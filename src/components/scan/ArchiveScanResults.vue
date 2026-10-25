@@ -2,7 +2,7 @@
 import { useTranslatedToast } from '@/shared/i18n/toast';
 import { useAppI18n } from '@/shared/i18n';
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from 'vue';
-import { useResizeObserver } from '@vueuse/core';
+import { useResizeObserver, useTimeoutFn } from '@vueuse/core';
 import type { SplitterItem } from '@nuxt/ui';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import {
@@ -50,6 +50,21 @@ const toast = useToast();
 const translatedToast = useTranslatedToast();
 const selectedArchiveId: Ref<ArchiveId | null> = ref(null);
 const selectedScanId: Ref<ScannedItemId | null> = ref(null);
+// 两侧定位提示均停留 1 秒，卡片再以 CSS 淡出边框。再次定位会重置对应计时。
+const { start: startArchiveHighlight, stop: stopArchiveHighlight } = useTimeoutFn(
+  (): void => {
+    selectedArchiveId.value = null;
+  },
+  1000,
+  { immediate: false },
+);
+const { start: startScanHighlight, stop: stopScanHighlight } = useTimeoutFn(
+  (): void => {
+    selectedScanId.value = null;
+  },
+  1000,
+  { immediate: false },
+);
 const archiveList: Ref<ScrollList | null> = ref(null);
 const scanList: Ref<ScrollList | null> = ref(null);
 
@@ -79,12 +94,6 @@ const splitItems = computed<SplitterItem[]>(() => {
     },
   ];
 });
-function clearScanHighlight(id: ScannedItemId): void {
-  if (selectedScanId.value === id) selectedScanId.value = null;
-}
-function clearArchiveHighlight(): void {
-  selectedArchiveId.value = null;
-}
 // 每张卡片的草稿由列表持有，虚拟滚动卸载组件不会放弃编辑。
 const cardStates = ref<Record<number, ScanCardState>>({});
 const expandedArchives = ref<Record<string, boolean>>({});
@@ -163,6 +172,7 @@ function choose(id: ScannedItemId, archiveId: ArchiveId | null): void {
 async function locateScan(id: ScannedItemId): Promise<void> {
   revealScan();
   selectedScanId.value = id;
+  startScanHighlight();
   cardStates.value[id]!.expanded = true;
   await nextTick();
   const index = visibleScans.value.findIndex(
@@ -173,6 +183,7 @@ async function locateScan(id: ScannedItemId): Promise<void> {
 async function locateArchive(id: ArchiveId): Promise<void> {
   revealArchive();
   selectedArchiveId.value = id;
+  startArchiveHighlight();
   expandedArchives.value[id] = true;
   await nextTick();
   const index = visibleArchives.value.findIndex(
@@ -182,6 +193,8 @@ async function locateArchive(id: ArchiveId): Promise<void> {
 }
 function clearScans(): void {
   clearRecords();
+  stopArchiveHighlight();
+  stopScanHighlight();
   selectedArchiveId.value = null;
   selectedScanId.value = null;
 }
@@ -292,7 +305,6 @@ watch(scans, (): void => {
               v-model:expanded="expandedArchives[archive.id]!"
               :entry="archive"
               :selected="selectedArchiveId === archive.id"
-              @clear-highlight="clearScanHighlight"
               @locate-scan="locateScan"
             />
           </ArchiveVirtualList>
@@ -391,7 +403,6 @@ watch(scans, (): void => {
               :item="item"
               :selected="selectedScanId === item.scannedItemId"
               @choose="choose(item.scannedItemId, $event)"
-              @clear-highlight="clearArchiveHighlight"
               @locate-archive="locateArchive"
             />
           </ArchiveVirtualList>
