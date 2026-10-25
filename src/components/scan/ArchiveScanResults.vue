@@ -248,17 +248,17 @@ watch(scans, (): void => {
             <div class="flex items-center gap-1">
               <UButton
                 v-for="option in [
-                  { value: 'all' as const, label: t('scan.all'), count: archives.length },
                   {
                     value: 'unmatched' as const,
-                    label: t('scan.noRecords'),
+                    label: t('scan.notCollected'),
                     count: archives.length - matchedArchives,
                   },
                   {
                     value: 'matched' as const,
-                    label: t('scan.hasRecords'),
+                    label: t('scan.collected'),
                     count: matchedArchives,
                   },
+                  { value: 'all' as const, label: t('scan.all'), count: archives.length },
                 ]"
                 :key="option.value"
                 :color="archiveFilter === option.value ? 'primary' : 'neutral'"
