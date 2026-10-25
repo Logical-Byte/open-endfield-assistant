@@ -83,6 +83,7 @@ const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[]
       :reset-search-term-on-blur="false"
       :reset-search-term-on-select="false"
       :search-term="search"
+      size="sm"
       trailing-icon=""
       :ui="{
         content: 'max-h-64 bg-elevated shadow-xl ring-accented',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 临时原型：在真实应用布局内比较 Nuxt UI 原生按钮尺寸，不修改全局主题。
+// 临时原型：比较原生按钮与输入、选择控件的 sm / xs 尺寸，不修改全局主题。
 import { ref } from 'vue';
 import WorkspaceSection from '@/components/layout/WorkspaceSection.vue';
 
@@ -7,10 +7,71 @@ type ButtonSize = 'xs' | 'sm' | 'md';
 const selectedSize = ref<ButtonSize>('sm');
 const sizes: ButtonSize[] = ['xs', 'sm', 'md'];
 const isDevelopment = import.meta.env.DEV;
+const controlSizes = ['sm', 'xs'] as const;
+const sampleCategories = ['全部分类', '纸质记录', '电子档案'];
+const sampleArchives = ['研究人员的笔记', '值班记录', '关于旧设施维护与人员交接的补充说明'];
 </script>
 
 <template>
   <div v-if="isDevelopment" class="space-y-2">
+    <WorkspaceSection>
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h1 class="font-semibold">常用控件：sm / xs 对齐比较</h1>
+          <UBadge color="neutral" variant="subtle">临时原型</UBadge>
+        </div>
+      </template>
+      <p class="mb-4 text-sm text-muted">
+        可以输入、展开选项和搜索。所有控件沿用原生 padding、字体和图标。
+      </p>
+      <div class="grid grid-cols-[2rem_repeat(4,minmax(0,1fr))] items-center gap-3">
+        <span />
+        <span class="text-xs text-muted">按钮</span>
+        <span class="text-xs text-muted">输入框</span>
+        <span class="text-xs text-muted">普通下拉框</span>
+        <span class="text-xs text-muted">可搜索下拉框</span>
+        <template v-for="size in controlSizes" :key="size">
+          <span class="text-xs text-muted">{{ size }}</span>
+          <UButton
+            class="justify-self-start"
+            color="neutral"
+            icon="i-lucide-list-filter"
+            :size="size"
+            variant="outline"
+            >筛选</UButton
+          >
+          <UInput
+            :aria-label="`输入框 ${size}`"
+            class="w-full"
+            default-value="研究人员的笔记"
+            :size="size"
+          />
+          <USelect
+            :aria-label="`普通下拉框 ${size}`"
+            class="w-full"
+            default-value="全部分类"
+            :items="sampleCategories"
+            :size="size"
+          />
+          <UInputMenu
+            :aria-label="`可搜索下拉框 ${size}`"
+            class="w-full"
+            default-value="研究人员的笔记"
+            :items="sampleArchives"
+            :size="size"
+          />
+        </template>
+      </div>
+      <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-default pt-3">
+        <span class="text-xs text-muted">当前未指定 size 的搜索下拉框</span>
+        <UInputMenu
+          aria-label="搜索下拉框当前默认"
+          class="w-56"
+          default-value="研究人员的笔记"
+          :items="sampleArchives"
+        />
+      </div>
+    </WorkspaceSection>
     <WorkspaceSection>
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-2">
