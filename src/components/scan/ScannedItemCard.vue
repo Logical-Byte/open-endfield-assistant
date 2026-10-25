@@ -85,10 +85,10 @@ const cropImageStyle: CSSProperties = {
       <UButton
         :aria-controls="`scan-body-${item.scannedItemId}`"
         :aria-expanded="expanded"
-        class="w-full justify-start rounded-none py-2 ring-0"
+        class="min-h-10 w-full justify-start rounded-none px-3 py-2 text-sm ring-0"
         color="neutral"
         :icon="item.archive ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'"
-        :ui="{ leadingIcon: item.archive ? 'text-success' : 'text-warning' }"
+        :ui="{ leadingIcon: ['size-4', item.archive ? 'text-success' : 'text-warning'] }"
         variant="ghost"
         @click="state = { ...state, expanded: !expanded }"
       >
@@ -101,7 +101,7 @@ const cropImageStyle: CSSProperties = {
           >{{ t('scan.editing') }}</span
         >
         <UIcon
-          class="ml-auto shrink-0"
+          class="ml-auto size-4 shrink-0"
           :name="expanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
         />
       </UButton>
@@ -150,7 +150,7 @@ const cropImageStyle: CSSProperties = {
             :category-label="item.archive.categoryLabel"
             class="px-2.5 py-1.5 pr-8"
             :content-preview="item.archive.contentPreview"
-            layout="stacked"
+            preview="next-line"
             :title="item.archive.title"
           />
           <div

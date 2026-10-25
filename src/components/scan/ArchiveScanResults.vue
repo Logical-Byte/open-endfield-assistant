@@ -79,14 +79,27 @@ const splitItems = computed<SplitterItem[]>(() => {
     },
   ];
 });
-function clearScanHighlight(): void {
-  selectedScanId.value = null;
+function clearScanHighlight(id: ScannedItemId): void {
+  if (selectedScanId.value === id) selectedScanId.value = null;
 }
 function clearArchiveHighlight(): void {
   selectedArchiveId.value = null;
 }
 // 每张卡片的草稿由列表持有，虚拟滚动卸载组件不会放弃编辑。
 const cardStates = ref<Record<number, ScanCardState>>({});
+const expandedArchives = ref<Record<string, boolean>>({});
+watch(
+  archives,
+  (items: readonly ArchiveEntryView[]): void => {
+    expandedArchives.value = Object.fromEntries(
+      items.map((archive): [string, boolean] => [
+        archive.id,
+        expandedArchives.value[archive.id] ?? false,
+      ]),
+    );
+  },
+  { immediate: true },
+);
 const editToasts = new Map<number, string | number>();
 watch(
   scans,
@@ -160,6 +173,7 @@ async function locateScan(id: ScannedItemId): Promise<void> {
 async function locateArchive(id: ArchiveId): Promise<void> {
   revealArchive();
   selectedArchiveId.value = id;
+  expandedArchives.value[id] = true;
   await nextTick();
   const index = visibleArchives.value.findIndex(
     (archive: ArchiveEntryView): boolean => archive.id === id,
@@ -275,6 +289,7 @@ watch(scans, (): void => {
             :items="visibleArchives"
           >
             <ArchiveEntryCard
+              v-model:expanded="expandedArchives[archive.id]!"
               :entry="archive"
               :selected="selectedArchiveId === archive.id"
               @clear-highlight="clearScanHighlight"

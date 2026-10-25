@@ -22,25 +22,19 @@ export function createScanPreviewSource(): ArchiveScanSource {
     '一封未寄出的信',
     '关于旧设施维护与人员交接的补充说明',
     '应急疏散方案',
-    '仓库出入登记',
-    '观测站日志',
-    '调查记录：遗失的设备',
-    '旧城区的留言',
-    '实验设备检修报告',
-    '运输清单',
-    '最后一次巡查',
   ];
   const methods: AcquisitionMethod[] = ['map', 'mission', 'auto', 'shop', 'invstgt'];
-  const archives: ArchiveEntry[] = Array.from({ length: 36 }, (_, index): ArchiveEntry => {
-    const title = `${titles[index % titles.length]}${index >= titles.length ? `（${Math.floor(index / titles.length) + 1}）` : ''}`;
+  const archives: ArchiveEntry[] = titles.map((title, index): ArchiveEntry => {
     return {
       id: `design-preview-${index}` as ArchiveId,
       category: categories[index % categories.length]!.id,
       title: { 'zh-CN': title, 'en-US': title },
-      contentPreview: {
-        'zh-CN': '示例正文：此记录仅用于观察排版、间距与按钮状态。',
-        'en-US': 'Design preview only.',
-      },
+      ...(index < 3 && {
+        contentPreview: {
+          'zh-CN': '示例正文：此记录仅用于观察排版、间距与按钮状态。',
+          'en-US': 'Design preview only.',
+        },
+      }),
       acquisitionMethod: methods[index % methods.length]!,
     };
   });
@@ -55,7 +49,7 @@ export function createScanPreviewSource(): ArchiveScanSource {
     }),
   );
   const scans = ref<ScannedItemRecord[]>(
-    archives.slice(0, 18).map((archive, index): ScannedItemRecord => {
+    archives.map((archive, index): ScannedItemRecord => {
       const category = categories.find((entry): boolean => entry.id === archive.category)!;
       const canvas = document.createElement('canvas');
       canvas.width = 1280;
@@ -78,7 +72,10 @@ export function createScanPreviewSource(): ArchiveScanSource {
           index % 3 === 0 ? `${archive.title['zh-CN']}（识别有误）` : archive.title['zh-CN'],
         matching:
           index % 3 === 0
-            ? { kind: 'recommendations', archiveIds: [archive.id, archives[index + 3]!.id] }
+            ? {
+                kind: 'recommendations',
+                archiveIds: [archive.id, archives[(index + 3) % archives.length]!.id],
+              }
             : { kind: 'exact', archiveId: archive.id },
         manualChoice:
           index % 5 === 0 ? { kind: 'manual', archiveId: archive.id } : { kind: 'automatic' },

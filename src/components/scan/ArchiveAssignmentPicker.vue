@@ -60,7 +60,7 @@ const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[]
           :category-label="selectedArchive.categoryLabel"
           class="min-w-0 flex-1 text-left"
           :content-preview="selectedArchive.contentPreview"
-          layout="stacked"
+          preview="next-line"
           :title="selectedArchive.title"
           variant="plain"
         />
