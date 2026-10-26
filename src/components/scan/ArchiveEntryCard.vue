@@ -39,7 +39,8 @@ const { t } = useAppI18n();
         <ArchiveLabel
           class="min-w-0 flex-1"
           :content-preview="entry.contentPreview"
-          :preview="expanded ? 'hidden' : 'same-line'"
+          preview="same-line"
+          :preview-hidden="expanded"
           :title="entry.title"
           variant="plain"
         />
@@ -56,7 +57,11 @@ const { t } = useAppI18n();
       </UButton>
       <template #content>
         <dl class="space-y-3 border-t border-default p-3 text-sm">
-          <div v-if="entry.contentPreview" class="space-y-1">
+          <div
+            v-if="entry.contentPreview"
+            class="space-y-1 transition-[opacity,transform] duration-100 ease-out motion-reduce:transition-none"
+            :class="expanded ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'"
+          >
             <dt class="text-muted">{{ t('scan.contentPreview') }}</dt>
             <dd>{{ entry.contentPreview }}</dd>
           </div>

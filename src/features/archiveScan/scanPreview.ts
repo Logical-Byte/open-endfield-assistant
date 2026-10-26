@@ -17,7 +17,7 @@ export function createScanPreviewSource(): ArchiveScanSource {
     { id: 'report', page: 'document', name: { 'zh-CN': '调查报告', 'en-US': 'Reports' } },
   ];
   const titles = [
-    '研究人员的笔记',
+    '研究人员关于旧设施异常现象、长期观测结果与后续调查计划的补充笔记',
     '值班记录',
     '一封未寄出的信',
     '关于旧设施维护与人员交接的补充说明',
@@ -31,8 +31,14 @@ export function createScanPreviewSource(): ArchiveScanSource {
       title: { 'zh-CN': title, 'en-US': title },
       ...(index < 3 && {
         contentPreview: {
-          'zh-CN': '示例正文：此记录仅用于观察排版、间距与按钮状态。',
-          'en-US': 'Design preview only.',
+          'zh-CN':
+            index === 0
+              ? '示例正文：本记录汇总了连续多日的设施巡检结果、异常信号出现的时间与位置，以及研究人员对可能原因的初步判断。后续调查还需要结合现场截图、设备运行日志和人员交接记录，逐项确认相关线索，并补充尚未完成的观测项目。'
+              : '示例正文：此记录仅用于观察排版、间距与按钮状态。',
+          'en-US':
+            index === 0
+              ? 'This preview summarizes several days of facility inspections, the time and location of unusual signals, and preliminary observations. Further investigation will compare screenshots, equipment logs, and handover notes to verify each finding and complete the remaining observations.'
+              : 'Design preview only.',
         },
       }),
       acquisitionMethod: methods[index % methods.length]!,
