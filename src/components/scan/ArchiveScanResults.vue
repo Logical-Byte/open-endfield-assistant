@@ -5,11 +5,7 @@ import { computed, nextTick, onUnmounted, ref, watch, type Ref } from 'vue';
 import { useResizeObserver, useTimeoutFn } from '@vueuse/core';
 import type { SplitterItem } from '@nuxt/ui';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
-import {
-  useArchiveScanResults,
-  type ArchiveScanSource,
-  type ScanEdit,
-} from '@/features/archiveScan/useArchiveScanResults';
+import { useArchiveScanResults, type ScanEdit } from '@/features/archiveScan/useArchiveScanResults';
 import type { ArchiveId } from '@/shared/types/archive';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
 import ArchiveEntryCard from './ArchiveEntryCard.vue';
@@ -22,7 +18,6 @@ import { createScanCardState, type ScanCardState } from './scanCardState';
 
 const { t, n } = useAppI18n();
 
-const props = defineProps<{ source?: ArchiveScanSource }>();
 const {
   archives,
   scans,
@@ -44,7 +39,7 @@ const {
   clear: clearRecords,
   revealScan,
   revealArchive,
-} = useArchiveScanResults(props.source);
+} = useArchiveScanResults();
 const { isActive } = useAutomationTask('archiveScan');
 const toast = useToast();
 const translatedToast = useTranslatedToast();
@@ -240,7 +235,6 @@ watch(scans, (): void => {
               </h2>
               <ArchiveExportButton
                 :collected="matchedArchives"
-                :disabled="!!source"
                 :total="archives.length"
                 :unmatched="scans.length - matchedScans"
               />
@@ -342,7 +336,7 @@ watch(scans, (): void => {
                 {{ t('scan.results') }}
                 <span class="font-normal text-muted">{{ n(scans.length) }}</span>
               </h2>
-              <ArchiveScanButton :disabled="!!source" size="sm" />
+              <ArchiveScanButton size="sm" />
             </div>
             <div class="flex items-center gap-1">
               <UButton

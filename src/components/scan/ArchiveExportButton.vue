@@ -3,7 +3,7 @@ import { useTranslatedToast } from '@/shared/i18n/toast';
 import { useAppI18n } from '@/shared/i18n';
 import { ref } from 'vue';
 import { exportToOem } from '@/features/archiveScan/exportOem';
-defineProps<{ collected: number; total: number; unmatched: number; disabled?: boolean }>();
+defineProps<{ collected: number; total: number; unmatched: number }>();
 const { t, n } = useAppI18n();
 
 const open = ref(false);
@@ -25,7 +25,7 @@ async function submit(): Promise<void> {
   <UTooltip :text="t('scan.exportTooltip')">
     <UButton
       color="neutral"
-      :disabled="disabled || !total"
+      :disabled="!total"
       icon="i-lucide-map"
       size="sm"
       variant="outline"
