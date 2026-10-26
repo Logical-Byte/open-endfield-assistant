@@ -9,6 +9,13 @@
   --ui-title-height: 1.875rem;
 }
 
+/* 提高深色模式的区域分界清晰度，沿用当前中性色系。 */
+.dark {
+  --ui-border: var(--ui-color-neutral-700);
+  --ui-border-muted: var(--ui-color-neutral-600);
+  --ui-border-accented: var(--ui-color-neutral-600);
+}
+
 @layer base {
   html {
     font-feature-settings: 'calt' on;
