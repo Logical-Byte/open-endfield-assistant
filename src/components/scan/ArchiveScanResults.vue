@@ -395,7 +395,7 @@ watch(scans, (): void => {
             v-if="visibleScans.length"
             ref="scanList"
             v-slot="{ item }"
-            class="min-h-0 flex-1 p-2"
+            class="min-h-0 flex-1"
             :items="visibleScans"
           >
             <ScannedItemCard

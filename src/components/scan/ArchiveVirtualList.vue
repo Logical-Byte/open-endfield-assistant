@@ -53,8 +53,7 @@ defineExpose({ virtualizer });
         v-for="row in rows"
         :key="String(row.key)"
         :ref="measure"
-        class="absolute top-0 left-0 w-full"
-        :class="archiveRows && 'px-2'"
+        class="absolute top-0 left-0 w-full px-2"
         :data-index="row.index"
         :style="{ transform: `translateY(${row.start}px)` }"
       >
