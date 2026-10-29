@@ -1,4 +1,4 @@
-# OEA：终末地档案查漏补缺
+# OEA：终末地小助手
 
 [![Rust](https://img.shields.io/badge/Rust-1.99+-orange.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Tauri](https://img.shields.io/badge/Tauri-2.x-purple.svg?logo=tauri&logoColor=white)](https://tauri.app/)
@@ -9,35 +9,45 @@
 
 > 想参与开发？请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-OEA：一键识别终末地档案库，并同步到 OEM（终末地地图集），助力每一个全收集梦想！
-
 - [OEA 官网（下载最新版）](https://ef.yituliu.cn/resources/oea)
 - [反馈交流群：954628501](https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms)
 
-![OEA-image-1](https://cos.yituliu.cn/endfield/oea/assets/oea-image-1.webp)
+OEA 是开源免费的终末地小助手，支持档案查漏补缺和百趣演武自动抽。
+
+- **档案查漏补缺**：一键识别终末地档案库，并同步到 OEM（终末地地图集），助力每一个全收集梦想！
+- **百趣演武自动抽**：抽到想要的牌型为止，解放双手，摆完挂机！
+
+![OEA-image-3](https://cos.yituliu.cn/endfield/oea/assets/oea-image-3.png)
 ![OEA-image-2](https://cos.yituliu.cn/endfield/oea/assets/oea-image-2.webp)
+![OEA-image-4](https://cos.yituliu.cn/endfield/oea/assets/oea-image-4.png)
 
-## 新手提示
+## 使用前准备
 
-1. 前往 [OEA 官网](https://ef.yituliu.cn/resources/oea) 下载，**解压**后运行 `OEA.exe`；
-2. 打开终末地，调成 **1280 × 720**、**简体中文**；
-3. **关闭 HDR**，关闭性能监控软件；
-4. 终末地打开**档案库界面**；
-5. 点击左上角**开始扫描**；
-6. 扫完点击右上角**导出到地图集**。
+1. 前往 [OEA 官网](https://ef.yituliu.cn/resources/oea) 下载，**解压**后运行 `OEA.exe`。
+2. 打开终末地，设置为 **1280 × 720 窗口模式**、**简体中文**。
+3. **关闭 HDR**，关闭性能监控软件和任何会遮挡终末地窗口的软件。
 
-## 操作说明
+理论上支持任意 **16:9** 的分辨率，我们最建议使用 **1280 × 720 窗口模式**，这个分辨率可以兼顾准确性和性能。
 
-### 使用前准备
+## 档案查漏补缺
 
-- 理论上支持任意 **16:9** 的分辨率。我们最建议使用 **1280 × 720 窗口模式**，这个分辨率可以兼顾准确性和性能。
-- 理论上目前支持从任意档案库界面、协议终端界面和大世界界面开始扫描，为了稳定性，建议始终从**档案库主界面**开始扫描。
-- 请将终末地的语言调成**简体中文**。
-- 请**关闭 HDR**，关闭任何会遮挡终末地窗口的软件。
+1. 终末地打开**档案库主界面**。
+2. 点击**开始扫描**，或按 `'`（引号键）。
+3. 扫完点击**导出收集状态**。
 
-### 快捷键
+理论上支持从协议终端、大世界和任意档案库界面开始扫描。为了稳定性，建议始终从**档案库主界面**开始扫描。
 
-- 按 `'`（引号键）开始扫描档案库；扫描过程中再次按下可停止。
+## 百趣演武自动抽
+
+1. 终末地打开**百趣演武的抽牌页面**。
+2. 选择**牌型目标**。
+3. 点击**开始抽卡**，或按 `;`（分号键）。
+4. 满足**任意一个**目标后会自动停止抽卡。
+
+## 快捷键
+
+- 按 `'`（引号键）开始扫描档案库，扫描过程中再次按下可停止。
+- 按 `;`（分号键）开始百趣演武自动抽牌，再次按下可停止。
 - 按 `Alt` + `Delete` 退出程序。
 
 ## 常见问题

@@ -80,9 +80,9 @@ useHead({
   link,
   meta: [
     { name: 'theme-color', content: themeColor },
-    { name: 'description', content: computed(() => t('application.title')) },
+    { name: 'description', content: computed(() => t('application.description')) },
     { property: 'og:title', content: computed(() => t('application.title')) },
-    { property: 'og:description', content: computed(() => t('application.title')) },
+    { property: 'og:description', content: computed(() => t('application.description')) },
   ],
 });
 

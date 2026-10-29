@@ -22,7 +22,7 @@ function previewMatch(): void {
   openImagePreview({
     url: props.match.image,
     name: t('gambleBattle.screenshot'),
-    downloadName: 'GambleBattle.png',
+    downloadName: 'Arena of Games.png',
   });
 }
 </script>
@@ -74,7 +74,7 @@ function previewMatch(): void {
               variant="subtle"
             >
               {{
-                t('gambleBattle.card', {
+                t('gambleBattle.dataplete', {
                   suit: t(`gambleBattle.suits.${card.suit}`),
                   rank: n(card.rank),
                 })

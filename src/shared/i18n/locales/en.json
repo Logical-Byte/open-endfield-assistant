@@ -1,8 +1,10 @@
 {
   "application": {
-    "title": "OEA - Arknights: Endfield archive scanner"
+    "description": "OEA is a free, open-source Endfield assistant for finding missing archives and auto-drawing cards in Arena of Games.",
+    "title": "OEA - Open Endfield Assistant"
   },
   "common": {
+    "mirrorchyan": "MirrorChyan",
     "retrySave": "Retry saving"
   },
   "errors": {
@@ -60,37 +62,37 @@
   },
   "gambleBattle": {
     "blocked": "Another task is running",
-    "card": "{{rank}} {{suit}}",
     "clear": "Clear",
     "conditions": "Stop drawing when any of the following conditions is met",
+    "dataplete": "{{rank}} {{suit}}",
     "elapsed": "Elapsed: ",
     "empty": "No matches yet.",
     "event": "Event",
-    "failed": "GambleBattle automation failed",
+    "failed": "Arena of Games automation failed",
     "guide": {
       "confirm": "Got it",
-      "description": "Draw five cards and redraw until any selected condition is met. Drawing then stops and keeps the current hand.",
+      "description": "Draw five Datapletes and redraw until any selected condition is met. Drawing then stops and keeps the current hand.",
       "help": "Show tutorial",
-      "open": "Open the GambleBattle card draw screen in the game.",
-      "start": "Choose your stop conditions, then select Start drawing.",
+      "open": "Set the game to Simplified Chinese and a 16:9 resolution, disable HDR, then manually open the Arena of Games card draw screen.",
+      "start": "Enable at least one stop condition, then select Start drawing or press semicolon. Press it again to stop.",
       "title": "How to use"
     },
     "hands": {
       "flush": "Flush",
-      "fourOfAKind": "Four of a kind",
-      "fullHouse": "Full house",
+      "fullHouse": "Full House",
       "pair": "Pair",
+      "quad": "Quad",
       "straight": "Straight",
-      "straightFlush": "Straight flush",
-      "threeOfAKind": "Three of a kind",
-      "twoPairs": "Two pairs"
+      "straightFlush": "Straight Flush",
+      "triplet": "Triplet",
+      "twoPair": "Two Pair"
     },
-    "heading": "GambleBattle",
+    "heading": "Arena of Games",
     "invalidThreshold": "Enter a whole number from 1 to 25.",
     "matchProgress": "Matched on round {{round}} after {{seconds}} seconds.",
     "results": "Match history",
     "round": "Round: ",
-    "screenshot": "GambleBattle matching screenshot",
+    "screenshot": "Arena of Games matching screenshot",
     "seconds_one": "{{count}} second",
     "seconds_other": "{{count}} seconds",
     "selectCondition": "Enable at least one stop condition.",
@@ -103,18 +105,19 @@
       "tiao": "Tiao",
       "wan": "Wan"
     },
-    "sum": "Total power reaches a threshold",
-    "sumMatched": "Total power {{total}} ≥ {{threshold}}",
-    "threshold": "Power threshold (1 to 25)",
-    "title": "GambleBattle",
-    "total": "Total power: {{total}}"
+    "sum": "Total BP reaches a threshold",
+    "sumMatched": "Total BP {{total}} ≥ {{threshold}}",
+    "threshold": "BP threshold (1 to 25)",
+    "title": "Arena of Games",
+    "total": "Total BP: {{total}}"
   },
   "help": {
     "archive": {
       "main": "archive library home screen"
     },
     "credits": {
-      "models": "RapidAI/RapidOCR models (ModelScope)",
+      "endfieldMap": "Open Endfield Map",
+      "rapidOcrModels": "RapidOCR models",
       "title": "Acknowledgements"
     },
     "disclaimer": {
@@ -129,11 +132,11 @@
     "export": "Export collection status",
     "faq": {
       "accuracy": {
-        "answer": "Correct results manually using the input field. Please report recognition errors to help us improve recognition.",
+        "answer": "Use the input fields to correct recognition results manually. Please report recognition errors so we can improve the recognition.",
         "question": "What if recognition results are inaccurate?"
       },
       "fee": {
-        "answer": "OEA is open source and free, with no fees of any kind. If someone charged you for OEA, you may have been misled by an unauthorized seller. Please let us know.",
+        "answer": "OEA is open source and free, with no fees of any kind. If you paid for OEA, you may have been misled by an unauthorized seller. Please let us know immediately.",
         "question": "Does OEA cost money?"
       },
       "mirror": {
@@ -149,39 +152,48 @@
     "feedback": {
       "group": "QQ feedback group: 954628501",
       "issue": "Open a GitHub issue",
-      "logs": "Please send us issues and suggestions. Include log files from {directory} in the application directory to help diagnose problems.",
+      "logs": "Please send us issues and suggestions with log files from {directory} in the application directory to help diagnose problems.",
       "title": "Feedback"
+    },
+    "gambleBattle": {
+      "any": "any",
+      "conditions": "Choose {targetHands}.",
+      "open": "Open {screen} in Endfield.",
+      "screen": "the Arena of Games card draw screen",
+      "start": "Select {start}, or press {key} (semicolon).",
+      "stop": "Drawing stops automatically once {any} target is met.",
+      "targetHands": "the target hands"
     },
     "hdr": {
       "disable": "Disable HDR"
     },
-    "repository": "GitHub repository",
     "scan": {
       "start": "Start scan"
     },
     "shortcut": {
-      "gambleBattle": "Press {key} (semicolon) to start Gamble Battle auto-drawing with the selected conditions. Press it again to stop.",
+      "gambleBattle": "Press {key} (semicolon) to start Arena of Games auto-drawing. Press it again to stop.",
       "quit": "Press {keys} to quit the application.",
-      "scan": "Press {key} (apostrophe) to start scanning the archive library. Press it again during scanning to stop."
+      "scan": "Press {key} (apostrophe) to start scanning the archive library. Press it again while scanning to stop."
     },
     "start": {
-      "archive": "Open the {archive} in Endfield.",
-      "export": "When scanning finishes, click {export} in the all archives panel.",
-      "hdr": "{hdr} and close performance monitoring software.",
-      "resolution": "Open Endfield and set the resolution to {resolution} and language to {language}.",
-      "scan": "Click {scan} in the scan results panel.",
-      "title": "Getting started"
+      "archive": "Finding missing archives",
+      "closeOverlay": "{hdr} and close performance monitoring software and any software that covers the Endfield window.",
+      "export": "When the scan finishes, select {export}.",
+      "gambleBattle": "Arena of Games auto-drawing",
+      "nav": {
+        "archive": "Archive Scan",
+        "gambleBattle": "Arena of Games"
+      },
+      "open": "Open the {archive} in Endfield.",
+      "preparation": "Before you start",
+      "recommended": "Any {ratio} resolution is supported in theory. We recommend {resolution} {windowed} for a balance of accuracy and performance.",
+      "scan": "Select {scan}, or press {key} (apostrophe).",
+      "setup": "Open Endfield and set the game to {resolution} {windowed} and {language}.",
+      "tip": "Scanning can start from the protocol terminal, the open world or any archive library screen. For stability, always start from the {archive}."
     },
     "usage": {
-      "archive": "Scanning can currently start from any archive library screen, the protocol terminal or the open world. For reliable scanning, always start from the {archive}.",
-      "hdr": "{hdr} and close any software that obscures the Endfield window.",
-      "language": "Set the Endfield game language to {language}.",
-      "preparation": "Before scanning",
-      "resolution": "Any {ratio} resolution should work in principle. We recommend {resolution} in {windowed} for a balance of accuracy and performance.",
-      "shortcuts": "Keyboard shortcuts",
-      "title": "Instructions"
+      "title": "Shortcuts"
     },
-    "website": "OEA website",
     "windowed": "windowed mode"
   },
   "image": {
@@ -239,7 +251,7 @@
     "logs": "Logs",
     "maps": "Maps",
     "menu": {
-      "description": "Open scanning, logs, monitor, settings or help.",
+      "description": "Open archive scanning, Arena of Games, logs, monitor, settings or help.",
       "title": "Navigation menu"
     },
     "monitor": "Monitor",
@@ -397,9 +409,9 @@
         "title": "Simulate archive scanning"
       },
       "simulateGambleBattle": {
-        "description": "Simulate GambleBattle without a game window. Disabled after restarting the app.",
+        "description": "Simulate Arena of Games without a game window. Disabled after restarting the app.",
         "enable": "Use simulation",
-        "title": "Simulate GambleBattle"
+        "title": "Simulate Arena of Games"
       },
       "trace": {
         "empty": "Installation logs"
@@ -473,7 +485,7 @@
     "sound": {
       "section": "Sound",
       "volume": {
-        "description": "Play a sound when archive scanning or Gamble Battle starts, completes, fails or stops.",
+        "description": "Play a sound when archive scanning or Arena of Games starts, completes, fails or stops.",
         "title": "Automation sound volume"
       }
     },
@@ -523,7 +535,6 @@
       "section": "Updates",
       "source": {
         "description": "Choose where to download new versions.",
-        "mirror": "MirrorChyan",
         "title": "Update source"
       }
     }

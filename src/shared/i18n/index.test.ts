@@ -3,6 +3,14 @@ import I18NextVue, { TranslationComponent } from 'i18next-vue';
 import { computed, createApp, createSSRApp, h, nextTick } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { d, i18n, locale, n, t, useAppI18n } from './index';
+import zhCn from './locales/zh-CN.json';
+import enUs from './locales/en.json';
+
+function messageText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') return Object.values(value).map(messageText).join('\n');
+  return '';
+}
 
 // 独立 fixture 验证翻译入口，不覆盖随应用交付的 en-US 资源。
 const englishFixture = {
@@ -80,28 +88,46 @@ describe('应用翻译入口', () => {
     });
   });
 
-  it('组件插值保留可交互的链接，不把命名槽显示成占位符', async () => {
+  it.each([
+    { language: 'zh-CN', messages: zhCn, name: 'Mirror酱' },
+    { language: 'en-US', messages: enUs, name: 'MirrorChyan' },
+  ])('$language 界面文案统一使用 $name', async ({ language, messages, name }) => {
+    await i18n.changeLanguage(language);
+    expect(t('common.mirrorchyan')).toBe(name);
+    const names = messageText(messages).match(/mirror\s*(?:chyan|酱)/gi);
+    expect(names?.length).toBeGreaterThan(0);
+    for (const actual of names ?? []) expect(actual).toBe(name);
+  });
+
+  it.each([
+    { language: 'zh-CN', name: 'Mirror酱', conjunction: '是独立的第三方' },
+    { language: 'en-US', name: 'MirrorChyan', conjunction: ' is an independent third-party' },
+  ])('$language 组件插值保留本地化服务链接', async ({ language, name, conjunction }) => {
+    await i18n.changeLanguage(language);
     const app = createSSRApp({
       setup() {
         const { t } = useAppI18n();
         return () =>
-          h('p', [
-            h(
-              TranslationComponent,
-              {
-                translation: t('settings.update.mirror.service'),
-              },
-              {
-                service: () => h('a', { href: 'https://mirrorchyan.com/' }, 'MirrorChyan'),
-              },
+          h(
+            'div',
+            (['settings.update.mirror.service', 'help.faq.mirror.service'] as const).map((key) =>
+              h(
+                TranslationComponent,
+                { translation: t(key) },
+                {
+                  service: () =>
+                    h('a', { href: 'https://mirrorchyan.com/' }, t('common.mirrorchyan')),
+                },
+              ),
             ),
-          ]);
+          );
       },
     });
     app.use(I18NextVue, { i18next: i18n });
     const html = await renderToString(app);
-    expect(html).toContain('<a href="https://mirrorchyan.com/">MirrorChyan</a>');
-    expect(html).toContain(' 是独立的第三方加速下载服务，需要付费使用。');
+    expect(html.split(`<a href="https://mirrorchyan.com/">${name}</a>${conjunction}`)).toHaveLength(
+      3,
+    );
     expect(html).not.toContain('{service}');
   });
 

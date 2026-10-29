@@ -3,4 +3,4 @@
 /**
  * 启用的停止条件做析取，`sum: None` 表示关闭战力点之和条件。
  */
-export type Conditions = { straightFlush: boolean, fourOfAKind: boolean, flush: boolean, fullHouse: boolean, straight: boolean, threeOfAKind: boolean, twoPairs: boolean, pair: boolean, sum: number | null, };
+export type Conditions = { straightFlush: boolean, quad: boolean, flush: boolean, fullHouse: boolean, straight: boolean, triplet: boolean, twoPair: boolean, pair: boolean, sum: number | null, };

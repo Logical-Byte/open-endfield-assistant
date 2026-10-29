@@ -6,7 +6,7 @@ import { createSettingsStore } from './settingsStore';
 
 /** 更新源选项 */
 export const updateSourceItems = computed<{ label: string; value: UpdateSource }[]>(() => [
-  { label: t('settings.update.source.mirror'), value: 'mirrorchyan' },
+  { label: t('common.mirrorchyan'), value: 'mirrorchyan' },
   { label: 'OEM', value: 'oem' },
   { label: 'GitHub', value: 'github' },
 ]);

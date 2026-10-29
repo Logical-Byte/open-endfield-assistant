@@ -82,20 +82,22 @@ onBeforeUnmount(() => {
 <template>
   <div ref="helpPage">
     <UPageBody class="my-0! space-y-2">
-      <!-- 新手提示 -->
+      <!-- 使用前准备 -->
       <WorkspaceSection id="getting-started" class="scroll-mt-2">
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-rocket" />
-            <span class="font-semibold text-highlighted">{{ t('help.start.title') }}</span>
+            <span class="font-semibold text-highlighted">{{ t('help.start.preparation') }}</span>
           </div>
         </template>
-        <ol class="flex flex-col gap-4 text-lg leading-relaxed font-medium">
+        <ol class="flex flex-col gap-3 leading-relaxed text-default">
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
             ><span
-              ><TranslationComponent :translation="t('help.start.resolution')"
+              ><TranslationComponent :translation="t('help.start.setup')"
                 ><template #resolution><strong class="text-primary">1280 × 720</strong></template
+                ><template #windowed
+                  ><strong class="text-primary">{{ t('help.windowed') }}</strong></template
                 ><template #language
                   ><strong class="text-primary">{{
                     t('settings.language.game.fixed')
@@ -107,17 +109,38 @@ onBeforeUnmount(() => {
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">2.</span
             ><span
-              ><TranslationComponent :translation="t('help.start.hdr')"
+              ><TranslationComponent :translation="t('help.start.closeOverlay')"
                 ><template #hdr
                   ><strong class="text-primary">{{ t('help.hdr.disable') }}</strong></template
                 ></TranslationComponent
               ></span
             >
           </li>
+        </ol>
+        <p class="mt-3 text-sm text-muted">
+          <TranslationComponent :translation="t('help.start.recommended')"
+            ><template #ratio><strong>16:9</strong></template
+            ><template #resolution><strong>1280 × 720</strong></template
+            ><template #windowed
+              ><strong>{{ t('help.windowed') }}</strong></template
+            ></TranslationComponent
+          >
+        </p>
+      </WorkspaceSection>
+
+      <!-- 档案查漏补缺 -->
+      <WorkspaceSection id="archive-scan" class="scroll-mt-2">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-scan-line" />
+            <span class="font-semibold text-highlighted">{{ t('help.start.archive') }}</span>
+          </div>
+        </template>
+        <ol class="flex flex-col gap-3 leading-relaxed text-default">
           <li class="flex items-baseline gap-3">
-            <span class="w-6 flex-none text-end text-primary tabular-nums">3.</span
+            <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
             ><span
-              ><TranslationComponent :translation="t('help.start.archive')"
+              ><TranslationComponent :translation="t('help.start.open')"
                 ><template #archive
                   ><strong class="text-primary">{{ t('help.archive.main') }}</strong></template
                 ></TranslationComponent
@@ -125,17 +148,17 @@ onBeforeUnmount(() => {
             >
           </li>
           <li class="flex items-baseline gap-3">
-            <span class="w-6 flex-none text-end text-primary tabular-nums">4.</span
+            <span class="w-6 flex-none text-end text-primary tabular-nums">2.</span
             ><span
               ><TranslationComponent :translation="t('help.start.scan')"
                 ><template #scan
                   ><strong class="text-primary">{{ t('help.scan.start') }}</strong></template
-                ></TranslationComponent
+                ><template #key><UKbd>'</UKbd></template></TranslationComponent
               ></span
             >
           </li>
           <li class="flex items-baseline gap-3">
-            <span class="w-6 flex-none text-end text-primary tabular-nums">5.</span
+            <span class="w-6 flex-none text-end text-primary tabular-nums">3.</span
             ><span
               ><TranslationComponent :translation="t('help.start.export')"
                 ><template #export
@@ -145,9 +168,72 @@ onBeforeUnmount(() => {
             >
           </li>
         </ol>
+        <p class="mt-3 text-sm text-muted">
+          <TranslationComponent :translation="t('help.start.tip')"
+            ><template #archive
+              ><strong>{{ t('help.archive.main') }}</strong></template
+            ></TranslationComponent
+          >
+        </p>
       </WorkspaceSection>
 
-      <!-- 操作说明 -->
+      <!-- 百趣演武自动抽 -->
+      <WorkspaceSection id="gamble-battle" class="scroll-mt-2">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-dices" />
+            <span class="font-semibold text-highlighted">{{ t('help.start.gambleBattle') }}</span>
+          </div>
+        </template>
+        <ol class="flex flex-col gap-3 leading-relaxed text-default">
+          <li class="flex items-baseline gap-3">
+            <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
+            ><span
+              ><TranslationComponent :translation="t('help.gambleBattle.open')"
+                ><template #screen
+                  ><strong class="text-primary">{{
+                    t('help.gambleBattle.screen')
+                  }}</strong></template
+                ></TranslationComponent
+              ></span
+            >
+          </li>
+          <li class="flex items-baseline gap-3">
+            <span class="w-6 flex-none text-end text-primary tabular-nums">2.</span
+            ><span
+              ><TranslationComponent :translation="t('help.gambleBattle.conditions')"
+                ><template #targetHands
+                  ><strong class="text-primary">{{
+                    t('help.gambleBattle.targetHands')
+                  }}</strong></template
+                ></TranslationComponent
+              ></span
+            >
+          </li>
+          <li class="flex items-baseline gap-3">
+            <span class="w-6 flex-none text-end text-primary tabular-nums">3.</span
+            ><span
+              ><TranslationComponent :translation="t('help.gambleBattle.start')"
+                ><template #start
+                  ><strong class="text-primary">{{ t('gambleBattle.start') }}</strong></template
+                ><template #key><UKbd>;</UKbd></template></TranslationComponent
+              ></span
+            >
+          </li>
+          <li class="flex items-baseline gap-3">
+            <span class="w-6 flex-none text-end text-primary tabular-nums">4.</span
+            ><span
+              ><TranslationComponent :translation="t('help.gambleBattle.stop')"
+                ><template #any
+                  ><strong class="text-primary">{{ t('help.gambleBattle.any') }}</strong></template
+                ></TranslationComponent
+              ></span
+            >
+          </li>
+        </ol>
+      </WorkspaceSection>
+
+      <!-- 快捷键 -->
       <WorkspaceSection id="usage" class="scroll-mt-2">
         <template #header>
           <div class="flex items-center gap-2">
@@ -155,67 +241,25 @@ onBeforeUnmount(() => {
             <span class="font-semibold text-highlighted">{{ t('help.usage.title') }}</span>
           </div>
         </template>
-        <div class="space-y-6">
-          <div>
-            <p class="mb-3 font-semibold text-highlighted">{{ t('help.usage.preparation') }}</p>
-            <ul class="flex list-disc flex-col gap-3 ps-6 text-toned marker:text-toned">
-              <li>
-                <TranslationComponent :translation="t('help.usage.resolution')"
-                  ><template #ratio><strong class="text-primary">16:9</strong></template
-                  ><template #resolution><strong class="text-primary">1280 × 720</strong></template
-                  ><template #windowed
-                    ><strong class="text-primary">{{ t('help.windowed') }}</strong></template
-                  ></TranslationComponent
-                >
-              </li>
-              <li>
-                <TranslationComponent :translation="t('help.usage.archive')"
-                  ><template #archive
-                    ><strong class="text-primary">{{ t('help.archive.main') }}</strong></template
-                  ></TranslationComponent
-                >
-              </li>
-              <li>
-                <TranslationComponent :translation="t('help.usage.language')"
-                  ><template #language
-                    ><strong class="text-primary">{{
-                      t('settings.language.game.fixed')
-                    }}</strong></template
-                  ></TranslationComponent
-                >
-              </li>
-              <li>
-                <TranslationComponent :translation="t('help.usage.hdr')"
-                  ><template #hdr
-                    ><strong class="text-primary">{{ t('help.hdr.disable') }}</strong></template
-                  ></TranslationComponent
-                >
-              </li>
-            </ul>
-          </div>
-          <div>
-            <p class="mb-3 font-semibold text-highlighted">{{ t('help.usage.shortcuts') }}</p>
-            <ul class="flex list-disc flex-col gap-3 ps-6 text-toned marker:text-toned">
-              <li>
-                <TranslationComponent :translation="t('help.shortcut.scan')"
-                  ><template #key><UKbd>'</UKbd></template></TranslationComponent
-                >
-              </li>
-              <li>
-                <TranslationComponent :translation="t('help.shortcut.gambleBattle')"
-                  ><template #key><UKbd>;</UKbd></template></TranslationComponent
-                >
-              </li>
-              <li>
-                <TranslationComponent :translation="t('help.shortcut.quit')"
-                  ><template #keys
-                    ><span><UKbd>Alt</UKbd> + <UKbd>Delete</UKbd></span></template
-                  ></TranslationComponent
-                >
-              </li>
-            </ul>
-          </div>
-        </div>
+        <ul class="flex list-disc flex-col gap-3 ps-6 leading-relaxed marker:text-toned">
+          <li>
+            <TranslationComponent :translation="t('help.shortcut.scan')"
+              ><template #key><UKbd>'</UKbd></template></TranslationComponent
+            >
+          </li>
+          <li>
+            <TranslationComponent :translation="t('help.shortcut.gambleBattle')"
+              ><template #key><UKbd>;</UKbd></template></TranslationComponent
+            >
+          </li>
+          <li>
+            <TranslationComponent :translation="t('help.shortcut.quit')"
+              ><template #keys
+                ><span><UKbd>Alt</UKbd> + <UKbd>Delete</UKbd></span></template
+              ></TranslationComponent
+            >
+          </li>
+        </ul>
       </WorkspaceSection>
 
       <!-- 常见问题 -->
@@ -248,7 +292,7 @@ onBeforeUnmount(() => {
                       rel="noopener noreferrer"
                       target="_blank"
                       to="https://mirrorchyan.com/"
-                      >MirrorChyan</ULink
+                      >{{ t('common.mirrorchyan') }}</ULink
                     ></template
                   ></TranslationComponent
                 >
@@ -327,7 +371,7 @@ onBeforeUnmount(() => {
           <UButton
             class="px-0"
             color="primary"
-            label="终末地地图集"
+            :label="t('help.credits.endfieldMap')"
             rel="noopener noreferrer"
             target="_blank"
             to="https://oem.re/"
@@ -347,7 +391,7 @@ onBeforeUnmount(() => {
           <UButton
             class="px-0"
             color="primary"
-            label="Mirror酱"
+            :label="t('common.mirrorchyan')"
             rel="noopener noreferrer"
             target="_blank"
             to="https://mirrorchyan.com/"
@@ -357,7 +401,7 @@ onBeforeUnmount(() => {
           <UButton
             class="px-0"
             color="primary"
-            label="RapidAI/RapidOCR (GitHub)"
+            label="RapidAI/RapidOCR"
             rel="noopener noreferrer"
             target="_blank"
             to="https://github.com/RapidAI/RapidOCR"
@@ -367,7 +411,7 @@ onBeforeUnmount(() => {
           <UButton
             class="px-0"
             color="primary"
-            :label="t('help.credits.models')"
+            :label="t('help.credits.rapidOcrModels')"
             rel="noopener noreferrer"
             target="_blank"
             to="https://www.modelscope.cn/models/RapidAI/RapidOCR"

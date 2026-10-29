@@ -139,7 +139,7 @@ pub(super) async fn check_for_update(
         last_error = Some(update::Error::failed(
             Reason::Service { code: parsed.code },
             anyhow::anyhow!(
-                "Mirror 酱服务返回错误: code={}, msg={}",
+                "Mirror酱服务返回错误: code={}, msg={}",
                 parsed.code,
                 parsed.msg
             ),
@@ -255,7 +255,7 @@ fn business_error_message(code: i64, msg: &str) -> String {
         8003 => "Mirror酱：错误的架构参数，请联系作者".to_string(),
         8004 => "Mirror酱：错误的更新通道参数，请联系作者".to_string(),
         code if code < 0 => {
-            format!("Mirror 酱服务出现异常，请稍后重试或联系技术支持: {msg}")
+            format!("Mirror酱服务出现异常，请稍后重试或联系技术支持: {msg}")
         }
         _ if !msg.is_empty() => msg.to_string(),
         _ => format!("未知错误（{code}）"),

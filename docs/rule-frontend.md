@@ -82,6 +82,7 @@ Nuxt UI 事件回调出现意外的隐式 `any` 错误时，`components.d.ts` �
 
 - 应用文案使用 UiLocale。游戏标题、分类和识别文本使用 GameLocale，两者独立。
 - 关闭跨语言回退。缺译显示原始 key 并记录当前语言。
+- 界面中的服务名称统一为中文 “Mirror酱”（`Mirror` 与“酱”之间不加空格）、英文 “MirrorChyan”。独立名称与链接文本复用 `common.mirrorchyan`，完整句子按各语言维护。
 
 i18next 的用法见[官方文档](https://www.i18next.com/)。
 

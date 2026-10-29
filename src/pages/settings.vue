@@ -167,7 +167,8 @@ onBeforeUnmount(stopResetScroll);
             icon="i-lucide-gamepad-2"
             :item="{
               kind: 'button',
-              state: languageItemState,
+              state: { status: 'disabled' },
+              icon: 'i-lucide-lock-keyhole',
               label: '简体中文',
               variant: 'solid',
             }"
@@ -263,8 +264,10 @@ onBeforeUnmount(stopResetScroll);
               <p>
                 <TranslationComponent :translation="t('settings.update.mirror.service')">
                   <template #service
-                    ><ULink class="text-primary hover:text-primary/75" to="https://mirrorchyan.com/"
-                      >MirrorChyan</ULink
+                    ><ULink
+                      class="text-primary hover:text-primary/75"
+                      to="https://mirrorchyan.com/"
+                      >{{ t('common.mirrorchyan') }}</ULink
                     ></template
                   >
                 </TranslationComponent>

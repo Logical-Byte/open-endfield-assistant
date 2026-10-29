@@ -1,8 +1,10 @@
 {
   "application": {
-    "title": "OEA - 明日方舟终末地档案库扫描"
+    "description": "OEA 是开源免费的终末地小助手，支持档案查漏补缺和百趣演武自动抽。",
+    "title": "OEA - 终末地小助手"
   },
   "common": {
+    "mirrorchyan": "Mirror酱",
     "retrySave": "重试保存"
   },
   "errors": {
@@ -60,9 +62,9 @@
   },
   "gambleBattle": {
     "blocked": "其他任务正在运行",
-    "card": "{{rank}} {{suit}}",
     "clear": "清空",
     "conditions": "当满足以下任意一个条件时，停止抽卡",
+    "dataplete": "{{rank}} {{suit}}",
     "elapsed": "运行时间：",
     "empty": "暂无命中记录。",
     "event": "活动",
@@ -71,19 +73,19 @@
       "confirm": "确认",
       "description": "自动抽满五张牌，未满足所选条件时放弃重抽。满足任一条件后停止，并保留当前手牌。",
       "help": "查看教程",
-      "open": "在游戏中打开百趣演武的抽牌页面。",
-      "start": "选择停止条件，点击“开始抽卡”。",
+      "open": "将游戏设为简体中文、16:9 分辨率并关闭 HDR，手动打开百趣演武的抽牌页面。",
+      "start": "至少启用一个停止条件，点击“开始抽卡”或按分号键。再次按分号键可停止。",
       "title": "使用教程"
     },
     "hands": {
       "flush": "同花",
-      "fourOfAKind": "四条",
       "fullHouse": "葫芦",
       "pair": "对子",
+      "quad": "四条",
       "straight": "顺子",
       "straightFlush": "同花顺",
-      "threeOfAKind": "三条",
-      "twoPairs": "两对"
+      "triplet": "三条",
+      "twoPair": "两对"
     },
     "heading": "百趣演武",
     "invalidThreshold": "请输入 1 到 25 之间的整数。",
@@ -113,7 +115,8 @@
       "main": "档案库主界面"
     },
     "credits": {
-      "models": "RapidAI/RapidOCR 模型 (ModelScope)",
+      "endfieldMap": "终末地地图集",
+      "rapidOcrModels": "RapidOCR 模型",
       "title": "致谢"
     },
     "disclaimer": {
@@ -137,7 +140,7 @@
       },
       "mirror": {
         "question": "OEA 和 Mirror酱的关系是什么？",
-        "service": "{service} 是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。"
+        "service": "{service}是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。"
       },
       "mobile": {
         "answer": "不能。OEA 仅支持 Windows 10 / 11（x86_64）。",
@@ -151,36 +154,45 @@
       "logs": "遇到问题或建议，欢迎反馈并附上应用目录下 {directory} 中的日志文件，便于定位问题。",
       "title": "反馈交流"
     },
+    "gambleBattle": {
+      "any": "任意一个",
+      "conditions": "选择{targetHands}。",
+      "open": "终末地打开{screen}。",
+      "screen": "百趣演武的抽牌页面",
+      "start": "点击{start}，或按 {key}（分号键）。",
+      "stop": "满足{any}目标后会自动停止抽卡。",
+      "targetHands": "牌型目标"
+    },
     "hdr": {
       "disable": "关闭 HDR"
     },
-    "repository": "GitHub 仓库",
     "scan": {
       "start": "开始扫描"
     },
     "shortcut": {
-      "gambleBattle": "按 {key}（分号键）按当前所选条件开始百趣演武自动抽牌，再次按下可停止。",
+      "gambleBattle": "按 {key}（分号键）开始百趣演武自动抽牌，再次按下可停止。",
       "quit": "按 {keys} 退出程序。",
       "scan": "按 {key}（引号键）开始扫描档案库，扫描过程中再次按下可停止。"
     },
     "start": {
-      "archive": "终末地打开{archive}。",
-      "export": "扫完点击全部档案栏的{export}。",
-      "hdr": "{hdr}，关闭性能监控软件。",
-      "resolution": "打开终末地，调成 {resolution}、{language}。",
-      "scan": "点击扫描结果栏的{scan}。",
-      "title": "新手提示"
+      "archive": "档案查漏补缺",
+      "closeOverlay": "{hdr}，关闭性能监控软件和任何会遮挡终末地窗口的软件。",
+      "export": "扫完点击{export}。",
+      "gambleBattle": "百趣演武自动抽",
+      "nav": {
+        "archive": "档案扫描",
+        "gambleBattle": "百趣演武"
+      },
+      "open": "终末地打开{archive}。",
+      "preparation": "使用前准备",
+      "recommended": "理论上支持任意 {ratio} 的分辨率，我们最建议使用 {resolution} {windowed}，这个分辨率可以兼顾准确性和性能。",
+      "scan": "点击{scan}，或按 {key}（引号键）。",
+      "setup": "打开终末地，设置为 {resolution} {windowed}、{language}。",
+      "tip": "理论上支持从协议终端、大世界和任意档案库界面开始扫描。为了稳定性，建议始终从{archive}开始扫描。"
     },
     "usage": {
-      "archive": "理论上目前支持从任意档案库界面、协议终端界面和大世界界面开始扫描。为了稳定性，建议始终从{archive}开始扫描。",
-      "hdr": "请{hdr}，关闭任何会遮挡终末地窗口的软件。",
-      "language": "请将终末地的语言调成{language}。",
-      "preparation": "使用前准备",
-      "resolution": "理论上支持任意 {ratio} 的分辨率。我们最建议使用 {resolution}、{windowed}，这个分辨率可以兼顾准确性和性能。",
-      "shortcuts": "快捷键",
-      "title": "操作说明"
+      "title": "快捷键"
     },
-    "website": "OEA 官网",
     "windowed": "窗口模式"
   },
   "image": {
@@ -238,7 +250,7 @@
     "logs": "日志",
     "maps": "地图集",
     "menu": {
-      "description": "前往扫描、日志、监控、设置或帮助页面。",
+      "description": "前往档案扫描、百趣演武、日志、监控、设置或帮助页面。",
       "title": "导航菜单"
     },
     "monitor": "监控",
@@ -502,7 +514,7 @@
       "developmentBuild": "OEA dev 版本已禁用更新。",
       "mirror": {
         "free": "OEA 本身不收取任何费用，也提供免费的下载渠道。您可以前往 {releases} 免费下载和使用。",
-        "service": "{service} 是独立的第三方加速下载服务，需要付费使用。"
+        "service": "{service}是独立的第三方加速下载服务，需要付费使用。"
       },
       "proxy": {
         "custom": "自定义代理",
@@ -518,7 +530,6 @@
       "section": "更新设置",
       "source": {
         "description": "选择从哪个源下载新版本",
-        "mirror": "Mirror酱",
         "title": "更新源"
       }
     }

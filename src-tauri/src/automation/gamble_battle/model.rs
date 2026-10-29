@@ -25,12 +25,12 @@ pub(crate) struct Card {
 #[ts(export, export_to = "gambleBattle/")]
 pub(crate) enum HandKind {
     StraightFlush,
-    FourOfAKind,
+    Quad,
     Flush,
     FullHouse,
     Straight,
-    ThreeOfAKind,
-    TwoPairs,
+    Triplet,
+    TwoPair,
     Pair,
 }
 
@@ -40,12 +40,12 @@ pub(crate) enum HandKind {
 #[ts(export, export_to = "gambleBattle/")]
 pub(crate) struct Conditions {
     pub straight_flush: bool,
-    pub four_of_a_kind: bool,
+    pub quad: bool,
     pub flush: bool,
     pub full_house: bool,
     pub straight: bool,
-    pub three_of_a_kind: bool,
-    pub two_pairs: bool,
+    pub triplet: bool,
+    pub two_pair: bool,
     pub pair: bool,
     pub sum: Option<u8>,
 }
@@ -99,12 +99,12 @@ impl Conditions {
             return Err("战力点之和阈值必须在 1 到 25 之间");
         }
         let hand_enabled = self.straight_flush
-            || self.four_of_a_kind
+            || self.quad
             || self.flush
             || self.full_house
             || self.straight
-            || self.three_of_a_kind
-            || self.two_pairs
+            || self.triplet
+            || self.two_pair
             || self.pair;
         if !hand_enabled && self.sum.is_none() {
             return Err("请至少启用一个停止条件");
@@ -115,12 +115,12 @@ impl Conditions {
     fn enables(&self, hand: HandKind) -> bool {
         match hand {
             HandKind::StraightFlush => self.straight_flush,
-            HandKind::FourOfAKind => self.four_of_a_kind,
+            HandKind::Quad => self.quad,
             HandKind::Flush => self.flush,
             HandKind::FullHouse => self.full_house,
             HandKind::Straight => self.straight,
-            HandKind::ThreeOfAKind => self.three_of_a_kind,
-            HandKind::TwoPairs => self.two_pairs,
+            HandKind::Triplet => self.triplet,
+            HandKind::TwoPair => self.two_pair,
             HandKind::Pair => self.pair,
         }
     }
@@ -138,7 +138,7 @@ pub(crate) fn classify(cards: &[Card; 5]) -> Option<HandKind> {
     if flush && counts.iter().all(|&count| count == 1) {
         Some(HandKind::StraightFlush)
     } else if counts.iter().any(|&count| count >= 4) {
-        Some(HandKind::FourOfAKind)
+        Some(HandKind::Quad)
     } else if flush {
         Some(HandKind::Flush)
     } else if counts.contains(&3) && counts.contains(&2) {
@@ -149,9 +149,9 @@ pub(crate) fn classify(cards: &[Card; 5]) -> Option<HandKind> {
         // 游戏中的顺子只需连续四个战力点。
         Some(HandKind::Straight)
     } else if counts.iter().any(|&count| count >= 3) {
-        Some(HandKind::ThreeOfAKind)
+        Some(HandKind::Triplet)
     } else if counts.iter().filter(|&&count| count == 2).count() == 2 {
-        Some(HandKind::TwoPairs)
+        Some(HandKind::TwoPair)
     } else if counts.iter().any(|&count| count >= 2) {
         Some(HandKind::Pair)
     } else {
@@ -174,16 +174,16 @@ mod tests {
     fn classifies_five_cards_by_the_game_rules() {
         let mixed = [Suit::Bing, Suit::Tiao, Suit::Wan, Suit::Bing, Suit::Tiao];
         for (ranks, suits, expected) in [
-            ([2, 2, 2, 2, 3], mixed, HandKind::FourOfAKind),
-            ([2, 2, 2, 2, 2], mixed, HandKind::FourOfAKind),
-            ([2, 2, 2, 2, 3], [Suit::Wan; 5], HandKind::FourOfAKind),
+            ([2, 2, 2, 2, 3], mixed, HandKind::Quad),
+            ([2, 2, 2, 2, 2], mixed, HandKind::Quad),
+            ([2, 2, 2, 2, 3], [Suit::Wan; 5], HandKind::Quad),
             ([1, 1, 1, 3, 3], [Suit::Tiao; 5], HandKind::Flush),
             ([1, 1, 1, 3, 3], mixed, HandKind::FullHouse),
             ([1, 2, 3, 4, 4], mixed, HandKind::Straight),
             ([2, 3, 4, 5, 2], mixed, HandKind::Straight),
             ([1, 2, 3, 4, 5], mixed, HandKind::Straight),
-            ([3, 3, 3, 1, 5], mixed, HandKind::ThreeOfAKind),
-            ([1, 1, 5, 5, 3], mixed, HandKind::TwoPairs),
+            ([3, 3, 3, 1, 5], mixed, HandKind::Triplet),
+            ([1, 1, 5, 5, 3], mixed, HandKind::TwoPair),
             ([1, 2, 3, 5, 5], mixed, HandKind::Pair),
         ] {
             assert_eq!(
@@ -201,7 +201,7 @@ mod tests {
             [Suit::Bing, Suit::Tiao, Suit::Wan, Suit::Bing, Suit::Tiao],
         );
         let mut conditions = Conditions {
-            two_pairs: true,
+            two_pair: true,
             ..Conditions::default()
         };
         assert!(evaluate(&hand, &conditions).is_empty());
