@@ -88,7 +88,7 @@
     "heading": "GambleBattle",
     "invalidThreshold": "Enter a whole number from 1 to 25.",
     "matchProgress": "Matched on round {{round}} after {{seconds}} seconds.",
-    "results": "Successful stop events",
+    "results": "Match history",
     "round": "Round: ",
     "screenshot": "GambleBattle matching screenshot",
     "seconds_one": "{{count}} second",
