@@ -102,6 +102,8 @@ where
                 elapsed_seconds: started.elapsed().as_secs_f64(),
             }));
         }
+        // 额外等待一段时间以让卡牌颜色稳定
+        cx.sleep(Duration::from_millis(500));
         // 抽满后才匹配数字和花色，截图和判定始终来自同一帧。
         let (full_frame, hand) = read_hand(cx, recognizer)?;
         let reasons = model::evaluate(&hand, conditions);
