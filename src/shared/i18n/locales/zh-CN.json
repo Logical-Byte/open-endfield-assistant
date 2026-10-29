@@ -65,6 +65,7 @@
     "conditions": "停止条件（任一）",
     "elapsed": "运行时间：",
     "empty": "暂无命中记录。",
+    "event": "活动",
     "failed": "百趣演武自动化失败",
     "guide": {
       "confirm": "确认",

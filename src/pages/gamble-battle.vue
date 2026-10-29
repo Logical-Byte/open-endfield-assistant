@@ -116,9 +116,17 @@ async function toggleAutomation(): Promise<void> {
       >
         <template #header>
           <div class="flex items-center justify-between gap-2">
-            <h1 class="text-lg font-semibold text-highlighted" :title="t('gambleBattle.title')">
-              {{ t('gambleBattle.heading') }}
-            </h1>
+            <div class="flex min-w-0 items-center gap-2">
+              <h1
+                class="truncate text-lg font-semibold text-highlighted"
+                :title="t('gambleBattle.title')"
+              >
+                {{ t('gambleBattle.heading') }}
+              </h1>
+              <UBadge class="shrink-0 rounded-full" color="success" size="sm" variant="outline">
+                {{ t('gambleBattle.event') }}
+              </UBadge>
+            </div>
             <div class="flex shrink-0 items-center gap-1">
               <UButton
                 :aria-label="t('gambleBattle.guide.help')"
