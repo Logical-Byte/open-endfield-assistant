@@ -157,25 +157,23 @@ function changeThreshold(value: number | null): void {
             <dd class="inline tabular-nums">{{ n(currentProgress.round) }}</dd>
           </div>
         </dl>
-        <fieldset class="space-y-3" :disabled="isActive || submitting">
+        <fieldset class="space-y-1" :disabled="isActive || submitting">
           <legend class="mb-2 flex items-center gap-1 text-sm font-medium text-highlighted">
             {{ t('gambleBattle.conditions') }}
           </legend>
-          <div class="space-y-3">
+          <USwitch
+            v-for="hand in handKinds"
+            :key="hand"
+            v-model="conditions[hand]"
+            class="min-h-7 w-full items-center"
+            :disabled="isActive || submitting"
+            :label="t(`gambleBattle.hands.${hand}`)"
+            size="sm"
+            :ui="{ wrapper: 'text-sm', container: 'h-5' }"
+          />
+          <div class="flex flex-wrap items-center gap-2">
             <USwitch
-              v-for="hand in handKinds"
-              :key="hand"
-              v-model="conditions[hand]"
-              class="w-full"
-              :disabled="isActive || submitting"
-              :label="t(`gambleBattle.hands.${hand}`)"
-              size="sm"
-              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
-            />
-          </div>
-          <div class="flex flex-wrap items-center gap-2 pt-3">
-            <USwitch
-              class="max-w-full"
+              class="min-h-7 max-w-full items-center"
               :disabled="isActive || submitting"
               :label="t('gambleBattle.sum')"
               :model-value="conditions.sum !== null"
