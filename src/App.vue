@@ -12,6 +12,8 @@ import {
 import { initLogState } from '@/features/log/logState';
 import { initScannedItems } from '@/features/archiveScan/scannedItems';
 import { initGambleBattleState } from '@/features/gambleBattle/state';
+import { useGambleBattleControls } from '@/features/gambleBattle/controls';
+import { onGambleBattleToggleRequested } from '@/features/gambleBattle/ipc';
 import { initUpdateState } from '@/features/update/update';
 import { initUiScale } from '@/features/appearance/uiScale';
 import { appPresentation } from '@/app/presentation';
@@ -26,6 +28,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 const { t, locale } = useAppI18n();
 const toast = useTranslatedToast();
+const { toggleAutomation: toggleGambleBattle } = useGambleBattleControls();
 bindTranslatedToasts();
 watch(
   settingsState,
@@ -97,6 +100,7 @@ async function initApp(): Promise<void> {
   await initOeaSettings();
   await initScannedItems();
   await initGambleBattleState();
+  await onGambleBattleToggleRequested(toggleGambleBattle);
   await initUiScale();
   await initUpdateState();
 }

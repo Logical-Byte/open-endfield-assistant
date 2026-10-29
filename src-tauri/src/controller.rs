@@ -83,6 +83,7 @@ impl Controller {
                     .start(automation::TaskKind::GambleBattle, || match worker_type {
                         automation::WorkerType::Production => Box::new(gamble_battle::Worker::new(
                             conditions,
+                            self.settings_snapshot().sound_volume,
                             Arc::clone(&self.ocr),
                         )),
                         automation::WorkerType::Simulation => {

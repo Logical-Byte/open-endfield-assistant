@@ -202,6 +202,11 @@ onBeforeUnmount(() => {
                 >
               </li>
               <li>
+                <TranslationComponent :translation="t('help.shortcut.gambleBattle')"
+                  ><template #key><UKbd>;</UKbd></template></TranslationComponent
+                >
+              </li>
+              <li>
                 <TranslationComponent :translation="t('help.shortcut.quit')"
                   ><template #keys
                     ><span><UKbd>Alt</UKbd> + <UKbd>Delete</UKbd></span></template

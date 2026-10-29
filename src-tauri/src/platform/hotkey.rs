@@ -7,6 +7,8 @@ use super::windows;
 
 /// Delete 键的 OEA 键码。
 pub const DELETE_KEY: u32 = 0x2e;
+/// `;` 键的 OEA 键码。
+pub const OEM_1_KEY: u32 = 0xba;
 /// `'` 键的 OEA 键码。
 pub const OEM_7_KEY: u32 = 0xde;
 /// Alt 修饰键的 OEA 状态位。

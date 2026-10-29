@@ -17,3 +17,10 @@ export async function onGambleBattleProgress(
     callback(event.payload),
   );
 }
+
+/** 全局分号快捷键，由应用层使用当前停止条件处理。 */
+export async function onGambleBattleToggleRequested(
+  callback: () => Promise<void>,
+): Promise<() => void> {
+  return await listen('gamble-battle-toggle-requested', callback);
+}
