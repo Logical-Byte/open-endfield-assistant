@@ -139,7 +139,7 @@ function handleFocusOut(event: FocusEvent): void {
 
 const navigationItems = computed<NavigationMenuItem[]>(() => [
   { label: t('navigation.scan'), icon: 'i-lucide-scan-line', to: '/', exact: true },
-  { label: t('gambleBattle.title'), icon: 'i-lucide-layers', to: '/gamble-battle' },
+  { label: t('gambleBattle.title'), icon: 'i-lucide-dices', to: '/gamble-battle' },
   { label: t('navigation.logs'), icon: 'i-lucide-scroll-text', to: '/log' },
   { label: t('navigation.monitor'), icon: 'i-lucide-monitor-play', to: '/monitor' },
 ]);
