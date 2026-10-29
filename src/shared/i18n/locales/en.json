@@ -70,11 +70,13 @@
     "event": "Event",
     "failed": "Arena of Games automation failed",
     "guide": {
+      "arena": "Open {screen} in Endfield.",
       "confirm": "Got it",
-      "description": "Draw five Datapletes and redraw until any selected condition is met. Drawing then stops and keeps the current hand.",
+      "hdr": "{hdr} and turn off performance monitoring software.",
       "help": "Show tutorial",
-      "open": "Set the game to Simplified Chinese and a 16:9 resolution, disable HDR, then manually open the Arena of Games card draw screen.",
-      "start": "Enable at least one stop condition, then select Start drawing or press semicolon. Press it again to stop.",
+      "open": "Open Endfield and set {resolution} {windowed} and {language}.",
+      "start": "Select {start}.",
+      "target": "Choose {targetHands}.",
       "title": "How to use"
     },
     "hands": {
@@ -317,7 +319,7 @@
       "archive": "Open the {archive} in Endfield.",
       "export": "After scanning, select {export} in the all archives pane.",
       "hdr": "{hdr} and turn off performance monitoring software.",
-      "open": "Open Endfield and set {resolution} resolution and {language}.",
+      "open": "Open Endfield and set {resolution} {windowed} and {language}.",
       "scan": "Select {scan} in the scan results pane."
     },
     "hasRecords": "With evidence",

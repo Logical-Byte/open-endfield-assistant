@@ -70,11 +70,13 @@
     "event": "活动",
     "failed": "百趣演武自动化失败",
     "guide": {
-      "confirm": "确认",
-      "description": "自动抽满五张牌，未满足所选条件时放弃重抽。满足任一条件后停止，并保留当前手牌。",
+      "arena": "终末地打开{screen}",
+      "confirm": "我知道了",
+      "hdr": "{hdr}，关闭性能监控软件",
       "help": "查看教程",
-      "open": "将游戏设为简体中文、16:9 分辨率并关闭 HDR，手动打开百趣演武的抽牌页面。",
-      "start": "至少启用一个停止条件，点击“开始抽卡”或按分号键。再次按分号键可停止。",
+      "open": "打开终末地，设置为 {resolution} {windowed}、{language}",
+      "start": "点击{start}",
+      "target": "选择{targetHands}",
       "title": "使用教程"
     },
     "hands": {
@@ -158,7 +160,7 @@
       "any": "任意一个",
       "conditions": "选择{targetHands}。",
       "open": "终末地打开{screen}。",
-      "screen": "百趣演武的抽牌页面",
+      "screen": "百趣演武的抽牌界面",
       "start": "点击{start}，或按 {key}（分号键）。",
       "stop": "满足{any}目标后会自动停止抽卡。",
       "targetHands": "牌型目标"
@@ -314,7 +316,7 @@
       "archive": "终末地打开{archive}",
       "export": "扫完点击全部档案栏的{export}",
       "hdr": "{hdr}，关闭性能监控软件",
-      "open": "打开终末地，调成 {resolution}、{language}",
+      "open": "打开终末地，设置为 {resolution} {windowed}、{language}",
       "scan": "点击扫描结果栏的{scan}"
     },
     "hasRecords": "有记录",

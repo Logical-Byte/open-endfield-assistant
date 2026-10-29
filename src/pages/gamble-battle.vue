@@ -21,18 +21,13 @@ const { t, n } = useAppI18n();
 const { task, submitting, hasCondition, thresholdValid, toggleAutomation } =
   useGambleBattleControls();
 const { phase, isActive, canStart, canStop, outcome } = task;
+// 教程由 v-if 替换整页内容。关闭教程后，把焦点交还给重新挂载的教程入口。
 const controlsPanel = ref<HTMLElement | null>(null);
-watch(
-  showGambleBattleGuide,
-  async (visible: boolean): Promise<void> => {
-    await nextTick();
-    const target = visible
-      ? controlsPanel.value?.querySelector<HTMLElement>('[role="dialog"]')
-      : controlsPanel.value?.querySelector<HTMLElement>('[data-guide-trigger]');
-    target?.focus();
-  },
-  { immediate: true },
-);
+watch(showGambleBattleGuide, async (visible: boolean): Promise<void> => {
+  if (visible) return;
+  await nextTick();
+  controlsPanel.value?.querySelector<HTMLElement>('[data-guide-trigger]')?.focus();
+});
 const buttonLabel = computed((): string => {
   if (phase.value === 'stopping') return t('gambleBattle.stopping');
   if (phase.value === 'blocked') return t('gambleBattle.blocked');
@@ -64,16 +59,13 @@ function changeThreshold(value: number | null): void {
 </script>
 
 <template>
+  <GambleBattleGuide v-if="showGambleBattleGuide" @confirm="showGambleBattleGuide = false" />
   <div
+    v-else
     class="grid h-full min-h-0 grid-cols-1 gap-2 md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]"
   >
-    <!-- 教程在控制栏内独立层叠，避免遮挡悬浮展开的侧栏。 -->
-    <div ref="controlsPanel" class="relative isolate min-h-0 min-w-0">
-      <WorkspaceCard
-        body-class="space-y-4"
-        header-class="flex min-h-14 items-center [&>*]:w-full"
-        :inert="showGambleBattleGuide"
-      >
+    <div ref="controlsPanel" class="min-h-0 min-w-0">
+      <WorkspaceCard body-class="space-y-4" header-class="flex min-h-14 items-center [&>*]:w-full">
         <template #header>
           <div class="flex items-center justify-between gap-2">
             <div class="flex min-w-0 items-center gap-2">
@@ -179,7 +171,6 @@ function changeThreshold(value: number | null): void {
           </p>
         </fieldset>
       </WorkspaceCard>
-      <GambleBattleGuide v-if="showGambleBattleGuide" @confirm="showGambleBattleGuide = false" />
     </div>
 
     <WorkspaceCard
