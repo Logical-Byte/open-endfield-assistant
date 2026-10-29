@@ -65,6 +65,7 @@
     "conditions": "Stop conditions (any)",
     "elapsed": "Elapsed: ",
     "empty": "No matches yet.",
+    "event": "Event",
     "failed": "GambleBattle automation failed",
     "guide": {
       "confirm": "Got it",
