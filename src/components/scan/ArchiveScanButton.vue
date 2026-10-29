@@ -47,5 +47,9 @@ const scanButtonLabel: ComputedRef<string> = computed((): string => {
     :icon="isActive ? 'i-lucide-square' : 'i-lucide-play'"
     :label="scanButtonLabel"
     @click="toggleScan"
-  />
+  >
+    <template #trailing>
+      <UKbd class="bg-transparent font-bold text-inherit ring-current/30" size="sm" value="'" />
+    </template>
+  </UButton>
 </template>
