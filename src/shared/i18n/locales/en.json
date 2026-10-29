@@ -178,12 +178,10 @@
       "hdr": "{hdr} and close any software that obscures the Endfield window.",
       "language": "Set the Endfield game language to {language}.",
       "preparation": "Before scanning",
-      "resolution": "When automation starts, the app automatically switches Endfield to {resolution} in {windowed}. No manual resolution adjustment is needed.",
       "shortcuts": "Keyboard shortcuts",
       "title": "Instructions"
     },
-    "website": "OEA website",
-    "windowed": "windowed mode"
+    "website": "OEA website"
   },
   "image": {
     "background": "Change background color",
@@ -306,7 +304,7 @@
       "archive": "Open the {archive} in Endfield.",
       "export": "After scanning, select {export} in the all archives pane.",
       "hdr": "{hdr} and turn off performance monitoring software.",
-      "open": "Open Endfield and set the game language to {language}. Scanning automatically switches the game to {resolution} {windowed}.",
+      "open": "Open Endfield and set the game language to {language}.",
       "scan": "Select {scan} in the scan results pane."
     },
     "hasRecords": "With evidence",

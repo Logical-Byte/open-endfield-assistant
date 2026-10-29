@@ -159,14 +159,6 @@ onBeforeUnmount(() => {
             <p class="mb-3 font-semibold text-highlighted">{{ t('help.usage.preparation') }}</p>
             <ul class="flex list-disc flex-col gap-3 ps-6 text-toned marker:text-toned">
               <li>
-                <TranslationComponent :translation="t('help.usage.resolution')"
-                  ><template #resolution><strong class="text-primary">1280 × 720</strong></template
-                  ><template #windowed
-                    ><strong class="text-primary">{{ t('help.windowed') }}</strong></template
-                  ></TranslationComponent
-                >
-              </li>
-              <li>
                 <TranslationComponent :translation="t('help.usage.archive')"
                   ><template #archive
                     ><strong class="text-primary">{{ t('help.archive.main') }}</strong></template

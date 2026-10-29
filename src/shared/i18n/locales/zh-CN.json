@@ -168,7 +168,7 @@
       "archive": "终末地打开{archive}。",
       "export": "扫完点击全部档案栏的{export}。",
       "hdr": "{hdr}，关闭性能监控软件。",
-      "resolution": "打开终末地，将游戏语言设为 {language}。",
+      "resolution": "打开终末地，将游戏语言设为{language}。",
       "scan": "点击扫描结果栏的{scan}。",
       "title": "新手提示"
     },
@@ -177,12 +177,10 @@
       "hdr": "请{hdr}，关闭任何会遮挡终末地窗口的软件。",
       "language": "请将终末地的语言调成{language}。",
       "preparation": "使用前准备",
-      "resolution": "开始自动化任务时，应用会自动将终末地切换为 {resolution} 的{windowed}，无需手动调整分辨率。",
       "shortcuts": "快捷键",
       "title": "操作说明"
     },
-    "website": "OEA 官网",
-    "windowed": "窗口模式"
+    "website": "OEA 官网"
   },
   "image": {
     "background": "更改背景颜色",
@@ -303,7 +301,7 @@
       "archive": "终末地打开{archive}",
       "export": "扫完点击全部档案栏的{export}",
       "hdr": "{hdr}，关闭性能监控软件",
-      "open": "打开终末地，将游戏语言设为 {language}。开始扫描时自动切换为 {resolution} {windowed}",
+      "open": "打开终末地，将游戏语言设为{language}",
       "scan": "点击扫描结果栏的{scan}"
     },
     "hasRecords": "有记录",
