@@ -107,7 +107,8 @@ async function toggleAutomation(): Promise<void> {
   <div
     class="grid h-full min-h-0 grid-cols-1 gap-2 md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]"
   >
-    <div ref="controlsPanel" class="relative min-h-0 min-w-0">
+    <!-- 教程在控制栏内独立层叠，避免遮挡悬浮展开的侧栏。 -->
+    <div ref="controlsPanel" class="relative isolate min-h-0 min-w-0">
       <WorkspaceCard
         body-class="space-y-4"
         header-class="flex min-h-14 items-center [&>*]:w-full"
