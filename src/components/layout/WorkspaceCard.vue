@@ -1,5 +1,8 @@
 <script setup lang="ts">
-const { bodyClass = 'p-3' } = defineProps<{ bodyClass?: string }>();
+const { bodyClass = 'p-3', headerClass = '' } = defineProps<{
+  bodyClass?: string;
+  headerClass?: string;
+}>();
 </script>
 
 <template>
@@ -7,7 +10,7 @@ const { bodyClass = 'p-3' } = defineProps<{ bodyClass?: string }>();
   <UCard
     class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-default ring-0"
     :ui="{
-      header: 'shrink-0 p-3 sm:px-3',
+      header: `shrink-0 p-3 sm:px-3 ${headerClass}`,
       body: `min-h-0 flex-1 overflow-y-auto sm:p-3 ${bodyClass}`,
     }"
   >

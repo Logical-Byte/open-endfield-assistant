@@ -118,5 +118,11 @@ fn emit_event(app_handle: &AppHandle, event: automation::Event) -> tauri::Result
         automation::Event::ArchiveItemScanned(result) => {
             app_handle.emit("archive-item-scanned", result)
         }
+        automation::Event::GambleBattleMatched(result) => {
+            app_handle.emit("gamble-battle-matched", result)
+        }
+        automation::Event::GambleBattleProgress(progress) => {
+            app_handle.emit("gamble-battle-progress", progress)
+        }
     }
 }

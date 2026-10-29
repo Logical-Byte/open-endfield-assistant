@@ -19,6 +19,7 @@ mod cancellation;
 pub mod capabilities;
 mod error;
 mod events;
+pub(crate) mod gamble_battle;
 pub(crate) mod game_environment;
 mod runtime;
 mod session;
@@ -46,12 +47,18 @@ pub use runtime::{LastRun, RunOutcome, Status};
 #[ts(export, export_to = "automation/")]
 pub enum TaskKind {
     ArchiveScan,
+    GambleBattle,
 }
 
 #[derive(serde::Deserialize, TS)]
 #[serde(tag = "taskKind", rename_all = "camelCase")]
 #[ts(export, export_to = "automation/")]
 pub(crate) enum StartRequest {
+    GambleBattle {
+        conditions: gamble_battle::Conditions,
+        #[serde(rename = "workerType")]
+        worker_type: WorkerType,
+    },
     ArchiveScan {
         /// 档案扫描使用的真实或模拟执行方式。
         #[serde(rename = "workerType")]

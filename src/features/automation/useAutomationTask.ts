@@ -77,7 +77,7 @@ export function useAutomationTask<K extends TaskKind>(taskKind: K): AutomationTa
   async function tryStart(options: StartOptions<K>): Promise<CommandResult> {
     if (!canStart.value) return 'skipped';
     // 泛型的 Extract/Omit 重组无法由 TS 证明，参数关联已由公开接口约束。
-    const request = { ...options, taskKind } as StartRequest;
+    const request = { ...options, taskKind } as unknown as StartRequest;
     await startAutomation(request);
     return 'submitted';
   }

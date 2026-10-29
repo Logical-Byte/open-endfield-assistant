@@ -3,4 +3,4 @@
 /**
  * 用户可以启动的自动化任务种类。
  */
-export type TaskKind = "archiveScan";
+export type TaskKind = "archiveScan" | "gambleBattle";

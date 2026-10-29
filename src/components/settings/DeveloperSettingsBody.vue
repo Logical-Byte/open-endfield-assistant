@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
 import { simulateArchiveScan } from '@/features/archiveScan/workerType';
+import { simulateGambleBattle } from '@/features/gambleBattle/workerType';
 import { updateCapabilities } from '@/features/update/variantPolicy';
 import {
   developerInstallBusy,
@@ -34,6 +35,17 @@ const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
       v-model="simulateArchiveScan"
       color="warning"
       :label="t('settings.developer.simulate.enable')"
+    />
+  </SettingsItem>
+  <SettingsItem
+    :description="t('settings.developer.simulateGambleBattle.description')"
+    icon="i-lucide-layers"
+    :title="t('settings.developer.simulateGambleBattle.title')"
+  >
+    <UCheckbox
+      v-model="simulateGambleBattle"
+      color="warning"
+      :label="t('settings.developer.simulateGambleBattle.enable')"
     />
   </SettingsItem>
   <SettingsItem

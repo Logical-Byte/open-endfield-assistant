@@ -58,6 +58,56 @@
   "footer": {
     "poweredBy": "Powered by"
   },
+  "gambleBattle": {
+    "blocked": "Another task is running",
+    "card": "{{rank}} {{suit}}",
+    "clear": "Clear",
+    "conditions": "Stop conditions (any)",
+    "elapsed": "Elapsed: ",
+    "empty": "No matches yet.",
+    "failed": "GambleBattle automation failed",
+    "guide": {
+      "confirm": "Got it",
+      "description": "Draw five cards and redraw until any selected condition is met. Drawing then stops and keeps the current hand.",
+      "help": "Show tutorial",
+      "open": "Open the GambleBattle card draw screen in the game.",
+      "start": "Choose your stop conditions, then select Start drawing.",
+      "title": "How to use"
+    },
+    "hands": {
+      "flush": "Flush",
+      "fourOfAKind": "Four of a kind",
+      "fullHouse": "Full house",
+      "pair": "Pair",
+      "straight": "Straight",
+      "straightFlush": "Straight flush",
+      "threeOfAKind": "Three of a kind",
+      "twoPairs": "Two pairs"
+    },
+    "heading": "GambleBattle",
+    "invalidThreshold": "Enter a whole number from 1 to 25.",
+    "matchProgress": "Matched on round {{round}} after {{seconds}} seconds.",
+    "results": "Successful stop events",
+    "round": "Round: ",
+    "screenshot": "GambleBattle matching screenshot",
+    "seconds_one": "{{count}} second",
+    "seconds_other": "{{count}} seconds",
+    "selectCondition": "Enable at least one stop condition.",
+    "start": "Start drawing",
+    "startSimulation": "Start simulation",
+    "stop": "Stop automation",
+    "stopping": "Stopping",
+    "suits": {
+      "bing": "Bing",
+      "tiao": "Tiao",
+      "wan": "Wan"
+    },
+    "sum": "Total power reaches a threshold",
+    "sumMatched": "Total power {{total}} ≥ {{threshold}}",
+    "threshold": "Power threshold (1 to 25)",
+    "title": "GambleBattle",
+    "total": "Total power: {{total}}"
+  },
   "help": {
     "archive": {
       "main": "archive library home screen"
@@ -343,6 +393,11 @@
         "description": "Debug archive scanning with fixed example results, without a game window. Takes about 20 seconds and can be stopped at any time. Disabled after restarting the app.",
         "enable": "Use simulated scan results",
         "title": "Simulate archive scanning"
+      },
+      "simulateGambleBattle": {
+        "description": "Simulate GambleBattle without a game window. Disabled after restarting the app.",
+        "enable": "Use simulation",
+        "title": "Simulate GambleBattle"
       },
       "trace": {
         "empty": "Installation logs"
