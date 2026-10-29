@@ -5,7 +5,7 @@ import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
 import MatchedHandCard from '@/components/gamble-battle/MatchedHandCard.vue';
 import GambleBattleGuide from '@/components/gamble-battle/GambleBattleGuide.vue';
 import { gambleBattleWorkerType } from '@/features/gambleBattle/workerType';
-import { useAutomationTask } from '@/features/automation/useAutomationTask';
+import { useGambleBattleControls } from '@/features/gambleBattle/controls';
 import {
   conditions,
   handKinds,
@@ -18,14 +18,12 @@ import {
   showGambleBattleGuide,
 } from '@/features/gambleBattle/state';
 import { useAppI18n } from '@/shared/i18n';
-import { useTranslatedToast } from '@/shared/i18n/toast';
 import { formatBackendError, normalizeBackendError } from '@/shared/errors';
 
 const { t, n } = useAppI18n();
-const toast = useTranslatedToast();
-const { phase, isActive, canStart, canStop, tryStart, tryStop, outcome } =
-  useAutomationTask('gambleBattle');
-const submitting = ref(false);
+const { task, submitting, hasCondition, thresholdValid, toggleAutomation } =
+  useGambleBattleControls();
+const { phase, isActive, canStart, canStop, outcome } = task;
 const controlsPanel = ref<HTMLElement | null>(null);
 watch(
   showGambleBattleGuide,
@@ -44,14 +42,6 @@ const elapsedSeconds = computed((): number =>
     currentProgress.value.elapsedSeconds +
       (isActive.value ? Math.max(0, now.value.getTime() - progressUpdatedAt.value) / 1000 : 0),
   ),
-);
-const hasCondition = computed(
-  (): boolean => handKinds.some((hand): boolean => conditions[hand]) || conditions.sum !== null,
-);
-const thresholdValid = computed(
-  (): boolean =>
-    conditions.sum === null ||
-    (Number.isInteger(sumThreshold.value) && sumThreshold.value >= 1 && sumThreshold.value <= 25),
 );
 const buttonLabel = computed((): string => {
   if (phase.value === 'stopping') return t('gambleBattle.stopping');
@@ -80,26 +70,6 @@ function toggleSum(enabled: boolean): void {
 function changeThreshold(value: number | null): void {
   sumThreshold.value = value ?? 0;
   if (conditions.sum !== null) conditions.sum = sumThreshold.value;
-}
-
-async function toggleAutomation(): Promise<void> {
-  submitting.value = true;
-  try {
-    if (canStart.value) {
-      if (!hasCondition.value || !thresholdValid.value) return;
-      await tryStart({ conditions: { ...conditions }, workerType: gambleBattleWorkerType.value });
-    } else {
-      await tryStop();
-    }
-  } catch (error: unknown) {
-    const facts = normalizeBackendError(error, { operation: 'automation' });
-    toast.add({ color: 'error' }, () => ({
-      title: t('gambleBattle.failed'),
-      description: formatBackendError(facts),
-    }));
-  } finally {
-    submitting.value = false;
-  }
 }
 </script>
 

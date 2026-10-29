@@ -19,7 +19,10 @@ use crate::{
     app_paths::AppPaths,
     automation::{
         self, Clock, Event, EventSink, Input, Point720p, ScreenCapture, StopToken,
-        TemplateMatching, TemplateTarget, runtime, session::Session, stats::counts::Capture,
+        TemplateMatching, TemplateTarget, runtime,
+        session::Session,
+        sound::{self, Cue},
+        stats::counts::Capture,
     },
     platform,
     utils::region::ltrb,
@@ -36,12 +39,21 @@ pub(crate) struct Progress {
 
 pub(crate) struct Worker {
     conditions: Conditions,
+    sound_volume: f32,
     ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
 }
 
 impl Worker {
-    pub(crate) fn new(conditions: Conditions, ocr: Arc<Mutex<vision::ocr::OcrEngine>>) -> Self {
-        Self { conditions, ocr }
+    pub(crate) fn new(
+        conditions: Conditions,
+        sound_volume: f32,
+        ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
+    ) -> Self {
+        Self {
+            conditions,
+            sound_volume,
+            ocr,
+        }
     }
 }
 
@@ -58,11 +70,18 @@ impl runtime::Worker for Worker {
             if let Err(error) = platform::window::ensure_foreground_and_topmost(session.hwnd) {
                 warn!("无法将游戏窗口置于前台：{error:#}");
             }
+            sound::play(self.sound_volume, Cue::Enable);
             let mut cx = Capture::new(&mut session);
             let result = execute(&mut cx, &recognizer, &self.conditions, events.as_ref());
             capture = Some(cx.finish());
             result
         })();
+        let cue = if result.is_ok() {
+            Cue::Enable
+        } else {
+            Cue::Disable
+        };
+        sound::play(self.sound_volume, cue);
         runtime::WorkerExit { result, capture }
     }
 }

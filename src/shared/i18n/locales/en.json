@@ -160,6 +160,7 @@
       "start": "Start scan"
     },
     "shortcut": {
+      "gambleBattle": "Press {key} (semicolon) to start Gamble Battle auto-drawing with the selected conditions. Press it again to stop.",
       "quit": "Press {keys} to quit the application.",
       "scan": "Press {key} (apostrophe) to start scanning the archive library. Press it again during scanning to stop."
     },
@@ -472,8 +473,8 @@
     "sound": {
       "section": "Sound",
       "volume": {
-        "description": "Play a sound when scanning starts, completes, fails or stops.",
-        "title": "Scanning sound volume"
+        "description": "Play a sound when archive scanning or Gamble Battle starts, completes, fails or stops.",
+        "title": "Automation sound volume"
       }
     },
     "unavailable": "Settings unavailable",

@@ -9,12 +9,12 @@ use image::RgbaImage;
 use tracing::{debug, info, warn};
 
 use crate::{
-    app_paths::AppPaths,
     automation::{
         self, Clock, EventSink, Input, Ocr, ScreenCapture, StopToken, TemplateMatching,
         TemplateTarget, capabilities,
         runtime::{self, WorkerExit},
         session::Session,
+        sound::{self, Cue},
         stats::counts::{Capture, CaptureSummary},
     },
     data::{AppData, archive},
@@ -56,10 +56,10 @@ impl runtime::Worker for Worker {
         let result = execute_session(&self, stop, events, &mut capture);
         let exit = WorkerExit { result, capture };
         let sound = match &exit.result {
-            Ok(()) => ScanSound::Enable,
-            Err(_) => ScanSound::Disable,
+            Ok(()) => Cue::Enable,
+            Err(_) => Cue::Disable,
         };
-        play_scan_sound(self.settings.sound_volume, sound);
+        sound::play(self.settings.sound_volume, sound);
         exit
     }
 }
@@ -82,7 +82,7 @@ fn execute_session(
     }
 
     // 启动检查通过、任务真正开始执行前播放 enable 提示音。
-    play_scan_sound(worker.settings.sound_volume, ScanSound::Enable);
+    sound::play(worker.settings.sound_volume, Cue::Enable);
 
     let reporter = ScanReporter::new(events);
     let mut captured_session = Capture::new(&mut session);
@@ -312,35 +312,6 @@ fn category_id_of(subscene: ArchiveSubscene) -> archive::Category {
         ArchiveSubscene::Central(CentralPage::Archive) => archive::Category::Document,
         ArchiveSubscene::Central(CentralPage::Report) => archive::Category::Report,
     }
-}
-
-/// 播放扫描提示音（音量取本次设置快照）。
-fn play_scan_sound(volume: f32, sound: ScanSound) {
-    let app_paths = match AppPaths::new() {
-        Ok(app_paths) => app_paths,
-        Err(error) => {
-            warn!("无法解析扫描提示音资源: {error}");
-            return;
-        }
-    };
-    let relative_path = match sound {
-        ScanSound::Enable => "sounds/enable.wav",
-        ScanSound::Disable => "sounds/disable.wav",
-    };
-    let path = match app_paths.resolve_resource_file(relative_path) {
-        Ok(path) => path,
-        Err(error) => {
-            warn!("无法解析扫描提示音资源: {error:#}");
-            return;
-        }
-    };
-    platform::sound::play_wav(&path, volume);
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ScanSound {
-    Enable,
-    Disable,
 }
 
 #[cfg(test)]

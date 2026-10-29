@@ -10,8 +10,8 @@ use std::{
     time::Duration,
 };
 
-use tauri::{AppHandle, Manager};
-use tracing::debug;
+use tauri::{AppHandle, Emitter, Manager};
+use tracing::{debug, warn};
 
 use crate::{controller::Controller, platform};
 
@@ -20,6 +20,13 @@ const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
 /// 引号 `'`：切换扫描档案库任务。
 const TOGGLE_MAIN_TASK_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
     vk: platform::hotkey::OEM_7_KEY,
+    down: true,
+    modifiers: 0,
+};
+
+/// 分号 `;`：使用前端当前条件切换百趣演武任务。
+const TOGGLE_GAMBLE_BATTLE_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
+    vk: platform::hotkey::OEM_1_KEY,
     down: true,
     modifiers: 0,
 };
@@ -53,10 +60,18 @@ pub(super) fn spawn_dispatcher(
                 if key_event == EXIT_HOTKEY {
                     let controller = app_handle.state::<Controller>();
                     controller.quit(&app_handle);
-                } else if key_event == TOGGLE_MAIN_TASK_HOTKEY {
+                } else if key_event == TOGGLE_MAIN_TASK_HOTKEY
+                    || key_event == TOGGLE_GAMBLE_BATTLE_HOTKEY
+                {
                     if foreground.is_foreground_eligible() {
                         let controller = app_handle.state::<Controller>();
-                        controller.toggle_archive_scan();
+                        if key_event == TOGGLE_MAIN_TASK_HOTKEY {
+                            controller.toggle_archive_scan();
+                        } else if let Err(error) =
+                            app_handle.emit("gamble-battle-toggle-requested", ())
+                        {
+                            warn!("无法向前端发送百趣演武快捷键请求：{error}");
+                        }
                     } else {
                         debug!("前台窗口不是终末地或者 OEA，忽略热键");
                     }
