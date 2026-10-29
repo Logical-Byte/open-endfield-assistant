@@ -13,9 +13,9 @@ use ::windows::Win32::{
         },
         WindowsAndMessaging::{
             GWL_EXSTYLE, GWL_STYLE, GetClientRect, GetForegroundWindow, GetMenu, GetWindowLongPtrW,
-            IsIconic, IsWindow, IsZoomed, SW_RESTORE, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE,
-            SWP_NOMOVE, SWP_NOZORDER, SetWindowPos, ShowWindowAsync, WINDOW_EX_STYLE, WINDOW_STYLE,
-            WS_CAPTION, WS_POPUP,
+            GetWindowRect, IsIconic, IsWindow, IsZoomed, SW_RESTORE, SWP_ASYNCWINDOWPOS,
+            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOZORDER, SetWindowPos, ShowWindowAsync,
+            WINDOW_EX_STYLE, WINDOW_STYLE, WS_CAPTION, WS_POPUP,
         },
     },
 };
@@ -52,14 +52,15 @@ pub(in crate::platform) fn ensure_windowed_client_size(
     }
 
     if !is_windowed(window) {
-        ensure_foreground_and_topmost(window)?;
-        // `SetForegroundWindow` 跨输入队列激活是异步的，返回成功不代表目标已成为前台。
-        wait_until(|| Ok(unsafe { GetForegroundWindow() } == hwnd))
-            .context("等待游戏窗口获得前台焦点超时")?;
+        let activation = ensure_foreground_and_topmost(window);
+        // 跨输入队列激活异步完成，以实际前台窗口为准，不能仅依赖请求的返回值。
+        wait_until(|| Ok(unsafe { GetForegroundWindow() } == hwnd)).with_context(|| {
+            format!("等待游戏窗口获得前台焦点超时，激活请求结果：{activation:?}")
+        })?;
         debug!("游戏窗口已获得前台焦点，发送 Alt+Enter 退出全屏");
         send_fullscreen_toggle()?;
-        wait_until(|| Ok(is_windowed(window))).context("游戏未能退出全屏模式")?;
-        debug!("游戏窗口已退出全屏，开始调整客户区尺寸");
+        wait_for_windowed_transition(window).context("游戏未能完成退出全屏模式")?;
+        debug!("游戏已完成窗口化尺寸恢复，开始调整客户区尺寸");
     }
 
     let mut client = RECT::default();
@@ -104,6 +105,54 @@ pub(in crate::platform) fn ensure_windowed_client_size(
         }
     })
     .context("游戏窗口未能稳定到指定的窗口化尺寸")
+}
+
+fn wait_for_windowed_transition(window: WindowHandle) -> anyhow::Result<()> {
+    let mut previous = None;
+    let mut stable_since = Instant::now();
+    wait_until(|| {
+        let current = windowed_client_size(window)?;
+        if current != previous {
+            debug!(?current, "游戏窗口化过渡中的客户区尺寸");
+            previous = current;
+            stable_since = Instant::now();
+        }
+        Ok(current.is_some() && stable_since.elapsed() >= SIZE_SETTLE_TIME)
+    })
+}
+
+fn windowed_client_size(window: WindowHandle) -> anyhow::Result<Option<(i32, i32)>> {
+    let hwnd = window.raw;
+    if !is_windowed(window)
+        || unsafe { IsIconic(hwnd) }.as_bool()
+        || unsafe { IsZoomed(hwnd) }.as_bool()
+    {
+        return Ok(None);
+    }
+    let mut client = RECT::default();
+    let mut outer = RECT::default();
+    unsafe { GetClientRect(hwnd, &mut client) }?;
+    unsafe { GetWindowRect(hwnd, &mut outer) }?;
+    let width = client.right - client.left;
+    let height = client.bottom - client.top;
+    if width <= 0 || height <= 0 {
+        return Ok(None);
+    }
+    let style = WINDOW_STYLE(unsafe { GetWindowLongPtrW(hwnd, GWL_STYLE) } as u32);
+    let ex_style = WINDOW_EX_STYLE(unsafe { GetWindowLongPtrW(hwnd, GWL_EXSTYLE) } as u32);
+    let dpi = unsafe { GetDpiForWindow(hwnd) };
+    ensure!(dpi != 0, "无法读取游戏窗口 DPI");
+    let has_menu = !unsafe { GetMenu(hwnd) }.is_invalid();
+    let mut expected = client;
+    unsafe { AdjustWindowRectExForDpi(&mut expected, style, has_menu, ex_style, dpi) }?;
+    // Unity 先改 `WS_*`，再恢复窗口几何。样式已改变但外框仍等于全屏客户区时，
+    // 引擎的窗口化事务尚未完成，此时发出的 `SetWindowPos` 会被后续恢复覆盖。
+    if outer.right - outer.left != expected.right - expected.left
+        || outer.bottom - outer.top != expected.bottom - expected.top
+    {
+        return Ok(None);
+    }
+    Ok(Some((width, height)))
 }
 
 fn is_windowed(window: WindowHandle) -> bool {
@@ -161,8 +210,9 @@ mod tests {
         Win32::{
             Foundation::HWND,
             UI::WindowsAndMessaging::{
-                CreateWindowExW, DispatchMessageW, GetClientRect, GetMessageW, MSG, PostMessageW,
-                WM_CLOSE, WS_EX_NOACTIVATE, WS_MAXIMIZE, WS_MINIMIZE, WS_OVERLAPPEDWINDOW,
+                CreateWindowExW, DestroyWindow, DispatchMessageW, GetClientRect, GetMessageW, MSG,
+                PostMessageW, SetWindowLongPtrW, WM_CLOSE, WS_EX_NOACTIVATE, WS_MAXIMIZE,
+                WS_MINIMIZE, WS_OVERLAPPEDWINDOW,
             },
         },
         core::w,
@@ -231,6 +281,69 @@ mod tests {
                 (1280, 720)
             );
         }
+    }
+
+    #[test]
+    fn style_change_does_not_complete_fullscreen_transition() {
+        super::super::window_operation::set_thread_dpi_awareness_context();
+        let hwnd = unsafe {
+            CreateWindowExW(
+                WS_EX_NOACTIVATE,
+                w!("STATIC"),
+                w!("OEA fullscreen transition test"),
+                WS_POPUP,
+                0,
+                0,
+                3840,
+                2160,
+                None,
+                None,
+                None,
+                None,
+            )
+        }
+        .unwrap();
+        defer! { let _ = unsafe { DestroyWindow(hwnd) }; }
+        let window = WindowHandle { raw: hwnd };
+        assert!(!is_windowed(window));
+        unsafe { SetWindowLongPtrW(hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW.0 as isize) };
+        assert!(is_windowed(window));
+        assert_eq!(windowed_client_size(window).unwrap(), None);
+
+        let mut outer = RECT {
+            right: 1920,
+            bottom: 1080,
+            ..Default::default()
+        };
+        let dpi = unsafe { GetDpiForWindow(hwnd) };
+        unsafe {
+            AdjustWindowRectExForDpi(
+                &mut outer,
+                WS_OVERLAPPEDWINDOW,
+                false,
+                WS_EX_NOACTIVATE,
+                dpi,
+            )
+        }
+        .unwrap();
+        unsafe {
+            SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                outer.right - outer.left,
+                outer.bottom - outer.top,
+                SWP_NOZORDER
+                    | SWP_NOACTIVATE
+                    | ::windows::Win32::UI::WindowsAndMessaging::SWP_FRAMECHANGED,
+            )
+        }
+        .unwrap();
+        assert_eq!(windowed_client_size(window).unwrap(), Some((1920, 1080)));
+        wait_for_windowed_transition(window).unwrap();
+        ensure_windowed_client_size(window, 1280, 720).unwrap();
+        assert_eq!(windowed_client_size(window).unwrap(), Some((1280, 720)));
     }
 
     #[test]
