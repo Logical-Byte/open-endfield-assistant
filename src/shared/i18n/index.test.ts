@@ -100,7 +100,7 @@ describe('应用翻译入口', () => {
   });
 
   it.each([
-    { language: 'zh-CN', name: 'Mirror酱', conjunction: '是独立的第三方' },
+    { language: 'zh-CN', name: 'Mirror酱', conjunction: ' 是独立的第三方' },
     { language: 'en-US', name: 'MirrorChyan', conjunction: ' is an independent third-party' },
   ])('$language 组件插值保留本地化服务链接', async ({ language, name, conjunction }) => {
     await i18n.changeLanguage(language);

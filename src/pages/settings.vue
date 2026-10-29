@@ -266,6 +266,8 @@ onBeforeUnmount(stopResetScroll);
                   <template #service
                     ><ULink
                       class="text-primary hover:text-primary/75"
+                      rel="noopener noreferrer"
+                      target="_blank"
                       to="https://mirrorchyan.com/"
                       >{{ t('common.mirrorchyan') }}</ULink
                     ></template
