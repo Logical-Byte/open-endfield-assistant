@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { useNow } from '@vueuse/core';
 import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
 import MatchedHandCard from '@/components/gamble-battle/MatchedHandCard.vue';
 import GambleBattleGuide from '@/components/gamble-battle/GambleBattleGuide.vue';
@@ -13,8 +12,6 @@ import {
   expandedMatches,
   clearMatchedHands,
   sumThreshold,
-  currentProgress,
-  progressUpdatedAt,
   showGambleBattleGuide,
 } from '@/features/gambleBattle/state';
 import { useAppI18n } from '@/shared/i18n';
@@ -35,13 +32,6 @@ watch(
     target?.focus();
   },
   { immediate: true },
-);
-const now = useNow({ interval: 1000 });
-const elapsedSeconds = computed((): number =>
-  Math.floor(
-    currentProgress.value.elapsedSeconds +
-      (isActive.value ? Math.max(0, now.value.getTime() - progressUpdatedAt.value) / 1000 : 0),
-  ),
 );
 const buttonLabel = computed((): string => {
   if (phase.value === 'stopping') return t('gambleBattle.stopping');
@@ -145,18 +135,6 @@ function changeThreshold(value: number | null): void {
           :title="t('gambleBattle.failed')"
           variant="subtle"
         />
-        <dl aria-live="off" class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-          <div>
-            <dt class="inline">{{ t('gambleBattle.elapsed') }}</dt>
-            <dd class="inline tabular-nums">
-              {{ t('gambleBattle.seconds', { count: elapsedSeconds }) }}
-            </dd>
-          </div>
-          <div>
-            <dt class="inline">{{ t('gambleBattle.round') }}</dt>
-            <dd class="inline tabular-nums">{{ n(currentProgress.round) }}</dd>
-          </div>
-        </dl>
         <fieldset class="space-y-1" :disabled="isActive || submitting">
           <legend class="mb-2 flex items-center gap-1 text-sm font-medium text-highlighted">
             {{ t('gambleBattle.conditions') }}
