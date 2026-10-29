@@ -115,8 +115,9 @@ void initApp();
         >
           <AppSidebar />
           <!-- 文档页保留初始 8px 留白，滚动视口延伸到上下边缘，卡片经过时不会被留白裁切。 -->
+          <!-- 内容区独立层叠，扫描指引等页面覆盖层始终位于悬浮侧栏下方。 -->
           <main
-            class="min-h-0 min-w-0 overflow-y-auto"
+            class="isolate min-h-0 min-w-0 overflow-y-auto"
             :class="(route.path === '/help' || route.path === '/settings') && '-my-2 py-2'"
           >
             <RouterView />
