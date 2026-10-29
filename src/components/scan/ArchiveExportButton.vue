@@ -27,7 +27,7 @@ async function submit(): Promise<void> {
       color="neutral"
       :disabled="!total"
       icon="i-lucide-map"
-      size="xs"
+      size="sm"
       variant="outline"
       @click="open = true"
       >{{ t('scan.export') }}</UButton

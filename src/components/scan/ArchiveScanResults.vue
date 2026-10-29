@@ -2,14 +2,10 @@
 import { useTranslatedToast } from '@/shared/i18n/toast';
 import { useAppI18n } from '@/shared/i18n';
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from 'vue';
-import { useResizeObserver } from '@vueuse/core';
+import { useResizeObserver, useTimeoutFn } from '@vueuse/core';
 import type { SplitterItem } from '@nuxt/ui';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
-import {
-  useArchiveScanResults,
-  type ArchiveScanSource,
-  type ScanEdit,
-} from '@/features/archiveScan/useArchiveScanResults';
+import { useArchiveScanResults, type ScanEdit } from '@/features/archiveScan/useArchiveScanResults';
 import type { ArchiveId } from '@/shared/types/archive';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
 import ArchiveEntryCard from './ArchiveEntryCard.vue';
@@ -22,7 +18,6 @@ import { createScanCardState, type ScanCardState } from './scanCardState';
 
 const { t, n } = useAppI18n();
 
-const props = defineProps<{ source?: ArchiveScanSource }>();
 const {
   archives,
   scans,
@@ -44,12 +39,27 @@ const {
   clear: clearRecords,
   revealScan,
   revealArchive,
-} = useArchiveScanResults(props.source);
+} = useArchiveScanResults();
 const { isActive } = useAutomationTask('archiveScan');
 const toast = useToast();
 const translatedToast = useTranslatedToast();
 const selectedArchiveId: Ref<ArchiveId | null> = ref(null);
 const selectedScanId: Ref<ScannedItemId | null> = ref(null);
+// 两侧定位提示均停留 1 秒，卡片再以 CSS 淡出边框。再次定位会重置对应计时。
+const { start: startArchiveHighlight, stop: stopArchiveHighlight } = useTimeoutFn(
+  (): void => {
+    selectedArchiveId.value = null;
+  },
+  1000,
+  { immediate: false },
+);
+const { start: startScanHighlight, stop: stopScanHighlight } = useTimeoutFn(
+  (): void => {
+    selectedScanId.value = null;
+  },
+  1000,
+  { immediate: false },
+);
 const archiveList: Ref<ScrollList | null> = ref(null);
 const scanList: Ref<ScrollList | null> = ref(null);
 
@@ -79,14 +89,21 @@ const splitItems = computed<SplitterItem[]>(() => {
     },
   ];
 });
-function clearScanHighlight(): void {
-  selectedScanId.value = null;
-}
-function clearArchiveHighlight(): void {
-  selectedArchiveId.value = null;
-}
 // 每张卡片的草稿由列表持有，虚拟滚动卸载组件不会放弃编辑。
 const cardStates = ref<Record<number, ScanCardState>>({});
+const expandedArchives = ref<Record<string, boolean>>({});
+watch(
+  archives,
+  (items: readonly ArchiveEntryView[]): void => {
+    expandedArchives.value = Object.fromEntries(
+      items.map((archive): [string, boolean] => [
+        archive.id,
+        expandedArchives.value[archive.id] ?? false,
+      ]),
+    );
+  },
+  { immediate: true },
+);
 const editToasts = new Map<number, string | number>();
 watch(
   scans,
@@ -150,6 +167,7 @@ function choose(id: ScannedItemId, archiveId: ArchiveId | null): void {
 async function locateScan(id: ScannedItemId): Promise<void> {
   revealScan();
   selectedScanId.value = id;
+  startScanHighlight();
   cardStates.value[id]!.expanded = true;
   await nextTick();
   const index = visibleScans.value.findIndex(
@@ -160,6 +178,8 @@ async function locateScan(id: ScannedItemId): Promise<void> {
 async function locateArchive(id: ArchiveId): Promise<void> {
   revealArchive();
   selectedArchiveId.value = id;
+  startArchiveHighlight();
+  expandedArchives.value[id] = true;
   await nextTick();
   const index = visibleArchives.value.findIndex(
     (archive: ArchiveEntryView): boolean => archive.id === id,
@@ -168,6 +188,8 @@ async function locateArchive(id: ArchiveId): Promise<void> {
 }
 function clearScans(): void {
   clearRecords();
+  stopArchiveHighlight();
+  stopScanHighlight();
   selectedArchiveId.value = null;
   selectedScanId.value = null;
 }
@@ -220,17 +242,17 @@ watch(scans, (): void => {
             <div class="flex items-center gap-1">
               <UButton
                 v-for="option in [
-                  { value: 'all' as const, label: t('scan.all'), count: archives.length },
                   {
                     value: 'unmatched' as const,
-                    label: t('scan.noRecords'),
+                    label: t('scan.notCollected'),
                     count: archives.length - matchedArchives,
                   },
                   {
                     value: 'matched' as const,
-                    label: t('scan.hasRecords'),
+                    label: t('scan.collected'),
                     count: matchedArchives,
                   },
+                  { value: 'all' as const, label: t('scan.all'), count: archives.length },
                 ]"
                 :key="option.value"
                 :color="archiveFilter === option.value ? 'primary' : 'neutral'"
@@ -247,13 +269,13 @@ watch(scans, (): void => {
                 class="min-w-0 flex-1"
                 icon="i-lucide-search"
                 :placeholder="t('scan.searchArchive')"
-                size="sm"
+                size="xs"
               /><UPopover
                 ><UButton
                   :aria-label="t('scan.filters')"
                   :color="mapOnly || archiveCategory !== 'all' ? 'primary' : 'neutral'"
                   icon="i-lucide-list-filter"
-                  size="sm"
+                  size="xs"
                   variant="outline" /><template #content
                   ><div class="w-64 space-y-3 p-3">
                     <USelect
@@ -274,9 +296,9 @@ watch(scans, (): void => {
             :items="visibleArchives"
           >
             <ArchiveEntryCard
+              v-model:expanded="expandedArchives[archive.id]!"
               :entry="archive"
               :selected="selectedArchiveId === archive.id"
-              @clear-highlight="clearScanHighlight"
               @locate-scan="locateScan"
             />
           </ArchiveVirtualList>
@@ -353,13 +375,13 @@ watch(scans, (): void => {
                 class="min-w-0 flex-1"
                 icon="i-lucide-search"
                 :placeholder="t('scan.searchTitle')"
-                size="sm"
+                size="xs"
               /><USelect
                 v-model="scanCategory"
                 :aria-label="t('scan.scanCategory')"
                 class="w-28"
                 :items="categories"
-                size="sm"
+                size="xs"
               />
             </div>
           </header>
@@ -367,7 +389,7 @@ watch(scans, (): void => {
             v-if="visibleScans.length"
             ref="scanList"
             v-slot="{ item }"
-            class="min-h-0 flex-1 p-2"
+            class="min-h-0 flex-1"
             :items="visibleScans"
           >
             <ScannedItemCard
@@ -375,7 +397,6 @@ watch(scans, (): void => {
               :item="item"
               :selected="selectedScanId === item.scannedItemId"
               @choose="choose(item.scannedItemId, $event)"
-              @clear-highlight="clearArchiveHighlight"
               @locate-archive="locateArchive"
             />
           </ArchiveVirtualList>

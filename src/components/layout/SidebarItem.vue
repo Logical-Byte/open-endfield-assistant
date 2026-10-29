@@ -26,7 +26,7 @@ withDefaults(
 </script>
 
 <template>
-  <!-- 图标按钮为 36×36px，左右各留 2px，与导航项的 40px 图标列对齐。 -->
+  <!-- 点击区域高 34px，背景内收后高 32px。图标按钮左右各留 3px，与 40px 图标列对齐。 -->
   <UTooltip
     :content="{ side: 'right' }"
     :disabled="!iconOnly && !!label && !collapsed"
@@ -39,9 +39,10 @@ withDefaults(
       active-color="primary"
       active-variant="solid"
       :aria-label="tooltip || label"
-      class="sidebar-item h-9 cursor-pointer gap-0 p-0 text-start transition-colors"
-      :class="iconOnly ? 'mx-0.5 flex w-9' : 'grid w-full grid-cols-[40px_minmax(0,1fr)]'"
+      class="sidebar-item h-8.5 cursor-pointer gap-0 p-0 text-start transition-colors"
+      :class="iconOnly ? 'mx-0.75 flex w-8.5' : 'grid w-full grid-cols-[40px_minmax(0,1fr)]'"
       color="neutral"
+      size="md"
       :to="to"
       :ui="{
         base: 'relative isolate bg-transparent before:pointer-events-none before:absolute before:inset-px before:-z-1 before:rounded-[inherit] before:transition-colors hover:bg-transparent hover:text-primary hover:before:bg-accented/50 focus-visible:text-primary focus-visible:before:bg-accented/50 active:bg-transparent',
@@ -50,8 +51,8 @@ withDefaults(
     >
       <template #leading>
         <span
-          class="relative flex h-9 shrink-0 items-center justify-center"
-          :class="iconOnly ? 'w-9' : 'w-10'"
+          class="relative flex h-8.5 shrink-0 items-center justify-center"
+          :class="iconOnly ? 'w-8.5' : 'w-10'"
         >
           <UIcon
             class="size-5 shrink-0"

@@ -51,14 +51,18 @@ const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[]
       <UButton
         :aria-label="t('scan.reselectArchive')"
         class="w-full min-w-0 justify-start"
-        color="neutral"
-        variant="outline"
+        color="primary"
+        trailing-icon="i-lucide-chevrons-up-down"
+        variant="subtle"
         @click="reselectArchive"
       >
         <ArchiveLabel
-          class="w-full text-left"
+          :category-label="selectedArchive.categoryLabel"
+          class="min-w-0 flex-1 text-left"
           :content-preview="selectedArchive.contentPreview"
+          preview="next-line"
           :title="selectedArchive.title"
+          variant="plain"
         />
       </UButton>
     </UTooltip>
@@ -79,6 +83,7 @@ const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[]
       :reset-search-term-on-blur="false"
       :reset-search-term-on-select="false"
       :search-term="search"
+      size="sm"
       trailing-icon=""
       :ui="{
         content: 'max-h-64 bg-elevated shadow-xl ring-accented',
@@ -90,6 +95,7 @@ const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[]
     >
       <template #item-label="{ item }">
         <ArchiveLabel
+          :category-label="'categoryLabel' in item ? item.categoryLabel : undefined"
           :content-preview="'contentPreview' in item ? item.contentPreview : undefined"
           :title="item.title"
         />

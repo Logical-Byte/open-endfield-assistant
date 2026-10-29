@@ -78,6 +78,15 @@ export default defineConfig(({ command }) => {
           },
         },
         ui: {
+          button: {
+            defaultVariants: { size: 'sm' },
+          },
+          input: {
+            defaultVariants: { size: 'sm' },
+          },
+          select: {
+            defaultVariants: { size: 'sm' },
+          },
           colors: {
             primary: 'pink',
             neutral: 'zinc',

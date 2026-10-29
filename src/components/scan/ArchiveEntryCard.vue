@@ -1,141 +1,129 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
-import { useEvidencePopover } from './useEvidencePopover';
 import type { ArchiveEntryView } from '@/features/archiveScan/resultView';
 import type { ScannedItemId } from '@/features/archiveScan/types/scannedItem';
 import ArchiveLabel from './ArchiveLabel.vue';
-defineProps<{ entry: ArchiveEntryView; selected?: boolean }>();
-function iconStroke(svg: string): string {
-  return svg.replace(/stroke-width="2"/g, 'stroke-width="1.5"');
-}
-const { t } = useAppI18n();
 
-const emit = defineEmits<{ locateScan: [id: ScannedItemId]; clearHighlight: [] }>();
-const { open, cancelClose, scheduleClose } = useEvidencePopover((): void => emit('clearHighlight'));
-const acquisitionIcons: Record<string, string> = {
-  map: 'i-lucide-map-pin',
-  mission: 'i-lucide-flag',
-  auto: 'i-lucide-unlock',
-  shop: 'i-lucide-shopping-bag',
-  invstgt: 'i-lucide-file-search',
-};
+defineProps<{ entry: ArchiveEntryView; selected?: boolean }>();
+const expanded = defineModel<boolean>('expanded', { default: false });
+const emit = defineEmits<{
+  locateScan: [id: ScannedItemId];
+}>();
+const { t } = useAppI18n();
 </script>
+
 <template>
-  <article
-    class="archive-row grid h-11 grid-cols-[minmax(0,1fr)_86px_112px] items-center gap-2 border-b border-default/60 px-3 py-2 transition-colors group-data-[compact=true]/archive:h-auto group-data-[compact=true]/archive:gap-y-1"
-    :class="selected && 'bg-primary/20'"
+  <UCard
+    as="article"
+    class="archive-row outline-2 transition-[outline-color] motion-reduce:transition-none"
+    :class="selected ? 'outline-primary duration-0' : 'outline-transparent duration-400'"
+    :ui="{ body: 'p-0 sm:p-0' }"
   >
-    <div
-      class="flex min-w-0 items-baseline gap-2 self-start group-data-[compact=true]/archive:contents"
+    <UCollapsible
+      v-model:open="expanded"
+      :ui="{ content: 'overflow-hidden motion-reduce:animate-none' }"
+      :unmount-on-hide="false"
     >
-      <ArchiveLabel
-        class="flex-1 text-base leading-6 group-data-[compact=true]/archive:col-span-full"
-        :content-preview="entry.contentPreview"
-        :title="entry.title"
-      />
-      <span
-        class="shrink-0 text-xs text-muted group-data-[compact=true]/archive:col-start-1 group-data-[compact=true]/archive:row-start-2 group-data-[compact=true]/archive:self-center"
-        :title="entry.categoryLabel"
-        >{{ entry.categoryLabel.split('/').slice(-1)[0] }}</span
+      <UButton
+        :aria-expanded="expanded"
+        :aria-label="
+          t(expanded ? 'scan.collapseArchive' : 'scan.expandArchive', { title: entry.title })
+        "
+        class="min-h-10 w-full min-w-0 rounded-none px-3 py-2 text-left text-sm"
+        color="neutral"
+        variant="ghost"
       >
-    </div>
-    <div
-      class="group-data-[compact=true]/archive:col-start-2 group-data-[compact=true]/archive:row-start-2"
-    >
-      <UPopover
-        v-if="entry.scans.length"
-        v-model:open="open"
-        :content="{ side: 'bottom', align: 'end', sideOffset: 5 }"
-        mode="click"
-        :ui="{ content: 'w-80 max-w-[calc(100vw-24px)] p-3' }"
-      >
-        <UButton
-          :aria-expanded="open"
-          class="w-full justify-center group-data-[compact=true]/archive:h-6 group-data-[compact=true]/archive:py-0"
-          color="success"
-          :label="t('scan.matches', { count: entry.scans.length })"
-          size="xs"
-          trailing-icon="i-lucide-chevron-down"
-          variant="subtle"
-          @mouseenter="cancelClose"
-          @mouseleave="scheduleClose"
+        <span class="sr-only">{{
+          entry.scans.length ? t('scan.collected') : t('scan.notCollected')
+        }}</span>
+        <ArchiveLabel
+          class="min-w-0 flex-1"
+          :content-preview="entry.contentPreview"
+          preview="same-line"
+          :preview-hidden="expanded"
+          :title="entry.title"
+          variant="plain"
         />
-        <template #content
-          ><div @mouseenter="cancelClose" @mouseleave="scheduleClose">
-            <p class="mb-1 text-sm font-medium">{{ entry.title }}</p>
-            <p class="mb-2 text-xs text-muted">
-              {{ t('scan.evidenceCount', { count: entry.scans.length }) }}
-            </p>
-            <div class="max-h-64 space-y-2 overflow-auto">
+        <UIcon
+          v-if="entry.scans.length"
+          class="size-4 shrink-0 text-success"
+          name="i-lucide-circle-check"
+        />
+        <UIcon
+          class="size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none"
+          :class="expanded && 'rotate-180'"
+          name="i-lucide-chevron-down"
+        />
+      </UButton>
+      <template #content>
+        <dl class="space-y-3 border-t border-default p-3 text-sm">
+          <div
+            v-if="entry.contentPreview"
+            class="space-y-1 transition-[opacity,transform] duration-100 ease-out motion-reduce:transition-none"
+            :class="expanded ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'"
+          >
+            <dt class="text-muted">{{ t('scan.contentPreview') }}</dt>
+            <dd>{{ entry.contentPreview }}</dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-muted">{{ t('scan.archiveCategory') }}</dt>
+            <dd>{{ entry.categoryLabel }}</dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-muted">{{ t('scan.acquisitionMethod') }}</dt>
+            <dd class="flex flex-wrap items-center gap-2">
+              <span>
+                {{
+                  entry.acquisitionMethod ? t(entry.acquisitionLabel) : t('scan.unknownAcquisition')
+                }}
+              </span>
+              <UButton
+                v-if="entry.acquisitionMethod"
+                color="neutral"
+                :label="t(entry.acquisitionMethod === 'map' ? 'scan.viewOem' : 'scan.viewIntel')"
+                size="xs"
+                target="_blank"
+                :to="entry.acquisitionMethod === 'map' ? entry.oemUrl : entry.intelUrl"
+                trailing-icon="i-lucide-external-link"
+                variant="outline"
+              />
+            </dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-muted">{{ t('scan.collectionStatus') }}</dt>
+            <dd class="space-y-2">
+              <UBadge :color="entry.scans.length ? 'success' : 'neutral'" size="lg" variant="soft">
+                {{ entry.scans.length ? t('scan.collected') : t('scan.notCollected') }}
+              </UBadge>
               <div
                 v-for="scan in entry.scans"
                 :key="scan.scannedItemId"
-                class="flex items-center gap-2 rounded border border-default p-2"
+                class="flex items-center gap-2 rounded-md bg-elevated p-2"
               >
                 <div class="min-w-0 flex-1">
-                  <p class="text-xs">
+                  <p>
                     #{{ scan.scannedItemId }}
                     {{
                       scan.manualChoice.kind === 'manual' ? t('scan.manual') : t('scan.automatic')
                     }}
                   </p>
-                  <p class="mt-1 truncate text-xs text-muted">
+                  <p class="truncate text-muted" :title="scan.ocrResult || t('scan.noTextShort')">
                     {{ t('scan.ocrValue', { text: scan.ocrResult || t('scan.noTextShort') }) }}
                   </p>
                 </div>
                 <UButton
                   color="neutral"
+                  :label="t('scan.locateScan')"
                   size="xs"
                   trailing-icon="i-lucide-arrow-right"
                   variant="outline"
                   @click="emit('locateScan', scan.scannedItemId)"
-                  >{{ t('scan.locateScan') }}</UButton
-                >
+                />
               </div>
-            </div>
-          </div></template
-        >
-      </UPopover>
-      <UTooltip v-else :text="t('scan.noEvidence')">
-        <span
-          class="flex h-6 w-full items-center justify-center rounded border border-default bg-elevated text-xs text-toned"
-          tabindex="0"
-          >{{ t('scan.unmatched') }}</span
-        >
-      </UTooltip>
-    </div>
-    <div
-      class="group-data-[compact=true]/archive:col-start-3 group-data-[compact=true]/archive:row-start-2"
-    >
-      <UTooltip v-if="entry.acquisitionMethod" :text="t('scan.viewOem')">
-        <UButton
-          :aria-label="
-            entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
-          "
-          class="w-full justify-center group-data-[compact=true]/archive:h-6 group-data-[compact=true]/archive:py-0"
-          color="neutral"
-          size="xs"
-          target="_blank"
-          :to="entry.acquisitionMethod === 'map' ? entry.oemUrl : entry.intelUrl"
-          variant="outline"
-        >
-          <span class="inline-flex items-center justify-center gap-1.5 text-sm font-normal">
-            <span>{{
-              entry.acquisitionMethod === 'map' ? t('scan.viewLocation') : t(entry.acquisitionLabel)
-            }}</span>
-            <UIcon
-              class="shrink-0"
-              :customize="iconStroke"
-              mode="svg"
-              :name="acquisitionIcons[entry.acquisitionMethod]"
-              :size="18"
-            />
-          </span>
-        </UButton>
-      </UTooltip>
-      <span v-else class="flex h-7 items-center justify-center text-xs text-muted">{{
-        t('scan.unknownAcquisition')
-      }}</span>
-    </div>
-  </article>
+            </dd>
+          </div>
+        </dl>
+      </template>
+    </UCollapsible>
+  </UCard>
 </template>

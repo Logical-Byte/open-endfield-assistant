@@ -137,8 +137,8 @@ export type SettingsSkeleton = SettingsItemDefinition['kind'];
 export const settingsSkeletonClasses: Record<SettingsSkeleton, string> = {
   switch: 'h-5 w-10 rounded-full',
   slider: 'h-5 w-56',
-  select: 'h-8 w-56',
-  input: 'h-8 w-56',
-  'choice-buttons': 'h-8 w-56',
-  button: 'h-8 w-32',
+  select: 'h-7 w-56',
+  input: 'h-7 w-56',
+  'choice-buttons': 'h-7 w-56',
+  button: 'h-7 w-32',
 };

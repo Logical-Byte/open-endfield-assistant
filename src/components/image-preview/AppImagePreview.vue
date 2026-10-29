@@ -83,7 +83,7 @@ const {
             <UTooltip :kbds="['0']" :text="t('image.reset')">
               <UButton
                 :aria-label="t('image.reset')"
-                class="min-w-16 justify-center text-sm"
+                class="min-w-16 justify-center"
                 color="neutral"
                 variant="ghost"
                 @click="resetView()"
@@ -149,7 +149,7 @@ const {
                   :aria-label="t('image.help')"
                   color="neutral"
                   icon="i-lucide-circle-question-mark"
-                  size="lg"
+                  size="sm"
                   variant="ghost"
                 />
               </UTooltip>
