@@ -11,6 +11,7 @@ import {
 } from '@/features/settings/settings';
 import { initLogState } from '@/features/log/logState';
 import { initScannedItems } from '@/features/archiveScan/scannedItems';
+import { initGambleBattleState } from '@/features/gambleBattle/state';
 import { initUpdateState } from '@/features/update/update';
 import { initUiScale } from '@/features/appearance/uiScale';
 import { appPresentation } from '@/app/presentation';
@@ -95,6 +96,7 @@ async function initApp(): Promise<void> {
   await initLogState();
   await initOeaSettings();
   await initScannedItems();
+  await initGambleBattleState();
   await initUiScale();
   await initUpdateState();
 }

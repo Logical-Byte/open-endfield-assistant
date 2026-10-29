@@ -58,6 +58,55 @@
   "footer": {
     "poweredBy": "基于"
   },
+  "gambleBattle": {
+    "blocked": "其他任务正在运行",
+    "card": "{{rank}} {{suit}}",
+    "clear": "清空",
+    "conditions": "停止条件（任一）",
+    "elapsed": "运行时间：",
+    "empty": "暂无命中记录。",
+    "failed": "百趣演武自动化失败",
+    "guide": {
+      "confirm": "确认",
+      "description": "自动抽满五张牌，未满足所选条件时放弃重抽。满足任一条件后停止，并保留当前手牌。",
+      "help": "查看教程",
+      "open": "在游戏中打开百趣演武的抽牌页面。",
+      "start": "选择停止条件，点击“开始抽卡”。",
+      "title": "使用教程"
+    },
+    "hands": {
+      "flush": "同花",
+      "fourOfAKind": "四条",
+      "fullHouse": "葫芦",
+      "pair": "对子",
+      "straight": "顺子",
+      "straightFlush": "同花顺",
+      "threeOfAKind": "三条",
+      "twoPairs": "两对"
+    },
+    "heading": "百趣演武",
+    "invalidThreshold": "请输入 1 到 25 之间的整数。",
+    "matchProgress": "第 {{round}} 轮命中，耗时 {{seconds}} 秒。",
+    "results": "成功停止事件",
+    "round": "刷新轮次：",
+    "screenshot": "百趣演武命中截图",
+    "seconds": "{{count}} 秒",
+    "selectCondition": "请至少启用一个停止条件。",
+    "start": "开始抽卡",
+    "startSimulation": "开始模拟抽卡",
+    "stop": "停止自动化",
+    "stopping": "正在停止",
+    "suits": {
+      "bing": "饼",
+      "tiao": "条",
+      "wan": "万"
+    },
+    "sum": "战力点之和达到阈值",
+    "sumMatched": "战力点之和 {{total}} ≥ {{threshold}}",
+    "threshold": "战力点阈值（1 到 25）",
+    "title": "百趣演武",
+    "total": "战力点之和：{{total}}"
+  },
   "help": {
     "archive": {
       "main": "档案库主界面"
@@ -339,6 +388,11 @@
         "description": "用固定示例结果调试档案扫描页面，无需游戏窗口。约 20 秒完成，可随时停止。重启应用后关闭。",
         "enable": "使用模拟扫描结果",
         "title": "模拟档案扫描"
+      },
+      "simulateGambleBattle": {
+        "description": "无需游戏窗口即可模拟百趣演武。重启应用后关闭。",
+        "enable": "使用模拟",
+        "title": "模拟百趣演武"
       },
       "trace": {
         "empty": "相关日志"

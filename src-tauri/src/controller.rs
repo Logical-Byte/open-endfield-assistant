@@ -11,7 +11,7 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    automation::{self, archive_scan},
+    automation::{self, archive_scan, gamble_battle},
     data::{AppData, archive},
     navigation::Navigator,
     settings,
@@ -75,6 +75,21 @@ impl Controller {
     /// 启动指定种类的自动化任务。
     pub(crate) fn start_automation(&self, request: automation::StartRequest) {
         match request {
+            automation::StartRequest::GambleBattle {
+                conditions,
+                worker_type,
+            } => {
+                self.automation_runtime
+                    .start(automation::TaskKind::GambleBattle, || match worker_type {
+                        automation::WorkerType::Production => Box::new(gamble_battle::Worker::new(
+                            conditions,
+                            Arc::clone(&self.ocr),
+                        )),
+                        automation::WorkerType::Simulation => {
+                            Box::new(gamble_battle::SimulationWorker::new(conditions))
+                        }
+                    });
+            }
             automation::StartRequest::ArchiveScan { worker_type } => {
                 self.automation_runtime
                     .start(automation::TaskKind::ArchiveScan, || match worker_type {
