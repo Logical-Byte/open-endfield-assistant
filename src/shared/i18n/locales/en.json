@@ -17,7 +17,8 @@
       "hdrEnabled": "HDR is enabled on the game display. Turn off HDR and try again.",
       "unsupportedResolution": "The game resolution {{width}}×{{height}} is unsupported. Use a 16:9 resolution.",
       "windowSizeChanged": "The game window changed from {{expectedWidth}}×{{expectedHeight}} to {{actualWidth}}×{{actualHeight}}. Start the task again.",
-      "windowUnavailable": "The game window was not found. Open the game first."
+      "windowUnavailable": "The game window was not found. Open the game first.",
+      "windowPreparationFailed": "Could not switch the game to 1280×720 windowed mode. Check the logs and try again."
     },
     "screenshot": {
       "captureFailed": "The game image could not be captured. Check the logs for more information.",
@@ -168,7 +169,7 @@
       "archive": "Open the {archive} in Endfield.",
       "export": "When scanning finishes, click {export} in the all archives panel.",
       "hdr": "{hdr} and close performance monitoring software.",
-      "resolution": "Open Endfield and set the resolution to {resolution} and language to {language}.",
+      "resolution": "Open Endfield and set the game language to {language}.",
       "scan": "Click {scan} in the scan results panel.",
       "title": "Getting started"
     },
@@ -177,7 +178,7 @@
       "hdr": "{hdr} and close any software that obscures the Endfield window.",
       "language": "Set the Endfield game language to {language}.",
       "preparation": "Before scanning",
-      "resolution": "Any {ratio} resolution should work in principle. We recommend {resolution} in {windowed} for a balance of accuracy and performance.",
+      "resolution": "When automation starts, the app automatically switches Endfield to {resolution} in {windowed}. No manual resolution adjustment is needed.",
       "shortcuts": "Keyboard shortcuts",
       "title": "Instructions"
     },
@@ -305,7 +306,7 @@
       "archive": "Open the {archive} in Endfield.",
       "export": "After scanning, select {export} in the all archives pane.",
       "hdr": "{hdr} and turn off performance monitoring software.",
-      "open": "Open Endfield and set {resolution} resolution and {language}.",
+      "open": "Open Endfield and set the game language to {language}. Scanning automatically switches the game to {resolution} {windowed}.",
       "scan": "Select {scan} in the scan results pane."
     },
     "hasRecords": "With evidence",

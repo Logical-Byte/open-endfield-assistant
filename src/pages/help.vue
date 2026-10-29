@@ -95,7 +95,6 @@ onBeforeUnmount(() => {
             <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
             ><span
               ><TranslationComponent :translation="t('help.start.resolution')"
-                ><template #resolution><strong class="text-primary">1280 × 720</strong></template
                 ><template #language
                   ><strong class="text-primary">{{
                     t('settings.language.game.fixed')
@@ -161,7 +160,6 @@ onBeforeUnmount(() => {
             <ul class="flex list-disc flex-col gap-3 ps-6 text-toned marker:text-toned">
               <li>
                 <TranslationComponent :translation="t('help.usage.resolution')"
-                  ><template #ratio><strong class="text-primary">16:9</strong></template
                   ><template #resolution><strong class="text-primary">1280 × 720</strong></template
                   ><template #windowed
                     ><strong class="text-primary">{{ t('help.windowed') }}</strong></template

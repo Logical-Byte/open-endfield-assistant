@@ -148,16 +148,34 @@ pub fn restore_window_if_minimized(window: WindowHandle) -> anyhow::Result<()> {
     }
 }
 
-/// 确保窗口客户区位于显示器可见范围内；macOS 开发外壳返回 unsupported error。
-pub fn ensure_window_on_screen(window: WindowHandle) -> anyhow::Result<()> {
+/// 切换到窗口模式并等待客户区稳定到指定像素尺寸；macOS 开发外壳返回 unsupported error。
+pub fn ensure_windowed_client_size(
+    window: WindowHandle,
+    width: i32,
+    height: i32,
+) -> anyhow::Result<()> {
     #[cfg(target_os = "windows")]
     {
-        windows::window::ensure_window_on_screen(window)
+        windows::window::ensure_windowed_client_size(window, width, height)
     }
 
     #[cfg(unix)]
     {
-        let _ = window;
+        let _ = (window, width, height);
+        Err(super::unsupported("window mode and size"))
+    }
+}
+
+/// 将窗口客户区移入显示器可见范围，可选择保留尺寸；macOS 开发外壳返回 unsupported error。
+pub fn ensure_window_on_screen(window: WindowHandle, preserve_size: bool) -> anyhow::Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        windows::window::ensure_window_on_screen(window, preserve_size)
+    }
+
+    #[cfg(unix)]
+    {
+        let _ = (window, preserve_size);
         Err(super::unsupported("window positioning"))
     }
 }

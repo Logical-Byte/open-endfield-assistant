@@ -17,7 +17,8 @@
       "hdrEnabled": "游戏所在显示器已开启 HDR，请关闭 HDR 后重试。",
       "unsupportedResolution": "游戏分辨率 {{width}}×{{height}} 不支持，请使用 16:9 分辨率。",
       "windowSizeChanged": "游戏窗口尺寸由 {{expectedWidth}}×{{expectedHeight}} 变为 {{actualWidth}}×{{actualHeight}}，请重新开始任务。",
-      "windowUnavailable": "未找到游戏窗口，请先打开游戏。"
+      "windowUnavailable": "未找到游戏窗口，请先打开游戏。",
+      "windowPreparationFailed": "自动调整游戏为 1280×720 窗口模式失败，请查看日志后重试。"
     },
     "screenshot": {
       "captureFailed": "无法捕获游戏画面，请查看日志了解原因。",
@@ -167,7 +168,7 @@
       "archive": "终末地打开{archive}。",
       "export": "扫完点击全部档案栏的{export}。",
       "hdr": "{hdr}，关闭性能监控软件。",
-      "resolution": "打开终末地，调成 {resolution}、{language}。",
+      "resolution": "打开终末地，将游戏语言设为 {language}。",
       "scan": "点击扫描结果栏的{scan}。",
       "title": "新手提示"
     },
@@ -176,7 +177,7 @@
       "hdr": "请{hdr}，关闭任何会遮挡终末地窗口的软件。",
       "language": "请将终末地的语言调成{language}。",
       "preparation": "使用前准备",
-      "resolution": "理论上支持任意 {ratio} 的分辨率。我们最建议使用 {resolution}、{windowed}，这个分辨率可以兼顾准确性和性能。",
+      "resolution": "开始自动化任务时，应用会自动将终末地切换为 {resolution} 的{windowed}，无需手动调整分辨率。",
       "shortcuts": "快捷键",
       "title": "操作说明"
     },
@@ -302,7 +303,7 @@
       "archive": "终末地打开{archive}",
       "export": "扫完点击全部档案栏的{export}",
       "hdr": "{hdr}，关闭性能监控软件",
-      "open": "打开终末地，调成 {resolution}、{language}",
+      "open": "打开终末地，将游戏语言设为 {language}。开始扫描时自动切换为 {resolution} {windowed}",
       "scan": "点击扫描结果栏的{scan}"
     },
     "hasRecords": "有记录",
