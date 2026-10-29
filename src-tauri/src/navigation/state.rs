@@ -39,7 +39,7 @@ impl UiState {
         ))),
     ];
 
-    /// 构造具体 UI 状态“档案详情页面”。
+    /// 构造具体 UI 状态 “档案详情页面”。
     pub(crate) const fn archive_detail() -> Self {
         Self::Archive(ArchiveState::Detail)
     }

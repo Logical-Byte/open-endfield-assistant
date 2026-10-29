@@ -12,8 +12,8 @@
     "lint:fix": "eslint src --fix",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "check": "run-p typecheck lint format:check i18n:check",
-    "fix": "run-s typecheck lint:fix i18n:fix format",
+    "check": "run-p typecheck lint format:check i18n:check quote:check",
+    "fix": "run-s typecheck lint:fix i18n:fix quote:fix format",
     "hooks:install": "lefthook install",
     "hooks:validate": "lefthook validate",
     "hooks:pre-commit": "lefthook run pre-commit --all-files",
@@ -28,7 +28,9 @@
     "test:r2-release": "vitest run scripts/release/publishR2Core.test.ts",
     "generate:types": "cargo test --manifest-path src-tauri/Cargo.toml --lib export_bindings",
     "i18n:check": "jiti scripts/dev/i18n.ts",
-    "i18n:fix": "jiti scripts/dev/i18n.ts --fix"
+    "i18n:fix": "jiti scripts/dev/i18n.ts --fix",
+    "quote:check": "jiti scripts/dev/quoteStyle.ts",
+    "quote:fix": "jiti scripts/dev/quoteStyle.ts --fix"
   },
   "dependencies": {
     "@nuxt/ui": "^4.10.0",

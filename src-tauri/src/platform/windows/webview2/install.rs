@@ -80,7 +80,7 @@ fn confirm_install(locale: UiLocale) -> bool {
     let (title, content) = match locale {
         UiLocale::ZhCn => (
             "OEA 需要 WebView2",
-            "检测到系统未安装 Microsoft Edge WebView2（Windows 的网页渲染组件），OEA 的界面将无法显示。\n\n是否立即联网下载并安装？\n也可以选择“否”，稍后前往 <a href=\"https://developer.microsoft.com/microsoft-edge/webview2/consumer/\">https://developer.microsoft.com/microsoft-edge/webview2/consumer/</a> 手动安装。",
+            "检测到系统未安装 Microsoft Edge WebView2（Windows 的网页渲染组件），OEA 的界面将无法显示。\n\n是否立即联网下载并安装？\n也可以选择 “否”，稍后前往 <a href=\"https://developer.microsoft.com/microsoft-edge/webview2/consumer/\">https://developer.microsoft.com/microsoft-edge/webview2/consumer/</a> 手动安装。",
         ),
         UiLocale::EnUs => (
             "OEA requires WebView2",

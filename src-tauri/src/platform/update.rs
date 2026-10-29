@@ -225,7 +225,7 @@ fn show_macos_message(title: &str, content: &str, kind: FinalMessageKind) -> io:
 
 /// 一个持有底层文件句柄的跨进程排他锁。
 ///
-/// 锁文件本身可以永久存在。真正表示“持锁”的是这个值所持有的打开句柄，
+/// 锁文件本身可以永久存在。真正表示 “持锁” 的是这个值所持有的打开句柄，
 /// 进程退出或值析构后，操作系统会释放排他锁，所以不会产生 stale lock。
 pub struct FileLock {
     file: File,

@@ -17,34 +17,34 @@ use super::{
     transition::{Op, Transition},
 };
 
-/// 具体 UI 状态“档案库主界面”。
+/// 具体 UI 状态 “档案库主界面”。
 const ARCHIVE_MAIN: UiState = UiState::Archive(ArchiveState::Main);
-/// 具体 UI 状态“档案详情页面”。
+/// 具体 UI 状态 “档案详情页面”。
 const ARCHIVE_DETAIL: UiState = UiState::Archive(ArchiveState::Detail);
-/// 具体 UI 状态“音像存档 - 多媒体”。
+/// 具体 UI 状态 “音像存档 - 多媒体”。
 const MULTIMEDIA: UiState = UiState::Archive(ArchiveState::Subscene(ArchiveSubscene::Media));
-/// 具体 UI 状态“见闻辑录 - 纸质记录”。
+/// 具体 UI 状态 “见闻辑录 - 纸质记录”。
 const PAPER: UiState = UiState::Archive(ArchiveState::Subscene(ArchiveSubscene::Records(
     RecordsPage::Paper,
 )));
-/// 具体 UI 状态“见闻辑录 - 电子档案”。
+/// 具体 UI 状态 “见闻辑录 - 电子档案”。
 const ELECTRONIC: UiState = UiState::Archive(ArchiveState::Subscene(ArchiveSubscene::Records(
     RecordsPage::Digital,
 )));
-/// 具体 UI 状态“见闻辑录 - 藏品”。
+/// 具体 UI 状态 “见闻辑录 - 藏品”。
 const COLLECTION: UiState = UiState::Archive(ArchiveState::Subscene(ArchiveSubscene::Records(
     RecordsPage::Collection,
 )));
-/// 具体 UI 状态“中枢档案 - 中枢档案”。
+/// 具体 UI 状态 “中枢档案 - 中枢档案”。
 const CENTRAL_ARCHIVES: UiState = UiState::Archive(ArchiveState::Subscene(
     ArchiveSubscene::Central(CentralPage::Archive),
 ));
-/// 具体 UI 状态“中枢档案 - 调查报告”。
+/// 具体 UI 状态 “中枢档案 - 调查报告”。
 const INVESTIGATION_REPORT: UiState = UiState::Archive(ArchiveState::Subscene(
     ArchiveSubscene::Central(CentralPage::Report),
 ));
 
-/// 关闭任意档案库子界面，结果为“档案库主界面”。
+/// 关闭任意档案库子界面，结果为 “档案库主界面”。
 const CLOSE_SUBSCENE: Transition<'static> = Transition {
     ops: &[Op::FindAndClickTemplate {
         target: ARCHIVE_SUBSCENE_CLOSE,
@@ -52,37 +52,37 @@ const CLOSE_SUBSCENE: Transition<'static> = Transition {
     }],
     outcomes: &[ARCHIVE_MAIN],
 };
-/// 在任意档案库子界面打开当前条目，结果为“档案详情页面”。
+/// 在任意档案库子界面打开当前条目，结果为 “档案详情页面”。
 const OPEN_DETAIL: Transition<'static> = Transition {
     ops: &[Op::Click(Point720p { x: 401, y: 182 })],
     outcomes: &[ARCHIVE_DETAIL],
 };
-/// 在见闻辑录子界面切换到“见闻辑录 - 纸质记录”。
+/// 在见闻辑录子界面切换到 “见闻辑录 - 纸质记录”。
 const TO_PAPER: Transition<'static> = Transition {
     ops: &[Op::Click(Point720p { x: 210, y: 138 })],
     outcomes: &[PAPER],
 };
-/// 在见闻辑录子界面切换到“见闻辑录 - 电子档案”。
+/// 在见闻辑录子界面切换到 “见闻辑录 - 电子档案”。
 const TO_ELECTRONIC: Transition<'static> = Transition {
     ops: &[Op::Click(Point720p { x: 210, y: 202 })],
     outcomes: &[ELECTRONIC],
 };
-/// 在见闻辑录子界面切换到“见闻辑录 - 藏品”。
+/// 在见闻辑录子界面切换到 “见闻辑录 - 藏品”。
 const TO_COLLECTION: Transition<'static> = Transition {
     ops: &[Op::Click(Point720p { x: 210, y: 266 })],
     outcomes: &[COLLECTION],
 };
-/// 在中枢档案子界面切换到“中枢档案 - 中枢档案”。
+/// 在中枢档案子界面切换到 “中枢档案 - 中枢档案”。
 const TO_CENTRAL_ARCHIVES: Transition<'static> = Transition {
     ops: &[Op::Click(Point720p { x: 210, y: 138 })],
     outcomes: &[CENTRAL_ARCHIVES],
 };
-/// 在中枢档案子界面切换到“中枢档案 - 调查报告”。
+/// 在中枢档案子界面切换到 “中枢档案 - 调查报告”。
 const TO_INVESTIGATION_REPORT: Transition<'static> = Transition {
     ops: &[Op::Click(Point720p { x: 210, y: 202 })],
     outcomes: &[INVESTIGATION_REPORT],
 };
-/// 从“协议终端”打开档案库，结果为“档案库主界面”。
+/// 从 “协议终端” 打开档案库，结果为 “档案库主界面”。
 const TERMINAL_TO_MAIN: Transition<'static> = Transition {
     ops: &[Op::FindAndClickTemplate {
         target: TERMINAL_ARCHIVE_ENTRY,
@@ -90,7 +90,7 @@ const TERMINAL_TO_MAIN: Transition<'static> = Transition {
     }],
     outcomes: &[ARCHIVE_MAIN],
 };
-/// 关闭“档案详情页面”，回到打开它的六个档案库子界面之一。
+/// 关闭 “档案详情页面”，回到打开它的六个档案库子界面之一。
 const DETAIL_TO_SUBSCENE: Transition<'static> = Transition {
     ops: &[Op::FindAndClickTemplate {
         target: ARCHIVE_DETAIL_CLOSE,
@@ -105,7 +105,7 @@ const DETAIL_TO_SUBSCENE: Transition<'static> = Transition {
         INVESTIGATION_REPORT,
     ],
 };
-/// 关闭“档案库主界面”，结果为“协议终端”。
+/// 关闭 “档案库主界面”，结果为 “协议终端”。
 const MAIN_TO_TERMINAL: Transition<'static> = Transition {
     ops: &[Op::FindAndClickTemplate {
         target: ARCHIVE_MAIN_CLOSE,
@@ -113,7 +113,7 @@ const MAIN_TO_TERMINAL: Transition<'static> = Transition {
     }],
     outcomes: &[UiState::Terminal],
 };
-/// 从“档案库主界面”打开“音像存档 - 多媒体”。
+/// 从 “档案库主界面” 打开 “音像存档 - 多媒体”。
 const MAIN_TO_MULTIMEDIA: Transition<'static> = Transition {
     ops: &[Op::FindAndClickTemplate {
         target: ARCHIVE_MEDIA_ENTRY,
@@ -121,7 +121,7 @@ const MAIN_TO_MULTIMEDIA: Transition<'static> = Transition {
     }],
     outcomes: &[MULTIMEDIA],
 };
-/// 从“档案库主界面”打开见闻辑录，结果为“见闻辑录 - 纸质记录”。
+/// 从 “档案库主界面” 打开见闻辑录，结果为 “见闻辑录 - 纸质记录”。
 const MAIN_TO_PAPER: Transition<'static> = Transition {
     ops: &[Op::FindAndClickTemplate {
         target: ARCHIVE_RECORDS_ENTRY,
@@ -129,7 +129,7 @@ const MAIN_TO_PAPER: Transition<'static> = Transition {
     }],
     outcomes: &[PAPER],
 };
-/// 从“档案库主界面”打开中枢档案，结果为“中枢档案 - 中枢档案”。
+/// 从 “档案库主界面” 打开中枢档案，结果为 “中枢档案 - 中枢档案”。
 const MAIN_TO_CENTRAL_ARCHIVES: Transition<'static> = Transition {
     ops: &[Op::FindAndClickTemplate {
         target: ARCHIVE_CENTRAL_ENTRY,
