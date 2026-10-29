@@ -20,6 +20,7 @@ use ::windows::Win32::{
     },
 };
 use anyhow::{Context, bail, ensure};
+use tracing::debug;
 
 use crate::platform::WindowHandle;
 
@@ -52,12 +53,13 @@ pub(in crate::platform) fn ensure_windowed_client_size(
 
     if !is_windowed(window) {
         ensure_foreground_and_topmost(window)?;
-        ensure!(
-            unsafe { GetForegroundWindow() } == hwnd,
-            "游戏窗口未获得前台焦点"
-        );
+        // `SetForegroundWindow` 跨输入队列激活是异步的，返回成功不代表目标已成为前台。
+        wait_until(|| Ok(unsafe { GetForegroundWindow() } == hwnd))
+            .context("等待游戏窗口获得前台焦点超时")?;
+        debug!("游戏窗口已获得前台焦点，发送 Alt+Enter 退出全屏");
         send_fullscreen_toggle()?;
         wait_until(|| Ok(is_windowed(window))).context("游戏未能退出全屏模式")?;
+        debug!("游戏窗口已退出全屏，开始调整客户区尺寸");
     }
 
     let mut client = RECT::default();
@@ -229,6 +231,44 @@ mod tests {
                 (1280, 720)
             );
         }
+    }
+
+    #[test]
+    #[ignore = "需要真实终末地全屏窗口，会切换模式与尺寸"]
+    fn live_fullscreen_game_switches_to_720p_windowed() {
+        use crate::platform::window::{
+            ENDFIELD_WINDOW_CLASS, ENDFIELD_WINDOW_TITLE, get_window_by_title,
+        };
+
+        super::super::window_operation::set_thread_dpi_awareness_context();
+        let window =
+            get_window_by_title(Some(ENDFIELD_WINDOW_CLASS), Some(ENDFIELD_WINDOW_TITLE)).unwrap();
+        assert!(!is_windowed(window), "实测前需要将终末地设为全屏");
+        ensure_windowed_client_size(window, 1280, 720).unwrap();
+        let mut client = RECT::default();
+        unsafe { GetClientRect(window.raw, &mut client) }.unwrap();
+        assert!(is_windowed(window));
+        assert_eq!(
+            (client.right - client.left, client.bottom - client.top),
+            (1280, 720)
+        );
+    }
+
+    #[test]
+    fn wait_until_accepts_asynchronous_completion() {
+        let mut checks = 0;
+        wait_until(|| {
+            checks += 1;
+            Ok(checks >= 3)
+        })
+        .unwrap();
+        assert_eq!(checks, 3);
+    }
+
+    #[test]
+    fn wait_until_preserves_query_errors() {
+        let error = wait_until(|| bail!("窗口已失效")).unwrap_err();
+        assert_eq!(error.to_string(), "窗口已失效");
     }
 
     #[test]
