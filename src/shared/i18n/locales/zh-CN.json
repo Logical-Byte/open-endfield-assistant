@@ -88,7 +88,7 @@
     "heading": "百趣演武",
     "invalidThreshold": "请输入 1 到 25 之间的整数。",
     "matchProgress": "第 {{round}} 轮命中，耗时 {{seconds}} 秒。",
-    "results": "成功停止事件",
+    "results": "命中记录",
     "round": "刷新轮次：",
     "screenshot": "百趣演武命中截图",
     "seconds": "{{count}} 秒",
