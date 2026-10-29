@@ -145,7 +145,7 @@ function changeThreshold(value: number | null): void {
           :title="t('gambleBattle.failed')"
           variant="subtle"
         />
-        <dl aria-live="off" class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+        <dl aria-live="off" class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
           <div>
             <dt class="inline">{{ t('gambleBattle.elapsed') }}</dt>
             <dd class="inline tabular-nums">
@@ -170,15 +170,17 @@ function changeThreshold(value: number | null): void {
               :disabled="isActive || submitting"
               :label="t(`gambleBattle.hands.${hand}`)"
               size="sm"
+              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
             />
           </div>
-          <div class="flex flex-wrap items-center gap-2 border-t border-default pt-3">
+          <div class="flex flex-wrap items-center gap-2 pt-3">
             <USwitch
               class="max-w-full"
               :disabled="isActive || submitting"
               :label="t('gambleBattle.sum')"
               :model-value="conditions.sum !== null"
               size="sm"
+              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
               @update:model-value="toggleSum"
             />
             <UInputNumber
@@ -192,11 +194,11 @@ function changeThreshold(value: number | null): void {
               :step="1"
               @update:model-value="changeThreshold"
             />
-            <p v-if="!thresholdValid" class="w-full text-xs text-error">
+            <p v-if="!thresholdValid" class="w-full text-sm text-error">
               {{ t('gambleBattle.invalidThreshold') }}
             </p>
           </div>
-          <p v-if="!hasCondition" class="text-xs text-warning">
+          <p v-if="!hasCondition" class="text-sm text-warning">
             {{ t('gambleBattle.selectCondition') }}
           </p>
         </fieldset>
