@@ -94,7 +94,9 @@ where
             // 抽牌按钮会闪烁，等待可识别的帧后再点击。`Session::click` 会将光标归中。
             let button = wait_for_target(cx, &DRAW, "未找到可用的抽牌按钮")?;
             cx.click(button.region.center().into())?;
-            count = wait_for_card_count(cx, Some(count + 1))?;
+            // 动画期间按钮可能忽略点击，后续按实际牌数决定是否继续抽牌。
+            cx.sleep(Duration::from_millis(500));
+            count = wait_for_card_count(cx, None)?;
             events.publish(Event::GambleBattleProgress(Progress {
                 round,
                 elapsed_seconds: started.elapsed().as_secs_f64(),
