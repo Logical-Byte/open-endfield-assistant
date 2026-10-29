@@ -125,7 +125,15 @@ function changeThreshold(value: number | null): void {
                 :loading="submitting"
                 size="sm"
                 @click="toggleAutomation"
-              />
+              >
+                <template #trailing>
+                  <UKbd
+                    class="bg-transparent font-bold text-inherit ring-current/30"
+                    size="sm"
+                    value=";"
+                  />
+                </template>
+              </UButton>
             </div>
           </div>
         </template>
