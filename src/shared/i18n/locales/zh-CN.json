@@ -57,9 +57,6 @@
       "versionMismatch": "下载源版本 {{actual}} 与预期版本 {{expected}} 不一致，请稍后重试。"
     }
   },
-  "footer": {
-    "poweredBy": "基于"
-  },
   "gambleBattle": {
     "blocked": "其他任务正在运行",
     "clear": "清空",
