@@ -62,7 +62,7 @@
     "blocked": "其他任务正在运行",
     "card": "{{rank}} {{suit}}",
     "clear": "清空",
-    "conditions": "停止条件（任一）",
+    "conditions": "当满足以下任意一个条件时，停止抽卡",
     "elapsed": "运行时间：",
     "empty": "暂无命中记录。",
     "event": "活动",

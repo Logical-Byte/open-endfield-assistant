@@ -62,7 +62,7 @@
     "blocked": "Another task is running",
     "card": "{{rank}} {{suit}}",
     "clear": "Clear",
-    "conditions": "Stop conditions (any)",
+    "conditions": "Stop drawing when any of the following conditions is met",
     "elapsed": "Elapsed: ",
     "empty": "No matches yet.",
     "event": "Event",
