@@ -68,7 +68,7 @@ OEA 是开源免费的终末地小助手，支持档案查漏补缺和百趣演�
 
   [Mirror酱](https://mirrorchyan.com/) 是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。
 
-  OEA 本身不收取任何费用，也提供免费的下载渠道，您可以前往 [GitHub Release](https://github.com/Logical-Byte/open-endfield-assistant/releases) 免费下载和使用。
+  OEA 本身不收取任何费用，也提供免费的下载渠道。您可以前往 [GitHub Releases](https://github.com/Logical-Byte/open-endfield-assistant/releases) 免费下载和使用。
 
 ## 反馈交流
 
@@ -83,7 +83,8 @@ OEA 是开源免费的终末地小助手，支持档案查漏补缺和百趣演�
 - [终末地地图集](https://oem.re/)
 - [逻辑元LogicalByte](https://space.bilibili.com/688411531)
 - [Mirror酱](https://mirrorchyan.com/)
-- [RapidAI/RapidOCR](https://github.com/RapidAI/RapidOCR)（[模型仓库](https://www.modelscope.cn/models/RapidAI/RapidOCR)、[第三方组件说明](docs/third-party-notices.md)）
+- [RapidAI/RapidOCR](https://github.com/RapidAI/RapidOCR)
+- [RapidOCR 模型](https://www.modelscope.cn/models/RapidAI/RapidOCR)（[第三方组件说明](docs/third-party-notices.md)）
 - [MaaXYZ/MaaFramework](https://github.com/MaaXYZ/MaaFramework)
 - [MistEO/MXU](https://github.com/MistEO/MXU)
 - [MaaEnd/MaaEnd](https://github.com/MaaEnd/MaaEnd)

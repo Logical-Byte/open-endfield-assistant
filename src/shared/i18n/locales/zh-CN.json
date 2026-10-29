@@ -139,7 +139,7 @@
       },
       "mirror": {
         "question": "OEA 和 Mirror酱的关系是什么？",
-        "service": "{service}是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。"
+        "service": "{service} 是独立的第三方应用分发平台，提供加速下载服务，需要付费使用。"
       },
       "mobile": {
         "answer": "不能。OEA 仅支持 Windows 10 / 11（x86_64）。",

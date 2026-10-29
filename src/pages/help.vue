@@ -459,7 +459,7 @@ onBeforeUnmount(() => {
             <span class="font-semibold text-highlighted">{{ t('help.disclaimer.title') }}</span>
           </div>
         </template>
-        <ol class="list-disc space-y-3 ps-6 text-toned marker:text-toned">
+        <ol class="list-decimal space-y-3 ps-6 text-toned marker:text-toned">
           <li>{{ t('help.disclaimer.updates') }}</li>
           <li>{{ t('help.disclaimer.recognition') }}</li>
           <li>{{ t('help.disclaimer.warranty') }}</li>
