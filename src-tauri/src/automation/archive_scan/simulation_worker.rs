@@ -110,7 +110,7 @@ impl runtime::Worker for SimulationWorker {
             .as_ref()
             .is_err_and(|error| error.is_stopped_by_user())
         {
-            // 模拟一秒收尾，让前端有时间展示“正在停止扫描”，期间不再产出结果。
+            // 模拟一秒收尾，让前端有时间展示 “正在停止扫描”，期间不再产出结果。
             thread::sleep(Duration::from_secs(1));
         }
         WorkerExit {

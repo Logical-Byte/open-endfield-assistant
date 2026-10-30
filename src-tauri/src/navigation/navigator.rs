@@ -136,7 +136,7 @@ mod tests {
     enum ArchiveVisibleUi {
         /// 测试边界当前显示档案详情页面。
         Detail,
-        /// 测试边界当前显示“见闻辑录 - 纸质记录”。
+        /// 测试边界当前显示 “见闻辑录 - 纸质记录”。
         Paper,
     }
 

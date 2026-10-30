@@ -23,12 +23,12 @@ interface ImagePreviewScale {
 /**
  * 用于计算图片预览缩放倍数的工具工厂。
  *
- * 该函数提供了一系列工具，用于查找上一个或下一个“适当”的缩放倍数。
- * “适当”的缩放倍数定义为：`coefficient * base ^ n`，其中 `n` 为任意整数，`coefficient` 是 `coefficients` 数组中的任意元素。
+ * 该函数提供了一系列工具，用于查找上一个或下一个 “适当” 的缩放倍数。
+ * “适当” 的缩放倍数定义为：`coefficient * base ^ n`，其中 `n` 为任意整数，`coefficient` 是 `coefficients` 数组中的任意元素。
  *
  * - `clampScale`: 用于将任意缩放值限制在 `minScale` 和 `maxScale` 之间。
- * - `getNextScale`: 用于寻找大于当前缩放值的最小“适当”缩放值。
- * - `getPrevScale`: 用于寻找小于当前缩放值的最大“适当”缩放值。
+ * - `getNextScale`: 用于寻找大于当前缩放值的最小 “适当” 缩放值。
+ * - `getPrevScale`: 用于寻找小于当前缩放值的最大 “适当” 缩放值。
  * - `getNextScaleWithMultiplier`: 直接将当前缩放值乘以 `multiplier`，并限制在 `minScale` 和 `maxScale` 之间。
  * - `getPrevScaleWithMultiplier`: 直接将当前缩放值除以 `multiplier`，并限制在 `minScale` 和 `maxScale` 之间。
  *

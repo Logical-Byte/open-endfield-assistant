@@ -12,7 +12,9 @@ export const settingsSections = [
 ] as const;
 
 export const helpSections = [
-  { id: 'getting-started', icon: 'i-lucide-rocket', titleKey: 'help.start.title' },
+  { id: 'getting-started', icon: 'i-lucide-rocket', titleKey: 'help.start.preparation' },
+  { id: 'archive-scan', icon: 'i-lucide-scan-line', titleKey: 'help.start.nav.archive' },
+  { id: 'gamble-battle', icon: 'i-lucide-dices', titleKey: 'help.start.nav.gambleBattle' },
   { id: 'usage', icon: 'i-lucide-keyboard', titleKey: 'help.usage.title' },
   { id: 'faq', icon: 'i-lucide-circle-help', titleKey: 'help.faq.title' },
   { id: 'feedback', icon: 'i-lucide-message-circle', titleKey: 'help.feedback.title' },

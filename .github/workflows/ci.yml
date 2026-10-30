@@ -79,6 +79,12 @@ jobs:
       - name: Frontend format check
         run: pnpm run format:check
 
+      - name: i18n check
+        run: pnpm run i18n:check
+
+      - name: Quote style check
+        run: pnpm run quote:check
+
   backend-ci:
     name: Backend CI
     needs: changes

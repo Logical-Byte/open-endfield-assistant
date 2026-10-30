@@ -99,7 +99,7 @@ where
     let mut round = 1;
     cx.move_mouse_to_safe_position()?;
     let frame = cx.screenshot()?;
-    require_target(cx, &frame, &ACTIVITY, "请先打开百趣演武活动的抽牌页面")?;
+    require_target(cx, &frame, &ACTIVITY, "请先打开百趣演武活动的抽牌界面")?;
     info!("开始百趣演武自动化");
     loop {
         events.publish(Event::GambleBattleProgress(Progress {

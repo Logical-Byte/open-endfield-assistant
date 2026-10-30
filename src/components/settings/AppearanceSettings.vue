@@ -75,10 +75,12 @@ const fontFields = computed<FontField[]>((): FontField[] => [
   },
 ]);
 
+function selectedFontOption(field: FontField): FontOption | undefined {
+  return field.options.find((font: FontOption): boolean => font.value === field.value.value);
+}
+
 function selectedFontFamily(field: FontField): string | undefined {
-  const option = field.options.find(
-    (font: FontOption): boolean => font.value === field.value.value,
-  );
+  const option = selectedFontOption(field);
   return option ? getPreviewFontFamily(field.type, option) : undefined;
 }
 
@@ -199,6 +201,11 @@ function resetShape(): void {
             }
           "
         >
+          <template #default>
+            <span :style="{ fontFamily: selectedFontFamily(font) }">{{
+              selectedFontOption(font)?.label ?? font.value.value
+            }}</span>
+          </template>
           <template #item-label="{ item }"
             ><span :style="{ fontFamily: getPreviewFontFamily(font.type, item) }">{{
               item.label

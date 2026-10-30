@@ -6,24 +6,24 @@ import { onGambleBattleMatched, onGambleBattleProgress } from './ipc';
 /** 按游戏的牌型优先级排列，也是条件编辑器的展示顺序。 */
 export const handKinds: HandKind[] = [
   'straightFlush',
-  'fourOfAKind',
+  'quad',
   'flush',
   'fullHouse',
   'straight',
-  'threeOfAKind',
-  'twoPairs',
+  'triplet',
+  'twoPair',
   'pair',
 ];
 
 // 一次启动参数在页面切换后继续保留，不写入应用的持久化设置。
 export const conditions = reactive<Conditions>({
   straightFlush: true,
-  fourOfAKind: false,
+  quad: false,
   flush: false,
   fullHouse: false,
   straight: false,
-  threeOfAKind: false,
-  twoPairs: false,
+  triplet: false,
+  twoPair: false,
   pair: false,
   sum: null,
 });

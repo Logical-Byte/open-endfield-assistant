@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { useAppI18n } from '@/shared/i18n';
 import LogicalByteLogoSolid from '@/components/icons/LogicalByteLogoSolid.vue';
 import Nga from '@/components/icons/Nga.vue';
 import Skland from '@/components/icons/Skland.vue';
 import { Component } from 'vue';
-
-const { t } = useAppI18n();
 
 interface FooterLink {
   icon: string | Component;
@@ -80,7 +77,7 @@ const rightLinks: FooterLink[] = [
 
   <UFooter>
     <template #left>
-      <p class="text-sm text-muted">{{ t('footer.poweredBy') }}</p>
+      <p class="text-sm text-muted">Powered by</p>
       <UTooltip v-for="({ icon, label, to }, index) in leftLinks" :key="index" :text="label">
         <UButton
           :aria-label="label"
