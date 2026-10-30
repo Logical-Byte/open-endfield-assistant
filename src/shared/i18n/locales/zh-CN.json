@@ -60,6 +60,9 @@
   "gambleBattle": {
     "blocked": "其他任务正在运行",
     "clear": "清空",
+    "conditionPattern": "点数包含子串：{value}",
+    "conditionScore": "分数：{value} ≥ {{threshold}}",
+    "conditionSum": "战力点之和：{value} ≥ {{threshold}}",
     "conditions": "当满足以下任意一个条件时，停止抽卡",
     "dataplete": "{{rank}} {{suit}}",
     "elapsed": "运行时间：",
@@ -76,6 +79,7 @@
       "target": "选择{targetHands}",
       "title": "使用教程"
     },
+    "handTotal": "牌型：{value}",
     "hands": {
       "flush": "同花",
       "fullHouse": "葫芦",
@@ -92,7 +96,10 @@
     "invalidThreshold": "请输入 1 到 25 之间的整数。",
     "luckyBadge": "好运加成 ×2",
     "luckyHand": "今日好运组合：{{hand}}",
-    "matchProgress": "第 {{round}} 轮命中，耗时 {{seconds}} 秒。",
+    "matchedElapsed": "耗时：{{seconds}} 秒",
+    "matchedRound": "轮次：{{round}}",
+    "noHand": "无牌型",
+    "originalScreenshot": "原始截图",
     "pattern": "点数包含子串",
     "patternInput": "点数子串（1 到 5 的数字，长度 1 到 5）",
     "patternMatched": "点数包含 {{pattern}}",
@@ -101,7 +108,7 @@
     "score": "分数大于等于",
     "scoreMatched": "分数 {{score}} ≥ {{threshold}}",
     "scoreThreshold": "分数阈值",
-    "scoreTotal": "得分：{{score}}",
+    "scoreTotal": "分数：{{score}}",
     "screenshot": "百趣演武命中截图",
     "seconds": "{{count}} 秒",
     "selectCondition": "请至少启用一个停止条件。",

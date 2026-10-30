@@ -60,6 +60,9 @@
   "gambleBattle": {
     "blocked": "Another task is running",
     "clear": "Clear",
+    "conditionPattern": "BP pattern contains: {value}",
+    "conditionScore": "Score: {value} ≥ {{threshold}}",
+    "conditionSum": "Total BP: {value} ≥ {{threshold}}",
     "conditions": "Stop drawing when any of the following conditions is met",
     "dataplete": "{{rank}} {{suit}}",
     "elapsed": "Elapsed: ",
@@ -76,6 +79,7 @@
       "target": "Choose {targetHands}.",
       "title": "How to use"
     },
+    "handTotal": "Hand: {value}",
     "hands": {
       "flush": "Flush",
       "fullHouse": "Full House",
@@ -92,7 +96,10 @@
     "invalidThreshold": "Enter a whole number from 1 to 25.",
     "luckyBadge": "Lucky bonus ×2",
     "luckyHand": "Today's lucky hand: {{hand}}",
-    "matchProgress": "Matched on round {{round}} after {{seconds}} seconds.",
+    "matchedElapsed": "Elapsed: {{seconds}} seconds",
+    "matchedRound": "Round: {{round}}",
+    "noHand": "No hand",
+    "originalScreenshot": "Original screenshot",
     "pattern": "BP sequence contains a substring",
     "patternInput": "BP sequence (digits 1 to 5, length 1 to 5)",
     "patternMatched": "BP sequence contains {{pattern}}",
