@@ -11,7 +11,7 @@
     "source.organizeImports": "explicit"
   },
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
 
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer"
