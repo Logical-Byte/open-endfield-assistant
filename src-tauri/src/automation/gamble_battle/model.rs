@@ -76,12 +76,18 @@ pub(crate) struct MatchedHand {
     pub cards: [Card; 5],
     pub hand: Option<HandKind>,
     pub score: u32,
+    /// 生效牌型是否为当天的好运组合，是则得分已经翻倍。
+    pub lucky: bool,
     pub reasons: Vec<StopReason>,
     pub image: String,
 }
 
 /// 使用最终牌型匹配启用条件，不把高优先级牌型拆成较低牌型。
-pub(crate) fn evaluate(cards: &[Card; 5], conditions: &Conditions) -> Vec<StopReason> {
+pub(crate) fn evaluate(
+    cards: &[Card; 5],
+    conditions: &Conditions,
+    lucky: HandKind,
+) -> Vec<StopReason> {
     let mut reasons = Vec::new();
     let hand = classify(cards);
     if let Some(hand) = hand
@@ -95,7 +101,7 @@ pub(crate) fn evaluate(cards: &[Card; 5], conditions: &Conditions) -> Vec<StopRe
     {
         reasons.push(StopReason::Sum { threshold, total });
     }
-    let score = score_of(total, hand);
+    let score = score_of(total, hand, lucky);
     if let Some(threshold) = conditions.score
         && score >= threshold
     {
@@ -117,8 +123,8 @@ pub(crate) fn total_bp(cards: &[Card; 5]) -> u8 {
 }
 
 /// 五张铭牌的最终得分，等于战力点之和对应的基础得分乘以生效牌型的倍率。
-pub(crate) fn score(cards: &[Card; 5]) -> u32 {
-    score_of(total_bp(cards), classify(cards))
+pub(crate) fn score(cards: &[Card; 5], lucky: HandKind) -> u32 {
+    score_of(total_bp(cards), classify(cards), lucky)
 }
 
 /// 战力点之和 1 点到 20 点及以上的基础得分，20 点以上不再增长。
@@ -131,8 +137,20 @@ fn base_score(total: u8) -> u32 {
     BASE_SCORES[usize::from(total.clamp(1, 20)) - 1]
 }
 
+/// 全部牌型，按倍率从高到低排列。
+pub(super) const HANDS: [HandKind; 8] = [
+    HandKind::StraightFlush,
+    HandKind::Quad,
+    HandKind::Flush,
+    HandKind::FullHouse,
+    HandKind::Straight,
+    HandKind::Triplet,
+    HandKind::TwoPair,
+    HandKind::Pair,
+];
+
 /// 牌型倍率，以十分之一为单位表示，避免浮点误差。未构成牌型时倍率为 1。
-fn multiplier_tenths(hand: Option<HandKind>) -> u32 {
+pub(super) fn multiplier_tenths(hand: Option<HandKind>) -> u32 {
     match hand {
         Some(HandKind::StraightFlush) => 80,
         Some(HandKind::Quad) => 60,
@@ -146,8 +164,9 @@ fn multiplier_tenths(hand: Option<HandKind>) -> u32 {
     }
 }
 
-fn score_of(total: u8, hand: Option<HandKind>) -> u32 {
-    base_score(total) * multiplier_tenths(hand) / 10
+fn score_of(total: u8, hand: Option<HandKind>, lucky: HandKind) -> u32 {
+    let lucky_doubling = if hand == Some(lucky) { 2 } else { 1 };
+    base_score(total) * multiplier_tenths(hand) * lucky_doubling / 10
 }
 
 /// 按牌槽顺序拼接五张铭牌的战力点，判断是否包含给定子串。
@@ -283,14 +302,15 @@ mod tests {
             [2, 2, 2, 3, 3],
             [Suit::Bing, Suit::Tiao, Suit::Wan, Suit::Bing, Suit::Tiao],
         );
+        let lucky = HandKind::Pair;
         let mut conditions = Conditions {
             two_pair: true,
             ..Conditions::default()
         };
-        assert!(evaluate(&hand, &conditions).is_empty());
+        assert!(evaluate(&hand, &conditions, lucky).is_empty());
         conditions.sum = Some(12);
         assert_eq!(
-            evaluate(&hand, &conditions),
+            evaluate(&hand, &conditions, lucky),
             vec![StopReason::Sum {
                 threshold: 12,
                 total: 12
@@ -298,7 +318,7 @@ mod tests {
         );
         conditions.full_house = true;
         assert_eq!(
-            evaluate(&hand, &conditions),
+            evaluate(&hand, &conditions, lucky),
             vec![
                 StopReason::Hand {
                     hand: HandKind::FullHouse
@@ -311,7 +331,7 @@ mod tests {
         );
         conditions.sum = Some(13);
         assert_eq!(
-            evaluate(&hand, &conditions),
+            evaluate(&hand, &conditions, lucky),
             vec![StopReason::Hand {
                 hand: HandKind::FullHouse
             }]
@@ -354,6 +374,8 @@ mod tests {
 
     #[test]
     fn scores_the_hand_by_total_bp_and_the_best_hand_multiplier() {
+        // 好运组合取对子，表中除最后两行外都不会翻倍。
+        let lucky = HandKind::Pair;
         let mixed = [Suit::Bing, Suit::Tiao, Suit::Wan, Suit::Bing, Suit::Tiao];
         for (ranks, suits, expected) in [
             ([5, 5, 5, 5, 5], mixed, 900_000),
@@ -364,10 +386,24 @@ mod tests {
             ([1, 1, 2, 3, 4], mixed, 90_000),
             ([1, 1, 1, 2, 3], mixed, 48_000),
             ([1, 1, 3, 3, 2], mixed, 56_000),
-            ([1, 1, 3, 4, 5], mixed, 96_000),
+            ([1, 1, 3, 4, 5], mixed, 192_000),
         ] {
-            assert_eq!(score(&cards(ranks, suits)), expected, "{ranks:?} {suits:?}");
+            assert_eq!(
+                score(&cards(ranks, suits), lucky),
+                expected,
+                "{ranks:?} {suits:?}"
+            );
         }
+    }
+
+    #[test]
+    fn doubles_the_score_only_when_the_best_hand_is_the_lucky_hand() {
+        let mixed = [Suit::Bing, Suit::Tiao, Suit::Wan, Suit::Bing, Suit::Tiao];
+        // 好运组合是对子时，两对仍然只按两对的基础倍率计分。
+        let hand = cards([2, 2, 4, 4, 5], mixed);
+        assert_eq!(classify(&hand), Some(HandKind::TwoPair));
+        assert_eq!(score(&hand, HandKind::Pair), 154_000);
+        assert_eq!(score(&hand, HandKind::TwoPair), 308_000);
     }
 
     #[test]
@@ -376,28 +412,29 @@ mod tests {
             [3, 2, 5, 1, 1],
             [Suit::Bing, Suit::Tiao, Suit::Wan, Suit::Bing, Suit::Tiao],
         );
+        let lucky = HandKind::Quad;
         let mut conditions = Conditions {
             pattern: Some("325".into()),
             ..Conditions::default()
         };
         assert_eq!(
-            evaluate(&hand, &conditions),
+            evaluate(&hand, &conditions, lucky),
             vec![StopReason::Pattern {
                 pattern: "325".into()
             }]
         );
         conditions.pattern = Some("235".into());
-        assert!(evaluate(&hand, &conditions).is_empty());
+        assert!(evaluate(&hand, &conditions, lucky).is_empty());
         conditions.score = Some(72_000);
         assert_eq!(
-            evaluate(&hand, &conditions),
+            evaluate(&hand, &conditions, lucky),
             vec![StopReason::Score {
                 threshold: 72_000,
                 score: 72_000
             }]
         );
         conditions.score = Some(72_001);
-        assert!(evaluate(&hand, &conditions).is_empty());
+        assert!(evaluate(&hand, &conditions, lucky).is_empty());
     }
 
     #[test]

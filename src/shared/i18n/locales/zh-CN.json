@@ -90,6 +90,8 @@
     "invalidPattern": "请输入由 1 到 5 的数字组成、长度 1 到 5 的子串。",
     "invalidScore": "请输入大于 0 的整数。",
     "invalidThreshold": "请输入 1 到 25 之间的整数。",
+    "luckyBadge": "好运加成 ×2",
+    "luckyHand": "今日好运组合：{{hand}}",
     "matchProgress": "第 {{round}} 轮命中，耗时 {{seconds}} 秒。",
     "pattern": "点数包含子串",
     "patternInput": "点数子串（1 到 5 的数字，长度 1 到 5）",

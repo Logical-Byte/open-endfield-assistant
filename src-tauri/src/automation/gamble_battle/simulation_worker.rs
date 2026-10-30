@@ -6,6 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chrono::Utc;
 use image::{Rgba, RgbaImage};
 use imageproc::{
     drawing::{draw_filled_rect_mut, draw_hollow_circle_mut},
@@ -13,7 +14,7 @@ use imageproc::{
 };
 
 use super::{
-    Progress,
+    Progress, lucky,
     model::{self, Card, Conditions, Suit},
     reporting::report_match,
 };
@@ -74,12 +75,14 @@ fn simulate(
             }
             thread::sleep(remaining.min(Duration::from_millis(50)));
         }
-        let reasons = model::evaluate(&cards, conditions);
+        let lucky = lucky::hand(Utc::now());
+        let reasons = model::evaluate(&cards, conditions, lucky);
         if !reasons.is_empty() {
             report_match(
                 events,
                 cards,
                 reasons,
+                lucky,
                 sample_image(&cards),
                 Progress {
                     round,

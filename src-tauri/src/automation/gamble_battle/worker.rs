@@ -5,12 +5,14 @@ use std::{
     time::{Duration, Instant},
 };
 
+use chrono::Utc;
 use image::RgbaImage;
 use serde::Serialize;
 use tracing::{debug, info, warn};
 use ts_rs::TS;
 
 use super::{
+    lucky,
     model::{self, Card, Conditions},
     recognition::{Recognizer, count_cards},
     reporting::report_match,
@@ -125,12 +127,15 @@ where
         cx.sleep(Duration::from_millis(500));
         // 抽满后才匹配数字和花色，截图和判定始终来自同一帧。
         let (full_frame, hand) = read_hand(cx, recognizer)?;
-        let reasons = model::evaluate(&hand, conditions);
+        // 每轮重新取好运组合，运行跨过凌晨 4 点时按新的一天计分。
+        let lucky = lucky::hand(Utc::now());
+        let reasons = model::evaluate(&hand, conditions, lucky);
         if !reasons.is_empty() {
             report_match(
                 events,
                 hand,
                 reasons,
+                lucky,
                 full_frame,
                 Progress {
                     round,

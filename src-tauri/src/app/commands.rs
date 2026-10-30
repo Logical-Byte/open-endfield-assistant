@@ -76,6 +76,12 @@ pub fn get_automation_status(state: tauri::State<Controller>) -> automation::Sta
     state.automation_status()
 }
 
+/// 查询今日百趣演武好运组合及界面标注倍率所需的数据。
+#[tauri::command]
+pub fn get_gamble_battle_daily() -> automation::gamble_battle::DailyLucky {
+    automation::gamble_battle::daily(chrono::Utc::now())
+}
+
 /// 返回前端展示、纠错与导出需要的精简档案目录。
 #[tauri::command]
 pub fn get_archive_catalog<'a>(state: tauri::State<'a, Controller>) -> &'a archive::Catalog {
