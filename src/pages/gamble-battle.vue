@@ -12,13 +12,15 @@ import {
   expandedMatches,
   clearMatchedHands,
   sumThreshold,
+  scoreThreshold,
+  bpPattern,
   showGambleBattleGuide,
 } from '@/features/gambleBattle/state';
 import { useAppI18n } from '@/shared/i18n';
 import { formatBackendError, normalizeBackendError } from '@/shared/errors';
 
 const { t, n } = useAppI18n();
-const { task, submitting, hasCondition, thresholdValid, toggleAutomation } =
+const { task, submitting, hasCondition, sumValid, scoreValid, patternValid, toggleAutomation } =
   useGambleBattleControls();
 const { phase, isActive, canStart, canStop, outcome } = task;
 // 教程由 v-if 替换整页内容。关闭教程后，把焦点交还给重新挂载的教程入口。
@@ -55,6 +57,26 @@ function toggleSum(enabled: boolean): void {
 function changeThreshold(value: number | null): void {
   sumThreshold.value = value ?? 0;
   if (conditions.sum !== null) conditions.sum = sumThreshold.value;
+}
+
+function toggleScore(enabled: boolean): void {
+  conditions.score = enabled ? scoreThreshold.value : null;
+}
+
+function changeScore(value: number | null): void {
+  scoreThreshold.value = value ?? 0;
+  if (conditions.score !== null) conditions.score = scoreThreshold.value;
+}
+
+function togglePattern(enabled: boolean): void {
+  conditions.pattern = enabled ? bpPattern.value : null;
+}
+
+function changePattern(value: string | number): void {
+  bpPattern.value = String(value)
+    .replace(/[^1-5]/g, '')
+    .slice(0, 5);
+  if (conditions.pattern !== null) conditions.pattern = bpPattern.value;
 }
 </script>
 
@@ -100,7 +122,7 @@ function changeThreshold(value: number | null): void {
                 :disabled="
                   submitting ||
                   (!canStart && !canStop) ||
-                  (canStart && (!hasCondition || !thresholdValid))
+                  (canStart && (!hasCondition || !sumValid || !scoreValid || !patternValid))
                 "
                 :icon="isActive ? 'i-lucide-square' : 'i-lucide-play'"
                 :label="buttonLabel"
@@ -155,6 +177,7 @@ function changeThreshold(value: number | null): void {
               :aria-label="t('gambleBattle.threshold')"
               class="ml-auto w-28 shrink-0"
               :disabled="conditions.sum === null || isActive || submitting"
+              :format-options="{ useGrouping: false }"
               :max="25"
               :min="1"
               :model-value="sumThreshold"
@@ -162,8 +185,56 @@ function changeThreshold(value: number | null): void {
               :step="1"
               @update:model-value="changeThreshold"
             />
-            <p v-if="!thresholdValid" class="w-full text-sm text-error">
+            <p v-if="!sumValid" class="w-full text-sm text-error">
               {{ t('gambleBattle.invalidThreshold') }}
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <USwitch
+              class="min-h-7 max-w-full items-center"
+              :disabled="isActive || submitting"
+              :label="t('gambleBattle.score')"
+              :model-value="conditions.score !== null"
+              size="sm"
+              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
+              @update:model-value="toggleScore"
+            />
+            <UInputNumber
+              :aria-label="t('gambleBattle.scoreThreshold')"
+              class="ml-auto w-28 shrink-0"
+              :disabled="conditions.score === null || isActive || submitting"
+              :format-options="{ useGrouping: false }"
+              :min="1"
+              :model-value="scoreThreshold"
+              size="sm"
+              :step="1000"
+              @update:model-value="changeScore"
+            />
+            <p v-if="!scoreValid" class="w-full text-sm text-error">
+              {{ t('gambleBattle.invalidScore') }}
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <USwitch
+              class="min-h-7 max-w-full items-center"
+              :disabled="isActive || submitting"
+              :label="t('gambleBattle.pattern')"
+              :model-value="conditions.pattern !== null"
+              size="sm"
+              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
+              @update:model-value="togglePattern"
+            />
+            <UInput
+              :aria-label="t('gambleBattle.patternInput')"
+              class="ml-auto w-28 shrink-0"
+              :disabled="conditions.pattern === null || isActive || submitting"
+              maxlength="5"
+              :model-value="bpPattern"
+              size="sm"
+              @update:model-value="changePattern"
+            />
+            <p v-if="!patternValid" class="w-full text-sm text-error">
+              {{ t('gambleBattle.invalidPattern') }}
             </p>
           </div>
           <p v-if="!hasCondition" class="text-sm text-warning">

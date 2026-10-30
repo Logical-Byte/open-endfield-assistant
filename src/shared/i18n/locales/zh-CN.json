@@ -87,10 +87,19 @@
       "twoPair": "两对"
     },
     "heading": "百趣演武",
+    "invalidPattern": "请输入由 1 到 5 的数字组成、长度 1 到 5 的子串。",
+    "invalidScore": "请输入大于 0 的整数。",
     "invalidThreshold": "请输入 1 到 25 之间的整数。",
     "matchProgress": "第 {{round}} 轮命中，耗时 {{seconds}} 秒。",
+    "pattern": "点数包含子串",
+    "patternInput": "点数子串（1 到 5 的数字，长度 1 到 5）",
+    "patternMatched": "点数包含 {{pattern}}",
     "results": "命中记录",
     "round": "刷新轮次：",
+    "score": "分数大于等于",
+    "scoreMatched": "分数 {{score}} ≥ {{threshold}}",
+    "scoreThreshold": "分数阈值",
+    "scoreTotal": "得分：{{score}}",
     "screenshot": "百趣演武命中截图",
     "seconds": "{{count}} 秒",
     "selectCondition": "请至少启用一个停止条件。",
@@ -103,7 +112,7 @@
       "tiao": "条",
       "wan": "万"
     },
-    "sum": "战力点之和达到阈值",
+    "sum": "战力点大于等于",
     "sumMatched": "战力点之和 {{total}} ≥ {{threshold}}",
     "threshold": "战力点阈值（1 到 25）",
     "title": "百趣演武",
@@ -160,7 +169,7 @@
       "screen": "百趣演武的抽牌界面",
       "start": "点击{start}，或按 {key}（分号键）。",
       "stop": "满足{any}目标后会自动停止抽卡。",
-      "targetHands": "牌型目标"
+      "targetHands": "停止条件"
     },
     "hdr": {
       "disable": "关闭 HDR"

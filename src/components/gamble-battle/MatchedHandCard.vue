@@ -13,9 +13,22 @@ const total = computed((): number =>
 );
 
 function reasonLabel(reason: DeepReadonly<StopReason>): string {
-  return reason.kind === 'hand'
-    ? t(`gambleBattle.hands.${reason.hand}`)
-    : t('gambleBattle.sumMatched', { threshold: n(reason.threshold), total: n(reason.total) });
+  switch (reason.kind) {
+    case 'hand':
+      return t(`gambleBattle.hands.${reason.hand}`);
+    case 'sum':
+      return t('gambleBattle.sumMatched', {
+        threshold: n(reason.threshold),
+        total: n(reason.total),
+      });
+    case 'score':
+      return t('gambleBattle.scoreMatched', {
+        threshold: n(reason.threshold),
+        score: n(reason.score),
+      });
+    case 'pattern':
+      return t('gambleBattle.patternMatched', { pattern: reason.pattern });
+  }
 }
 
 function previewMatch(): void {
@@ -81,7 +94,10 @@ function previewMatch(): void {
               }}
             </UBadge>
           </div>
-          <p class="text-muted">{{ t('gambleBattle.total', { total: n(total) }) }}</p>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 text-muted">
+            <p>{{ t('gambleBattle.total', { total: n(total) }) }}</p>
+            <p>{{ t('gambleBattle.scoreTotal', { score: n(match.score) }) }}</p>
+          </div>
           <UButton
             :aria-label="t('gambleBattle.screenshot')"
             class="block w-full overflow-hidden p-0"

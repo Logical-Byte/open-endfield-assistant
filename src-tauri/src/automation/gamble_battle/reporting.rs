@@ -29,6 +29,7 @@ pub(super) fn report_match(
         elapsed_seconds: progress.elapsed_seconds,
         cards,
         hand: model::classify(&cards),
+        score: model::score(&cards),
         reasons,
         image: format!(
             "data:image/png;base64,{}",

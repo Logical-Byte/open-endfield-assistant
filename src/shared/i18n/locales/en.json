@@ -87,10 +87,19 @@
       "twoPair": "Two Pair"
     },
     "heading": "Arena of Games",
+    "invalidPattern": "Enter 1 to 5 digits from 1 to 5.",
+    "invalidScore": "Enter a whole number greater than 0.",
     "invalidThreshold": "Enter a whole number from 1 to 25.",
     "matchProgress": "Matched on round {{round}} after {{seconds}} seconds.",
+    "pattern": "BP sequence contains a substring",
+    "patternInput": "BP sequence (digits 1 to 5, length 1 to 5)",
+    "patternMatched": "BP sequence contains {{pattern}}",
     "results": "Match history",
     "round": "Round: ",
+    "score": "Score at least",
+    "scoreMatched": "Score {{score}} ≥ {{threshold}}",
+    "scoreThreshold": "Score threshold",
+    "scoreTotal": "Score: {{score}}",
     "screenshot": "Arena of Games matching screenshot",
     "seconds_one": "{{count}} second",
     "seconds_other": "{{count}} seconds",
@@ -104,7 +113,7 @@
       "tiao": "Tiao",
       "wan": "Wan"
     },
-    "sum": "Total BP reaches a threshold",
+    "sum": "Total BP at least",
     "sumMatched": "Total BP {{total}} ≥ {{threshold}}",
     "threshold": "BP threshold (1 to 25)",
     "title": "Arena of Games",
@@ -161,7 +170,7 @@
       "screen": "the Arena of Games card draw screen",
       "start": "Select {start}, or press {key} (semicolon).",
       "stop": "Drawing stops automatically once {any} target is met.",
-      "targetHands": "the target hands"
+      "targetHands": "the stop conditions"
     },
     "hdr": {
       "disable": "Disable HDR"
