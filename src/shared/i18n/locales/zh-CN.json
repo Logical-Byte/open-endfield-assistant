@@ -16,9 +16,9 @@
     "game": {
       "hdrEnabled": "游戏所在显示器已开启 HDR，请关闭 HDR 后重试。",
       "unsupportedResolution": "游戏分辨率 {{width}}×{{height}} 不支持，请使用 16:9 分辨率。",
+      "windowPreparationFailed": "自动调整游戏为 1280×720 窗口模式失败，请查看日志后重试。",
       "windowSizeChanged": "游戏窗口尺寸由 {{expectedWidth}}×{{expectedHeight}} 变为 {{actualWidth}}×{{actualHeight}}，请重新开始任务。",
-      "windowUnavailable": "未找到游戏窗口，请先打开游戏。",
-      "windowPreparationFailed": "自动调整游戏为 1280×720 窗口模式失败，请查看日志后重试。"
+      "windowUnavailable": "未找到游戏窗口，请先打开游戏。"
     },
     "screenshot": {
       "captureFailed": "无法捕获游戏画面，请查看日志了解原因。",

@@ -16,9 +16,9 @@
     "game": {
       "hdrEnabled": "HDR is enabled on the game display. Turn off HDR and try again.",
       "unsupportedResolution": "The game resolution {{width}}×{{height}} is unsupported. Use a 16:9 resolution.",
+      "windowPreparationFailed": "Could not switch the game to 1280×720 windowed mode. Check the logs and try again.",
       "windowSizeChanged": "The game window changed from {{expectedWidth}}×{{expectedHeight}} to {{actualWidth}}×{{actualHeight}}. Start the task again.",
-      "windowUnavailable": "The game window was not found. Open the game first.",
-      "windowPreparationFailed": "Could not switch the game to 1280×720 windowed mode. Check the logs and try again."
+      "windowUnavailable": "The game window was not found. Open the game first."
     },
     "screenshot": {
       "captureFailed": "The game image could not be captured. Check the logs for more information.",
