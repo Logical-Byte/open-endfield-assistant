@@ -94,9 +94,12 @@ function previewMatch(): void {
               }}
             </UBadge>
           </div>
-          <div class="flex flex-wrap gap-x-4 gap-y-1 text-muted">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted">
             <p>{{ t('gambleBattle.total', { total: n(total) }) }}</p>
             <p>{{ t('gambleBattle.scoreTotal', { score: n(match.score) }) }}</p>
+            <UBadge v-if="match.lucky" color="primary" size="sm" variant="subtle">
+              {{ t('gambleBattle.luckyBadge') }}
+            </UBadge>
           </div>
           <UButton
             :aria-label="t('gambleBattle.screenshot')"

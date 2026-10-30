@@ -1,6 +1,7 @@
 import { reactive, readonly, ref, shallowRef, watch, type DeepReadonly, type Ref } from 'vue';
 import type { Conditions, HandKind, MatchedHand, Progress } from '@/shared/types/gambleBattle';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
+import { refreshGambleBattleDaily } from './daily';
 import { onGambleBattleMatched, onGambleBattleProgress } from './ipc';
 
 /** 按游戏的牌型优先级排列，也是条件编辑器的展示顺序。 */
@@ -79,4 +80,5 @@ export async function initGambleBattleState(): Promise<void> {
     progress.value = { round: result.round, elapsedSeconds: result.elapsedSeconds };
     progressReceivedAt.value = Date.now();
   });
+  await refreshGambleBattleDaily();
 }

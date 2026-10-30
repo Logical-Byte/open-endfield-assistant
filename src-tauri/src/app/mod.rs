@@ -51,6 +51,7 @@ pub fn run() {
             commands::start_automation,
             commands::stop_automation,
             commands::get_automation_status,
+            commands::get_gamble_battle_daily,
             commands::get_archive_catalog,
             commands::quit,
             commands::open_log_dir,

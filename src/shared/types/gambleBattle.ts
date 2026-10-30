@@ -5,3 +5,5 @@ export type { Conditions } from './generated/gambleBattle/Conditions';
 export type { StopReason } from './generated/gambleBattle/StopReason';
 export type { MatchedHand } from './generated/gambleBattle/MatchedHand';
 export type { Progress } from './generated/gambleBattle/Progress';
+export type { DailyLucky } from './generated/gambleBattle/DailyLucky';
+export type { HandMultiplier } from './generated/gambleBattle/HandMultiplier';

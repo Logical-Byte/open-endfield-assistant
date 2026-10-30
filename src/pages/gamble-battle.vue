@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
-import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
-import MatchedHandCard from '@/components/gamble-battle/MatchedHandCard.vue';
 import GambleBattleGuide from '@/components/gamble-battle/GambleBattleGuide.vue';
-import { gambleBattleWorkerType } from '@/features/gambleBattle/workerType';
+import MatchedHandCard from '@/components/gamble-battle/MatchedHandCard.vue';
+import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
 import { useGambleBattleControls } from '@/features/gambleBattle/controls';
+import { gambleBattleDaily } from '@/features/gambleBattle/daily';
 import {
+  bpPattern,
+  clearMatchedHands,
   conditions,
+  expandedMatches,
   handKinds,
   matchedHands,
-  expandedMatches,
-  clearMatchedHands,
-  sumThreshold,
   scoreThreshold,
-  bpPattern,
   showGambleBattleGuide,
+  sumThreshold,
 } from '@/features/gambleBattle/state';
-import { useAppI18n } from '@/shared/i18n';
+import { gambleBattleWorkerType } from '@/features/gambleBattle/workerType';
 import { formatBackendError, normalizeBackendError } from '@/shared/errors';
+import { useAppI18n } from '@/shared/i18n';
+import type { HandKind } from '@/shared/types/gambleBattle';
+import { computed, nextTick, ref, watch } from 'vue';
 
 const { t, n } = useAppI18n();
 const { task, submitting, hasCondition, sumValid, scoreValid, patternValid, toggleAutomation } =
@@ -77,6 +79,21 @@ function changePattern(value: string | number): void {
     .replace(/[^1-5]/g, '')
     .slice(0, 5);
   if (conditions.pattern !== null) conditions.pattern = bpPattern.value;
+}
+
+const luckyHand = computed((): HandKind | null => gambleBattleDaily.value?.hand ?? null);
+const multiplierTenths = computed((): Map<HandKind, number> => {
+  const entries = (gambleBattleDaily.value?.multipliers ?? []).map((item): [HandKind, number] => [
+    item.hand,
+    item.tenths,
+  ]);
+  return new Map(entries);
+});
+/** 牌型倍率标注，命中今日好运组合时显示翻倍后的倍率。 */
+function multiplierLabel(hand: HandKind): string | null {
+  const tenths = multiplierTenths.value.get(hand);
+  if (tenths === undefined) return null;
+  return `×${n((hand === luckyHand.value ? tenths * 2 : tenths) / 10)}`;
 }
 </script>
 
@@ -153,16 +170,33 @@ function changePattern(value: string | number): void {
           <legend class="mb-2 flex items-center gap-1 text-sm font-medium text-highlighted">
             {{ t('gambleBattle.conditions') }}
           </legend>
-          <USwitch
-            v-for="hand in handKinds"
-            :key="hand"
-            v-model="conditions[hand]"
-            class="min-h-7 w-full items-center"
-            :disabled="isActive || submitting"
-            :label="t(`gambleBattle.hands.${hand}`)"
-            size="sm"
-            :ui="{ wrapper: 'text-sm', container: 'h-5' }"
-          />
+          <div
+            v-if="luckyHand"
+            class="mb-2 flex items-center gap-2 rounded-md border border-default bg-elevated px-2 py-1.5"
+          >
+            <UIcon class="size-4 shrink-0 text-primary" name="i-lucide-sparkles" />
+            <p class="min-w-0 text-sm font-medium text-highlighted">
+              {{ t('gambleBattle.luckyHand', { hand: t(`gambleBattle.hands.${luckyHand}`) }) }}
+            </p>
+          </div>
+          <div v-for="hand in handKinds" :key="hand" class="flex items-center gap-2">
+            <USwitch
+              v-model="conditions[hand]"
+              class="min-h-7 min-w-0 flex-1 items-center"
+              :disabled="isActive || submitting"
+              :label="t(`gambleBattle.hands.${hand}`)"
+              size="sm"
+              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
+            />
+            <UBadge
+              class="shrink-0 tabular-nums"
+              :color="hand === luckyHand ? 'primary' : 'neutral'"
+              size="md"
+              variant="subtle"
+            >
+              {{ multiplierLabel(hand) }}
+            </UBadge>
+          </div>
           <div class="flex flex-wrap items-center gap-2">
             <USwitch
               class="min-h-7 max-w-full items-center"
@@ -207,7 +241,7 @@ function changePattern(value: string | number): void {
               :min="1"
               :model-value="scoreThreshold"
               size="sm"
-              :step="1000"
+              :step="1"
               @update:model-value="changeScore"
             />
             <p v-if="!scoreValid" class="w-full text-sm text-error">
