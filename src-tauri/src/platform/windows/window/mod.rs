@@ -11,12 +11,14 @@ mod get_window;
 pub(in crate::platform) mod hdr;
 #[allow(dead_code)]
 mod window_info;
+mod window_mode;
 mod window_operation;
 
 pub(in crate::platform) use get_window::{
     get_app_window, get_foreground_window, get_window_by_title,
 };
 pub(in crate::platform) use window_info::get_client_rect;
+pub(in crate::platform) use window_mode::ensure_windowed_client_size;
 pub(in crate::platform) use window_operation::{
     ensure_foreground_and_topmost, ensure_window_on_screen, restore_window_if_minimized,
     set_thread_dpi_awareness_context,

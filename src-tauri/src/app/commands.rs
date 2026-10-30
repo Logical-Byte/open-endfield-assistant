@@ -189,6 +189,7 @@ pub async fn screenshot(
         restore_if_minimized: false,
         ensure_on_screen: false,
         hdr_disabled: false,
+        windowed_720p: false,
     })
     .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
 

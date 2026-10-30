@@ -22,7 +22,7 @@ cargo run --features cli -- dev match --template candidate.png --region 100,50,3
 
 Windows 启用 `cli` 的构建使用 Console subsystem。未启用 `cli` 的 Cargo release profile 构建使用 GUI subsystem。此行为由 `cli` feature 和 `debug_assertions` 决定，独立于 OEA dev / OEA release 应用形态。启用 `cli` 后以普通模式启动 Tauri 时可能附带控制台。
 
-窗口命令在 Windows 中复用生产流程，需要真实游戏窗口和应用的 OCR 模型、模板资源。`connect` 会恢复最小化窗口并确保窗口位于屏幕内，不截图、不发送点击或按键。`navigate` 等待生产导航器完成目标状态或返回错误，没有额外 CLI timeout。macOS 和 Linux 的窗口命令返回 `platform_unsupported`。`match-image` 可跨平台运行，无需游戏或 OCR 模型。
+窗口命令在 Windows 中复用生产流程，需要真实游戏窗口和应用的 OCR 模型、模板资源。`connect` 会恢复窗口并自动调整为 1280×720 窗口模式，保留该尺寸定位到屏幕内。全屏时会等待前台激活完成并发送 Alt+Enter，不截图、不点击游戏界面。`navigate` 等待生产导航器完成目标状态或返回错误，没有额外 CLI timeout。macOS 和 Linux 的窗口命令返回 `platform_unsupported`。`match-image` 可跨平台运行，无需游戏或 OCR 模型。
 
 ```text
 connect / navigate / screenshot / match
