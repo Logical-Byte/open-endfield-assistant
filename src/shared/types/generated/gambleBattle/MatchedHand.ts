@@ -6,4 +6,4 @@ import type { StopReason } from "./StopReason";
 /**
  * 达成目标时保留的五张铭牌及识别截图。
  */
-export type MatchedHand = { round: number, elapsedSeconds: number, cards: [Card, Card, Card, Card, Card], hand: HandKind | null, reasons: Array<StopReason>, image: string, };
+export type MatchedHand = { round: number, elapsedSeconds: number, cards: [Card, Card, Card, Card, Card], hand: HandKind | null, score: number, reasons: Array<StopReason>, image: string, };

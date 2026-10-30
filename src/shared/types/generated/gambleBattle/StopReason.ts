@@ -2,6 +2,6 @@
 import type { HandKind } from "./HandKind";
 
 /**
- * 命中的停止条件，可以同时包含最终牌型和战力点之和。
+ * 命中的停止条件，可以同时包含最终牌型、战力点之和、分数和战力点子串。
  */
-export type StopReason = { "kind": "hand", hand: HandKind, } | { "kind": "sum", threshold: number, total: number, };
+export type StopReason = { "kind": "hand", hand: HandKind, } | { "kind": "sum", threshold: number, total: number, } | { "kind": "score", threshold: number, score: number, } | { "kind": "pattern", pattern: string, };

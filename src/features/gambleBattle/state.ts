@@ -26,8 +26,12 @@ export const conditions = reactive<Conditions>({
   twoPair: false,
   pair: false,
   sum: null,
+  score: null,
+  pattern: null,
 });
-export const sumThreshold = shallowRef(25);
+export const sumThreshold = shallowRef(20);
+export const scoreThreshold = shallowRef(900000);
+export const bpPattern = shallowRef('325');
 /** 教程只在本次应用会话内保留显示状态。 */
 export const showGambleBattleGuide = ref(true);
 const matched = shallowRef<MatchedHand[]>([]);
