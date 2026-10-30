@@ -25,6 +25,10 @@ const { t, n } = useAppI18n();
 const { task, submitting, hasCondition, sumValid, scoreValid, patternValid, toggleAutomation } =
   useGambleBattleControls();
 const { phase, isActive, canStart, canStop, outcome } = task;
+const errorDismissed = ref(false);
+watch(outcome, () => {
+  errorDismissed.value = false;
+});
 // 教程由 v-if 替换整页内容。关闭教程后，把焦点交还给重新挂载的教程入口。
 const controlsPanel = ref<HTMLElement | null>(null);
 watch(showGambleBattleGuide, async (visible: boolean): Promise<void> => {
@@ -159,12 +163,14 @@ function multiplierLabel(hand: HandKind): string | null {
           </div>
         </template>
         <UAlert
-          v-if="errorMessage && !isActive"
+          v-if="errorMessage && !isActive && !errorDismissed"
+          close
           color="error"
           :description="errorMessage"
           icon="i-lucide-circle-alert"
           :title="t('gambleBattle.failed')"
           variant="subtle"
+          @update:open="errorDismissed = true"
         />
         <fieldset class="space-y-1" :disabled="isActive || submitting">
           <legend class="mb-2 flex items-center gap-1 text-sm font-medium text-highlighted">
