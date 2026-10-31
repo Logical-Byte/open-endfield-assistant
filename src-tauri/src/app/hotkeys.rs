@@ -38,6 +38,14 @@ const EXIT_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
     modifiers: platform::hotkey::ALT_MODIFIER,
 };
 
+/// `Ctrl+Alt+P`：停止当前自动化任务并把 OEA 切到前台。
+/// 只在前台是终末地或 OEA 时生效，避免占用其他程序里的同名快捷键。
+const STOP_AND_FOCUS_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
+    vk: platform::hotkey::P_KEY,
+    down: true,
+    modifiers: platform::hotkey::ALT_MODIFIER | platform::hotkey::CTRL_MODIFIER,
+};
+
 /// 启动热键动作分发线程。
 ///
 /// `stop` 被设置为 `true` 后，线程会在观察到该值后退出。
@@ -60,6 +68,25 @@ pub(super) fn spawn_dispatcher(
                 if key_event == EXIT_HOTKEY {
                     let controller = app_handle.state::<Controller>();
                     controller.quit(&app_handle);
+                } else if key_event == STOP_AND_FOCUS_HOTKEY {
+                    if foreground.is_foreground_eligible() {
+                        let controller = app_handle.state::<Controller>();
+                        controller.stop_automation();
+                        if let Ok(window) = platform::window::get_app_window(&app_handle) {
+                            if let Err(error) =
+                                platform::window::restore_window_if_minimized(window)
+                            {
+                                warn!("还原主窗口失败：{error}");
+                            }
+                            if let Err(error) =
+                                platform::window::ensure_foreground_and_topmost(window)
+                            {
+                                warn!("切换主窗口到前台失败：{error}");
+                            }
+                        }
+                    } else {
+                        debug!("前台窗口不是终末地或者 OEA，忽略停止热键");
+                    }
                 } else if key_event == TOGGLE_MAIN_TASK_HOTKEY
                     || key_event == TOGGLE_GAMBLE_BATTLE_HOTKEY
                 {

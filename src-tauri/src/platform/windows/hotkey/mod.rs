@@ -14,7 +14,8 @@ use std::thread::{self, JoinHandle};
 use ::windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 use ::windows::Win32::System::Threading::GetCurrentThreadId;
 use ::windows::Win32::UI::Input::KeyboardAndMouse::{
-    VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+    VK_CONTROL, VK_LCONTROL, VK_LMENU, VK_LSHIFT, VK_LWIN, VK_MENU, VK_RCONTROL, VK_RMENU,
+    VK_RSHIFT, VK_RWIN, VK_SHIFT,
 };
 use ::windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, GetMessageW, HC_ACTION, KBDLLHOOKSTRUCT, LLKHF_ALTDOWN, MSG, PM_NOREMOVE,
@@ -109,12 +110,19 @@ fn mods_snapshot(kb: &KBDLLHOOKSTRUCT, tracked: u32) -> u32 {
 }
 
 /// 根据 keydown / keyup 更新修饰键跟踪状态。
+///
+/// 低级键盘钩子对物理修饰键上报左、右键码（如 `VK_LCONTROL`），个别注入会使用
+/// 通用键码，因此两组都要识别，否则 Ctrl/Shift 组合永远匹配不上。
 fn track_modifier(mods: &mut u32, vk: u32, down: bool) {
     let bit: u32 = match vk {
-        v if v == VK_MENU.0 as u32 => MOD_ALT,     // Alt
-        v if v == VK_CONTROL.0 as u32 => MOD_CTRL, // Ctrl
-        v if v == VK_SHIFT.0 as u32 => MOD_SHIFT,  // Shift
-        v if v == VK_LWIN.0 as u32 || v == VK_RWIN.0 as u32 => MOD_WIN, // Win
+        v if v == VK_MENU.0 as u32 || v == VK_LMENU.0 as u32 || v == VK_RMENU.0 as u32 => MOD_ALT,
+        v if v == VK_CONTROL.0 as u32 || v == VK_LCONTROL.0 as u32 || v == VK_RCONTROL.0 as u32 => {
+            MOD_CTRL
+        }
+        v if v == VK_SHIFT.0 as u32 || v == VK_LSHIFT.0 as u32 || v == VK_RSHIFT.0 as u32 => {
+            MOD_SHIFT
+        }
+        v if v == VK_LWIN.0 as u32 || v == VK_RWIN.0 as u32 => MOD_WIN,
         _ => return,
     };
     if down {
@@ -258,6 +266,28 @@ pub(in crate::platform) fn listen() -> anyhow::Result<(mpsc::Receiver<KeyEvent>,
         Err(error) => {
             let _ = handle.join();
             Err(anyhow!("等待键盘监听线程初始化失败: {error}"))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tracks_left_right_and_generic_modifier_keys() {
+        for (control, alt, shift) in [
+            (VK_LCONTROL, VK_LMENU, VK_LSHIFT),
+            (VK_RCONTROL, VK_RMENU, VK_RSHIFT),
+            (VK_CONTROL, VK_MENU, VK_SHIFT),
+        ] {
+            let mut mods = 0;
+            for (key, expected) in [(control, MOD_CTRL), (alt, MOD_ALT), (shift, MOD_SHIFT)] {
+                track_modifier(&mut mods, key.0 as u32, true);
+                assert_eq!(mods & expected, expected);
+                track_modifier(&mut mods, key.0 as u32, false);
+                assert_eq!(mods & expected, 0);
+            }
         }
     }
 }
