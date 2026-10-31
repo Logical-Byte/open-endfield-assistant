@@ -160,7 +160,7 @@ onBeforeUnmount(stopMonitor);
     <UAlert
       v-if="errorSummary"
       :actions="[
-        { label: t('monitor.openLogs'), to: '/log', icon: 'i-lucide-file-text', variant: 'link' },
+        { label: t('common.viewLogs'), to: '/log', icon: 'i-lucide-file-text', variant: 'link' },
       ]"
       color="error"
       icon="i-lucide-circle-alert"

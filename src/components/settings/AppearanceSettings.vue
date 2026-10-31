@@ -51,7 +51,7 @@ interface FontField {
 const fontFields = computed<FontField[]>((): FontField[] => [
   {
     type: 'chinese',
-    label: t('theme.chineseFont'),
+    label: t('theme.fonts.chinese'),
     icon: 'i-lucide-quote',
     value: chineseFont,
     options: chineseFontOptions.value,
@@ -59,7 +59,7 @@ const fontFields = computed<FontField[]>((): FontField[] => [
   },
   {
     type: 'english',
-    label: t('theme.englishFont'),
+    label: t('theme.fonts.english'),
     icon: 'i-lucide-type',
     value: englishFont,
     options: englishFontOptions.value,
@@ -67,7 +67,7 @@ const fontFields = computed<FontField[]>((): FontField[] => [
   },
   {
     type: 'monospace',
-    label: t('theme.monospaceFont'),
+    label: t('theme.fonts.monospace'),
     icon: 'i-lucide-code',
     value: monospaceFont,
     options: monospaceFontOptions.value,
@@ -117,14 +117,14 @@ function resetShape(): void {
 
 <template>
   <div class="space-y-2">
-    <SettingsCard icon="i-lucide-palette" :title="t('settings.interface.appearance.section')">
+    <SettingsCard icon="i-lucide-palette" :title="t('settings.interface.appearance.title')">
       <template #actions>
         <UTooltip :text="t('settings.interface.appearance.reset')">
           <UButton
             :aria-label="t('settings.interface.appearance.reset')"
             color="neutral"
             icon="i-lucide-rotate-ccw"
-            :label="t('settings.interface.restoreDefaults')"
+            :label="t('common.restoreDefaults')"
             size="sm"
             variant="ghost"
             @click="resetColors"
@@ -132,7 +132,7 @@ function resetShape(): void {
         </UTooltip>
       </template>
       <SettingsItem
-        :description="t('settings.interface.appearance.modeDescription')"
+        :description="t('settings.interface.appearance.colorMode.description')"
         icon="i-lucide-sun-moon"
         :title="t('theme.colorMode')"
       >
@@ -149,29 +149,29 @@ function resetShape(): void {
         </div>
       </SettingsItem>
       <SettingsItem
-        :description="t('settings.interface.appearance.primaryDescription')"
+        :description="t('settings.interface.appearance.accentColor.description')"
         icon="i-lucide-palette"
-        :title="t('theme.primary')"
+        :title="t('theme.accentColor')"
       >
         <ThemeColorPicker v-model="primary" :items="primaryColors" />
       </SettingsItem>
       <SettingsItem
-        :description="t('settings.interface.appearance.neutralDescription')"
+        :description="t('settings.interface.appearance.neutralColor.description')"
         icon="i-lucide-paint-bucket"
-        :title="t('theme.neutral')"
+        :title="t('theme.neutralColor')"
       >
         <ThemeColorPicker v-model="neutral" :items="neutralColors" />
       </SettingsItem>
     </SettingsCard>
 
-    <SettingsCard icon="i-lucide-type" :title="t('settings.interface.fonts.section')">
+    <SettingsCard icon="i-lucide-type" :title="t('settings.interface.fonts.title')">
       <template #actions>
         <UTooltip :text="t('settings.interface.fonts.reset')">
           <UButton
             :aria-label="t('settings.interface.fonts.reset')"
             color="neutral"
             icon="i-lucide-rotate-ccw"
-            :label="t('settings.interface.restoreDefaults')"
+            :label="t('common.restoreDefaults')"
             size="sm"
             variant="ghost"
             @click="resetThemeFonts"
@@ -215,14 +215,14 @@ function resetShape(): void {
       </SettingsItem>
     </SettingsCard>
 
-    <SettingsCard icon="i-lucide-scan" :title="t('settings.interface.shape.section')">
+    <SettingsCard icon="i-lucide-scan" :title="t('settings.interface.shape.title')">
       <template #actions>
         <UTooltip :text="t('settings.interface.shape.reset')">
           <UButton
             :aria-label="t('settings.interface.shape.reset')"
             color="neutral"
             icon="i-lucide-rotate-ccw"
-            :label="t('settings.interface.restoreDefaults')"
+            :label="t('common.restoreDefaults')"
             size="sm"
             variant="ghost"
             @click="resetShape"
@@ -230,9 +230,9 @@ function resetShape(): void {
         </UTooltip>
       </template>
       <SettingsItem
-        :description="t('settings.interface.shape.radiusDescription')"
+        :description="t('settings.interface.shape.radius.description')"
         icon="i-lucide-radius"
-        :title="t('theme.radius.title')"
+        :title="t('theme.cornerRadius')"
       >
         <div class="flex shrink-0 flex-wrap gap-2">
           <UButton

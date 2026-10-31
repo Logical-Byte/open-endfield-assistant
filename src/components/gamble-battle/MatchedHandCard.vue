@@ -28,26 +28,26 @@ const patternReason = computed(() =>
 function reasonLabel(reason: DeepReadonly<StopReason>): string {
   switch (reason.kind) {
     case 'hand':
-      return t(`gambleBattle.hands.${reason.hand}`);
+      return t(`gambleBattle.hand.names.${reason.hand}`);
     case 'sum':
-      return t('gambleBattle.sumMatched', {
+      return t('gambleBattle.conditions.sum.matched', {
         threshold: n(reason.threshold),
         total: n(reason.total),
       });
     case 'score':
-      return t('gambleBattle.scoreMatched', {
+      return t('gambleBattle.conditions.score.matched', {
         threshold: n(reason.threshold),
         score: n(reason.score),
       });
     case 'pattern':
-      return t('gambleBattle.patternMatched', { pattern: reason.pattern });
+      return t('gambleBattle.conditions.pattern.matched', { pattern: reason.pattern });
   }
 }
 
 function previewMatch(): void {
   openImagePreview({
     url: props.match.image,
-    name: t('gambleBattle.screenshot'),
+    name: t('gambleBattle.screenshot.title'),
     downloadName: 'Arena of Games.png',
   });
 }
@@ -101,14 +101,14 @@ function previewMatch(): void {
               >
                 {{
                   t('gambleBattle.dataplete', {
-                    suit: t(`gambleBattle.suits.${card.suit}`),
+                    suit: t(`gambleBattle.suit.names.${card.suit}`),
                     rank: n(card.rank),
                   })
                 }}
               </UBadge>
             </div>
             <p>
-              <TranslationComponent :translation="t('gambleBattle.handTotal')">
+              <TranslationComponent :translation="t('gambleBattle.hand.label')">
                 <template #value>
                   <UBadge
                     v-if="handMatched"
@@ -118,11 +118,15 @@ function previewMatch(): void {
                     variant="soft"
                   >
                     {{
-                      match.hand ? t(`gambleBattle.hands.${match.hand}`) : t('gambleBattle.noHand')
+                      match.hand
+                        ? t(`gambleBattle.hand.names.${match.hand}`)
+                        : t('gambleBattle.hand.none')
                     }}
                   </UBadge>
                   <span v-else>{{
-                    match.hand ? t(`gambleBattle.hands.${match.hand}`) : t('gambleBattle.noHand')
+                    match.hand
+                      ? t(`gambleBattle.hand.names.${match.hand}`)
+                      : t('gambleBattle.hand.none')
                   }}</span>
                 </template>
               </TranslationComponent>
@@ -133,15 +137,17 @@ function previewMatch(): void {
                 size="md"
                 variant="subtle"
               >
-                {{ t('gambleBattle.luckyBadge') }}
+                {{ t('gambleBattle.lucky.badge') }}
               </UBadge>
             </p>
             <p>
               <TranslationComponent
                 :translation="
                   sumReason
-                    ? t('gambleBattle.conditionSum', { threshold: n(sumReason.threshold) })
-                    : t('gambleBattle.total', { total: '{value}' })
+                    ? t('gambleBattle.conditions.sum.condition', {
+                        threshold: n(sumReason.threshold),
+                      })
+                    : t('gambleBattle.matched.total', { total: '{value}' })
                 "
               >
                 <template #value>
@@ -161,8 +167,10 @@ function previewMatch(): void {
               <TranslationComponent
                 :translation="
                   scoreReason
-                    ? t('gambleBattle.conditionScore', { threshold: n(scoreReason.threshold) })
-                    : t('gambleBattle.scoreTotal', { score: '{value}' })
+                    ? t('gambleBattle.conditions.score.condition', {
+                        threshold: n(scoreReason.threshold),
+                      })
+                    : t('gambleBattle.matched.score', { score: '{value}' })
                 "
               >
                 <template #value>
@@ -179,7 +187,7 @@ function previewMatch(): void {
               </TranslationComponent>
             </p>
             <p v-if="patternReason">
-              <TranslationComponent :translation="t('gambleBattle.conditionPattern')">
+              <TranslationComponent :translation="t('gambleBattle.conditions.pattern.condition')">
                 <template #value>
                   <UBadge class="text-sm font-normal" color="success" size="md" variant="soft">{{
                     patternReason.pattern
@@ -188,10 +196,10 @@ function previewMatch(): void {
               </TranslationComponent>
             </p>
             <div class="flex flex-wrap gap-x-4 gap-y-2">
-              <p>{{ t('gambleBattle.matchedRound', { round: n(match.round) }) }}</p>
+              <p>{{ t('gambleBattle.matched.round', { round: n(match.round) }) }}</p>
               <p>
                 {{
-                  t('gambleBattle.matchedElapsed', {
+                  t('gambleBattle.matched.elapsed', {
                     seconds: n(Math.floor(match.elapsedSeconds)),
                   })
                 }}
@@ -207,20 +215,20 @@ function previewMatch(): void {
             <UButton
               :aria-expanded="screenshotExpanded"
               color="neutral"
-              :label="t('gambleBattle.originalScreenshot')"
+              :label="t('gambleBattle.screenshot.original')"
               size="sm"
               :trailing-icon="screenshotExpanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
               variant="outline"
             />
             <template #content>
               <UButton
-                :aria-label="t('gambleBattle.screenshot')"
+                :aria-label="t('gambleBattle.screenshot.title')"
                 class="block w-full overflow-hidden p-0"
                 color="neutral"
                 variant="outline"
                 @click="previewMatch"
               >
-                <img :alt="t('gambleBattle.screenshot')" class="w-full" :src="match.image" />
+                <img :alt="t('gambleBattle.screenshot.title')" class="w-full" :src="match.image" />
               </UButton>
             </template>
           </UCollapsible>

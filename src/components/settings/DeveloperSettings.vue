@@ -18,14 +18,14 @@ const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
         <div class="flex flex-1 items-center gap-3">
           <UIcon class="text-2xl text-primary" name="i-lucide-code-2" />
           <div class="flex-1">
-            <p class="font-medium">{{ t('settings.developer.section') }}</p>
+            <p class="font-medium">{{ t('settings.sections.developer') }}</p>
             <p class="text-sm text-dimmed">{{ t('settings.developer.description') }}</p>
           </div>
         </div>
         <UButton
           color="neutral"
           :icon="enabled ? 'i-lucide-eye-off' : 'i-lucide-lock-keyhole-open'"
-          :label="enabled ? t('settings.developer.close') : t('settings.developer.open')"
+          :label="enabled ? t('settings.developer.disable') : t('settings.developer.enable')"
           size="sm"
           variant="soft"
           @click="enabled = !enabled"

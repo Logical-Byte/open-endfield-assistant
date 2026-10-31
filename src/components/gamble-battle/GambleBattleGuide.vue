@@ -24,13 +24,13 @@ onMounted((): void => {
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">1.</span>
         <span
-          ><TranslationComponent :translation="t('gambleBattle.guide.open')"
+          ><TranslationComponent :translation="t('gambleBattle.guide.setup')"
             ><template #resolution><strong class="text-primary">1280 × 720</strong></template
             ><template #windowed
-              ><strong class="text-primary">{{ t('help.windowed') }}</strong></template
+              ><strong class="text-primary">{{ t('common.windowed') }}</strong></template
             ><template #language
               ><strong class="text-primary">{{
-                t('settings.language.game.fixed')
+                t('settings.language.game.name')
               }}</strong></template
             ></TranslationComponent
           ></span
@@ -39,9 +39,9 @@ onMounted((): void => {
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">2.</span>
         <span
-          ><TranslationComponent :translation="t('gambleBattle.guide.hdr')"
+          ><TranslationComponent :translation="t('gambleBattle.guide.disableHdr')"
             ><template #hdr
-              ><strong class="text-primary">{{ t('help.hdr.disable') }}</strong></template
+              ><strong class="text-primary">{{ t('common.disableHdr') }}</strong></template
             ></TranslationComponent
           ></span
         >
@@ -49,9 +49,9 @@ onMounted((): void => {
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">3.</span>
         <span
-          ><TranslationComponent :translation="t('gambleBattle.guide.arena')"
+          ><TranslationComponent :translation="t('gambleBattle.guide.openArena')"
             ><template #screen
-              ><strong class="text-primary">{{ t('help.gambleBattle.screen') }}</strong></template
+              ><strong class="text-primary">{{ t('help.arena.screen') }}</strong></template
             ></TranslationComponent
           ></span
         >
@@ -59,11 +59,9 @@ onMounted((): void => {
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">4.</span>
         <span
-          ><TranslationComponent :translation="t('gambleBattle.guide.target')"
+          ><TranslationComponent :translation="t('gambleBattle.guide.selectTarget')"
             ><template #targetHands
-              ><strong class="text-primary">{{
-                t('help.gambleBattle.targetHands')
-              }}</strong></template
+              ><strong class="text-primary">{{ t('help.arena.targetHands') }}</strong></template
             ></TranslationComponent
           ></span
         >
@@ -71,7 +69,7 @@ onMounted((): void => {
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">5.</span>
         <span
-          ><TranslationComponent :translation="t('gambleBattle.guide.start')"
+          ><TranslationComponent :translation="t('gambleBattle.guide.startDrawing')"
             ><template #start
               ><strong class="text-primary">{{ t('gambleBattle.start') }}</strong></template
             ></TranslationComponent
@@ -80,6 +78,6 @@ onMounted((): void => {
       </li>
     </ol>
 
-    <UButton :label="t('gambleBattle.guide.confirm')" size="sm" @click="emit('confirm')" />
+    <UButton :label="t('common.gotIt')" size="sm" @click="emit('confirm')" />
   </section>
 </template>

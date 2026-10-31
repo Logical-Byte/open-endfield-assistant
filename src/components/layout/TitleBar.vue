@@ -101,7 +101,7 @@ onUnmounted(() => {
       </button>
       <button
         class="flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-red-500 hover:text-white"
-        :title="t('window.close')"
+        :title="t('common.close')"
         type="button"
         @click="appWindow?.close"
       >

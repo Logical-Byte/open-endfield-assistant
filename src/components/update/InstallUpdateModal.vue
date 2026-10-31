@@ -58,7 +58,7 @@ const canClose = computed(() => isFailed.value);
           v-html="renderMarkdown(justUpdatedInfo?.releaseNote ?? t('update.releaseNotes.empty'))"
         />
         <!-- eslint-enable vue/no-v-html -->
-        <UButton :label="t('update.dismiss')" @click="closeInstallModal" />
+        <UButton :label="t('common.dismiss')" @click="closeInstallModal" />
       </template>
 
       <!-- 安装中（不可关闭） -->
@@ -80,11 +80,11 @@ const canClose = computed(() => isFailed.value);
           <p class="font-semibold">{{ t('update.install.failed') }}</p>
           <p class="text-sm whitespace-pre-wrap text-error">{{ installError }}</p>
         </div>
-        <UButton color="neutral" :label="t('update.viewLogs')" to="/log" variant="link" />
+        <UButton color="neutral" :label="t('common.viewLogs')" to="/log" variant="link" />
         <div class="flex flex-wrap justify-center gap-2">
           <UButton
             color="neutral"
-            :label="t('update.close')"
+            :label="t('common.close')"
             variant="soft"
             @click="closeInstallModal"
           />

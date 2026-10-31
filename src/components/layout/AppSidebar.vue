@@ -138,10 +138,10 @@ function handleFocusOut(event: FocusEvent): void {
 }
 
 const navigationItems = computed<NavigationMenuItem[]>(() => [
-  { label: t('navigation.scan'), icon: 'i-lucide-scan-line', to: '/', exact: true },
+  { label: t('nav.scan'), icon: 'i-lucide-scan-line', to: '/', exact: true },
   { label: t('gambleBattle.title'), icon: 'i-lucide-dices', to: '/gamble-battle' },
-  { label: t('navigation.logs'), icon: 'i-lucide-scroll-text', to: '/log' },
-  { label: t('navigation.monitor'), icon: 'i-lucide-monitor-play', to: '/monitor' },
+  { label: t('nav.logs'), icon: 'i-lucide-scroll-text', to: '/log' },
+  { label: t('nav.monitor'), icon: 'i-lucide-monitor-play', to: '/monitor' },
 ]);
 </script>
 
@@ -156,7 +156,7 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
   >
     <UDashboardSidebar
       id="app"
-      :aria-label="t('navigation.menu.title')"
+      :aria-label="t('nav.menu.label')"
       class="app-sidebar absolute! inset-y-0 left-0 z-20 flex! h-full! min-h-0 min-w-0 overflow-hidden rounded-xl border-r-0 bg-elevated ring ring-accented ring-inset dark:bg-muted"
       :class="[
         { 'sidebar-resizing': dragging },
@@ -178,15 +178,15 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
         <UDashboardResizeHandle
           v-if="pinned"
           aria-controls="dashboard-sidebar-app"
-          :aria-label="t('navigation.sidebar.resize')"
+          :aria-label="t('nav.sidebar.resize')"
           aria-orientation="vertical"
           :aria-valuemax="maxWidth"
           :aria-valuemin="minWidth"
           :aria-valuenow="expandedWidth"
-          :aria-valuetext="t('navigation.sidebar.width', { width: expandedWidth })"
+          :aria-valuetext="t('nav.sidebar.width', { width: expandedWidth })"
           class="absolute! inset-y-0 -right-3 z-30 block! w-3 touch-none hover:bg-transparent focus-visible:bg-accented focus-visible:outline-none"
           tabindex="0"
-          :title="t('navigation.sidebar.resizeHint')"
+          :title="t('nav.sidebar.resizeHint')"
           @dblclick="resetWidth"
           @keydown="resizeWithKeyboard"
           @lostpointercapture="stopDrag"
@@ -196,10 +196,10 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
           @pointerup="stopDrag"
         />
       </template>
-      <UTooltip :text="pinned ? t('navigation.sidebar.unpin') : t('navigation.sidebar.pin')">
+      <UTooltip :text="pinned ? t('nav.sidebar.unpin') : t('nav.sidebar.pin')">
         <UButton
           v-show="!collapsed"
-          :aria-label="pinned ? t('navigation.sidebar.unpin') : t('navigation.sidebar.pin')"
+          :aria-label="pinned ? t('nav.sidebar.unpin') : t('nav.sidebar.pin')"
           :aria-pressed="pinned"
           class="absolute top-4 z-10 cursor-pointer text-muted hover:text-toned"
           :class="
@@ -226,7 +226,7 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
               <SidebarItem
                 :collapsed="collapsed"
                 icon="i-lucide-arrow-left"
-                :label="t('navigation.back')"
+                :label="t('nav.back')"
                 :to="returnTo"
               />
             </div>
@@ -268,19 +268,19 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
                   icon="i-lucide-settings"
                   icon-only
                   to="/settings"
-                  :tooltip="t('navigation.settings')"
+                  :tooltip="t('nav.settings')"
                 />
                 <div class="flex shrink-0" :class="collapsed && 'invisible'">
                   <SidebarItem
                     icon="i-lucide-circle-help"
                     icon-only
                     to="/help"
-                    :tooltip="t('navigation.help')"
+                    :tooltip="t('common.help')"
                   />
                   <SidebarItem
                     :icon="colorMode === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun'"
                     icon-only
-                    :tooltip="t('theme.toggleMode')"
+                    :tooltip="t('theme.toggleColorMode')"
                     @click="toggleColorMode"
                   />
                 </div>

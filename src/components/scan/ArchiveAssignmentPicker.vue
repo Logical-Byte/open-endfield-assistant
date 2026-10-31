@@ -41,15 +41,15 @@ const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[]
     : [...props.recommended];
   return query || !visible.length
     ? visible
-    : [{ type: 'label' as const, title: t('scan.recommendations') }, ...visible];
+    : [{ type: 'label' as const, title: t('scan.assignment.recommendations') }, ...visible];
 });
 </script>
 
 <template>
   <div class="relative min-w-0">
-    <UTooltip v-if="selectedArchive && !search" :text="t('scan.reselectArchive')">
+    <UTooltip v-if="selectedArchive && !search" :text="t('scan.assignment.reset')">
       <UButton
-        :aria-label="t('scan.reselectArchive')"
+        :aria-label="t('scan.assignment.reset')"
         class="w-full min-w-0 justify-start"
         color="primary"
         trailing-icon="i-lucide-chevrons-up-down"
@@ -69,7 +69,7 @@ const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[]
     <UInputMenu
       v-else
       ref="inputMenu"
-      :aria-label="t('scan.chooseArchive')"
+      :aria-label="t('scan.assignment.title')"
       by="id"
       class="w-full min-w-0"
       :content="{ side: 'top' }"
@@ -79,7 +79,7 @@ const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[]
       :model-value="selectedArchive"
       open-on-click
       open-on-focus
-      :placeholder="t('scan.chooseArchiveHint')"
+      :placeholder="t('scan.assignment.hint')"
       :reset-search-term-on-blur="false"
       :reset-search-term-on-select="false"
       :search-term="search"
@@ -102,9 +102,11 @@ const items = computed((): (ArchiveDetails | { type: 'label'; title: string })[]
       </template>
       <template #empty>
         <div class="space-y-2 text-left">
-          <p v-if="!search" class="font-medium text-default">{{ t('scan.recommendations') }}</p>
+          <p v-if="!search" class="font-medium text-default">
+            {{ t('scan.assignment.recommendations') }}
+          </p>
           <p class="text-muted">
-            {{ search ? t('scan.noArchives') : t('scan.noRecommendations') }}
+            {{ search ? t('scan.catalog.empty') : t('scan.assignment.noRecommendations') }}
           </p>
         </div>
       </template>

@@ -95,7 +95,7 @@ export function useArchiveScanResults(
     (): number => scans.value.filter((s: ScannedItemView): boolean => s.archive !== null).length,
   );
   const categories = computed((): CategoryOption[] => [
-    { label: t('scan.allCategories'), value: ALL_CATEGORIES },
+    { label: t('scan.filters.allCategories'), value: ALL_CATEGORIES },
     ...(source.data.value?.catalog.categories ?? []).map((category): CategoryOption => ({
       label: category.name['zh-CN'],
       value: category.id,

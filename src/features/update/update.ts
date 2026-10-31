@@ -149,11 +149,11 @@ export const updateOperationBusy = computed<boolean>(
 
 /** 安装阶段 → 用户可读文案。 */
 const INSTALL_STAGE_LABELS: Record<UpdateInstallStage, MessageKey> = {
-  preparing: 'update.stage.preparing',
-  extracting: 'update.stage.extracting',
-  applying_incremental: 'update.stage.incremental',
-  applying_full: 'update.stage.full',
-  cleaning_up: 'update.stage.cleanup',
+  preparing: 'update.stages.preparing',
+  extracting: 'update.stages.extracting',
+  applying_incremental: 'update.stages.incremental',
+  applying_full: 'update.stages.full',
+  cleaning_up: 'update.stages.cleanup',
 };
 
 /** 安装阶段文案（供弹窗展示）。 */
@@ -246,7 +246,7 @@ export async function startDownload(): Promise<void> {
     useTranslatedToast().add({ icon: 'i-lucide-triangle-alert', color: 'error' }, () => ({
       title: t('update.download.failed'),
       description: formatBackendError(facts),
-      actions: [{ label: t('update.viewLogs'), to: '/log' }],
+      actions: [{ label: t('common.viewLogs'), to: '/log' }],
     }));
   } finally {
     await refreshUpdateStatus();
