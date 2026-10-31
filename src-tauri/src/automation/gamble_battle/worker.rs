@@ -103,6 +103,10 @@ where
     let frame = cx.screenshot()?;
     require_target(cx, &frame, &ACTIVITY, "请先打开百趣演武活动的抽牌界面")?;
     info!("开始百趣演武自动化");
+    // 两次抽牌点击之间至少间隔这么久；点击未生效时继续延长，避免落在游戏冷却内。
+    let mut draw_interval = DRAW_INTERVAL;
+    let mut draw_ok_streak = 0u32;
+    let mut last_draw_click: Option<Instant> = None;
     loop {
         events.publish(Event::GambleBattleProgress(Progress {
             round,
@@ -110,14 +114,37 @@ where
         }));
         let mut count = wait_for_card_count(cx, None)?;
         while count < 5 {
+            if let Some(last_click) = last_draw_click {
+                let elapsed = last_click.elapsed();
+                if elapsed < draw_interval {
+                    cx.sleep(draw_interval - elapsed);
+                }
+            }
             let frame = cx.screenshot()?;
             require_target(cx, &frame, &ACTIVITY, "百趣演武页面已离开，停止抽牌")?;
             // 抽牌按钮会闪烁，等待可识别的帧后再点击。`Session::click` 会将光标归中。
             let button = wait_for_target(cx, &DRAW, "未找到可用的抽牌按钮")?;
             cx.click(button.region.center().into())?;
+            last_draw_click = Some(Instant::now());
             // 动画期间按钮可能忽略点击，后续按实际牌数决定是否继续抽牌。
             cx.sleep(Duration::from_millis(500));
+            let previous = count;
             count = wait_for_card_count(cx, None)?;
+            if count > previous {
+                draw_ok_streak += 1;
+                // 连续多次生效说明当前间隔足够，逐步回落到最短间隔，避免一次误判永久拖慢。
+                if draw_ok_streak >= DRAW_OK_STREAK && draw_interval > DRAW_INTERVAL {
+                    draw_interval = draw_interval
+                        .saturating_sub(DRAW_INTERVAL_STEP)
+                        .max(DRAW_INTERVAL);
+                    draw_ok_streak = 0;
+                    debug!(?draw_interval, "连续抽牌生效，缩短两次抽牌点击的间隔");
+                }
+            } else {
+                draw_ok_streak = 0;
+                draw_interval = (draw_interval + DRAW_INTERVAL_STEP).min(DRAW_INTERVAL_MAX);
+                debug!(?draw_interval, "抽牌点击未生效，延长两次抽牌点击的间隔");
+            }
             events.publish(Event::GambleBattleProgress(Progress {
                 round,
                 elapsed_seconds: started.elapsed().as_secs_f64(),
@@ -247,6 +274,13 @@ const ACTIVITY: TemplateTarget = TemplateTarget {
     roi: ltrb!(1125, 100, 1265, 140),
     threshold: 0.85,
 };
+/// 两次抽牌点击之间的最短间隔，需覆盖游戏抽牌冷却与翻牌动画。
+const DRAW_INTERVAL: Duration = Duration::from_millis(1500);
+/// 抽牌点击未生效时延长间隔的步长与上限。
+const DRAW_INTERVAL_STEP: Duration = Duration::from_millis(200);
+const DRAW_INTERVAL_MAX: Duration = Duration::from_millis(2600);
+/// 连续这么多次抽牌点击生效后，允许缩短间隔。
+const DRAW_OK_STREAK: u32 = 3;
 const DRAW: TemplateTarget = TemplateTarget {
     template_name: "百趣演武/draw.png",
     roi: ltrb!(1180, 520, 1265, 575),
