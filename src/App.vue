@@ -44,8 +44,8 @@ const router = useRouter();
 watch(settingsSaveError, (error) => {
   if (error) {
     toast.add({ color: 'error' }, () => ({
-      title: t('settings.save.failed.title'),
-      description: t('settings.save.failed.description'),
+      title: t('settings.saveError.title'),
+      description: t('settings.saveError.description'),
       actions: [{ label: t('common.retrySave'), onClick: retrySettingsSave }],
     }));
   }
@@ -63,9 +63,14 @@ watch([settingsState, () => route.path], ([state, path]) => {
 
   settingsInitializeErrorNotified = true;
   toast.add({ color: 'error' }, () => ({
-    title: t('settings.initialize.failed.title'),
-    description: t('settings.initialize.failed.description'),
-    actions: [{ label: t('settings.initialize.open'), onClick: () => router.push('/settings') }],
+    title: t('settings.initializeError.title'),
+    description: t('settings.initializeError.toastDescription'),
+    actions: [
+      {
+        label: t('settings.initializeError.openSettings'),
+        onClick: () => router.push('/settings'),
+      },
+    ],
   }));
 });
 
@@ -80,9 +85,9 @@ useHead({
   link,
   meta: [
     { name: 'theme-color', content: themeColor },
-    { name: 'description', content: computed(() => t('application.description')) },
-    { property: 'og:title', content: computed(() => t('application.title')) },
-    { property: 'og:description', content: computed(() => t('application.description')) },
+    { name: 'description', content: computed(() => t('app.description')) },
+    { property: 'og:title', content: computed(() => t('app.title')) },
+    { property: 'og:description', content: computed(() => t('app.description')) },
   ],
 });
 

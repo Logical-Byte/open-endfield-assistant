@@ -33,7 +33,7 @@ watch(scanError, () => {
     :description="scanErrorMessage"
     icon="i-lucide-circle-alert"
     orientation="horizontal"
-    :title="t('scan.failed')"
+    :title="t('scan.error.title')"
     variant="outline"
     @update:open="scanErrorDismissed = true"
   >
@@ -41,7 +41,7 @@ watch(scanError, () => {
       <UButton
         color="info"
         icon="i-lucide-scroll-text"
-        :label="t('scan.logs')"
+        :label="t('scan.error.viewLogs')"
         size="sm"
         to="/log"
         variant="outline"

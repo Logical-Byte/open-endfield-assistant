@@ -27,14 +27,14 @@ const { t } = useAppI18n();
       <UButton
         :aria-expanded="expanded"
         :aria-label="
-          t(expanded ? 'scan.collapseArchive' : 'scan.expandArchive', { title: entry.title })
+          t(expanded ? 'scan.archive.collapse' : 'scan.archive.expand', { title: entry.title })
         "
         class="min-h-10 w-full min-w-0 rounded-none px-3 py-2 text-left text-sm"
         color="neutral"
         variant="ghost"
       >
         <span class="sr-only">{{
-          entry.scans.length ? t('scan.collected') : t('scan.notCollected')
+          entry.scans.length ? t('scan.status.collected') : t('scan.status.notCollected')
         }}</span>
         <ArchiveLabel
           class="min-w-0 flex-1"
@@ -62,25 +62,33 @@ const { t } = useAppI18n();
             class="space-y-1 transition-[opacity,transform] duration-100 ease-out motion-reduce:transition-none"
             :class="expanded ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'"
           >
-            <dt class="text-muted">{{ t('scan.contentPreview') }}</dt>
+            <dt class="text-muted">{{ t('scan.archive.contentPreview') }}</dt>
             <dd>{{ entry.contentPreview }}</dd>
           </div>
           <div class="space-y-1">
-            <dt class="text-muted">{{ t('scan.archiveCategory') }}</dt>
+            <dt class="text-muted">{{ t('scan.filters.archiveCategory') }}</dt>
             <dd>{{ entry.categoryLabel }}</dd>
           </div>
           <div class="space-y-1">
-            <dt class="text-muted">{{ t('scan.acquisitionMethod') }}</dt>
+            <dt class="text-muted">{{ t('scan.acquisition.title') }}</dt>
             <dd class="flex flex-wrap items-center gap-2">
               <span>
                 {{
-                  entry.acquisitionMethod ? t(entry.acquisitionLabel) : t('scan.unknownAcquisition')
+                  entry.acquisitionMethod
+                    ? t(entry.acquisitionLabel)
+                    : t('scan.acquisition.unknown')
                 }}
               </span>
               <UButton
                 v-if="entry.acquisitionMethod"
                 color="neutral"
-                :label="t(entry.acquisitionMethod === 'map' ? 'scan.viewOem' : 'scan.viewIntel')"
+                :label="
+                  t(
+                    entry.acquisitionMethod === 'map'
+                      ? 'scan.archive.viewOem'
+                      : 'scan.archive.viewIntel',
+                  )
+                "
                 size="xs"
                 target="_blank"
                 :to="entry.acquisitionMethod === 'map' ? entry.oemUrl : entry.intelUrl"
@@ -90,10 +98,12 @@ const { t } = useAppI18n();
             </dd>
           </div>
           <div class="space-y-1">
-            <dt class="text-muted">{{ t('scan.collectionStatus') }}</dt>
+            <dt class="text-muted">{{ t('scan.archive.collectionStatus') }}</dt>
             <dd class="space-y-2">
               <UBadge :color="entry.scans.length ? 'success' : 'neutral'" size="lg" variant="soft">
-                {{ entry.scans.length ? t('scan.collected') : t('scan.notCollected') }}
+                {{
+                  entry.scans.length ? t('scan.status.collected') : t('scan.status.notCollected')
+                }}
               </UBadge>
               <div
                 v-for="scan in entry.scans"
@@ -104,16 +114,21 @@ const { t } = useAppI18n();
                   <p>
                     #{{ scan.scannedItemId }}
                     {{
-                      scan.manualChoice.kind === 'manual' ? t('scan.manual') : t('scan.automatic')
+                      scan.manualChoice.kind === 'manual'
+                        ? t('scan.record.matching.manual')
+                        : t('scan.record.matching.automatic')
                     }}
                   </p>
-                  <p class="truncate text-muted" :title="scan.ocrResult || t('scan.noTextShort')">
-                    {{ t('scan.ocrValue', { text: scan.ocrResult || t('scan.noTextShort') }) }}
+                  <p
+                    class="truncate text-muted"
+                    :title="scan.ocrResult || t('scan.ocr.noTextShort')"
+                  >
+                    {{ t('scan.ocr.value', { text: scan.ocrResult || t('scan.ocr.noTextShort') }) }}
                   </p>
                 </div>
                 <UButton
                   color="neutral"
-                  :label="t('scan.locateScan')"
+                  :label="t('scan.archive.locateScan')"
                   size="xs"
                   trailing-icon="i-lucide-arrow-right"
                   variant="outline"

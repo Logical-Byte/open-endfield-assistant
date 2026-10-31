@@ -87,20 +87,22 @@ onBeforeUnmount(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-rocket" />
-            <span class="font-semibold text-highlighted">{{ t('help.start.preparation') }}</span>
+            <span class="font-semibold text-highlighted">{{
+              t('help.sections.gettingStarted')
+            }}</span>
           </div>
         </template>
         <ol class="flex flex-col gap-3 leading-relaxed text-default">
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
             ><span
-              ><TranslationComponent :translation="t('help.start.setup')"
+              ><TranslationComponent :translation="t('help.gettingStarted.setup')"
                 ><template #resolution><strong class="text-primary">1280 × 720</strong></template
                 ><template #windowed
-                  ><strong class="text-primary">{{ t('help.windowed') }}</strong></template
+                  ><strong class="text-primary">{{ t('common.windowed') }}</strong></template
                 ><template #language
                   ><strong class="text-primary">{{
-                    t('settings.language.game.fixed')
+                    t('settings.language.game.name')
                   }}</strong></template
                 ></TranslationComponent
               ></span
@@ -109,20 +111,20 @@ onBeforeUnmount(() => {
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">2.</span
             ><span
-              ><TranslationComponent :translation="t('help.start.closeOverlay')"
+              ><TranslationComponent :translation="t('help.gettingStarted.disableOverlay')"
                 ><template #hdr
-                  ><strong class="text-primary">{{ t('help.hdr.disable') }}</strong></template
+                  ><strong class="text-primary">{{ t('common.disableHdr') }}</strong></template
                 ></TranslationComponent
               ></span
             >
           </li>
         </ol>
         <p class="mt-3 text-sm text-muted">
-          <TranslationComponent :translation="t('help.start.recommended')"
+          <TranslationComponent :translation="t('help.gettingStarted.recommended')"
             ><template #ratio><strong>16:9</strong></template
             ><template #resolution><strong>1280 × 720</strong></template
             ><template #windowed
-              ><strong>{{ t('help.windowed') }}</strong></template
+              ><strong>{{ t('common.windowed') }}</strong></template
             ></TranslationComponent
           >
         </p>
@@ -133,16 +135,18 @@ onBeforeUnmount(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-scan-line" />
-            <span class="font-semibold text-highlighted">{{ t('help.start.archive') }}</span>
+            <span class="font-semibold text-highlighted">{{ t('help.archiveScan.title') }}</span>
           </div>
         </template>
         <ol class="flex flex-col gap-3 leading-relaxed text-default">
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
             ><span
-              ><TranslationComponent :translation="t('help.start.open')"
+              ><TranslationComponent :translation="t('help.archiveScan.openArchive')"
                 ><template #archive
-                  ><strong class="text-primary">{{ t('help.archive.main') }}</strong></template
+                  ><strong class="text-primary">{{
+                    t('help.archiveScan.archiveHome')
+                  }}</strong></template
                 ></TranslationComponent
               ></span
             >
@@ -150,9 +154,9 @@ onBeforeUnmount(() => {
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">2.</span
             ><span
-              ><TranslationComponent :translation="t('help.start.scan')"
+              ><TranslationComponent :translation="t('help.archiveScan.startScan')"
                 ><template #scan
-                  ><strong class="text-primary">{{ t('help.scan.start') }}</strong></template
+                  ><strong class="text-primary">{{ t('scan.start') }}</strong></template
                 ><template #key><UKbd>'</UKbd></template></TranslationComponent
               ></span
             >
@@ -160,18 +164,20 @@ onBeforeUnmount(() => {
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">3.</span
             ><span
-              ><TranslationComponent :translation="t('help.start.export')"
+              ><TranslationComponent :translation="t('help.archiveScan.export')"
                 ><template #export
-                  ><strong class="text-primary">{{ t('help.export') }}</strong></template
+                  ><strong class="text-primary">{{
+                    t('help.archiveScan.exportButton')
+                  }}</strong></template
                 ></TranslationComponent
               ></span
             >
           </li>
         </ol>
         <p class="mt-3 text-sm text-muted">
-          <TranslationComponent :translation="t('help.start.tip')"
+          <TranslationComponent :translation="t('help.archiveScan.tip')"
             ><template #archive
-              ><strong>{{ t('help.archive.main') }}</strong></template
+              ><strong>{{ t('help.archiveScan.archiveHome') }}</strong></template
             ></TranslationComponent
           >
         </p>
@@ -182,18 +188,16 @@ onBeforeUnmount(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-dices" />
-            <span class="font-semibold text-highlighted">{{ t('help.start.gambleBattle') }}</span>
+            <span class="font-semibold text-highlighted">{{ t('help.arena.title') }}</span>
           </div>
         </template>
         <ol class="flex flex-col gap-3 leading-relaxed text-default">
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
             ><span
-              ><TranslationComponent :translation="t('help.gambleBattle.open')"
+              ><TranslationComponent :translation="t('help.arena.open')"
                 ><template #screen
-                  ><strong class="text-primary">{{
-                    t('help.gambleBattle.screen')
-                  }}</strong></template
+                  ><strong class="text-primary">{{ t('help.arena.screen') }}</strong></template
                 ></TranslationComponent
               ></span
             >
@@ -201,11 +205,9 @@ onBeforeUnmount(() => {
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">2.</span
             ><span
-              ><TranslationComponent :translation="t('help.gambleBattle.conditions')"
+              ><TranslationComponent :translation="t('help.arena.chooseTargets')"
                 ><template #targetHands
-                  ><strong class="text-primary">{{
-                    t('help.gambleBattle.targetHands')
-                  }}</strong></template
+                  ><strong class="text-primary">{{ t('help.arena.targetHands') }}</strong></template
                 ></TranslationComponent
               ></span
             >
@@ -213,7 +215,7 @@ onBeforeUnmount(() => {
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">3.</span
             ><span
-              ><TranslationComponent :translation="t('help.gambleBattle.start')"
+              ><TranslationComponent :translation="t('help.arena.start')"
                 ><template #start
                   ><strong class="text-primary">{{ t('gambleBattle.start') }}</strong></template
                 ><template #key><UKbd>;</UKbd></template></TranslationComponent
@@ -223,9 +225,9 @@ onBeforeUnmount(() => {
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">4.</span
             ><span
-              ><TranslationComponent :translation="t('help.gambleBattle.stop')"
+              ><TranslationComponent :translation="t('help.arena.autoStop')"
                 ><template #any
-                  ><strong class="text-primary">{{ t('help.gambleBattle.any') }}</strong></template
+                  ><strong class="text-primary">{{ t('help.arena.any') }}</strong></template
                 ></TranslationComponent
               ></span
             >
@@ -238,22 +240,22 @@ onBeforeUnmount(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-keyboard" />
-            <span class="font-semibold text-highlighted">{{ t('help.usage.title') }}</span>
+            <span class="font-semibold text-highlighted">{{ t('help.sections.shortcuts') }}</span>
           </div>
         </template>
         <ul class="flex list-disc flex-col gap-3 ps-6 leading-relaxed marker:text-toned">
           <li>
-            <TranslationComponent :translation="t('help.shortcut.scan')"
+            <TranslationComponent :translation="t('help.shortcuts.scan')"
               ><template #key><UKbd>'</UKbd></template></TranslationComponent
             >
           </li>
           <li>
-            <TranslationComponent :translation="t('help.shortcut.gambleBattle')"
+            <TranslationComponent :translation="t('help.shortcuts.arena')"
               ><template #key><UKbd>;</UKbd></template></TranslationComponent
             >
           </li>
           <li>
-            <TranslationComponent :translation="t('help.shortcut.quit')"
+            <TranslationComponent :translation="t('help.shortcuts.quit')"
               ><template #keys
                 ><span><UKbd>Alt</UKbd> + <UKbd>Delete</UKbd></span></template
               ></TranslationComponent
@@ -267,7 +269,7 @@ onBeforeUnmount(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-circle-help" />
-            <span class="font-semibold text-highlighted">{{ t('help.faq.title') }}</span>
+            <span class="font-semibold text-highlighted">{{ t('help.sections.faq') }}</span>
           </div>
         </template>
         <UAccordion :items="faqItems" :ui="{ trigger: 'text-base' }">
@@ -320,7 +322,7 @@ onBeforeUnmount(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-message-circle" />
-            <span class="font-semibold text-highlighted">{{ t('help.feedback.title') }}</span>
+            <span class="font-semibold text-highlighted">{{ t('help.sections.feedback') }}</span>
           </div>
         </template>
         <div class="flex flex-col gap-4">
@@ -354,7 +356,7 @@ onBeforeUnmount(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-heart" />
-            <span class="font-semibold text-highlighted">{{ t('help.credits.title') }}</span>
+            <span class="font-semibold text-highlighted">{{ t('help.sections.credits') }}</span>
           </div>
         </template>
         <div class="flex flex-col items-start gap-1">
@@ -456,7 +458,7 @@ onBeforeUnmount(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-file-text" />
-            <span class="font-semibold text-highlighted">{{ t('help.disclaimer.title') }}</span>
+            <span class="font-semibold text-highlighted">{{ t('help.sections.disclaimer') }}</span>
           </div>
         </template>
         <ol class="list-decimal space-y-3 ps-6 text-toned marker:text-toned">

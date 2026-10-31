@@ -42,7 +42,7 @@ const buttonLabel = computed((): string => {
   if (phase.value === 'blocked') return t('gambleBattle.blocked');
   if (isActive.value) return t('gambleBattle.stop');
   return gambleBattleWorkerType.value === 'simulation'
-    ? t('gambleBattle.startSimulation')
+    ? t('gambleBattle.simulate')
     : t('gambleBattle.start');
 });
 const errorMessage = computed((): string | null => {
@@ -117,7 +117,7 @@ function multiplierLabel(hand: HandKind): string | null {
                 class="truncate text-lg font-semibold text-highlighted"
                 :title="t('gambleBattle.title')"
               >
-                {{ t('gambleBattle.heading') }}
+                {{ t('gambleBattle.title') }}
               </h1>
               <UBadge class="shrink-0 rounded-full" color="success" size="sm" variant="outline">
                 {{ t('gambleBattle.event') }}
@@ -125,7 +125,7 @@ function multiplierLabel(hand: HandKind): string | null {
             </div>
             <div class="flex shrink-0 items-center gap-1">
               <UButton
-                :aria-label="t('gambleBattle.guide.help')"
+                :aria-label="t('gambleBattle.guide.show')"
                 color="neutral"
                 data-guide-trigger
                 icon="i-lucide-circle-help"
@@ -175,7 +175,7 @@ function multiplierLabel(hand: HandKind): string | null {
         />
         <fieldset class="space-y-1" :disabled="isActive || submitting">
           <legend class="mb-2 flex items-center gap-1 text-sm font-medium text-highlighted">
-            {{ t('gambleBattle.conditions') }}
+            {{ t('gambleBattle.conditions.title') }}
           </legend>
           <div
             v-if="luckyHand"
@@ -183,7 +183,9 @@ function multiplierLabel(hand: HandKind): string | null {
           >
             <UIcon class="size-4 shrink-0 text-primary" name="i-lucide-sparkles" />
             <p class="min-w-0 text-sm font-medium text-highlighted">
-              {{ t('gambleBattle.luckyHand', { hand: t(`gambleBattle.hands.${luckyHand}`) }) }}
+              {{
+                t('gambleBattle.lucky.hand', { hand: t(`gambleBattle.hand.names.${luckyHand}`) })
+              }}
             </p>
           </div>
           <div v-for="hand in handKinds" :key="hand" class="flex items-center gap-2">
@@ -191,7 +193,7 @@ function multiplierLabel(hand: HandKind): string | null {
               v-model="conditions[hand]"
               class="min-h-7 min-w-0 flex-1 items-center"
               :disabled="isActive || submitting"
-              :label="t(`gambleBattle.hands.${hand}`)"
+              :label="t(`gambleBattle.hand.names.${hand}`)"
               size="sm"
               :ui="{ wrapper: 'text-sm', container: 'h-5' }"
             />
@@ -208,14 +210,14 @@ function multiplierLabel(hand: HandKind): string | null {
             <USwitch
               class="min-h-7 max-w-full items-center"
               :disabled="isActive || submitting"
-              :label="t('gambleBattle.sum')"
+              :label="t('gambleBattle.conditions.sum.label')"
               :model-value="conditions.sum !== null"
               size="sm"
               :ui="{ wrapper: 'text-sm', container: 'h-5' }"
               @update:model-value="toggleSum"
             />
             <UInputNumber
-              :aria-label="t('gambleBattle.threshold')"
+              :aria-label="t('gambleBattle.conditions.sum.threshold')"
               class="ml-auto w-28 shrink-0"
               :disabled="conditions.sum === null || isActive || submitting"
               :format-options="{ useGrouping: false }"
@@ -227,21 +229,21 @@ function multiplierLabel(hand: HandKind): string | null {
               @update:model-value="changeThreshold"
             />
             <p v-if="!sumValid" class="w-full text-sm text-error">
-              {{ t('gambleBattle.invalidThreshold') }}
+              {{ t('gambleBattle.conditions.sum.invalid') }}
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <USwitch
               class="min-h-7 max-w-full items-center"
               :disabled="isActive || submitting"
-              :label="t('gambleBattle.score')"
+              :label="t('gambleBattle.conditions.score.label')"
               :model-value="conditions.score !== null"
               size="sm"
               :ui="{ wrapper: 'text-sm', container: 'h-5' }"
               @update:model-value="toggleScore"
             />
             <UInputNumber
-              :aria-label="t('gambleBattle.scoreThreshold')"
+              :aria-label="t('gambleBattle.conditions.score.threshold')"
               class="ml-auto w-28 shrink-0"
               :disabled="conditions.score === null || isActive || submitting"
               :format-options="{ useGrouping: false }"
@@ -252,21 +254,21 @@ function multiplierLabel(hand: HandKind): string | null {
               @update:model-value="changeScore"
             />
             <p v-if="!scoreValid" class="w-full text-sm text-error">
-              {{ t('gambleBattle.invalidScore') }}
+              {{ t('gambleBattle.conditions.score.invalid') }}
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <USwitch
               class="min-h-7 max-w-full items-center"
               :disabled="isActive || submitting"
-              :label="t('gambleBattle.pattern')"
+              :label="t('gambleBattle.conditions.pattern.label')"
               :model-value="conditions.pattern !== null"
               size="sm"
               :ui="{ wrapper: 'text-sm', container: 'h-5' }"
               @update:model-value="togglePattern"
             />
             <UInput
-              :aria-label="t('gambleBattle.patternInput')"
+              :aria-label="t('gambleBattle.conditions.pattern.input')"
               class="ml-auto w-28 shrink-0"
               :disabled="conditions.pattern === null || isActive || submitting"
               maxlength="5"
@@ -275,11 +277,11 @@ function multiplierLabel(hand: HandKind): string | null {
               @update:model-value="changePattern"
             />
             <p v-if="!patternValid" class="w-full text-sm text-error">
-              {{ t('gambleBattle.invalidPattern') }}
+              {{ t('gambleBattle.conditions.pattern.invalid') }}
             </p>
           </div>
           <p v-if="!hasCondition" class="text-sm text-warning">
-            {{ t('gambleBattle.selectCondition') }}
+            {{ t('gambleBattle.conditions.required') }}
           </p>
         </fieldset>
         <fieldset :disabled="isActive || submitting">
@@ -304,14 +306,14 @@ function multiplierLabel(hand: HandKind): string | null {
       <template #header>
         <div class="flex items-center justify-between gap-2">
           <h2 class="text-lg font-semibold text-highlighted">
-            {{ t('gambleBattle.results') }}
+            {{ t('gambleBattle.history.title') }}
             <span class="font-normal text-muted">{{ n(matchedHands.length) }}</span>
           </h2>
           <UButton
             color="neutral"
             :disabled="isActive || matchedHands.length === 0"
             icon="i-lucide-trash-2"
-            :label="t('gambleBattle.clear')"
+            :label="t('common.clear')"
             size="xs"
             variant="outline"
             @click="clearMatchedHands"
@@ -329,7 +331,7 @@ function multiplierLabel(hand: HandKind): string | null {
         v-if="matchedHands.length === 0"
         class="flex h-full min-h-48 flex-col items-center justify-center gap-3 text-center text-muted"
       >
-        <p class="text-sm">{{ t('gambleBattle.empty') }}</p>
+        <p class="text-sm">{{ t('gambleBattle.history.empty') }}</p>
       </div>
     </WorkspaceCard>
   </div>

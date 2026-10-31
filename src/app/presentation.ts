@@ -36,7 +36,7 @@ const presentations: Record<AppVariant, AppPresentation> = {
     variant: AppVariant.Release,
     name: 'OEA',
     version: appVersion,
-    title: () => t('application.title'),
+    title: () => t('app.title'),
   },
 };
 

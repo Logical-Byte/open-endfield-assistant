@@ -7,15 +7,17 @@ const { t } = useAppI18n();
   <div class="space-y-4">
     <div class="flex items-center gap-2 font-bold text-highlighted">
       <UIcon class="size-5 text-primary" name="i-lucide-keyboard" />
-      {{ t('image.guide.title') }}
+      {{ t('imageViewer.shortcuts.title') }}
     </div>
 
     <USeparator />
 
     <section class="space-y-1.5">
-      <p class="text-xs font-medium tracking-wider text-muted">{{ t('image.guide.view') }}</p>
+      <p class="text-xs font-medium tracking-wider text-muted">
+        {{ t('imageViewer.shortcuts.view.title') }}
+      </p>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.panView') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.shortcuts.view.pan') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="W" />
           <UKbd value="A" />
@@ -28,11 +30,11 @@ const { t } = useAppI18n();
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.panImage') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.shortcuts.view.panImage') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd>
             <UIcon class="me-0.5" name="i-lucide-mouse" />
-            {{ t('image.guide.drag') }}
+            {{ t('imageViewer.shortcuts.view.drag') }}
           </UKbd>
         </div>
       </div>
@@ -41,21 +43,25 @@ const { t } = useAppI18n();
     <USeparator />
 
     <section class="space-y-1.5">
-      <p class="text-xs font-medium tracking-wider text-muted">{{ t('image.guide.rotation') }}</p>
+      <p class="text-xs font-medium tracking-wider text-muted">
+        {{ t('imageViewer.shortcuts.rotation.title') }}
+      </p>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.rotateClockwise') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.rotateClockwise') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="R" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.rotateCounterclockwise') }}</span>
+        <span class="text-sm text-toned">{{
+          t('imageViewer.shortcuts.rotation.counterClockwise')
+        }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="shift" /> + <UKbd value="R" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.smoothRotation') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.shortcuts.rotation.smooth') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="Q" />
           <UKbd value="E" />
@@ -66,33 +72,35 @@ const { t } = useAppI18n();
     <USeparator />
 
     <section class="space-y-1.5">
-      <p class="text-xs font-medium tracking-wider text-muted">{{ t('image.guide.zoom') }}</p>
+      <p class="text-xs font-medium tracking-wider text-muted">
+        {{ t('imageViewer.shortcuts.zoom.title') }}
+      </p>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.zoomImage') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.shortcuts.zoom.image') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="-" />
           <UKbd value="=" />
           <UKbd>
             <UIcon class="me-0.5" name="i-lucide-mouse" />
-            {{ t('image.guide.wheel') }}
+            {{ t('imageViewer.shortcuts.zoom.wheel') }}
           </UKbd>
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.smoothZoom') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.shortcuts.zoom.smooth') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="[" />
           <UKbd value="]" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.preset') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.shortcuts.zoom.preset') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd v-for="x in 9" :key="x" :value="x.toString()" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.reset') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.resetView') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="0" />
         </div>
@@ -102,21 +110,23 @@ const { t } = useAppI18n();
     <USeparator />
 
     <section class="space-y-1.5">
-      <p class="text-xs font-medium tracking-wider text-muted">{{ t('image.guide.advanced') }}</p>
+      <p class="text-xs font-medium tracking-wider text-muted">
+        {{ t('imageViewer.shortcuts.advanced.title') }}
+      </p>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.accelerate') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.shortcuts.advanced.accelerate') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
-          <UKbd value="shift" /> + <UKbd :value="t('image.guide.actionKey')" />
+          <UKbd value="shift" /> + <UKbd :value="t('imageViewer.shortcuts.advanced.actionKey')" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.download') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.shortcuts.advanced.download') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="meta" /> + <UKbd value="S" />
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-toned">{{ t('image.guide.openTab') }}</span>
+        <span class="text-sm text-toned">{{ t('imageViewer.shortcuts.advanced.openTab') }}</span>
         <div class="flex items-center gap-0.5 text-xs text-toned">
           <UKbd value="O" />
         </div>
@@ -125,6 +135,6 @@ const { t } = useAppI18n();
 
     <USeparator />
 
-    <p class="text-center text-xs text-warning">{{ t('image.guide.inputMode') }}</p>
+    <p class="text-center text-xs text-warning">{{ t('imageViewer.shortcuts.inputMode') }}</p>
   </div>
 </template>

@@ -68,34 +68,34 @@ function getColorCSSProperty(colorName: string, shade: number): string {
 
 /** 颜色选项只重算标签，颜色 ID 与 CSS 保持不变。 */
 const colorLabels: Record<string, MessageKey> = {
-  red: 'theme.color.red',
-  orange: 'theme.color.orange',
-  amber: 'theme.color.amber',
-  yellow: 'theme.color.yellow',
-  lime: 'theme.color.lime',
-  green: 'theme.color.green',
-  emerald: 'theme.color.emerald',
-  teal: 'theme.color.teal',
-  cyan: 'theme.color.cyan',
-  sky: 'theme.color.sky',
-  blue: 'theme.color.blue',
-  indigo: 'theme.color.indigo',
-  violet: 'theme.color.violet',
-  purple: 'theme.color.purple',
-  fuchsia: 'theme.color.fuchsia',
-  pink: 'theme.color.pink',
-  rose: 'theme.color.rose',
-  slate: 'theme.color.slate',
-  gray: 'theme.color.gray',
-  zinc: 'theme.color.zinc',
-  neutral: 'theme.color.neutral',
-  stone: 'theme.color.stone',
-  taupe: 'theme.color.taupe',
-  mauve: 'theme.color.mauve',
-  mist: 'theme.color.mist',
-  olive: 'theme.color.olive',
-  black: 'theme.color.black',
-  white: 'theme.color.white',
+  red: 'theme.colors.red',
+  orange: 'theme.colors.orange',
+  amber: 'theme.colors.amber',
+  yellow: 'theme.colors.yellow',
+  lime: 'theme.colors.lime',
+  green: 'theme.colors.green',
+  emerald: 'theme.colors.emerald',
+  teal: 'theme.colors.teal',
+  cyan: 'theme.colors.cyan',
+  sky: 'theme.colors.sky',
+  blue: 'theme.colors.blue',
+  indigo: 'theme.colors.indigo',
+  violet: 'theme.colors.violet',
+  purple: 'theme.colors.purple',
+  fuchsia: 'theme.colors.fuchsia',
+  pink: 'theme.colors.pink',
+  rose: 'theme.colors.rose',
+  slate: 'theme.colors.slate',
+  gray: 'theme.colors.gray',
+  zinc: 'theme.colors.zinc',
+  neutral: 'theme.colors.neutral',
+  stone: 'theme.colors.stone',
+  taupe: 'theme.colors.taupe',
+  mauve: 'theme.colors.mauve',
+  mist: 'theme.colors.mist',
+  olive: 'theme.colors.olive',
+  black: 'theme.colors.black',
+  white: 'theme.colors.white',
 };
 function colorLabel(colorName: string): string {
   const key = colorLabels[colorName];
@@ -146,40 +146,40 @@ const secondaryColors = computed(() => [...primaryColors.value]);
 const neutralColors = computed(() => neutralColorNames.map(toColorEntry));
 
 const radiuses = computed<RadiusPreset[]>(() => [
-  { value: 0, label: t('theme.radius.none') },
-  { value: 0.125, label: t('theme.radius.small') },
-  { value: 0.25, label: t('theme.radius.medium') },
-  { value: 0.375, label: t('theme.radius.larger') },
-  { value: 0.5, label: t('theme.radius.large') },
+  { value: 0, label: t('theme.radii.none') },
+  { value: 0.125, label: t('theme.radii.small') },
+  { value: 0.25, label: t('theme.radii.medium') },
+  { value: 0.375, label: t('theme.radii.larger') },
+  { value: 0.5, label: t('theme.radii.large') },
 ]);
 
 const cornerShapePresets = computed<CornerShapePreset[]>(() => [
   {
-    label: t('theme.shape.notch'),
+    label: t('theme.shapes.notch'),
     value: '-infinity',
     cssValue: 'notch',
     coefficient: 0.46325137517610426,
   },
   {
-    label: t('theme.shape.bevel'),
+    label: t('theme.shapes.bevel'),
     value: '0',
     cssValue: 'bevel',
     coefficient: 0.6551363775620336,
   },
   {
-    label: t('theme.shape.round'),
+    label: t('theme.shapes.round'),
     value: '1',
     cssValue: 'round',
     coefficient: 1,
   },
   {
-    label: t('theme.shape.soft'),
+    label: t('theme.shapes.soft'),
     value: 'log2(3)',
     cssValue: 'superellipse(log(3, 2))',
     coefficient: 1.3561800271129498,
   },
   {
-    label: t('theme.shape.smooth'),
+    label: t('theme.shapes.smooth'),
     value: '2',
     cssValue: 'squircle',
     coefficient: 1.7150089225301701,
@@ -190,9 +190,9 @@ const supportsCornerShape = CSS.supports('corner-shape: squircle');
 
 const colorModes = computed<{ label: string; value: 'light' | 'dark' | 'auto'; icon: string }[]>(
   () => [
-    { label: t('theme.mode.light'), value: 'light', icon: appConfig.ui.icons.light },
-    { label: t('theme.mode.dark'), value: 'dark', icon: appConfig.ui.icons.dark },
-    { label: t('theme.mode.auto'), value: 'auto', icon: appConfig.ui.icons.system },
+    { label: t('theme.modes.light'), value: 'light', icon: appConfig.ui.icons.light },
+    { label: t('theme.modes.dark'), value: 'dark', icon: appConfig.ui.icons.dark },
+    { label: t('theme.modes.auto'), value: 'auto', icon: appConfig.ui.icons.system },
   ],
 );
 
@@ -436,10 +436,10 @@ function resetThemeShape(): void {
 }
 
 const fontLabelKeys: Record<string, MessageKey> = {
-  'use-chinese': 'theme.font.useChinese',
-  'system-ui': 'theme.font.system',
-  'sans-serif': 'theme.font.browser',
-  monospace: 'theme.font.browser',
+  'use-chinese': 'theme.fonts.defaults.useChinese',
+  'system-ui': 'theme.fonts.defaults.system',
+  'sans-serif': 'theme.fonts.defaults.browser',
+  monospace: 'theme.fonts.defaults.browser',
 };
 function localizedFonts(options: FontOption[]): FontOption[] {
   return options.map((option) => ({

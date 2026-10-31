@@ -71,18 +71,18 @@ const {
             {{ naturalWidth }} × {{ naturalHeight }}
           </p>
           <div class="flex shrink-0 items-center gap-1">
-            <UTooltip :kbds="['-']" :text="t('image.zoomOut')">
+            <UTooltip :kbds="['-']" :text="t('imageViewer.zoomOut')">
               <UButton
-                :aria-label="t('image.zoomOut')"
+                :aria-label="t('imageViewer.zoomOut')"
                 color="neutral"
                 icon="i-lucide-minus"
                 variant="ghost"
                 @click="zoomOut"
               />
             </UTooltip>
-            <UTooltip :kbds="['0']" :text="t('image.reset')">
+            <UTooltip :kbds="['0']" :text="t('imageViewer.resetView')">
               <UButton
-                :aria-label="t('image.reset')"
+                :aria-label="t('imageViewer.resetView')"
                 class="min-w-16 justify-center"
                 color="neutral"
                 variant="ghost"
@@ -91,18 +91,18 @@ const {
                 {{ n(scale, 'percent') }}
               </UButton>
             </UTooltip>
-            <UTooltip :kbds="['=']" :text="t('image.zoomIn')">
+            <UTooltip :kbds="['=']" :text="t('imageViewer.zoomIn')">
               <UButton
-                :aria-label="t('image.zoomIn')"
+                :aria-label="t('imageViewer.zoomIn')"
                 color="neutral"
                 icon="i-lucide-plus"
                 variant="ghost"
                 @click="zoomIn"
               />
             </UTooltip>
-            <UTooltip :kbds="['R']" :text="t('image.rotateClockwise')">
+            <UTooltip :kbds="['R']" :text="t('imageViewer.rotateClockwise')">
               <UButton
-                :aria-label="t('image.rotateClockwise')"
+                :aria-label="t('imageViewer.rotateClockwise')"
                 color="neutral"
                 icon="i-lucide-rotate-cw"
                 variant="ghost"
@@ -111,9 +111,9 @@ const {
             </UTooltip>
             <div class="mx-1 h-5 w-px bg-accented" />
             <UPopover mode="click" :ui="{ content: 'p-4' }">
-              <UTooltip :text="t('image.background')">
+              <UTooltip :text="t('imageViewer.background')">
                 <UButton
-                  :aria-label="t('image.background')"
+                  :aria-label="t('imageViewer.background')"
                   color="neutral"
                   icon="i-lucide-palette"
                   variant="ghost"
@@ -123,9 +123,9 @@ const {
                 <UColorPicker v-model="backgroundColor" />
               </template>
             </UPopover>
-            <UTooltip :kbds="['O']" :text="t('image.openTab')">
+            <UTooltip :kbds="['O']" :text="t('imageViewer.openTab')">
               <UButton
-                :aria-label="t('image.openTab')"
+                :aria-label="t('imageViewer.openTab')"
                 color="neutral"
                 icon="i-lucide-external-link"
                 rel="noopener noreferrer"
@@ -134,9 +134,9 @@ const {
                 variant="ghost"
               />
             </UTooltip>
-            <UTooltip :kbds="['meta', 'S']" :text="t('image.download')">
+            <UTooltip :kbds="['meta', 'S']" :text="t('common.download')">
               <UButton
-                :aria-label="t('image.download')"
+                :aria-label="t('common.download')"
                 color="neutral"
                 icon="i-lucide-download"
                 variant="ghost"
@@ -144,9 +144,9 @@ const {
               />
             </UTooltip>
             <UPopover mode="click" :ui="{ content: 'w-80 p-4' }">
-              <UTooltip :text="t('image.help')">
+              <UTooltip :text="t('common.help')">
                 <UButton
-                  :aria-label="t('image.help')"
+                  :aria-label="t('common.help')"
                   color="neutral"
                   icon="i-lucide-circle-question-mark"
                   size="sm"
@@ -157,9 +157,9 @@ const {
                 <ImagePreviewHelpMenu />
               </template>
             </UPopover>
-            <UTooltip :kbds="['escape']" :text="t('image.close')">
+            <UTooltip :kbds="['escape']" :text="t('common.close')">
               <UButton
-                :aria-label="t('image.close')"
+                :aria-label="t('common.close')"
                 color="neutral"
                 icon="i-lucide-x"
                 variant="ghost"

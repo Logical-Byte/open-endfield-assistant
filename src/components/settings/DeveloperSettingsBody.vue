@@ -27,25 +27,25 @@ const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
     />
   </div>
   <SettingsItem
-    :description="t('settings.developer.simulate.description')"
+    :description="t('settings.developer.simulateScan.description')"
     icon="i-lucide-scan-text"
-    :title="t('settings.developer.simulate.title')"
+    :title="t('settings.developer.simulateScan.title')"
   >
     <UCheckbox
       v-model="simulateArchiveScan"
       color="warning"
-      :label="t('settings.developer.simulate.enable')"
+      :label="t('settings.developer.simulateScan.enable')"
     />
   </SettingsItem>
   <SettingsItem
-    :description="t('settings.developer.simulateGambleBattle.description')"
+    :description="t('settings.developer.simulateArena.description')"
     icon="i-lucide-layers"
-    :title="t('settings.developer.simulateGambleBattle.title')"
+    :title="t('settings.developer.simulateArena.title')"
   >
     <UCheckbox
       v-model="simulateGambleBattle"
       color="warning"
-      :label="t('settings.developer.simulateGambleBattle.enable')"
+      :label="t('settings.developer.simulateArena.enable')"
     />
   </SettingsItem>
   <SettingsItem

@@ -16,13 +16,13 @@ async function submit(): Promise<void> {
   if (success) open.value = false;
   else
     toast.add({ color: 'error' }, () => ({
-      title: t('scan.exportFailedTitle'),
-      description: t('scan.exportFailedDescription'),
+      title: t('scan.export.failed.title'),
+      description: t('scan.export.failed.description'),
     }));
 }
 </script>
 <template>
-  <UTooltip :text="t('scan.exportTooltip')">
+  <UTooltip :text="t('scan.export.tooltip')">
     <UButton
       color="neutral"
       :disabled="!total"
@@ -30,25 +30,25 @@ async function submit(): Promise<void> {
       size="sm"
       variant="outline"
       @click="open = true"
-      >{{ t('scan.export') }}</UButton
+      >{{ t('scan.export.action') }}</UButton
     >
   </UTooltip>
   <UModal
     v-model:open="open"
     :close="{ color: 'neutral', variant: 'outline' }"
-    :description="t('scan.exportDescription')"
-    :title="t('scan.exportTitle')"
+    :description="t('scan.export.description')"
+    :title="t('scan.export.title')"
     :ui="{ description: 'sr-only', content: 'max-w-lg' }"
   >
     <template #body>
       <div class="space-y-5">
         <dl class="grid grid-cols-2 gap-6">
           <div>
-            <dt class="mb-2 text-sm text-toned">{{ t('scan.collected') }}</dt>
+            <dt class="mb-2 text-sm text-toned">{{ t('scan.status.collected') }}</dt>
             <dd class="text-3xl font-semibold tabular-nums">{{ n(collected) }}</dd>
           </div>
           <div>
-            <dt class="mb-2 text-sm text-toned">{{ t('scan.notCollected') }}</dt>
+            <dt class="mb-2 text-sm text-toned">{{ t('scan.status.notCollected') }}</dt>
             <dd class="flex items-center gap-2 text-3xl font-semibold tabular-nums">
               {{ n(total - collected)
               }}<UPopover
@@ -58,7 +58,7 @@ async function submit(): Promise<void> {
                 :ui="{ content: 'w-80 max-w-[calc(100vw-24px)] overflow-hidden' }"
               >
                 <UButton
-                  :aria-label="t('scan.exportWarningLabel')"
+                  :aria-label="t('scan.export.warningTrigger')"
                   class="p-0"
                   color="warning"
                   icon="i-lucide-triangle-alert"
@@ -68,7 +68,7 @@ async function submit(): Promise<void> {
                 <template #content>
                   <UAlert
                     color="warning"
-                    :description="t('scan.exportWarning', { count: unmatched })"
+                    :description="t('scan.export.warning', { count: unmatched })"
                     icon="i-lucide-triangle-alert"
                     variant="soft"
                   />
@@ -82,7 +82,7 @@ async function submit(): Promise<void> {
           icon="i-lucide-external-link"
           :loading="exporting"
           @click="submit"
-          >{{ t('scan.exportSubmit') }}</UButton
+          >{{ t('scan.export.submit') }}</UButton
         >
       </div>
     </template>

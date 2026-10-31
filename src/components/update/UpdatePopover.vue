@@ -146,8 +146,8 @@ function formatSpeed(bytesPerSecond: number): string {
         <p class="text-sm whitespace-pre-wrap text-toned">
           {{ formatBackendError(updateCheckState.error) }}
         </p>
-        <UButton color="neutral" :label="t('update.viewLogs')" to="/log" variant="link" />
-        <UButton block icon="i-lucide-rotate-cw" :label="t('update.retry')" @click="checkUpdate" />
+        <UButton color="neutral" :label="t('common.viewLogs')" to="/log" variant="link" />
+        <UButton block icon="i-lucide-rotate-cw" :label="t('common.retry')" @click="checkUpdate" />
       </template>
 
       <template v-else-if="updateCheckState.status === 'available'">
@@ -203,7 +203,7 @@ function formatSpeed(bytesPerSecond: number): string {
             >
             <UButton
               color="neutral"
-              :label="t('update.cancel')"
+              :label="t('common.cancel')"
               size="xs"
               variant="ghost"
               @click="cancelDownload"
@@ -244,7 +244,7 @@ function formatSpeed(bytesPerSecond: number): string {
           <p class="text-sm text-error">{{ formatBackendError(downloadState.error) }}</p>
           <UButton
             color="error"
-            :label="t('update.retry')"
+            :label="t('common.retry')"
             size="xs"
             variant="soft"
             @click="startDownload"
@@ -253,9 +253,14 @@ function formatSpeed(bytesPerSecond: number): string {
 
         <!-- 仅下载前（Idle）显示「立即更新」与前往唯一编辑入口的设置按钮。 -->
         <div v-if="downloadState.status === 'idle'" class="flex w-full gap-2">
-          <UButton block icon="i-lucide-download" :label="t('update.now')" @click="startDownload" />
           <UButton
-            :aria-label="t('update.settings')"
+            block
+            icon="i-lucide-download"
+            :label="t('update.download.start')"
+            @click="startDownload"
+          />
+          <UButton
+            :aria-label="t('update.openSettings')"
             icon="i-lucide-settings-2"
             variant="subtle"
             @click="navigateToUpdateSettings"
