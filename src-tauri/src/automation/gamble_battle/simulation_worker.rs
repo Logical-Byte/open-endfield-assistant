@@ -76,7 +76,7 @@ fn simulate(
             thread::sleep(remaining.min(Duration::from_millis(50)));
         }
         let lucky = lucky::hand(Utc::now());
-        let reasons = model::evaluate(&cards, conditions, lucky);
+        let reasons = model::evaluate(&cards, conditions, lucky, false);
         if !reasons.is_empty() {
             report_match(
                 events,

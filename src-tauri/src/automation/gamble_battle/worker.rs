@@ -103,13 +103,26 @@ where
     let frame = cx.screenshot()?;
     require_target(cx, &frame, &ACTIVITY, "请先打开百趣演武活动的抽牌界面")?;
     info!("开始百趣演武自动化");
-    loop {
+    'rounds: loop {
         events.publish(Event::GambleBattleProgress(Progress {
             round,
             elapsed_seconds: started.elapsed().as_secs_f64(),
         }));
         let mut count = wait_for_card_count(cx, None)?;
+        // 每翻出一张就判断一次，已检查过的牌数不必重复检查。
+        let mut checked_count = None;
         while count < 5 {
+            if count > 0 && checked_count != Some(count) {
+                checked_count = Some(count);
+                if !prefix_can_still_match(cx, recognizer, count, conditions)? {
+                    info!(
+                        "百趣演武第 {round} 轮翻出 {count} 张铭牌后已不可能命中停止条件，提前放弃"
+                    );
+                    abandon_round(cx)?;
+                    round += 1;
+                    continue 'rounds;
+                }
+            }
             let frame = cx.screenshot()?;
             require_target(cx, &frame, &ACTIVITY, "百趣演武页面已离开，停止抽牌")?;
             // 抽牌按钮会闪烁，等待可识别的帧后再点击。`Session::click` 会将光标归中。
@@ -125,11 +138,11 @@ where
         }
         // 额外等待一段时间以让卡牌颜色稳定
         cx.sleep(Duration::from_millis(500));
-        // 抽满后才匹配数字和花色，截图和判定始终来自同一帧。
+        // 抽满后复核五张铭牌的数字和花色，截图和判定始终来自同一帧。
         let (full_frame, hand) = read_hand(cx, recognizer)?;
         // 每轮重新取好运组合，运行跨过凌晨 4 点时按新的一天计分。
         let lucky = lucky::hand(Utc::now());
-        let reasons = model::evaluate(&hand, conditions, lucky);
+        let reasons = model::evaluate(&hand, conditions, lucky, false);
         if !reasons.is_empty() {
             report_match(
                 events,
@@ -145,11 +158,7 @@ where
             info!("百趣演武第 {round} 轮命中停止条件，已保留当前铭牌");
             return Ok(());
         }
-        let button = wait_for_target(cx, &ABANDON, "未找到放弃挑战按钮")?;
-        cx.click(button.region.center().into())?;
-        wait_for_target(cx, &CONFIRM_ABANDON, "未出现放弃挑战的二次确认，已停止操作")?;
-        cx.click(Point720p { x: 755, y: 466 })?;
-        wait_for_card_count(cx, Some(0))?;
+        abandon_round(cx)?;
         round += 1;
     }
 }
@@ -206,6 +215,56 @@ where
         cx.sleep(Duration::from_millis(200));
     }
     Err(failure("无法识别五张铭牌的花色和战力点，已停止操作"))
+}
+
+/// 翻出的铭牌是否仍能补全为命中任一启用条件的五张铭牌。
+///
+/// 连续两次识别到同一组铭牌后才据此判断。无法稳定识别时按仍可命中处理，
+/// 避免动画或误识别让本轮被提前放弃。
+fn prefix_can_still_match<C>(
+    cx: &mut C,
+    recognizer: &Recognizer,
+    count: usize,
+    conditions: &Conditions,
+) -> Result<bool, automation::WorkerError>
+where
+    C: ScreenCapture + Clock,
+{
+    let mut previous: Option<Vec<Card>> = None;
+    for _ in 0..5 {
+        let frame = cx.screenshot()?;
+        if count_cards(&frame).ok() == Some(count)
+            && let Ok(cards) = recognizer.read_cards(&frame)
+            && cards.len() == count
+        {
+            if previous.as_deref() == Some(cards.as_slice()) {
+                return Ok(model::can_still_match(
+                    &cards,
+                    conditions,
+                    lucky::hand(Utc::now()),
+                ));
+            }
+            previous = Some(cards);
+        } else {
+            previous = None;
+        }
+        cx.sleep(Duration::from_millis(150));
+    }
+    debug!("未能稳定识别 {count} 张已翻开的铭牌，继续抽牌");
+    Ok(true)
+}
+
+/// 放弃当前一轮，等待回到没有铭牌的抽牌界面。
+fn abandon_round<C>(cx: &mut C) -> Result<(), automation::WorkerError>
+where
+    C: ScreenCapture + Input + TemplateMatching + Clock,
+{
+    let button = wait_for_target(cx, &ABANDON, "未找到放弃挑战按钮")?;
+    cx.click(button.region.center().into())?;
+    wait_for_target(cx, &CONFIRM_ABANDON, "未出现放弃挑战的二次确认，已停止操作")?;
+    cx.click(Point720p { x: 755, y: 466 })?;
+    wait_for_card_count(cx, Some(0))?;
+    Ok(())
 }
 
 fn require_target<C: TemplateMatching>(
