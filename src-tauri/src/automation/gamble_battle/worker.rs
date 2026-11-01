@@ -110,10 +110,10 @@ where
         }));
         let mut count = wait_for_card_count(cx, None)?;
         // 每翻出一张就判断一次，已检查过的牌数不必重复检查。
-        let mut checked = None;
+        let mut checked_count = None;
         while count < 5 {
-            if count > 0 && checked != Some(count) {
-                checked = Some(count);
+            if count > 0 && checked_count != Some(count) {
+                checked_count = Some(count);
                 if !prefix_can_still_match(cx, recognizer, count, conditions)? {
                     info!(
                         "百趣演武第 {round} 轮翻出 {count} 张铭牌后已不可能命中停止条件，提前放弃"
@@ -124,7 +124,6 @@ where
                 }
             }
             let frame = cx.screenshot()?;
-
             require_target(cx, &frame, &ACTIVITY, "百趣演武页面已离开，停止抽牌")?;
             // 抽牌按钮会闪烁，等待可识别的帧后再点击。`Session::click` 会将光标归中。
             let button = wait_for_target(cx, &DRAW, "未找到可用的抽牌按钮")?;
@@ -143,7 +142,7 @@ where
         let (full_frame, hand) = read_hand(cx, recognizer)?;
         // 每轮重新取好运组合，运行跨过凌晨 4 点时按新的一天计分。
         let lucky = lucky::hand(Utc::now());
-        let reasons = model::evaluate(&hand, conditions, lucky);
+        let reasons = model::evaluate(&hand, conditions, lucky, false);
         if !reasons.is_empty() {
             report_match(
                 events,
@@ -246,6 +245,8 @@ where
                 ));
             }
             previous = Some(cards);
+        } else {
+            previous = None;
         }
         cx.sleep(Duration::from_millis(150));
     }
