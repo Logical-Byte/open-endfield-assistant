@@ -163,6 +163,19 @@ pub(crate) fn can_still_match(prefix: &[Card], conditions: &Conditions, lucky: H
     can_match_from(&mut cards, revealed, conditions, lucky)
 }
 
+/// 深度优先枚举后续抽牌，判断当前或后续任意前缀是否能命中。
+///
+/// 前提：`1 <= revealed <= 5`，`cards[..revealed]` 是已确定的合法铭牌，
+/// `conditions` 已通过启动校验。空前缀由 `can_still_match` 直接返回 `true`，
+/// 不进入递归。整次搜索使用同一个 `lucky`，不模拟搜索期间的换日。
+///
+/// 每层先检查当前前缀，因此不足五张时也能成功，五张已命中时也会返回 `true`。
+/// 五张仍未命中才返回 `false`。否则枚举下一张的全部 15 种取值，
+/// 找到一个可行分支就返回 `true`，全部分支失败才表示无解。
+///
+/// `cards[revealed..]` 只是可覆盖的搜索缓冲区，不参与当前判定。
+/// 子调用保持当前前缀不变，后缀在读取前必定被赋值，因此回溯时无需恢复。
+/// 每层增加一张，最多再递归四层。不考虑铭牌库余量，可能保留实际上抽不到的分支。
 fn can_match_from(
     cards: &mut [Card; 5],
     revealed: usize,
