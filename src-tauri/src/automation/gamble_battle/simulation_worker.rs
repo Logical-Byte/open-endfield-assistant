@@ -15,7 +15,7 @@ use imageproc::{
 
 use super::{
     Progress, lucky,
-    model::{self, Card, Conditions, Suit},
+    model::{self, Card, Conditions, HandKind, Suit},
     reporting::report_match,
 };
 use crate::automation::{
@@ -24,17 +24,21 @@ use crate::automation::{
 
 pub(crate) struct SimulationWorker {
     conditions: Conditions,
+    lucky_hand: Option<HandKind>,
 }
 
 impl SimulationWorker {
-    pub(crate) fn new(conditions: Conditions) -> Self {
-        Self { conditions }
+    pub(crate) fn new(conditions: Conditions, lucky_hand: Option<HandKind>) -> Self {
+        Self {
+            conditions,
+            lucky_hand,
+        }
     }
 }
 
 impl runtime::Worker for SimulationWorker {
     fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> runtime::WorkerExit {
-        let result = simulate(&self.conditions, &stop, events.as_ref());
+        let result = simulate(&self.conditions, self.lucky_hand, &stop, events.as_ref());
         runtime::WorkerExit {
             result,
             capture: None,
@@ -44,6 +48,7 @@ impl runtime::Worker for SimulationWorker {
 
 fn simulate(
     conditions: &Conditions,
+    lucky_hand: Option<HandKind>,
     stop: &StopToken,
     events: &dyn EventSink,
 ) -> Result<(), automation::WorkerError> {
@@ -77,7 +82,7 @@ fn simulate(
                 thread::sleep(remaining.min(Duration::from_millis(50)));
             }
             let prefix = &cards[..count];
-            let lucky = lucky::hand(Utc::now());
+            let lucky = lucky_hand.unwrap_or_else(|| lucky::hand(Utc::now()));
             let reasons = model::evaluate(prefix, conditions, lucky, false);
             if !reasons.is_empty() {
                 report_match(

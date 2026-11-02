@@ -8,6 +8,6 @@ mod simulation_worker;
 mod worker;
 
 pub(crate) use lucky::{DailyLucky, daily};
-pub(crate) use model::{Conditions, MatchedHand};
+pub(crate) use model::{Conditions, HandKind, MatchedHand};
 pub(crate) use simulation_worker::SimulationWorker;
 pub(crate) use worker::{Progress, Worker};

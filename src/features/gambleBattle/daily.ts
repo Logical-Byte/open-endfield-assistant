@@ -1,5 +1,5 @@
-import { readonly, shallowRef, type DeepReadonly, type Ref } from 'vue';
-import type { DailyLucky } from '@/shared/types/gambleBattle';
+import { computed, readonly, ref, shallowRef, type DeepReadonly, type Ref } from 'vue';
+import type { DailyLucky, HandKind } from '@/shared/types/gambleBattle';
 import { logError } from '@/features/log/ipc';
 import { getGambleBattleDaily } from './ipc';
 
@@ -25,3 +25,10 @@ export async function refreshGambleBattleDaily(): Promise<void> {
   const delay = (daily.value.nextChangeInSeconds + 1) * 1000;
   timer = setTimeout((): void => void refreshGambleBattleDaily(), delay);
 }
+
+/** 手动选择只在本次会话中保留，自动模式继续跟随换日。 */
+export type LuckyHandSelection = Exclude<HandKind, 'straightFlush'> | 'auto';
+export const luckyHandSelection = ref<LuckyHandSelection>('auto');
+export const effectiveLuckyHand = computed((): HandKind | null =>
+  luckyHandSelection.value === 'auto' ? (daily.value?.hand ?? null) : luckyHandSelection.value,
+);

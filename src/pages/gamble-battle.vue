@@ -3,7 +3,12 @@ import GambleBattleGuide from '@/components/gamble-battle/GambleBattleGuide.vue'
 import MatchedHandCard from '@/components/gamble-battle/MatchedHandCard.vue';
 import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
 import { useGambleBattleControls } from '@/features/gambleBattle/controls';
-import { gambleBattleDaily } from '@/features/gambleBattle/daily';
+import {
+  gambleBattleDaily,
+  effectiveLuckyHand as luckyHand,
+  luckyHandSelection,
+  type LuckyHandSelection,
+} from '@/features/gambleBattle/daily';
 import {
   bpPattern,
   clearMatchedHands,
@@ -85,7 +90,23 @@ function changePattern(value: string | number): void {
   if (conditions.pattern !== null) conditions.pattern = bpPattern.value;
 }
 
-const luckyHand = computed((): HandKind | null => gambleBattleDaily.value?.hand ?? null);
+type LuckyHandOption = { label: string; value: LuckyHandSelection };
+const luckyHandOptions = computed((): LuckyHandOption[] => [
+  {
+    label: gambleBattleDaily.value
+      ? t('gambleBattle.luckyAutoHand', {
+          hand: t(`gambleBattle.hands.${gambleBattleDaily.value.hand}`),
+        })
+      : t('gambleBattle.luckyAuto'),
+    value: 'auto' as const,
+  },
+  ...handKinds
+    .filter((hand): hand is Exclude<HandKind, 'straightFlush'> => hand !== 'straightFlush')
+    .map((hand): LuckyHandOption => ({
+      label: t(`gambleBattle.hands.${hand}`),
+      value: hand,
+    })),
+]);
 const multiplierTenths = computed((): Map<HandKind, number> => {
   const entries = (gambleBattleDaily.value?.multipliers ?? []).map((item): [HandKind, number] => [
     item.hand,
@@ -172,19 +193,24 @@ function multiplierLabel(hand: HandKind): string | null {
           variant="subtle"
           @update:open="errorDismissed = true"
         />
+        <div class="flex items-center justify-between gap-2">
+          <label class="shrink-0 text-sm font-medium text-highlighted" for="lucky-hand">
+            {{ t('gambleBattle.luckyHand') }}
+          </label>
+          <USelect
+            id="lucky-hand"
+            v-model="luckyHandSelection"
+            class="min-w-0 flex-1"
+            :disabled="isActive || submitting"
+            icon="i-lucide-sparkles"
+            :items="luckyHandOptions"
+            size="sm"
+          />
+        </div>
         <fieldset class="space-y-1" :disabled="isActive || submitting">
           <legend class="mb-2 flex items-center gap-1 text-sm font-medium text-highlighted">
             {{ t('gambleBattle.conditions') }}
           </legend>
-          <div
-            v-if="luckyHand"
-            class="mb-2 flex items-center gap-2 rounded-md border border-default bg-elevated px-2 py-1.5"
-          >
-            <UIcon class="size-4 shrink-0 text-primary" name="i-lucide-sparkles" />
-            <p class="min-w-0 text-sm font-medium text-highlighted">
-              {{ t('gambleBattle.luckyHand', { hand: t(`gambleBattle.hands.${luckyHand}`) }) }}
-            </p>
-          </div>
           <div v-for="hand in handKinds" :key="hand" class="flex items-center gap-2">
             <USwitch
               v-model="conditions[hand]"

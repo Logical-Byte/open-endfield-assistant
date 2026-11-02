@@ -77,17 +77,19 @@ impl Controller {
         match request {
             automation::StartRequest::GambleBattle {
                 conditions,
+                lucky_hand,
                 worker_type,
             } => {
                 self.automation_runtime
                     .start(automation::TaskKind::GambleBattle, || match worker_type {
                         automation::WorkerType::Production => Box::new(gamble_battle::Worker::new(
                             conditions,
+                            lucky_hand,
                             self.settings_snapshot().sound_volume,
                             Arc::clone(&self.ocr),
                         )),
                         automation::WorkerType::Simulation => {
-                            Box::new(gamble_battle::SimulationWorker::new(conditions))
+                            Box::new(gamble_battle::SimulationWorker::new(conditions, lucky_hand))
                         }
                     });
             }

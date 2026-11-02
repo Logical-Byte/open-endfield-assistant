@@ -1,6 +1,7 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { useAutomationTask, type AutomationTask } from '@/features/automation/useAutomationTask';
 import { bpPattern, conditions, handKinds, scoreThreshold, sumThreshold } from './state';
+import { luckyHandSelection } from './daily';
 import { gambleBattleWorkerType } from './workerType';
 import { useAppI18n } from '@/shared/i18n';
 import { useTranslatedToast } from '@/shared/i18n/toast';
@@ -51,7 +52,11 @@ export function useGambleBattleControls(): {
     try {
       if (canStart.value) {
         if (!hasCondition.value || !inputsValid.value) return;
-        await tryStart({ conditions: { ...conditions }, workerType: gambleBattleWorkerType.value });
+        await tryStart({
+          conditions: { ...conditions },
+          luckyHand: luckyHandSelection.value === 'auto' ? null : luckyHandSelection.value,
+          workerType: gambleBattleWorkerType.value,
+        });
       } else {
         await tryStop();
       }

@@ -13,7 +13,7 @@ use ts_rs::TS;
 
 use super::{
     lucky,
-    model::{self, Card, Conditions},
+    model::{self, Card, Conditions, HandKind},
     recognition::{Recognizer, count_cards},
     reporting::report_match,
 };
@@ -41,6 +41,7 @@ pub(crate) struct Progress {
 
 pub(crate) struct Worker {
     conditions: Conditions,
+    lucky_hand: Option<HandKind>,
     sound_volume: f32,
     ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
 }
@@ -48,11 +49,13 @@ pub(crate) struct Worker {
 impl Worker {
     pub(crate) fn new(
         conditions: Conditions,
+        lucky_hand: Option<HandKind>,
         sound_volume: f32,
         ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     ) -> Self {
         Self {
             conditions,
+            lucky_hand,
             sound_volume,
             ocr,
         }
@@ -74,7 +77,13 @@ impl runtime::Worker for Worker {
             }
             sound::play(self.sound_volume, Cue::Enable);
             let mut cx = Capture::new(&mut session);
-            let result = execute(&mut cx, &recognizer, &self.conditions, events.as_ref());
+            let result = execute(
+                &mut cx,
+                &recognizer,
+                &self.conditions,
+                self.lucky_hand,
+                events.as_ref(),
+            );
             capture = Some(cx.finish());
             result
         })();
@@ -92,6 +101,7 @@ fn execute<C>(
     cx: &mut C,
     recognizer: &Recognizer,
     conditions: &Conditions,
+    lucky_hand: Option<HandKind>,
     events: &dyn EventSink,
 ) -> Result<(), automation::WorkerError>
 where
@@ -121,8 +131,8 @@ where
                 }
                 if let Some((frame, cards)) = read_hand(cx, recognizer, count)? {
                     require_target(cx, &frame, &ACTIVITY, "百趣演武页面已离开，停止抽牌")?;
-                    // 每次判定重新取好运组合，跨过凌晨 4 点时按新的一天计分。
-                    let lucky = lucky::hand(Utc::now());
+                    // 自动模式每次判定重新取好运组合，手动选择在本次任务中保持不变。
+                    let lucky = lucky_hand.unwrap_or_else(|| lucky::hand(Utc::now()));
                     let reasons = model::evaluate(&cards, conditions, lucky, false);
                     if !reasons.is_empty() {
                         report_match(

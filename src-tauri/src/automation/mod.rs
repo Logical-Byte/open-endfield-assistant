@@ -57,6 +57,9 @@ pub enum TaskKind {
 pub(crate) enum StartRequest {
     GambleBattle {
         conditions: gamble_battle::Conditions,
+        /// 手动覆盖好运组合。`None` 时按日期自动计算。
+        #[serde(rename = "luckyHand")]
+        lucky_hand: Option<gamble_battle::HandKind>,
         #[serde(rename = "workerType")]
         worker_type: WorkerType,
     },
