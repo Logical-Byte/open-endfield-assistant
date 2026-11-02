@@ -64,32 +64,38 @@ fn simulate(
             round,
             elapsed_seconds: started.elapsed().as_secs_f64(),
         }));
-        let deadline = Instant::now() + Duration::from_millis(600);
-        loop {
-            if is_stop_requested(stop) {
-                return Err(capabilities::Error::StoppedByUser.into());
+        for count in 1..=cards.len() {
+            let deadline = Instant::now() + Duration::from_millis(120);
+            loop {
+                if is_stop_requested(stop) {
+                    return Err(capabilities::Error::StoppedByUser.into());
+                }
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if remaining.is_zero() {
+                    break;
+                }
+                thread::sleep(remaining.min(Duration::from_millis(50)));
             }
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
+            let prefix = &cards[..count];
+            let lucky = lucky::hand(Utc::now());
+            let reasons = model::evaluate(prefix, conditions, lucky, false);
+            if !reasons.is_empty() {
+                report_match(
+                    events,
+                    prefix,
+                    reasons,
+                    lucky,
+                    sample_image(prefix),
+                    Progress {
+                        round,
+                        elapsed_seconds: started.elapsed().as_secs_f64(),
+                    },
+                )?;
+                return Ok(());
+            }
+            if !model::can_still_match(prefix, conditions, lucky) {
                 break;
             }
-            thread::sleep(remaining.min(Duration::from_millis(50)));
-        }
-        let lucky = lucky::hand(Utc::now());
-        let reasons = model::evaluate(&cards, conditions, lucky, false);
-        if !reasons.is_empty() {
-            report_match(
-                events,
-                cards,
-                reasons,
-                lucky,
-                sample_image(&cards),
-                Progress {
-                    round,
-                    elapsed_seconds: started.elapsed().as_secs_f64(),
-                },
-            )?;
-            return Ok(());
         }
     }
 }
@@ -116,7 +122,7 @@ fn sample_hands() -> [[Card; 5]; 9] {
 }
 
 /// 生成与本轮牌组一致的示意截图。数字为点数，圆圈、竖条和 W 分别表示饼、条、万。
-fn sample_image(cards: &[Card; 5]) -> RgbaImage {
+fn sample_image(cards: &[Card]) -> RgbaImage {
     const DIGITS: [[u8; 5]; 5] = [
         [2, 6, 2, 2, 7],
         [7, 1, 7, 4, 7],

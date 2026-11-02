@@ -13,7 +13,7 @@ use crate::automation::{self, Event, EventSink};
 
 pub(super) fn report_match(
     events: &dyn EventSink,
-    cards: [Card; 5],
+    cards: &[Card],
     reasons: Vec<StopReason>,
     lucky: HandKind,
     image: RgbaImage,
@@ -25,13 +25,13 @@ pub(super) fn report_match(
         .map_err(|error| automation::WorkerError::Custom {
             message: format!("保存命中截图失败：{error}"),
         })?;
-    let hand = model::classify(&cards);
+    let hand = model::classify(cards);
     events.publish(Event::GambleBattleMatched(MatchedHand {
         round: progress.round,
         elapsed_seconds: progress.elapsed_seconds,
-        cards,
+        cards: cards.to_vec(),
         hand,
-        score: model::score(&cards, lucky),
+        score: model::score(cards, lucky),
         lucky: hand == Some(lucky),
         reasons,
         image: format!(
