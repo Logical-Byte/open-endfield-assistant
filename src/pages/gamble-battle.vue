@@ -5,6 +5,7 @@ import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
 import { useGambleBattleControls } from '@/features/gambleBattle/controls';
 import { gambleBattleDaily } from '@/features/gambleBattle/daily';
 import {
+  allowEarlyStop,
   bpPattern,
   clearMatchedHands,
   conditions,
@@ -280,6 +281,18 @@ function multiplierLabel(hand: HandKind): string | null {
           <p v-if="!hasCondition" class="text-sm text-warning">
             {{ t('gambleBattle.selectCondition') }}
           </p>
+        </fieldset>
+        <fieldset :disabled="isActive || submitting">
+          <legend class="mb-2 flex items-center gap-1 text-sm font-medium text-highlighted">
+            {{ t('gambleBattle.stopPreferences') }}
+          </legend>
+          <USwitch
+            v-model="allowEarlyStop"
+            :description="t('gambleBattle.allowEarlyStopDescription')"
+            :disabled="isActive || submitting"
+            :label="t('gambleBattle.allowEarlyStop')"
+            size="sm"
+          />
         </fieldset>
       </WorkspaceCard>
     </div>

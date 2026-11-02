@@ -2,7 +2,11 @@
 import type { Conditions } from "../gambleBattle/Conditions";
 import type { WorkerType } from "./WorkerType";
 
-export type StartRequest = { "taskKind": "gambleBattle", conditions: Conditions, workerType: WorkerType, } | { "taskKind": "archiveScan", 
+export type StartRequest = { "taskKind": "gambleBattle", conditions: Conditions, 
+/**
+ * 允许不足五张时命中停止条件。默认关闭。
+ */
+allowEarlyStop: boolean, workerType: WorkerType, } | { "taskKind": "archiveScan", 
 /**
  * 档案扫描使用的真实或模拟执行方式。
  */

@@ -58,6 +58,8 @@
     }
   },
   "gambleBattle": {
+    "allowEarlyStop": "Stop early when a condition is met",
+    "allowEarlyStopDescription": "Allow stopping with fewer than five datapletes.",
     "blocked": "Another task is running",
     "clear": "Clear",
     "conditionPattern": "BP pattern contains: {value}",
@@ -116,6 +118,7 @@
     "start": "Start drawing",
     "startSimulation": "Start simulation",
     "stop": "Stop automation",
+    "stopPreferences": "Stopping preferences",
     "stopping": "Stopping",
     "suits": {
       "bing": "Bing",

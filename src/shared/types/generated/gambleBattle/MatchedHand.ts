@@ -4,9 +4,9 @@ import type { HandKind } from "./HandKind";
 import type { StopReason } from "./StopReason";
 
 /**
- * 达成目标时保留的五张铭牌及识别截图。
+ * 达成目标时保留的铭牌及识别截图。
  */
-export type MatchedHand = { round: number, elapsedSeconds: number, cards: [Card, Card, Card, Card, Card], hand: HandKind | null, score: number, 
+export type MatchedHand = { round: number, elapsedSeconds: number, cards: Array<Card>, hand: HandKind | null, score: number, 
 /**
  * 生效牌型是否为当天的好运组合，是则得分已经翻倍。
  */

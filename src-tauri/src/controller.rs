@@ -77,18 +77,20 @@ impl Controller {
         match request {
             automation::StartRequest::GambleBattle {
                 conditions,
+                allow_early_stop,
                 worker_type,
             } => {
                 self.automation_runtime
                     .start(automation::TaskKind::GambleBattle, || match worker_type {
                         automation::WorkerType::Production => Box::new(gamble_battle::Worker::new(
                             conditions,
+                            allow_early_stop,
                             self.settings_snapshot().sound_volume,
                             Arc::clone(&self.ocr),
                         )),
-                        automation::WorkerType::Simulation => {
-                            Box::new(gamble_battle::SimulationWorker::new(conditions))
-                        }
+                        automation::WorkerType::Simulation => Box::new(
+                            gamble_battle::SimulationWorker::new(conditions, allow_early_stop),
+                        ),
                     });
             }
             automation::StartRequest::ArchiveScan { worker_type } => {

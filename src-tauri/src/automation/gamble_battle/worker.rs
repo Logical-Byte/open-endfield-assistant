@@ -41,6 +41,7 @@ pub(crate) struct Progress {
 
 pub(crate) struct Worker {
     conditions: Conditions,
+    allow_early_stop: bool,
     sound_volume: f32,
     ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
 }
@@ -48,11 +49,13 @@ pub(crate) struct Worker {
 impl Worker {
     pub(crate) fn new(
         conditions: Conditions,
+        allow_early_stop: bool,
         sound_volume: f32,
         ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     ) -> Self {
         Self {
             conditions,
+            allow_early_stop,
             sound_volume,
             ocr,
         }
@@ -74,7 +77,13 @@ impl runtime::Worker for Worker {
             }
             sound::play(self.sound_volume, Cue::Enable);
             let mut cx = Capture::new(&mut session);
-            let result = execute(&mut cx, &recognizer, &self.conditions, events.as_ref());
+            let result = execute(
+                &mut cx,
+                &recognizer,
+                &self.conditions,
+                self.allow_early_stop,
+                events.as_ref(),
+            );
             capture = Some(cx.finish());
             result
         })();
@@ -92,6 +101,7 @@ fn execute<C>(
     cx: &mut C,
     recognizer: &Recognizer,
     conditions: &Conditions,
+    allow_early_stop: bool,
     events: &dyn EventSink,
 ) -> Result<(), automation::WorkerError>
 where
@@ -103,25 +113,58 @@ where
     let frame = cx.screenshot()?;
     require_target(cx, &frame, &ACTIVITY, "请先打开百趣演武活动的抽牌界面")?;
     info!("开始百趣演武自动化");
-    'rounds: loop {
+    loop {
         events.publish(Event::GambleBattleProgress(Progress {
             round,
             elapsed_seconds: started.elapsed().as_secs_f64(),
         }));
         let mut count = wait_for_card_count(cx, None)?;
-        // 每翻出一张就判断一次，已检查过的牌数不必重复检查。
+        // 每个牌数只检查一次。识别不稳定时继续运行，避免反复卡在同一组铭牌上。
         let mut checked_count = None;
-        while count < 5 {
+        loop {
+            let mut impossible = false;
             if count > 0 && checked_count != Some(count) {
                 checked_count = Some(count);
-                if !prefix_can_still_match(cx, recognizer, count, conditions)? {
+                if count == 5 {
+                    // 抽满后额外等待卡牌颜色稳定。
+                    cx.sleep(Duration::from_millis(500));
+                }
+                if let Some((frame, cards)) = read_hand(cx, recognizer, count)? {
+                    require_target(cx, &frame, &ACTIVITY, "百趣演武页面已离开，停止抽牌")?;
+                    // 每次判定重新取好运组合，跨过凌晨 4 点时按新的一天计分。
+                    let lucky = lucky::hand(Utc::now());
+                    let reasons = if allow_early_stop || count == 5 {
+                        model::evaluate(&cards, conditions, lucky, false)
+                    } else {
+                        Vec::new()
+                    };
+                    if !reasons.is_empty() {
+                        report_match(
+                            events,
+                            &cards,
+                            reasons,
+                            lucky,
+                            frame,
+                            Progress {
+                                round,
+                                elapsed_seconds: started.elapsed().as_secs_f64(),
+                            },
+                        )?;
+                        info!("百趣演武第 {round} 轮命中停止条件，已保留当前 {count} 张铭牌");
+                        return Ok(());
+                    }
+                    impossible =
+                        !model::can_still_match(&cards, conditions, lucky, allow_early_stop);
+                }
+            }
+            if count == 5 || impossible {
+                if impossible && count < 5 {
                     info!(
                         "百趣演武第 {round} 轮翻出 {count} 张铭牌后已不可能命中停止条件，提前放弃"
                     );
-                    abandon_round(cx)?;
-                    round += 1;
-                    continue 'rounds;
                 }
+                abandon_round(cx)?;
+                break;
             }
             let frame = cx.screenshot()?;
             require_target(cx, &frame, &ACTIVITY, "百趣演武页面已离开，停止抽牌")?;
@@ -136,29 +179,6 @@ where
                 elapsed_seconds: started.elapsed().as_secs_f64(),
             }));
         }
-        // 额外等待一段时间以让卡牌颜色稳定
-        cx.sleep(Duration::from_millis(500));
-        // 抽满后复核五张铭牌的数字和花色，截图和判定始终来自同一帧。
-        let (full_frame, hand) = read_hand(cx, recognizer)?;
-        // 每轮重新取好运组合，运行跨过凌晨 4 点时按新的一天计分。
-        let lucky = lucky::hand(Utc::now());
-        let reasons = model::evaluate(&hand, conditions, lucky, false);
-        if !reasons.is_empty() {
-            report_match(
-                events,
-                hand,
-                reasons,
-                lucky,
-                full_frame,
-                Progress {
-                    round,
-                    elapsed_seconds: started.elapsed().as_secs_f64(),
-                },
-            )?;
-            info!("百趣演武第 {round} 轮命中停止条件，已保留当前铭牌");
-            return Ok(());
-        }
-        abandon_round(cx)?;
         round += 1;
     }
 }
@@ -193,40 +213,13 @@ where
     ))
 }
 
+/// 连续两次识别一致后才用于判定，返回的截图与铭牌来自同一帧。
+/// 无法稳定识别时继续运行，满五张则由调用方清空并开始下一轮。
 fn read_hand<C>(
     cx: &mut C,
     recognizer: &Recognizer,
-) -> Result<(RgbaImage, [Card; 5]), automation::WorkerError>
-where
-    C: ScreenCapture + Clock,
-{
-    for _ in 0..40 {
-        let frame = cx.screenshot()?;
-        if count_cards(&frame).ok() == Some(5) {
-            match recognizer.read_cards(&frame) {
-                Ok(cards) => {
-                    if let Ok(hand) = cards.try_into() {
-                        return Ok((frame, hand));
-                    }
-                }
-                Err(error) => debug!(%error, "等待五张铭牌的数字和花色清晰"),
-            }
-        }
-        cx.sleep(Duration::from_millis(200));
-    }
-    Err(failure("无法识别五张铭牌的花色和战力点，已停止操作"))
-}
-
-/// 翻出的铭牌是否仍能补全为命中任一启用条件的五张铭牌。
-///
-/// 连续两次识别到同一组铭牌后才据此判断。无法稳定识别时按仍可命中处理，
-/// 避免动画或误识别让本轮被提前放弃。
-fn prefix_can_still_match<C>(
-    cx: &mut C,
-    recognizer: &Recognizer,
     count: usize,
-    conditions: &Conditions,
-) -> Result<bool, automation::WorkerError>
+) -> Result<Option<(RgbaImage, Vec<Card>)>, automation::WorkerError>
 where
     C: ScreenCapture + Clock,
 {
@@ -238,11 +231,7 @@ where
             && cards.len() == count
         {
             if previous.as_deref() == Some(cards.as_slice()) {
-                return Ok(model::can_still_match(
-                    &cards,
-                    conditions,
-                    lucky::hand(Utc::now()),
-                ));
+                return Ok(Some((frame, cards)));
             }
             previous = Some(cards);
         } else {
@@ -250,8 +239,8 @@ where
         }
         cx.sleep(Duration::from_millis(150));
     }
-    debug!("未能稳定识别 {count} 张已翻开的铭牌，继续抽牌");
-    Ok(true)
+    debug!("未能稳定识别 {count} 张已翻开的铭牌，继续运行");
+    Ok(None)
 }
 
 /// 放弃当前一轮，等待回到没有铭牌的抽牌界面。

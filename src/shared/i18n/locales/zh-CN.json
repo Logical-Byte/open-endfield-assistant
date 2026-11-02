@@ -58,6 +58,8 @@
     }
   },
   "gambleBattle": {
+    "allowEarlyStop": "命中条件后提前停止",
+    "allowEarlyStopDescription": "铭牌不足五张时也可停止抽牌。",
     "blocked": "其他任务正在运行",
     "clear": "清空",
     "conditionPattern": "点数包含子串：{value}",
@@ -115,6 +117,7 @@
     "start": "开始抽卡",
     "startSimulation": "开始模拟抽卡",
     "stop": "停止自动化",
+    "stopPreferences": "停止偏好",
     "stopping": "正在停止",
     "suits": {
       "bing": "饼",

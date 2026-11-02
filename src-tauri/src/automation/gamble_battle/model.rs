@@ -66,14 +66,14 @@ pub(crate) enum StopReason {
     Pattern { pattern: String },
 }
 
-/// 达成目标时保留的五张铭牌及识别截图。
+/// 达成目标时保留的铭牌及识别截图。
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "gambleBattle/")]
 pub(crate) struct MatchedHand {
     pub round: u32,
     pub elapsed_seconds: f64,
-    pub cards: [Card; 5],
+    pub cards: Vec<Card>,
     pub hand: Option<HandKind>,
     pub score: u32,
     /// 生效牌型是否为当天的好运组合，是则得分已经翻倍。
@@ -86,7 +86,7 @@ pub(crate) struct MatchedHand {
 ///
 /// `early_stop` 为 `true` 时命中第一个条件就返回，调用方只关心是否存在命中。
 pub(crate) fn evaluate(
-    cards: &[Card; 5],
+    cards: &[Card],
     conditions: &Conditions,
     lucky: HandKind,
     early_stop: bool,
@@ -129,13 +129,13 @@ pub(crate) fn evaluate(
     reasons
 }
 
-/// 五张铭牌的战力点之和。
-pub(crate) fn total_bp(cards: &[Card; 5]) -> u8 {
+/// 当前铭牌的战力点之和。
+pub(crate) fn total_bp(cards: &[Card]) -> u8 {
     cards.iter().map(|card| card.rank).sum()
 }
 
-/// 五张铭牌的最终得分，等于战力点之和对应的基础得分乘以生效牌型的倍率。
-pub(crate) fn score(cards: &[Card; 5], lucky: HandKind) -> u32 {
+/// 当前铭牌的得分，等于战力点之和对应的基础得分乘以生效牌型的倍率。
+pub(crate) fn score(cards: &[Card], lucky: HandKind) -> u32 {
     score_of(total_bp(cards), classify(cards), lucky)
 }
 
@@ -146,11 +146,17 @@ const CARD_RANKS: u32 = 5;
 /// 单张铭牌可能的取值数量。
 const CARD_VARIANTS: u32 = CARD_SUITS * CARD_RANKS;
 
-/// 判断已翻开的铭牌是否仍能补全为命中任一启用条件的五张铭牌。
+/// 判断本轮是否仍能命中停止条件。
+/// `allow_early_stop` 开启时检查当前及后续任意前缀，关闭时只检查补满五张的结果。
 ///
 /// 未翻开的铭牌按任意战力点与花色枚举，因此返回 `false` 表示本轮已不可能命中，
 /// 可以提前放弃。枚举不考虑铭牌库的剩余数量，宁可多抽几张也不误弃可能命中的一轮。
-pub(crate) fn can_still_match(prefix: &[Card], conditions: &Conditions, lucky: HandKind) -> bool {
+pub(crate) fn can_still_match(
+    prefix: &[Card],
+    conditions: &Conditions,
+    lucky: HandKind,
+    allow_early_stop: bool,
+) -> bool {
     let revealed = prefix.len().min(5);
     if revealed == 0 {
         return true;
@@ -160,14 +166,40 @@ pub(crate) fn can_still_match(prefix: &[Card], conditions: &Conditions, lucky: H
         rank: 1,
     }; 5];
     cards[..revealed].copy_from_slice(&prefix[..revealed]);
-    let combinations = CARD_VARIANTS.pow((5 - revealed) as u32);
-    for combination in 0..combinations {
-        let mut value = combination;
-        for card in &mut cards[revealed..] {
-            *card = enumerated_card(value % CARD_VARIANTS);
-            value /= CARD_VARIANTS;
-        }
-        if !evaluate(&cards, conditions, lucky, true).is_empty() {
+    can_match_from(&mut cards, revealed, conditions, lucky, allow_early_stop)
+}
+
+/// 深度优先枚举后续抽牌，判断当前或后续任意前缀是否能命中。
+///
+/// 前提：`1 <= revealed <= 5`，`cards[..revealed]` 是已确定的合法铭牌，
+/// `conditions` 已通过启动校验。空前缀由 `can_still_match` 直接返回 `true`，
+/// 不进入递归。整次搜索使用同一个 `lucky`，不模拟搜索期间的换日。
+///
+/// 允许早停时每层先检查当前前缀，否则只在五张时检查。五张已命中返回 `true`，
+/// 五张仍未命中返回 `false`。不足五张则枚举下一张的全部 15 种取值，
+/// 找到一个可行分支就返回 `true`，全部分支失败才表示无解。
+///
+/// `cards[revealed..]` 只是可覆盖的搜索缓冲区，不参与当前判定。
+/// 子调用保持当前前缀不变，后缀在读取前必定被赋值，因此回溯时无需恢复。
+/// 每层增加一张，最多再递归四层。不考虑铭牌库余量，可能保留实际上抽不到的分支。
+fn can_match_from(
+    cards: &mut [Card; 5],
+    revealed: usize,
+    conditions: &Conditions,
+    lucky: HandKind,
+    allow_early_stop: bool,
+) -> bool {
+    if (allow_early_stop || revealed == 5)
+        && !evaluate(&cards[..revealed], conditions, lucky, true).is_empty()
+    {
+        return true;
+    }
+    if revealed == 5 {
+        return false;
+    }
+    for index in 0..CARD_VARIANTS {
+        cards[revealed] = enumerated_card(index);
+        if can_match_from(cards, revealed + 1, conditions, lucky, allow_early_stop) {
             return true;
         }
     }
@@ -229,9 +261,9 @@ fn enumerated_card(index: u32) -> Card {
     }
 }
 
-/// 按牌槽顺序拼接五张铭牌的战力点，判断是否包含给定子串。
-fn contains(cards: &[Card; 5], pattern: &str) -> bool {
-    let digits = std::array::from_fn::<u8, 5, _>(|i| b'0' + cards[i].rank);
+/// 按牌槽顺序拼接当前铭牌的战力点，判断是否包含给定子串。
+fn contains(cards: &[Card], pattern: &str) -> bool {
+    let digits: Vec<u8> = cards.iter().map(|card| b'0' + card.rank).collect();
     digits
         .windows(pattern.len())
         .any(|window| window == pattern.as_bytes())
@@ -288,16 +320,19 @@ impl Conditions {
     }
 }
 
-/// 返回五张铭牌中优先级最高的牌型。
-pub(crate) fn classify(cards: &[Card; 5]) -> Option<HandKind> {
+/// 返回当前铭牌中优先级最高的牌型。
+pub(crate) fn classify(cards: &[Card]) -> Option<HandKind> {
     let counts: [usize; 5] = std::array::from_fn(|i| {
         cards
             .iter()
             .filter(|card| usize::from(card.rank) == i + 1)
             .count()
     });
-    let flush = cards.iter().all(|card| card.suit == cards[0].suit);
-    if flush && counts.iter().all(|&count| count == 1) {
+    let flush = [Suit::Bing, Suit::Tiao, Suit::Wan]
+        .iter()
+        .any(|&suit| cards.iter().filter(|card| card.suit == suit).count() >= 4);
+    if counts.iter().all(|&count| count == 1) && cards.iter().all(|card| card.suit == cards[0].suit)
+    {
         Some(HandKind::StraightFlush)
     } else if counts.iter().any(|&count| count >= 4) {
         Some(HandKind::Quad)
@@ -325,7 +360,7 @@ pub(crate) fn classify(cards: &[Card; 5]) -> Option<HandKind> {
 mod tests {
     use super::*;
 
-    fn cards(ranks: [u8; 5], suits: [Suit; 5]) -> [Card; 5] {
+    fn cards<const N: usize>(ranks: [u8; N], suits: [Suit; N]) -> [Card; N] {
         std::array::from_fn(|i| Card {
             rank: ranks[i],
             suit: suits[i],
@@ -369,6 +404,32 @@ mod tests {
     }
 
     #[test]
+    fn classifies_partial_hands_without_lowering_hand_requirements() {
+        for (ranks, expected) in [
+            (&[2][..], None),
+            (&[2, 2][..], Some(HandKind::Pair)),
+            (&[2, 2, 2][..], Some(HandKind::Triplet)),
+            (&[2, 2, 3, 3][..], Some(HandKind::TwoPair)),
+            (&[2, 2, 2, 2][..], Some(HandKind::Quad)),
+            (&[2, 3, 4, 5][..], Some(HandKind::Straight)),
+        ] {
+            assert_eq!(classify(&prefix(ranks)), expected, "{ranks:?}");
+        }
+        assert_eq!(classify(&cards([1, 2, 3], [Suit::Bing; 3])), None);
+        assert_eq!(
+            classify(&cards([1, 2, 3, 4], [Suit::Bing; 4])),
+            Some(HandKind::Flush)
+        );
+        assert_eq!(
+            classify(&cards(
+                [1, 2, 3, 4, 5],
+                [Suit::Bing, Suit::Bing, Suit::Bing, Suit::Bing, Suit::Tiao]
+            )),
+            Some(HandKind::Flush)
+        );
+    }
+
+    #[test]
     fn matches_only_the_final_hand_and_combines_enabled_conditions() {
         let hand = cards(
             [2, 2, 2, 3, 3],
@@ -407,6 +468,47 @@ mod tests {
             vec![StopReason::Hand {
                 hand: HandKind::FullHouse
             }]
+        );
+    }
+
+    #[test]
+    fn evaluates_conditions_on_the_current_prefix() {
+        let hand = prefix(&[2, 2, 2]);
+        let conditions = Conditions {
+            pair: true,
+            sum: Some(6),
+            score: Some(64_000),
+            pattern: Some("22".into()),
+            ..Conditions::default()
+        };
+        // 三条不命中对子。6 点基础分 20000，三条倍率 1.6，好运组合再翻倍。
+        assert_eq!(
+            evaluate(&hand, &conditions, HandKind::Triplet, false),
+            vec![
+                StopReason::Sum {
+                    threshold: 6,
+                    total: 6
+                },
+                StopReason::Score {
+                    threshold: 64_000,
+                    score: 64_000
+                },
+                StopReason::Pattern {
+                    pattern: "22".into()
+                },
+            ]
+        );
+        assert_eq!(score(&hand, HandKind::Triplet), 64_000);
+        assert_eq!(
+            evaluate(&hand[..2], &conditions, HandKind::Triplet, false),
+            vec![
+                StopReason::Hand {
+                    hand: HandKind::Pair
+                },
+                StopReason::Pattern {
+                    pattern: "22".into()
+                },
+            ]
         );
     }
 
@@ -498,7 +600,7 @@ mod tests {
             (vec![5, 5, 5, 5], true),
         ] {
             assert_eq!(
-                can_still_match(&prefix(&ranks), &conditions, lucky),
+                can_still_match(&prefix(&ranks), &conditions, lucky, true),
                 expected,
                 "{ranks:?}"
             );
@@ -521,7 +623,7 @@ mod tests {
             (vec![3, 3, 3, 3], true),
         ] {
             assert_eq!(
-                can_still_match(&prefix(&ranks), &conditions, HandKind::Quad),
+                can_still_match(&prefix(&ranks), &conditions, HandKind::Quad, true),
                 expected,
                 "{ranks:?}"
             );
@@ -540,7 +642,7 @@ mod tests {
             (vec![5, 5, 5, 5], true),
         ] {
             assert_eq!(
-                can_still_match(&prefix(&ranks), &sum, HandKind::Pair),
+                can_still_match(&prefix(&ranks), &sum, HandKind::Pair, true),
                 expected,
                 "{ranks:?}"
             );
@@ -555,7 +657,7 @@ mod tests {
             (vec![5, 5, 1, 5], false),
         ] {
             assert_eq!(
-                can_still_match(&prefix(&ranks), &pattern, HandKind::Pair),
+                can_still_match(&prefix(&ranks), &pattern, HandKind::Pair, true),
                 expected,
                 "{ranks:?}"
             );
@@ -588,7 +690,7 @@ mod tests {
         let ranks_at = |seed: u32| -> [u8; 5] {
             std::array::from_fn(|slot| (seed / 5_u32.pow(slot as u32)) as u8 % 5 + 1)
         };
-        // 分类只关心花色是否全部相同，同花顺与同花都已覆盖，取两种代表即可。
+        // 取全同花色与混合花色，覆盖同花顺、同花及其他牌型。
         for seed in 0..5_u32.pow(5) {
             let values = ranks_at(seed);
             for suits in [all_same, mixed] {

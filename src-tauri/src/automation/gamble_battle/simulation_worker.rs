@@ -24,17 +24,26 @@ use crate::automation::{
 
 pub(crate) struct SimulationWorker {
     conditions: Conditions,
+    allow_early_stop: bool,
 }
 
 impl SimulationWorker {
-    pub(crate) fn new(conditions: Conditions) -> Self {
-        Self { conditions }
+    pub(crate) fn new(conditions: Conditions, allow_early_stop: bool) -> Self {
+        Self {
+            conditions,
+            allow_early_stop,
+        }
     }
 }
 
 impl runtime::Worker for SimulationWorker {
     fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> runtime::WorkerExit {
-        let result = simulate(&self.conditions, &stop, events.as_ref());
+        let result = simulate(
+            &self.conditions,
+            self.allow_early_stop,
+            &stop,
+            events.as_ref(),
+        );
         runtime::WorkerExit {
             result,
             capture: None,
@@ -44,6 +53,7 @@ impl runtime::Worker for SimulationWorker {
 
 fn simulate(
     conditions: &Conditions,
+    allow_early_stop: bool,
     stop: &StopToken,
     events: &dyn EventSink,
 ) -> Result<(), automation::WorkerError> {
@@ -64,32 +74,42 @@ fn simulate(
             round,
             elapsed_seconds: started.elapsed().as_secs_f64(),
         }));
-        let deadline = Instant::now() + Duration::from_millis(600);
-        loop {
-            if is_stop_requested(stop) {
-                return Err(capabilities::Error::StoppedByUser.into());
+        for count in 1..=cards.len() {
+            let deadline = Instant::now() + Duration::from_millis(120);
+            loop {
+                if is_stop_requested(stop) {
+                    return Err(capabilities::Error::StoppedByUser.into());
+                }
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if remaining.is_zero() {
+                    break;
+                }
+                thread::sleep(remaining.min(Duration::from_millis(50)));
             }
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
+            let prefix = &cards[..count];
+            let lucky = lucky::hand(Utc::now());
+            let reasons = if allow_early_stop || count == 5 {
+                model::evaluate(prefix, conditions, lucky, false)
+            } else {
+                Vec::new()
+            };
+            if !reasons.is_empty() {
+                report_match(
+                    events,
+                    prefix,
+                    reasons,
+                    lucky,
+                    sample_image(prefix),
+                    Progress {
+                        round,
+                        elapsed_seconds: started.elapsed().as_secs_f64(),
+                    },
+                )?;
+                return Ok(());
+            }
+            if !model::can_still_match(prefix, conditions, lucky, allow_early_stop) {
                 break;
             }
-            thread::sleep(remaining.min(Duration::from_millis(50)));
-        }
-        let lucky = lucky::hand(Utc::now());
-        let reasons = model::evaluate(&cards, conditions, lucky, false);
-        if !reasons.is_empty() {
-            report_match(
-                events,
-                cards,
-                reasons,
-                lucky,
-                sample_image(&cards),
-                Progress {
-                    round,
-                    elapsed_seconds: started.elapsed().as_secs_f64(),
-                },
-            )?;
-            return Ok(());
         }
     }
 }
@@ -116,7 +136,7 @@ fn sample_hands() -> [[Card; 5]; 9] {
 }
 
 /// 生成与本轮牌组一致的示意截图。数字为点数，圆圈、竖条和 W 分别表示饼、条、万。
-fn sample_image(cards: &[Card; 5]) -> RgbaImage {
+fn sample_image(cards: &[Card]) -> RgbaImage {
     const DIGITS: [[u8; 5]; 5] = [
         [2, 6, 2, 2, 7],
         [7, 1, 7, 4, 7],
@@ -177,4 +197,31 @@ fn sample_image(cards: &[Card; 5]) -> RgbaImage {
         }
     }
     image
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::automation::{events::testing::RecordingEventSink, new_stop_token};
+
+    #[test]
+    fn stops_before_five_cards_only_when_enabled() {
+        let conditions = Conditions {
+            sum: Some(3),
+            ..Conditions::default()
+        };
+        // 第一轮样例为 12355。前两张已满足战力点之和，关闭早停时仍需抽满。
+        for (allow_early_stop, expected_count) in [(false, 5), (true, 2)] {
+            let events = RecordingEventSink::default();
+            simulate(&conditions, allow_early_stop, &new_stop_token(), &events).unwrap();
+            let matched = events.wait_for_events(2).into_iter().find_map(|event| {
+                if let Event::GambleBattleMatched(hand) = event {
+                    Some(hand)
+                } else {
+                    None
+                }
+            });
+            assert_eq!(matched.unwrap().cards.len(), expected_count);
+        }
+    }
 }
