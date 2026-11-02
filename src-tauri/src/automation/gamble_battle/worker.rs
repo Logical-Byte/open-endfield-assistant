@@ -41,6 +41,7 @@ pub(crate) struct Progress {
 
 pub(crate) struct Worker {
     conditions: Conditions,
+    allow_early_stop: bool,
     sound_volume: f32,
     ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
 }
@@ -48,11 +49,13 @@ pub(crate) struct Worker {
 impl Worker {
     pub(crate) fn new(
         conditions: Conditions,
+        allow_early_stop: bool,
         sound_volume: f32,
         ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     ) -> Self {
         Self {
             conditions,
+            allow_early_stop,
             sound_volume,
             ocr,
         }
@@ -74,7 +77,13 @@ impl runtime::Worker for Worker {
             }
             sound::play(self.sound_volume, Cue::Enable);
             let mut cx = Capture::new(&mut session);
-            let result = execute(&mut cx, &recognizer, &self.conditions, events.as_ref());
+            let result = execute(
+                &mut cx,
+                &recognizer,
+                &self.conditions,
+                self.allow_early_stop,
+                events.as_ref(),
+            );
             capture = Some(cx.finish());
             result
         })();
@@ -92,6 +101,7 @@ fn execute<C>(
     cx: &mut C,
     recognizer: &Recognizer,
     conditions: &Conditions,
+    allow_early_stop: bool,
     events: &dyn EventSink,
 ) -> Result<(), automation::WorkerError>
 where
@@ -123,7 +133,11 @@ where
                     require_target(cx, &frame, &ACTIVITY, "百趣演武页面已离开，停止抽牌")?;
                     // 每次判定重新取好运组合，跨过凌晨 4 点时按新的一天计分。
                     let lucky = lucky::hand(Utc::now());
-                    let reasons = model::evaluate(&cards, conditions, lucky, false);
+                    let reasons = if allow_early_stop || count == 5 {
+                        model::evaluate(&cards, conditions, lucky, false)
+                    } else {
+                        Vec::new()
+                    };
                     if !reasons.is_empty() {
                         report_match(
                             events,
@@ -139,7 +153,8 @@ where
                         info!("百趣演武第 {round} 轮命中停止条件，已保留当前 {count} 张铭牌");
                         return Ok(());
                     }
-                    impossible = !model::can_still_match(&cards, conditions, lucky);
+                    impossible =
+                        !model::can_still_match(&cards, conditions, lucky, allow_early_stop);
                 }
             }
             if count == 5 || impossible {

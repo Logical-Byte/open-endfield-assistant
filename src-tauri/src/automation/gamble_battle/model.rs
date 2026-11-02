@@ -146,11 +146,17 @@ const CARD_RANKS: u32 = 5;
 /// 单张铭牌可能的取值数量。
 const CARD_VARIANTS: u32 = CARD_SUITS * CARD_RANKS;
 
-/// 判断当前铭牌或后续抽到五张以内的任意前缀是否能命中停止条件。
+/// 判断本轮是否仍能命中停止条件。
+/// `allow_early_stop` 开启时检查当前及后续任意前缀，关闭时只检查补满五张的结果。
 ///
 /// 未翻开的铭牌按任意战力点与花色枚举，因此返回 `false` 表示本轮已不可能命中，
 /// 可以提前放弃。枚举不考虑铭牌库的剩余数量，宁可多抽几张也不误弃可能命中的一轮。
-pub(crate) fn can_still_match(prefix: &[Card], conditions: &Conditions, lucky: HandKind) -> bool {
+pub(crate) fn can_still_match(
+    prefix: &[Card],
+    conditions: &Conditions,
+    lucky: HandKind,
+    allow_early_stop: bool,
+) -> bool {
     let revealed = prefix.len().min(5);
     if revealed == 0 {
         return true;
@@ -160,7 +166,7 @@ pub(crate) fn can_still_match(prefix: &[Card], conditions: &Conditions, lucky: H
         rank: 1,
     }; 5];
     cards[..revealed].copy_from_slice(&prefix[..revealed]);
-    can_match_from(&mut cards, revealed, conditions, lucky)
+    can_match_from(&mut cards, revealed, conditions, lucky, allow_early_stop)
 }
 
 /// 深度优先枚举后续抽牌，判断当前或后续任意前缀是否能命中。
@@ -169,8 +175,8 @@ pub(crate) fn can_still_match(prefix: &[Card], conditions: &Conditions, lucky: H
 /// `conditions` 已通过启动校验。空前缀由 `can_still_match` 直接返回 `true`，
 /// 不进入递归。整次搜索使用同一个 `lucky`，不模拟搜索期间的换日。
 ///
-/// 每层先检查当前前缀，因此不足五张时也能成功，五张已命中时也会返回 `true`。
-/// 五张仍未命中才返回 `false`。否则枚举下一张的全部 15 种取值，
+/// 允许早停时每层先检查当前前缀，否则只在五张时检查。五张已命中返回 `true`，
+/// 五张仍未命中返回 `false`。不足五张则枚举下一张的全部 15 种取值，
 /// 找到一个可行分支就返回 `true`，全部分支失败才表示无解。
 ///
 /// `cards[revealed..]` 只是可覆盖的搜索缓冲区，不参与当前判定。
@@ -181,8 +187,11 @@ fn can_match_from(
     revealed: usize,
     conditions: &Conditions,
     lucky: HandKind,
+    allow_early_stop: bool,
 ) -> bool {
-    if !evaluate(&cards[..revealed], conditions, lucky, true).is_empty() {
+    if (allow_early_stop || revealed == 5)
+        && !evaluate(&cards[..revealed], conditions, lucky, true).is_empty()
+    {
         return true;
     }
     if revealed == 5 {
@@ -190,7 +199,7 @@ fn can_match_from(
     }
     for index in 0..CARD_VARIANTS {
         cards[revealed] = enumerated_card(index);
-        if can_match_from(cards, revealed + 1, conditions, lucky) {
+        if can_match_from(cards, revealed + 1, conditions, lucky, allow_early_stop) {
             return true;
         }
     }
@@ -591,7 +600,7 @@ mod tests {
             (vec![5, 5, 5, 5], true),
         ] {
             assert_eq!(
-                can_still_match(&prefix(&ranks), &conditions, lucky),
+                can_still_match(&prefix(&ranks), &conditions, lucky, true),
                 expected,
                 "{ranks:?}"
             );
@@ -614,7 +623,7 @@ mod tests {
             (vec![3, 3, 3, 3], true),
         ] {
             assert_eq!(
-                can_still_match(&prefix(&ranks), &conditions, HandKind::Quad),
+                can_still_match(&prefix(&ranks), &conditions, HandKind::Quad, true),
                 expected,
                 "{ranks:?}"
             );
@@ -633,7 +642,7 @@ mod tests {
             (vec![5, 5, 5, 5], true),
         ] {
             assert_eq!(
-                can_still_match(&prefix(&ranks), &sum, HandKind::Pair),
+                can_still_match(&prefix(&ranks), &sum, HandKind::Pair, true),
                 expected,
                 "{ranks:?}"
             );
@@ -648,7 +657,7 @@ mod tests {
             (vec![5, 5, 1, 5], false),
         ] {
             assert_eq!(
-                can_still_match(&prefix(&ranks), &pattern, HandKind::Pair),
+                can_still_match(&prefix(&ranks), &pattern, HandKind::Pair, true),
                 expected,
                 "{ranks:?}"
             );

@@ -57,6 +57,9 @@ pub enum TaskKind {
 pub(crate) enum StartRequest {
     GambleBattle {
         conditions: gamble_battle::Conditions,
+        /// 允许不足五张时命中停止条件。默认关闭。
+        #[serde(default, rename = "allowEarlyStop")]
+        allow_early_stop: bool,
         #[serde(rename = "workerType")]
         worker_type: WorkerType,
     },

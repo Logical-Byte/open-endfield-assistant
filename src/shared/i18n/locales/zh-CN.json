@@ -58,6 +58,8 @@
     }
   },
   "gambleBattle": {
+    "allowEarlyStop": "命中条件后提前停止",
+    "allowEarlyStopDescription": "铭牌不足五张时也可停止抽牌。",
     "blocked": "其他任务正在运行",
     "clear": "清空",
     "conditionPattern": "点数包含子串：{value}",

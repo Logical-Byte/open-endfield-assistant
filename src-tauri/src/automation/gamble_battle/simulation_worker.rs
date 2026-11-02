@@ -24,17 +24,26 @@ use crate::automation::{
 
 pub(crate) struct SimulationWorker {
     conditions: Conditions,
+    allow_early_stop: bool,
 }
 
 impl SimulationWorker {
-    pub(crate) fn new(conditions: Conditions) -> Self {
-        Self { conditions }
+    pub(crate) fn new(conditions: Conditions, allow_early_stop: bool) -> Self {
+        Self {
+            conditions,
+            allow_early_stop,
+        }
     }
 }
 
 impl runtime::Worker for SimulationWorker {
     fn run(self: Box<Self>, stop: StopToken, events: Arc<dyn EventSink>) -> runtime::WorkerExit {
-        let result = simulate(&self.conditions, &stop, events.as_ref());
+        let result = simulate(
+            &self.conditions,
+            self.allow_early_stop,
+            &stop,
+            events.as_ref(),
+        );
         runtime::WorkerExit {
             result,
             capture: None,
@@ -44,6 +53,7 @@ impl runtime::Worker for SimulationWorker {
 
 fn simulate(
     conditions: &Conditions,
+    allow_early_stop: bool,
     stop: &StopToken,
     events: &dyn EventSink,
 ) -> Result<(), automation::WorkerError> {
@@ -78,7 +88,11 @@ fn simulate(
             }
             let prefix = &cards[..count];
             let lucky = lucky::hand(Utc::now());
-            let reasons = model::evaluate(prefix, conditions, lucky, false);
+            let reasons = if allow_early_stop || count == 5 {
+                model::evaluate(prefix, conditions, lucky, false)
+            } else {
+                Vec::new()
+            };
             if !reasons.is_empty() {
                 report_match(
                     events,
@@ -93,7 +107,7 @@ fn simulate(
                 )?;
                 return Ok(());
             }
-            if !model::can_still_match(prefix, conditions, lucky) {
+            if !model::can_still_match(prefix, conditions, lucky, allow_early_stop) {
                 break;
             }
         }
@@ -183,4 +197,31 @@ fn sample_image(cards: &[Card]) -> RgbaImage {
         }
     }
     image
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::automation::{events::testing::RecordingEventSink, new_stop_token};
+
+    #[test]
+    fn stops_before_five_cards_only_when_enabled() {
+        let conditions = Conditions {
+            sum: Some(3),
+            ..Conditions::default()
+        };
+        // 第一轮样例为 12355。前两张已满足战力点之和，关闭早停时仍需抽满。
+        for (allow_early_stop, expected_count) in [(false, 5), (true, 2)] {
+            let events = RecordingEventSink::default();
+            simulate(&conditions, allow_early_stop, &new_stop_token(), &events).unwrap();
+            let matched = events.wait_for_events(2).into_iter().find_map(|event| {
+                if let Event::GambleBattleMatched(hand) = event {
+                    Some(hand)
+                } else {
+                    None
+                }
+            });
+            assert_eq!(matched.unwrap().cards.len(), expected_count);
+        }
+    }
 }

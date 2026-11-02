@@ -30,6 +30,7 @@ export const conditions = reactive<Conditions>({
   score: null,
   pattern: null,
 });
+export const allowEarlyStop = ref(false);
 export const sumThreshold = shallowRef(20);
 export const scoreThreshold = shallowRef(900000);
 export const bpPattern = shallowRef('325');
