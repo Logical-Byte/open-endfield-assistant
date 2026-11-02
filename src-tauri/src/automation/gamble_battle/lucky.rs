@@ -6,14 +6,14 @@ use ts_rs::TS;
 
 use super::model::{self, HANDS, HandKind};
 
-/// 好运组合每天轮换的牌型顺序。
+/// 好运组合每天轮换的牌型顺序，对应 `GambleBattleConst.handTypePool` 中 `handTypeID`
 const LUCKY_HANDS: [HandKind; 7] = [
     HandKind::Pair,
     HandKind::TwoPair,
     HandKind::Triplet,
     HandKind::Straight,
-    HandKind::FullHouse,
     HandKind::Flush,
+    HandKind::FullHouse,
     HandKind::Quad,
 ];
 
@@ -108,12 +108,34 @@ mod tests {
             // 第 1 天的起点，北京时间 2026-10-30 04:00。
             ("2026-10-29T20:00:00Z", HandKind::TwoPair),
             ("2026-10-30T20:00:00Z", HandKind::Triplet),
+            // 第 4、5 天按 handTypePool 的顺序是同花与葫芦，而非葫芦与同花。
+            ("2026-11-01T20:00:00Z", HandKind::Flush),
+            ("2026-11-02T20:00:00Z", HandKind::FullHouse),
             ("2026-11-04T20:00:00Z", HandKind::Pair),
             // 换日界之前的时刻仍属于前一天。
             ("2026-10-30T19:59:59Z", HandKind::TwoPair),
         ] {
             assert_eq!(hand(at(time)), expected, "{time}");
         }
+    }
+
+    #[test]
+    fn rotates_in_the_hand_type_pool_order() {
+        let hands = (0..LUCKY_HANDS.len() as i64)
+            .map(|day| hand(at("2026-10-28T20:00:00Z") + Duration::days(day)))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            hands,
+            vec![
+                HandKind::Pair,
+                HandKind::TwoPair,
+                HandKind::Triplet,
+                HandKind::Straight,
+                HandKind::Flush,
+                HandKind::FullHouse,
+                HandKind::Quad,
+            ]
+        );
     }
 
     #[test]
