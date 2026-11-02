@@ -282,13 +282,18 @@ function multiplierLabel(hand: HandKind): string | null {
             {{ t('gambleBattle.selectCondition') }}
           </p>
         </fieldset>
-        <USwitch
-          v-model="allowEarlyStop"
-          :description="t('gambleBattle.allowEarlyStopDescription')"
-          :disabled="isActive || submitting"
-          :label="t('gambleBattle.allowEarlyStop')"
-          size="sm"
-        />
+        <fieldset :disabled="isActive || submitting">
+          <legend class="mb-2 flex items-center gap-1 text-sm font-medium text-highlighted">
+            {{ t('gambleBattle.stopPreferences') }}
+          </legend>
+          <USwitch
+            v-model="allowEarlyStop"
+            :description="t('gambleBattle.allowEarlyStopDescription')"
+            :disabled="isActive || submitting"
+            :label="t('gambleBattle.allowEarlyStop')"
+            size="sm"
+          />
+        </fieldset>
       </WorkspaceCard>
     </div>
 

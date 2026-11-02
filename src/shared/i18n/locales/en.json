@@ -118,6 +118,7 @@
     "start": "Start drawing",
     "startSimulation": "Start simulation",
     "stop": "Stop automation",
+    "stopPreferences": "Stopping preferences",
     "stopping": "Stopping",
     "suits": {
       "bing": "Bing",
