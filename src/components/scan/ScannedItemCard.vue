@@ -87,12 +87,12 @@ const cropImageStyle: CSSProperties = {
         variant="ghost"
       >
         <span class="shrink-0 text-xs text-muted">#{{ item.scannedItemId }}</span>
-        <span class="truncate">{{ item.ocrResult || t('scan.ocrEmpty') }}</span>
+        <span class="truncate">{{ item.ocrResult || t('scan.ocr.empty') }}</span>
         <span
           v-if="state.editing"
           class="ml-auto shrink-0 text-xs font-semibold text-primary"
           role="status"
-          >{{ t('scan.editing') }}</span
+          >{{ t('scan.record.editing') }}</span
         >
         <UIcon
           class="ml-auto size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none"
@@ -104,7 +104,7 @@ const cropImageStyle: CSSProperties = {
         <div class="space-y-4 border-t border-default p-4">
           <div>
             <UButton
-              :aria-label="t('scan.viewScreenshot')"
+              :aria-label="t('scan.record.viewScreenshot')"
               class="mx-auto block w-[290px] overflow-hidden rounded p-0"
               color="neutral"
               variant="outline"
@@ -155,8 +155,8 @@ const cropImageStyle: CSSProperties = {
                 v-if="!item.archive || state.editing"
                 class="space-y-1 rounded-md bg-elevated p-2 text-sm"
               >
-                <p class="text-xs text-muted">{{ t('scan.ocr') }}</p>
-                <p class="break-words">{{ item.ocrResult || t('scan.noText') }}</p>
+                <p class="text-xs text-muted">{{ t('scan.ocr.title') }}</p>
+                <p class="break-words">{{ item.ocrResult || t('scan.ocr.noText') }}</p>
               </div>
               <div
                 v-else
@@ -170,13 +170,15 @@ const cropImageStyle: CSSProperties = {
                     "
                   />
                   <span>{{
-                    item.manualChoice.kind === 'manual' ? t('scan.manual') : t('scan.automatic')
+                    item.manualChoice.kind === 'manual'
+                      ? t('scan.record.matching.manual')
+                      : t('scan.record.matching.automatic')
                   }}</span>
                 </p>
                 <UButton
                   color="neutral"
                   icon="i-lucide-arrow-left"
-                  :label="t('scan.locateArchive')"
+                  :label="t('scan.record.locateArchive')"
                   size="xs"
                   variant="outline"
                   @click="emit('locateArchive', item.archive.id)"
@@ -188,8 +190,8 @@ const cropImageStyle: CSSProperties = {
               v-if="item.archive && !state.editing && state.showOcr"
               class="rounded border border-default bg-elevated/50 p-3 text-sm break-words"
             >
-              <p class="mb-1 text-xs text-muted">{{ t('scan.ocr') }}</p>
-              {{ item.ocrResult || t('scan.noText') }}
+              <p class="mb-1 text-xs text-muted">{{ t('scan.ocr.title') }}</p>
+              {{ item.ocrResult || t('scan.ocr.noText') }}
             </div>
           </div>
         </div>
@@ -202,7 +204,7 @@ const cropImageStyle: CSSProperties = {
               size="xs"
               :variant="state.editing ? 'solid' : 'outline'"
               @click="cancelEdit"
-              >{{ t('scan.cancelEdit') }}</UButton
+              >{{ t('scan.record.edit.cancel') }}</UButton
             >
             <UButton
               :color="changed ? 'primary' : 'neutral'"
@@ -211,7 +213,7 @@ const cropImageStyle: CSSProperties = {
               size="xs"
               type="submit"
               :variant="changed ? 'solid' : 'outline'"
-              >{{ t('scan.confirmEdit') }}</UButton
+              >{{ t('scan.record.edit.confirm') }}</UButton
             >
           </div>
           <div v-else class="flex flex-wrap items-center justify-between gap-2">
@@ -223,12 +225,12 @@ const cropImageStyle: CSSProperties = {
               variant="outline"
               @click="state = { ...state, showOcr: !state.showOcr }"
             >
-              {{ state.showOcr ? t('scan.hideOcr') : t('scan.viewOcr') }}
+              {{ state.showOcr ? t('scan.ocr.hide') : t('scan.ocr.show') }}
             </UButton>
             <UButton
               color="neutral"
               icon="i-lucide-pencil"
-              :label="t('scan.editArchive')"
+              :label="t('scan.record.edit.start')"
               size="xs"
               variant="outline"
               @click="beginEdit"

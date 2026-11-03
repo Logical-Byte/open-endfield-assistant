@@ -14,10 +14,12 @@ function messageText(value: unknown): string {
 
 // 独立 fixture 验证翻译入口，不覆盖随应用交付的 en-US 资源。
 const englishFixture = {
-  settings: { save: { failed: { title: 'Settings not saved' } } },
-  scan: {
-    matches_one: '{{count}} match',
-    matches_other: '{{count}} matches',
+  settings: { saveError: { title: 'Settings not saved' } },
+  update: {
+    download: {
+      etaSeconds_one: '{{count}} second left',
+      etaSeconds_other: '{{count}} seconds left',
+    },
   },
 };
 
@@ -35,15 +37,19 @@ afterEach(async () => {
 describe('应用翻译入口', () => {
   it('交付的英文资源按数量选择复数，并使用英文日期格式', async () => {
     await i18n.changeLanguage('en-US');
-    expect(t('scan.matches', { count: 1 })).toBe('1 match');
-    expect(t('scan.matches', { count: 2 })).toBe('2 matches');
-    expect(t('scan.linkedSummary', { id: 7, count: 1 })).toBe('Scan #7 is linked to 1 archive');
-    expect(t('scan.linkedSummary', { id: 7, count: 2 })).toBe('Scan #7 is linked to 2 archives');
+    expect(t('update.download.etaSeconds', { count: 1 })).toBe('About 1 second remaining.');
+    expect(t('update.download.etaSeconds', { count: 2 })).toBe('About 2 seconds remaining.');
+    expect(t('scan.export.warning', { count: 1 })).toBe(
+      '1 scan has no matching archive yet. Reviewing it may reduce the uncollected count and improve the export.',
+    );
+    expect(t('scan.export.warning', { count: 2 })).toBe(
+      '2 scans have no matching archive yet. Reviewing them may reduce the uncollected count and improve the export.',
+    );
     expect(d(new Date(2026, 0, 2), 'date')).toBe('01/02/2026');
   });
 
   it('嵌套消息插入原始文本，Vue 渲染负责 HTML 转义', () => {
-    expect(t('scan.ocrValue', { text: '<OEM & mirror>' })).toBe('OCR 结果：<OEM & mirror>');
+    expect(t('scan.ocr.value', { text: '<OEM & mirror>' })).toBe('OCR 结果：<OEM & mirror>');
   });
 
   it('语言切换同时更新 Vue 翻译、普通模块的 computed 和数字展示', async () => {
@@ -51,9 +57,9 @@ describe('应用翻译入口', () => {
     app.use(I18NextVue, { i18next: i18n });
     const componentText = app.runWithContext(() => {
       const { t } = useAppI18n();
-      return computed(() => t('settings.save.failed.title'));
+      return computed(() => t('settings.saveError.title'));
     });
-    const moduleText = computed(() => t('settings.save.failed.title'));
+    const moduleText = computed(() => t('settings.saveError.title'));
     const percentage = computed(() => n(0.5, 'percent'));
     const number = computed(() => n(1234.5));
     expect(componentText.value).toBe('设置未保存');
@@ -67,8 +73,8 @@ describe('应用翻译入口', () => {
     expect(componentText.value).toBe('Settings not saved');
     expect(moduleText.value).toBe('Settings not saved');
     expect(percentage.value).toBe('50%');
-    expect(t('scan.matches', { count: 1 })).toBe('1 match');
-    expect(t('scan.matches', { count: 2 })).toBe('2 matches');
+    expect(t('update.download.etaSeconds', { count: 1 })).toBe('1 second left');
+    expect(t('update.download.etaSeconds', { count: 2 })).toBe('2 seconds left');
     expect(number.value).toBe('1,234.5');
     i18n.addResourceBundle('de', 'translation', englishFixture);
     await i18n.changeLanguage('de');
@@ -132,7 +138,9 @@ describe('应用翻译入口', () => {
   });
 
   it('中文数量使用 other 类别，日期保留系统时区与秒精度', () => {
-    expect(t('scan.matches', { count: 2 })).toBe('2 个匹配');
+    expect(t('scan.export.warning', { count: 2 })).toBe(
+      '有 2 条扫描结果尚未匹配到已知档案。继续核对可能减少 “未收集” 的数量，让导出结果更准确。',
+    );
     const date = new Date(2026, 0, 2, 15, 4, 5);
     expect(d(date, 'dateTimeSeconds')).toBe('2026/01/02 15:04:05');
     expect(date.getHours()).toBe(15);

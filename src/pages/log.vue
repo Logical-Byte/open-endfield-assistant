@@ -26,19 +26,19 @@ useScrollToBottom(logContainerRef, filteredLogLines);
         <UButton
           class="mr-auto"
           icon="i-lucide-folder-open"
-          :label="t('log.openDirectory')"
+          :label="t('logs.openDirectory')"
           @click="openLogDir"
         />
         <USelect
           v-model="logLevelFilter"
-          :aria-label="t('log.levelFilter')"
+          :aria-label="t('logs.level')"
           class="w-32"
           :items="levelOptions"
         />
         <UButton
           color="error"
           icon="i-lucide-trash-2"
-          :label="t('log.clear')"
+          :label="t('logs.clear')"
           variant="outline"
           @click="clearLogs"
         />
@@ -46,7 +46,7 @@ useScrollToBottom(logContainerRef, filteredLogLines);
     </template>
     <div ref="logContainerRef" class="h-full scrollbar-gutter-stable overflow-y-scroll p-3">
       <p v-if="filteredLogLines.length === 0" class="font-mono text-muted">
-        {{ t('log.empty') }}
+        {{ t('logs.empty') }}
       </p>
       <pre
         v-for="({ time, level, message }, index) in filteredLogLines"

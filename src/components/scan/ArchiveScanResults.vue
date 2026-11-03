@@ -143,12 +143,12 @@ function choose(id: ScannedItemId, archiveId: ArchiveId | null): void {
     },
     () => ({
       title: selected
-        ? t('scan.assignment', { id, title: selected.title })
-        : t('scan.assignmentCleared', { id }),
+        ? t('scan.record.assigned', { id, title: selected.title })
+        : t('scan.record.unassigned', { id }),
 
       actions: [
         {
-          label: t('scan.undo'),
+          label: t('scan.record.edit.undo'),
           color: 'neutral',
           variant: 'outline',
           onClick: (): void => {
@@ -224,13 +224,13 @@ watch(scans, (): void => {
     >
       <template #archives>
         <section
-          :aria-label="t('scan.allArchives')"
+          :aria-label="t('scan.catalog.title')"
           class="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-default bg-elevated/20"
         >
           <header class="space-y-2 border-b border-default p-3">
             <div class="flex items-center justify-between gap-2">
               <h2 class="text-lg font-semibold whitespace-nowrap">
-                {{ t('scan.allArchives') }}
+                {{ t('scan.catalog.title') }}
                 <span class="font-normal text-muted">{{ n(archives.length) }}</span>
               </h2>
               <ArchiveExportButton
@@ -244,15 +244,15 @@ watch(scans, (): void => {
                 v-for="option in [
                   {
                     value: 'unmatched' as const,
-                    label: t('scan.notCollected'),
+                    label: t('scan.status.notCollected'),
                     count: archives.length - matchedArchives,
                   },
                   {
                     value: 'matched' as const,
-                    label: t('scan.collected'),
+                    label: t('scan.status.collected'),
                     count: matchedArchives,
                   },
-                  { value: 'all' as const, label: t('scan.all'), count: archives.length },
+                  { value: 'all' as const, label: t('common.all'), count: archives.length },
                 ]"
                 :key="option.value"
                 :color="archiveFilter === option.value ? 'primary' : 'neutral'"
@@ -265,14 +265,14 @@ watch(scans, (): void => {
             <div class="flex gap-2">
               <UInput
                 v-model="archiveSearch"
-                :aria-label="t('scan.searchArchive')"
+                :aria-label="t('scan.catalog.search')"
                 class="min-w-0 flex-1"
                 icon="i-lucide-search"
-                :placeholder="t('scan.searchArchive')"
+                :placeholder="t('scan.catalog.search')"
                 size="xs"
               /><UPopover
                 ><UButton
-                  :aria-label="t('scan.filters')"
+                  :aria-label="t('scan.filters.title')"
                   :color="mapOnly || archiveCategory !== 'all' ? 'primary' : 'neutral'"
                   icon="i-lucide-list-filter"
                   size="xs"
@@ -280,10 +280,13 @@ watch(scans, (): void => {
                   ><div class="w-64 space-y-3 p-3">
                     <USelect
                       v-model="archiveCategory"
-                      :aria-label="t('scan.archiveCategory')"
+                      :aria-label="t('scan.filters.archiveCategory')"
                       class="w-full"
                       :items="categories"
-                    /><UCheckbox v-model="mapOnly" :label="t('scan.mapOnly')" /></div></template
+                    /><UCheckbox
+                      v-model="mapOnly"
+                      :label="t('scan.filters.mapOnly')"
+                    /></div></template
               ></UPopover>
             </div>
           </header>
@@ -303,11 +306,11 @@ watch(scans, (): void => {
             />
           </ArchiveVirtualList>
           <p v-if="!visibleArchives.length" class="flex-1 py-14 text-center text-sm text-muted">
-            {{ t('scan.noArchives') }}
+            {{ t('scan.catalog.empty') }}
           </p>
           <div class="shrink-0 border-t border-default px-3 py-1.5 text-[11px] text-muted">
             {{
-              t('scan.archiveCount', {
+              t('scan.catalog.count', {
                 visible: n(visibleArchives.length),
                 total: n(archives.length),
               })
@@ -327,13 +330,13 @@ watch(scans, (): void => {
       </template>
       <template #scans>
         <section
-          :aria-label="t('scan.results')"
+          :aria-label="t('scan.results.title')"
           class="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-default bg-elevated/20"
         >
           <header class="space-y-2 border-b border-default p-3">
             <div class="flex items-center justify-between">
               <h2 class="text-lg font-semibold">
-                {{ t('scan.results') }}
+                {{ t('scan.results.title') }}
                 <span class="font-normal text-muted">{{ n(scans.length) }}</span>
               </h2>
               <ArchiveScanButton size="sm" />
@@ -343,11 +346,15 @@ watch(scans, (): void => {
                 v-for="option in [
                   {
                     value: 'unmatched' as const,
-                    label: t('scan.review'),
+                    label: t('scan.status.review'),
                     count: scans.length - matchedScans,
                   },
-                  { value: 'matched' as const, label: t('scan.matched'), count: matchedScans },
-                  { value: 'all' as const, label: t('scan.all'), count: scans.length },
+                  {
+                    value: 'matched' as const,
+                    label: t('scan.status.matched'),
+                    count: matchedScans,
+                  },
+                  { value: 'all' as const, label: t('common.all'), count: scans.length },
                 ]"
                 :key="option.value"
                 :color="scanFilter === option.value ? 'primary' : 'neutral'"
@@ -355,14 +362,14 @@ watch(scans, (): void => {
                 :variant="scanFilter === option.value ? 'subtle' : 'outline'"
                 @click="scanFilter = option.value"
                 >{{ option.label }} {{ n(option.count) }}</UButton
-              ><UTooltip :text="t('scan.clearResults')"
+              ><UTooltip :text="t('scan.results.clear')"
                 ><UButton
-                  :aria-label="t('scan.clearResults')"
+                  :aria-label="t('scan.results.clear')"
                   class="ml-auto"
                   color="neutral"
                   :disabled="isActive"
                   icon="i-lucide-trash-2"
-                  :label="t('scan.clear')"
+                  :label="t('common.clear')"
                   size="xs"
                   variant="outline"
                   @click="clearScans"
@@ -371,14 +378,14 @@ watch(scans, (): void => {
             <div class="flex gap-2">
               <UInput
                 v-model="scanSearch"
-                :aria-label="t('scan.searchResults')"
+                :aria-label="t('scan.results.search')"
                 class="min-w-0 flex-1"
                 icon="i-lucide-search"
-                :placeholder="t('scan.searchTitle')"
+                :placeholder="t('scan.results.searchTitle')"
                 size="xs"
               /><USelect
                 v-model="scanCategory"
-                :aria-label="t('scan.scanCategory')"
+                :aria-label="t('scan.filters.scanCategory')"
                 class="w-28"
                 :items="categories"
                 size="xs"
@@ -404,15 +411,17 @@ watch(scans, (): void => {
             <p class="text-sm text-muted">
               {{
                 !scans.length
-                  ? t('scan.startHint')
+                  ? t('scan.results.startHint')
                   : scanFilter === 'unmatched' && matchedScans === scans.length
-                    ? t('scan.allMatched')
-                    : t('scan.noScans')
+                    ? t('scan.results.allMatched')
+                    : t('scan.results.empty')
               }}
             </p>
           </div>
           <div class="shrink-0 border-t border-default px-3 py-1.5 text-[11px] text-muted">
-            {{ t('scan.scanCount', { visible: n(visibleScans.length), total: n(scans.length) }) }}
+            {{
+              t('scan.results.count', { visible: n(visibleScans.length), total: n(scans.length) })
+            }}
           </div>
         </section>
       </template>

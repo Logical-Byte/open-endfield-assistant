@@ -55,13 +55,13 @@ function dismissScanGuide(): void {
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">1.</span>
         <span
-          ><TranslationComponent :translation="t('scan.guide.open')"
+          ><TranslationComponent :translation="t('scan.guide.setup')"
             ><template #resolution><strong class="text-primary">1280 × 720</strong></template
             ><template #windowed
-              ><strong class="text-primary">{{ t('help.windowed') }}</strong></template
+              ><strong class="text-primary">{{ t('common.windowed') }}</strong></template
             ><template #language
               ><strong class="text-primary">{{
-                t('settings.language.game.fixed')
+                t('settings.language.game.name')
               }}</strong></template
             ></TranslationComponent
           ></span
@@ -70,9 +70,9 @@ function dismissScanGuide(): void {
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">2.</span>
         <span
-          ><TranslationComponent :translation="t('scan.guide.hdr')"
+          ><TranslationComponent :translation="t('scan.guide.disableHdr')"
             ><template #hdr
-              ><strong class="text-primary">{{ t('help.hdr.disable') }}</strong></template
+              ><strong class="text-primary">{{ t('common.disableHdr') }}</strong></template
             ></TranslationComponent
           ></span
         >
@@ -80,9 +80,11 @@ function dismissScanGuide(): void {
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">3.</span>
         <span
-          ><TranslationComponent :translation="t('scan.guide.archive')"
+          ><TranslationComponent :translation="t('scan.guide.openArchive')"
             ><template #archive
-              ><strong class="text-primary">{{ t('help.archive.main') }}</strong></template
+              ><strong class="text-primary">{{
+                t('help.archiveScan.archiveHome')
+              }}</strong></template
             ></TranslationComponent
           ></span
         >
@@ -90,9 +92,9 @@ function dismissScanGuide(): void {
       <li class="flex items-baseline gap-4">
         <span class="w-8 flex-none text-right text-primary">4.</span>
         <span
-          ><TranslationComponent :translation="t('scan.guide.scan')"
+          ><TranslationComponent :translation="t('scan.guide.startScan')"
             ><template #scan
-              ><strong class="text-primary">{{ t('help.scan.start') }}</strong></template
+              ><strong class="text-primary">{{ t('scan.start') }}</strong></template
             ></TranslationComponent
           ></span
         >
@@ -102,7 +104,9 @@ function dismissScanGuide(): void {
         <span
           ><TranslationComponent :translation="t('scan.guide.export')"
             ><template #export
-              ><strong class="text-primary">{{ t('help.export') }}</strong></template
+              ><strong class="text-primary">{{
+                t('help.archiveScan.exportButton')
+              }}</strong></template
             ></TranslationComponent
           ></span
         >
@@ -110,8 +114,8 @@ function dismissScanGuide(): void {
     </ol>
 
     <div class="flex flex-col items-center gap-4">
-      <UCheckbox v-model="dismissGuide" :label="t('scan.hideGuide')" />
-      <UButton :label="t('scan.gotIt')" size="sm" @click="dismissScanGuide" />
+      <UCheckbox v-model="dismissGuide" :label="t('scan.guide.hide')" />
+      <UButton :label="t('common.gotIt')" size="sm" @click="dismissScanGuide" />
     </div>
   </div>
 </template>

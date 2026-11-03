@@ -1,19 +1,32 @@
 {
-  "application": {
+  "app": {
     "description": "OEA 是开源免费的终末地小助手，支持档案查漏补缺和百趣演武自动抽。",
     "title": "OEA - 终末地小助手"
   },
   "common": {
+    "all": "全部",
+    "cancel": "取消",
+    "clear": "清空",
+    "close": "关闭",
+    "disableHdr": "关闭 HDR",
+    "dismiss": "知道了",
+    "download": "下载",
+    "gotIt": "我知道了",
+    "help": "帮助",
     "mirrorchyan": "Mirror酱",
-    "retrySave": "重试保存"
+    "restoreDefaults": "恢复默认值",
+    "retry": "重试",
+    "retrySave": "重试保存",
+    "viewLogs": "查看日志",
+    "windowed": "窗口模式"
   },
   "errors": {
     "automation": {
       "captureFailed": "无法截取游戏画面，请检查游戏窗口后重试。",
       "failed": "自动化任务失败，请查看日志。",
       "navigationFailed": "无法导航到所需游戏界面，请检查游戏画面并重试。",
-      "stoppedByUser": "自动化任务已被用户停止。",
-      "threadStartFailed": "无法启动自动化任务线程，请重试。"
+      "startFailed": "无法启动自动化任务线程，请重试。",
+      "stoppedByUser": "自动化任务已被用户停止。"
     },
     "game": {
       "hdrEnabled": "游戏所在显示器已开启 HDR，请关闭 HDR 后重试。",
@@ -61,94 +74,121 @@
     "allowEarlyStop": "命中条件后提前停止",
     "allowEarlyStopDescription": "铭牌不足五张时也可停止抽牌。",
     "blocked": "其他任务正在运行",
-    "clear": "清空",
-    "conditionPattern": "点数包含子串：{value}",
-    "conditionScore": "分数：{value} ≥ {{threshold}}",
-    "conditionSum": "战力点之和：{value} ≥ {{threshold}}",
-    "conditions": "当满足以下任意一个条件时，停止抽卡",
+    "conditions": {
+      "pattern": {
+        "condition": "点数包含子串：{value}",
+        "input": "点数子串（1 到 5 的数字，长度 1 到 5）",
+        "invalid": "请输入由 1 到 5 的数字组成、长度 1 到 5 的子串。",
+        "label": "点数包含子串",
+        "matched": "点数包含 {{pattern}}"
+      },
+      "required": "请至少启用一个停止条件。",
+      "score": {
+        "condition": "分数：{value} ≥ {{threshold}}",
+        "invalid": "请输入大于 0 的整数。",
+        "label": "分数大于等于",
+        "matched": "分数 {{score}} ≥ {{threshold}}",
+        "threshold": "分数阈值"
+      },
+      "sum": {
+        "condition": "战力点之和：{value} ≥ {{threshold}}",
+        "invalid": "请输入 1 到 25 之间的整数。",
+        "label": "战力点大于等于",
+        "matched": "战力点之和 {{total}} ≥ {{threshold}}",
+        "threshold": "战力点阈值（1 到 25）"
+      },
+      "title": "当满足以下任意一个条件时，停止抽牌"
+    },
     "dataplete": "{{rank}} {{suit}}",
-    "elapsed": "运行时间：",
-    "empty": "暂无命中记录。",
     "event": "活动",
     "failed": "百趣演武自动化失败",
     "guide": {
-      "arena": "终末地打开{screen}",
-      "confirm": "我知道了",
-      "hdr": "{hdr}，关闭性能监控软件",
-      "help": "查看教程",
-      "open": "打开终末地，设置为 {resolution} {windowed}、{language}",
-      "start": "点击{start}",
-      "target": "选择{targetHands}",
+      "disableHdr": "{hdr}，关闭性能监控软件",
+      "openArena": "终末地打开{screen}",
+      "selectTarget": "选择{targetHands}",
+      "setup": "打开终末地，设置为 {resolution} {windowed}、{language}",
+      "show": "查看教程",
+      "startDrawing": "点击{start}",
       "title": "使用教程"
     },
-    "handTotal": "牌型：{value}",
-    "hands": {
-      "flush": "同花",
-      "fullHouse": "葫芦",
-      "pair": "对子",
-      "quad": "四条",
-      "straight": "顺子",
-      "straightFlush": "同花顺",
-      "triplet": "三条",
-      "twoPair": "两对"
+    "hand": {
+      "label": "牌型：{value}",
+      "names": {
+        "flush": "同花",
+        "fullHouse": "葫芦",
+        "pair": "对子",
+        "quad": "四条",
+        "straight": "顺子",
+        "straightFlush": "同花顺",
+        "triplet": "三条",
+        "twoPair": "两对"
+      },
+      "none": "无牌型"
     },
-    "heading": "百趣演武",
-    "invalidPattern": "请输入由 1 到 5 的数字组成、长度 1 到 5 的子串。",
-    "invalidScore": "请输入大于 0 的整数。",
-    "invalidThreshold": "请输入 1 到 25 之间的整数。",
-    "luckyBadge": "好运加成 ×2",
-    "luckyHand": "今日好运组合：{{hand}}",
-    "matchedElapsed": "耗时：{{seconds}} 秒",
-    "matchedRound": "轮次：{{round}}",
-    "noHand": "无牌型",
-    "originalScreenshot": "原始截图",
-    "pattern": "点数包含子串",
-    "patternInput": "点数子串（1 到 5 的数字，长度 1 到 5）",
-    "patternMatched": "点数包含 {{pattern}}",
-    "results": "命中记录",
-    "round": "刷新轮次：",
-    "score": "分数大于等于",
-    "scoreMatched": "分数 {{score}} ≥ {{threshold}}",
-    "scoreThreshold": "分数阈值",
-    "scoreTotal": "分数：{{score}}",
-    "screenshot": "百趣演武命中截图",
-    "seconds": "{{count}} 秒",
-    "selectCondition": "请至少启用一个停止条件。",
-    "start": "开始抽卡",
-    "startSimulation": "开始模拟抽卡",
+    "history": {
+      "empty": "暂无命中记录。",
+      "title": "命中记录"
+    },
+    "lucky": {
+      "badge": "好运加成 ×2",
+      "hand": "今日好运组合：{{hand}}"
+    },
+    "matched": {
+      "elapsed": "耗时：{{seconds}} 秒",
+      "round": "轮次：{{round}}",
+      "score": "分数：{{score}}",
+      "total": "战力点之和：{{total}}"
+    },
+    "screenshot": {
+      "original": "原始截图",
+      "title": "百趣演武命中截图"
+    },
+    "simulate": "开始模拟抽牌",
+    "start": "开始抽牌",
     "stop": "停止自动化",
     "stopPreferences": "停止偏好",
     "stopping": "正在停止",
-    "suits": {
-      "bing": "饼",
-      "tiao": "条",
-      "wan": "万"
+    "suit": {
+      "names": {
+        "bing": "饼",
+        "tiao": "条",
+        "wan": "万"
+      }
     },
-    "sum": "战力点大于等于",
-    "sumMatched": "战力点之和 {{total}} ≥ {{threshold}}",
-    "threshold": "战力点阈值（1 到 25）",
-    "title": "百趣演武",
-    "total": "战力点之和：{{total}}"
+    "title": "百趣演武"
   },
   "help": {
-    "archive": {
-      "main": "档案库主界面"
+    "archiveScan": {
+      "archiveHome": "档案库主界面",
+      "export": "扫完点击{export}。",
+      "exportButton": "导出收集状态",
+      "openArchive": "终末地打开{archive}。",
+      "startScan": "点击{scan}，或按 {key}（引号键）。",
+      "tip": "理论上支持从协议终端、大世界和任意档案库界面开始扫描。为了稳定性，建议始终从{archive}开始扫描。",
+      "title": "档案查漏补缺"
+    },
+    "arena": {
+      "any": "任意一个",
+      "autoStop": "满足{any}目标后会自动停止抽牌。",
+      "chooseTargets": "选择{targetHands}。",
+      "open": "终末地打开{screen}。",
+      "screen": "百趣演武的抽牌界面",
+      "start": "点击{start}，或按 {key}（分号键）。",
+      "targetHands": "停止条件",
+      "title": "百趣演武自动抽"
     },
     "credits": {
       "endfieldMap": "终末地地图集",
-      "rapidOcrModels": "RapidOCR 模型",
-      "title": "致谢"
+      "rapidOcrModels": "RapidOCR 模型"
     },
     "disclaimer": {
       "acceptance": "使用本工具即意味着您同意以上全部内容。",
       "compliance": "使用者必须确保使用本工具符合相关法律法规与服务条款，禁止用于任何违法或侵权行为。",
       "recognition": "机器识别，可能存在错误。若发现错误，欢迎反馈。",
       "risk": "使用者需承担因使用本工具产生的任何风险、损失或责任。",
-      "title": "说明",
       "updates": "自动更新功能有删除硬盘上的文件的操作，请确保重要数据已备份再使用自动更新功能，避免误删重要文件。",
       "warranty": "本工具按 “原样”、“包含全部错误” 和 “视可用性情况” 提供，作者不对可用性、准确性或使用效果做出任何承诺或保证。"
     },
-    "export": "导出收集状态",
     "faq": {
       "accuracy": {
         "answer": "可以使用输入框进行人工纠错。建议将识别错误告知我们，以便改进识别算法。",
@@ -165,92 +205,75 @@
       "mobile": {
         "answer": "不能。OEA 仅支持 Windows 10 / 11（x86_64）。",
         "question": "手机能用吗？"
-      },
-      "title": "常见问题"
+      }
     },
     "feedback": {
       "group": "反馈交流群：954628501",
       "issue": "提交 GitHub Issue",
-      "logs": "遇到问题或建议，欢迎反馈并附上应用目录下 {directory} 中的日志文件，便于定位问题。",
-      "title": "反馈交流"
+      "logs": "遇到问题或建议，欢迎反馈并附上应用目录下 {directory} 中的日志文件，便于定位问题。"
     },
-    "gambleBattle": {
-      "any": "任意一个",
-      "conditions": "选择{targetHands}。",
-      "open": "终末地打开{screen}。",
-      "screen": "百趣演武的抽牌界面",
-      "start": "点击{start}，或按 {key}（分号键）。",
-      "stop": "满足{any}目标后会自动停止抽卡。",
-      "targetHands": "停止条件"
+    "gettingStarted": {
+      "disableOverlay": "{hdr}，关闭性能监控软件和任何会遮挡终末地窗口的软件。",
+      "recommended": "理论上支持任意 {ratio} 的分辨率，我们最建议使用 {resolution} {windowed}，这个分辨率可以兼顾准确性和性能。",
+      "setup": "打开终末地，设置为 {resolution} {windowed}、{language}。"
     },
-    "hdr": {
-      "disable": "关闭 HDR"
+    "sections": {
+      "archiveScan": "档案扫描",
+      "arena": "百趣演武",
+      "credits": "致谢",
+      "disclaimer": "说明",
+      "faq": "常见问题",
+      "feedback": "反馈交流",
+      "gettingStarted": "使用前准备",
+      "shortcuts": "快捷键"
     },
-    "scan": {
-      "start": "开始扫描"
-    },
-    "shortcut": {
-      "gambleBattle": "按 {key}（分号键）开始百趣演武自动抽牌，再次按下可停止。",
+    "shortcuts": {
+      "arena": "按 {key}（分号键）开始百趣演武自动抽牌，再次按下可停止。",
       "quit": "按 {keys} 退出程序。",
       "scan": "按 {key}（引号键）开始扫描档案库，扫描过程中再次按下可停止。"
-    },
-    "start": {
-      "archive": "档案查漏补缺",
-      "closeOverlay": "{hdr}，关闭性能监控软件和任何会遮挡终末地窗口的软件。",
-      "export": "扫完点击{export}。",
-      "gambleBattle": "百趣演武自动抽",
-      "nav": {
-        "archive": "档案扫描",
-        "gambleBattle": "百趣演武"
-      },
-      "open": "终末地打开{archive}。",
-      "preparation": "使用前准备",
-      "recommended": "理论上支持任意 {ratio} 的分辨率，我们最建议使用 {resolution} {windowed}，这个分辨率可以兼顾准确性和性能。",
-      "scan": "点击{scan}，或按 {key}（引号键）。",
-      "setup": "打开终末地，设置为 {resolution} {windowed}、{language}。",
-      "tip": "理论上支持从协议终端、大世界和任意档案库界面开始扫描。为了稳定性，建议始终从{archive}开始扫描。"
-    },
-    "usage": {
-      "title": "快捷键"
-    },
-    "windowed": "窗口模式"
+    }
   },
-  "image": {
+  "imageViewer": {
     "background": "更改背景颜色",
-    "close": "关闭",
-    "download": "下载",
-    "guide": {
-      "accelerate": "加速平移 / 旋转 / 缩放",
-      "actionKey": "操作键",
-      "advanced": "高级操作",
-      "download": "下载图像",
-      "drag": "拖动",
-      "inputMode": "快捷键请在英文输入法下使用",
-      "openTab": "新标签页打开",
-      "panImage": "平移图像",
-      "panView": "平移视图",
-      "preset": "缩放至预设大小",
-      "rotateCounterclockwise": "逆时针旋转 90°",
-      "rotation": "旋转控制",
-      "smoothRotation": "平滑旋转",
-      "smoothZoom": "平滑缩放",
-      "title": "快捷键与操作指南",
-      "view": "视图控制",
-      "wheel": "滚轮",
-      "zoom": "缩放控制",
-      "zoomImage": "缩放图像"
-    },
-    "help": "帮助",
     "openTab": "在新标签页中打开图像",
-    "reset": "重置视图",
+    "resetView": "重置视图",
     "rotateClockwise": "顺时针旋转 90°",
+    "shortcuts": {
+      "advanced": {
+        "accelerate": "加速平移 / 旋转 / 缩放",
+        "actionKey": "操作键",
+        "download": "下载图像",
+        "openTab": "新标签页打开",
+        "title": "高级操作"
+      },
+      "inputMode": "快捷键请在英文输入法下使用",
+      "rotation": {
+        "counterClockwise": "逆时针旋转 90°",
+        "smooth": "平滑旋转",
+        "title": "旋转控制"
+      },
+      "title": "快捷键与操作指南",
+      "view": {
+        "drag": "拖动",
+        "pan": "平移视图",
+        "panImage": "平移图像",
+        "title": "视图控制"
+      },
+      "zoom": {
+        "image": "缩放图像",
+        "preset": "缩放至预设大小",
+        "smooth": "平滑缩放",
+        "title": "缩放控制",
+        "wheel": "滚轮"
+      }
+    },
     "zoomIn": "放大",
     "zoomOut": "缩小"
   },
-  "log": {
+  "logs": {
     "clear": "清空日志",
     "empty": "暂无日志",
-    "levelFilter": "日志等级",
+    "level": "日志等级",
     "openDirectory": "打开日志文件目录"
   },
   "monitor": {
@@ -258,20 +281,16 @@
     "format": "截图格式",
     "frameRate": "截图帧率",
     "imageAlt": "游戏画面监控",
-    "openLogs": "查看日志",
     "running": "正以 {{fps}} FPS 监控。",
     "start": "开始监控",
     "stop": "停止监控",
     "updated": "正以 {{fps}} FPS 监控，最近更新于 {{time}}。"
   },
-  "navigation": {
+  "nav": {
     "back": "返回",
-    "help": "帮助",
     "logs": "日志",
-    "maps": "地图集",
     "menu": {
-      "description": "前往档案扫描、百趣演武、日志、监控、设置或帮助页面。",
-      "title": "导航菜单"
+      "label": "导航菜单"
     },
     "monitor": "监控",
     "scan": "档案扫描",
@@ -282,108 +301,123 @@
       "resizeHint": "拖动调整宽度，双击恢复默认宽度。也可使用左右方向键。",
       "unpin": "取消固定侧栏",
       "width": "侧栏宽度 {{width}}px"
-    },
-    "yituliu": "一图流"
+    }
   },
   "scan": {
     "acquisition": {
-      "auto": "自动解锁",
-      "invstgt": "报告摘要",
-      "map": "地图拾取",
-      "mission": "跟随任务",
-      "shop": "商店购买"
+      "title": "获取方式",
+      "unknown": "获取方式未知",
+      "values": {
+        "auto": "自动解锁",
+        "invstgt": "报告摘要",
+        "map": "地图拾取",
+        "mission": "跟随任务",
+        "shop": "商店购买"
+      }
     },
-    "acquisitionMethod": "获取方式",
-    "all": "全部",
-    "allArchives": "全部档案",
-    "allCategories": "全部分类",
-    "allMatched": "所有扫描结果都已匹配",
-    "archiveCategory": "档案分类",
-    "archiveCount": "显示 {{visible}} / {{total}} 份档案",
-    "assignment": "扫描记录 #{{id}} 已选择「{{title}}」",
-    "assignmentCleared": "扫描记录 #{{id}} 已设为未选择",
-    "automatic": "自动精确匹配",
+    "archive": {
+      "collapse": "收起档案：{{title}}",
+      "collectionStatus": "收集状态",
+      "contentPreview": "正文预览",
+      "expand": "展开档案：{{title}}",
+      "locateScan": "定位记录",
+      "viewIntel": "在情报站中查看",
+      "viewOem": "在OEM中查看"
+    },
+    "assignment": {
+      "hint": "搜索标题或选择推荐候选",
+      "noRecommendations": "没有推荐候选",
+      "recommendations": "推荐候选",
+      "reset": "清空并重新选择",
+      "title": "选择对应档案"
+    },
     "blocked": "其他自动化任务正在运行",
-    "cancelEdit": "放弃编辑",
-    "chooseArchive": "选择对应档案",
-    "chooseArchiveHint": "搜索标题或选择推荐候选",
-    "clear": "清空",
-    "clearResults": "清空扫描结果",
-    "collapseArchive": "收起档案：{{title}}",
-    "collected": "已收集",
-    "collectionStatus": "收集状态",
-    "confirmEdit": "确认编辑",
-    "contentPreview": "正文预览",
-    "editArchive": "编辑对应档案",
-    "editing": "编辑中",
-    "evidenceCount_other": "{{count}} 条关联扫描证据",
-    "expandArchive": "展开档案：{{title}}",
-    "export": "导出收集状态",
-    "exportDescription": "在浏览器打开 OEM 导入页面，携带当前目录的收集状态。",
-    "exportFailedDescription": "请重试，或在日志中查看失败原因。",
-    "exportFailedTitle": "无法打开 OEM 导入页面",
-    "exportSubmit": "导出到 OEM 地图集",
-    "exportTitle": "将当前收集状态导出到 OEM 地图集",
-    "exportTooltip": "将当前的收集状态导出到 OEM 地图集",
-    "exportWarningLabel": "查看未匹配扫描结果的导出提醒",
-    "exportWarning_other": "有 {{count}} 条扫描结果尚未匹配到已知档案。继续核对可能减少 “未收集” 的数量，让导出结果更准确。",
-    "failed": "扫描失败",
-    "filters": "目录筛选",
-    "gotIt": "我知道了",
-    "guide": {
-      "archive": "终末地打开{archive}",
-      "export": "扫完点击全部档案栏的{export}",
-      "hdr": "{hdr}，关闭性能监控软件",
-      "open": "打开终末地，设置为 {resolution} {windowed}、{language}",
-      "scan": "点击扫描结果栏的{scan}"
+    "catalog": {
+      "count": "显示 {{visible}} / {{total}} 份档案",
+      "empty": "当前筛选下没有档案",
+      "search": "搜索档案标题",
+      "title": "全部档案"
     },
-    "hasRecords": "有记录",
-    "hideGuide": "下次更新前不再提示",
-    "hideOcr": "收起 OCR 结果",
-    "linkedSummary_other": "扫描 #{{id}} 关联了 {{count}} 份档案",
-    "locateArchive": "定位档案",
-    "locateScan": "定位记录",
-    "logs": "前往日志页查看详情",
-    "manual": "人工选择",
-    "mapOnly": "仅显示可在地图拾取的档案",
-    "matched": "已匹配",
-    "matches_other": "{{count}} 个匹配",
-    "noArchives": "当前筛选下没有档案",
-    "noEvidence": "暂无扫描证据，尚不能判断游戏中的收集状态",
-    "noRecommendations": "没有推荐候选",
-    "noRecords": "无记录",
-    "noScans": "当前筛选下没有扫描结果",
-    "noText": "未识别到文字",
-    "noTextShort": "无文字",
-    "notCollected": "未收集",
-    "ocr": "OCR 结果",
-    "ocrEmpty": "OCR 未识别到文字",
-    "ocrValue": "OCR 结果：{{text}}",
-    "recommendations": "推荐候选",
-    "reselectArchive": "清空并重新选择",
+    "error": {
+      "title": "扫描失败",
+      "viewLogs": "前往日志页查看详情"
+    },
+    "export": {
+      "action": "导出收集状态",
+      "description": "在浏览器打开 OEM 导入页面，携带当前目录的收集状态。",
+      "failed": {
+        "description": "请重试，或在日志中查看失败原因。",
+        "title": "无法打开 OEM 导入页面"
+      },
+      "submit": "导出到 OEM 地图集",
+      "title": "将当前收集状态导出到 OEM 地图集",
+      "tooltip": "将当前的收集状态导出到 OEM 地图集",
+      "warningTrigger": "查看未匹配扫描结果的导出提醒",
+      "warning_other": "有 {{count}} 条扫描结果尚未匹配到已知档案。继续核对可能减少 “未收集” 的数量，让导出结果更准确。"
+    },
+    "filters": {
+      "allCategories": "全部分类",
+      "archiveCategory": "档案分类",
+      "mapOnly": "仅显示可在地图拾取的档案",
+      "scanCategory": "扫描分类",
+      "title": "目录筛选"
+    },
+    "guide": {
+      "disableHdr": "{hdr}，关闭性能监控软件",
+      "export": "扫完点击全部档案栏的{export}",
+      "hide": "下次更新前不再提示",
+      "openArchive": "终末地打开{archive}",
+      "setup": "打开终末地，设置为 {resolution} {windowed}、{language}",
+      "startScan": "点击扫描结果栏的{scan}"
+    },
+    "ocr": {
+      "empty": "OCR 未识别到文字",
+      "hide": "收起 OCR 结果",
+      "noText": "未识别到文字",
+      "noTextShort": "无文字",
+      "show": "查看 OCR 结果",
+      "title": "OCR 结果",
+      "value": "OCR 结果：{{text}}"
+    },
+    "record": {
+      "assigned": "扫描记录 #{{id}} 已选择「{{title}}」",
+      "edit": {
+        "cancel": "放弃编辑",
+        "confirm": "确认编辑",
+        "start": "编辑对应档案",
+        "undo": "撤销编辑"
+      },
+      "editing": "编辑中",
+      "locateArchive": "定位档案",
+      "matching": {
+        "automatic": "自动精确匹配",
+        "manual": "人工选择"
+      },
+      "unassigned": "扫描记录 #{{id}} 已设为未选择",
+      "viewScreenshot": "查看完整档案截图"
+    },
     "resize": "调整全部档案与扫描结果宽度",
-    "results": "扫描结果",
-    "review": "待核对",
-    "scanCategory": "扫描分类",
-    "scanCount": "显示 {{visible}} / {{total}} 条记录",
+    "results": {
+      "allMatched": "所有扫描结果都已匹配",
+      "clear": "清空扫描结果",
+      "count": "显示 {{visible}} / {{total}} 条记录",
+      "empty": "当前筛选下没有扫描结果",
+      "search": "搜索扫描结果",
+      "searchTitle": "搜索识别或修正标题",
+      "startHint": "开始扫描后，结果会出现在这里",
+      "title": "扫描结果"
+    },
     "screenshot": "档案详情截图",
-    "searchArchive": "搜索档案标题",
-    "searchResults": "搜索扫描结果",
-    "searchTitle": "搜索识别或修正标题",
+    "simulate": "开始模拟扫描",
     "start": "开始扫描",
-    "startHint": "开始扫描后，结果会出现在这里",
-    "startSimulation": "开始模拟扫描",
+    "status": {
+      "collected": "已收集",
+      "matched": "已匹配",
+      "notCollected": "未收集",
+      "review": "待核对"
+    },
     "stop": "停止扫描",
-    "stopping": "正在停止扫描",
-    "undo": "撤销编辑",
-    "unknownAcquisition": "获取方式未知",
-    "unmatched": "未匹配",
-    "viewDetails": "查看详情",
-    "viewIntel": "在情报站中查看",
-    "viewLocation": "查看位置",
-    "viewOcr": "查看 OCR 结果",
-    "viewOem": "在OEM中查看",
-    "viewScreenshot": "查看完整档案截图"
+    "stopping": "正在停止扫描"
   },
   "settings": {
     "about": {
@@ -403,74 +437,76 @@
       "releaseNotes": "更新内容",
       "restart": "重启并更新到 {{version}}",
       "retryDownload": "重试下载",
-      "title": "关于 OEA",
       "update": "更新到 {{version}}",
       "updateBusy": "请先完成当前更新操作",
       "website": "官网"
     },
     "developer": {
-      "close": "关闭开发者选项",
       "description": "显示仅用于开发和故障排查的高级工具",
+      "disable": "关闭开发者选项",
+      "enable": "开启开发者选项",
       "install": {
         "button": "选择 .zip 文件安装包（开发者）",
         "description": "从给定的 .zip 更新包运行一次原地更新流程。支持增量包和全量包。",
         "title": "安装更新包"
       },
-      "open": "开启开发者选项",
-      "section": "开发者选项",
-      "simulate": {
-        "description": "用固定示例结果调试档案扫描页面，无需游戏窗口。约 20 秒完成，可随时停止。重启应用后关闭。",
-        "enable": "使用模拟扫描结果",
-        "title": "模拟档案扫描"
-      },
-      "simulateGambleBattle": {
+      "simulateArena": {
         "description": "无需游戏窗口即可模拟百趣演武。重启应用后关闭。",
         "enable": "使用模拟",
         "title": "模拟百趣演武"
+      },
+      "simulateScan": {
+        "description": "用固定示例结果调试档案扫描页面，无需游戏窗口。约 20 秒完成，可随时停止。重启应用后关闭。",
+        "enable": "使用模拟扫描结果",
+        "title": "模拟档案扫描"
       },
       "trace": {
         "empty": "相关日志"
       },
       "warning": "如果你不知道自己在做什么，请不要使用下面的选项"
     },
-    "initialize": {
-      "failed": {
-        "description": "自动更新和扫描提示暂时不会使用用户设置。",
-        "pageDescription": "无法从后端初始化设置。界面缩放和开发者功能仍可使用。",
-        "title": "设置初始化失败"
-      },
-      "open": "前往设置",
-      "retry": "重新初始化"
+    "initializeError": {
+      "openSettings": "前往设置",
+      "pageDescription": "无法从后端初始化设置。界面缩放和开发者功能仍可使用。",
+      "retry": "重新初始化",
+      "title": "设置初始化失败",
+      "toastDescription": "自动更新和扫描提示暂时不会使用用户设置。"
     },
     "interface": {
       "appearance": {
-        "modeDescription": "选择浅色、深色或跟随系统。",
-        "neutralDescription": "用于背景、文字与边框。",
-        "primaryDescription": "用于按钮、选中状态等强调元素。",
+        "accentColor": {
+          "description": "用于按钮、选中状态等强调元素。"
+        },
+        "colorMode": {
+          "description": "选择浅色、深色或跟随系统。"
+        },
+        "neutralColor": {
+          "description": "用于背景、文字与边框。"
+        },
         "reset": "仅恢复外观与颜色的默认值",
-        "section": "外观与颜色"
+        "title": "外观与颜色"
       },
       "behavior": {
-        "section": "窗口与提示"
+        "title": "窗口与提示"
       },
       "fonts": {
         "reset": "仅恢复字体的默认值",
-        "section": "字体"
+        "title": "字体"
       },
       "guide": {
         "description": "进入档案扫描页时显示操作指引，关闭后若无更新则不再提示，可随时重新开启",
         "title": "显示新手操作提示"
       },
-      "restoreDefaults": "恢复默认值",
       "scale": {
         "description": "设置应用窗口的缩放比例，影响所有界面元素的大小",
         "title": "缩放比例"
       },
-      "section": "界面设置",
       "shape": {
-        "radiusDescription": "调整按钮、输入框等控件的圆角。",
+        "radius": {
+          "description": "调整按钮、输入框等控件的圆角。"
+        },
         "reset": "仅恢复形状与缩放的默认值",
-        "section": "形状与缩放"
+        "title": "形状与缩放"
       },
       "tray": {
         "description": "点击窗口关闭按钮时隐藏到系统托盘而不是退出，可通过托盘菜单或 Alt+Delete 退出",
@@ -484,21 +520,24 @@
       },
       "game": {
         "description": "设置为与终末地游戏中使用的语言一致。这会影响自动化任务的运行，也会影响 OEA 应用中显示的部分自动化结果。",
-        "fixed": "简体中文",
+        "name": "简体中文",
         "title": "游戏语言",
         "warning": "开发中：目前仅支持简体中文"
-      },
-      "section": "语言设置",
-      "shortcut": "语言设置 / Language"
-    },
-    "save": {
-      "failed": {
-        "description": "已保留当前编辑，应用仍使用最近一次成功保存的设置。",
-        "title": "设置未保存"
       }
     },
+    "saveError": {
+      "description": "已保留当前编辑，应用仍使用最近一次成功保存的设置。",
+      "title": "设置未保存"
+    },
+    "sections": {
+      "about": "关于 OEA",
+      "developer": "开发者选项",
+      "interface": "界面设置",
+      "language": "语言设置",
+      "sound": "声音设置",
+      "update": "更新设置"
+    },
     "sound": {
-      "section": "声音设置",
       "volume": {
         "description": "档案扫描或百趣演武开始、完成、失败或被停止时播放提示音",
         "title": "自动化提示音音量"
@@ -526,11 +565,6 @@
         "title": "Mirror酱 CDK",
         "unreadable": "已保存的 CDK 无法解密，可重新输入或清除。"
       },
-      "check": {
-        "button": "检查更新",
-        "description": "通过更新服务检查是否存在可用更新",
-        "title": "手动检查更新"
-      },
       "developmentBuild": "OEA dev 版本已禁用更新。",
       "mirror": {
         "free": "OEA 本身不收取任何费用，也提供免费的下载渠道。您可以前往 {releases} 免费下载和使用。",
@@ -547,7 +581,6 @@
         "description": "自定义代理服务器地址，例如 http://127.0.0.1:7890",
         "title": "代理地址"
       },
-      "section": "更新设置",
       "source": {
         "description": "选择从哪个源下载新版本",
         "title": "更新源"
@@ -555,9 +588,9 @@
     }
   },
   "theme": {
-    "change": "更改主题",
-    "chineseFont": "中文字体",
-    "color": {
+    "accentColor": "主题色",
+    "colorMode": "颜色模式",
+    "colors": {
       "amber": "琥珀黄",
       "black": "玄墨黑",
       "blue": "霜月蓝",
@@ -587,42 +620,41 @@
       "yellow": "鎏金黄",
       "zinc": "铅华灰"
     },
-    "colorMode": "颜色模式",
+    "cornerRadius": "圆角大小",
     "cornerShape": "圆角形状",
-    "englishFont": "英文字体",
-    "font": {
-      "browser": "（浏览器默认）",
-      "system": "（系统默认）",
-      "useChinese": "（使用中文字体）"
+    "fonts": {
+      "chinese": "中文字体",
+      "defaults": {
+        "browser": "（浏览器默认）",
+        "system": "（系统默认）",
+        "useChinese": "（使用中文字体）"
+      },
+      "english": "英文字体",
+      "monospace": "等宽字体"
     },
-    "mode": {
+    "modes": {
       "auto": "跟随系统",
       "dark": "深色模式",
       "light": "浅色模式"
     },
-    "monospaceFont": "等宽字体",
-    "neutral": "中性色",
-    "primary": "主题色",
-    "radius": {
+    "neutralColor": "中性色",
+    "radii": {
       "large": "大",
       "larger": "较大",
       "medium": "中",
       "none": "无",
-      "small": "小",
-      "title": "圆角大小"
+      "small": "小"
     },
-    "reset": "重置主题",
-    "shape": {
+    "shapes": {
       "bevel": "斜切",
       "notch": "内凹",
       "round": "标准",
       "smooth": "平滑",
       "soft": "柔和"
     },
-    "toggleMode": "切换颜色模式"
+    "toggleColorMode": "切换颜色模式"
   },
   "update": {
-    "cancel": "取消",
     "check": {
       "action": "检查更新",
       "available": "发现新版本",
@@ -630,8 +662,6 @@
       "failed": "检查更新失败",
       "upToDate": "当前已是最新版本"
     },
-    "close": "关闭",
-    "dismiss": "知道了",
     "download": {
       "cancelling": "正在取消…",
       "completed": "下载完成",
@@ -640,7 +670,8 @@
       "etaMinutes_other": "还需约 {{count}} 分钟。",
       "etaSeconds_other": "还需约 {{count}} 秒。",
       "failed": "下载失败",
-      "progress": "已下载 {{percent}}，速度为 {{speed}}。"
+      "progress": "已下载 {{percent}}，速度为 {{speed}}。",
+      "start": "立即更新"
     },
     "install": {
       "action": "立即安装",
@@ -654,24 +685,20 @@
       "taskRunning": "自动化任务运行中"
     },
     "notice": "检测到新版本：{{version}}",
-    "now": "立即更新",
+    "openSettings": "更新设置",
     "releaseNotes": {
       "empty": "暂无更新日志",
       "title": "更新日志"
     },
-    "retry": "重试",
-    "settings": "更新设置",
-    "stage": {
+    "stages": {
       "cleanup": "清理临时文件",
       "extracting": "解压更新包",
       "full": "应用全量更新",
       "incremental": "应用增量更新",
       "preparing": "准备更新文件"
-    },
-    "viewLogs": "查看日志"
+    }
   },
   "window": {
-    "close": "关闭",
     "maximize": "最大化",
     "minimize": "最小化",
     "restore": "还原"

@@ -187,7 +187,7 @@ export function formatBackendError(facts: ErrorFacts): string {
   switch (facts.operation) {
     case 'automation': {
       const error = facts.error;
-      if (error.scope === 'runtime') return t('errors.automation.threadStartFailed');
+      if (error.scope === 'runtime') return t('errors.automation.startFailed');
       switch (error.kind) {
         case 'capability':
           switch (error.reason.kind) {

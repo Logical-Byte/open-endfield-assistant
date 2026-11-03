@@ -124,12 +124,12 @@ onBeforeUnmount(stopResetScroll);
     <UPageBody class="my-0! space-y-2" :data-settings-section="activeSectionId">
       <UAlert
         v-if="settingsInitializeError"
-        :actions="[{ label: t('settings.initialize.retry'), onClick: initOeaSettings }]"
+        :actions="[{ label: t('settings.initializeError.retry'), onClick: initOeaSettings }]"
         class="w-full"
         color="error"
-        :description="t('settings.initialize.failed.pageDescription')"
+        :description="t('settings.initializeError.pageDescription')"
         icon="i-lucide-circle-alert"
-        :title="t('settings.initialize.failed.title')"
+        :title="t('settings.initializeError.title')"
         variant="subtle"
       />
       <UAlert
@@ -146,14 +146,14 @@ onBeforeUnmount(stopResetScroll);
         :actions="[{ label: t('common.retrySave'), onClick: retrySettingsSave }]"
         class="w-full"
         color="error"
-        :description="t('settings.save.failed.description')"
-        :title="t('settings.save.failed.title')"
+        :description="t('settings.saveError.description')"
+        :title="t('settings.saveError.title')"
       />
       <AboutOEA v-if="activeSectionId === 'about'" />
       <SettingsCard
         v-if="activeSectionId === 'language'"
         icon="i-lucide-languages"
-        :title="t('settings.language.section')"
+        :title="t('settings.sections.language')"
       >
         <SettingsItem
           :description="t('settings.language.application.description')"
@@ -187,7 +187,7 @@ onBeforeUnmount(stopResetScroll);
       <SettingsCard
         v-if="activeSectionId === 'interface'"
         icon="i-lucide-panels-top-left"
-        :title="t('settings.interface.behavior.section')"
+        :title="t('settings.interface.behavior.title')"
       >
         <SettingsItem
           :description="t('settings.interface.tray.description')"
@@ -206,7 +206,7 @@ onBeforeUnmount(stopResetScroll);
       <SettingsCard
         v-if="activeSectionId === 'sound'"
         icon="i-lucide-headphones"
-        :title="t('settings.sound.section')"
+        :title="t('settings.sections.sound')"
       >
         <SettingsItem
           :description="t('settings.sound.volume.description')"
@@ -226,7 +226,7 @@ onBeforeUnmount(stopResetScroll);
       <SettingsCard
         v-if="activeSectionId === 'update'"
         icon="i-lucide-download"
-        :title="t('settings.update.section')"
+        :title="t('settings.sections.update')"
       >
         <SettingsItem
           :description="t('settings.update.source.description')"

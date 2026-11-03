@@ -33,11 +33,11 @@ export interface ArchiveScanView {
 }
 
 const acquisitionLabels: Record<AcquisitionMethod, MessageKey> = {
-  map: 'scan.acquisition.map',
-  mission: 'scan.acquisition.mission',
-  auto: 'scan.acquisition.auto',
-  shop: 'scan.acquisition.shop',
-  invstgt: 'scan.acquisition.invstgt',
+  map: 'scan.acquisition.values.map',
+  mission: 'scan.acquisition.values.mission',
+  auto: 'scan.acquisition.values.auto',
+  shop: 'scan.acquisition.values.shop',
+  invstgt: 'scan.acquisition.values.invstgt',
 };
 
 /** 两种展示数据共享一次匹配计算，档案目录始终来自真实目录。 */

@@ -274,7 +274,7 @@ fn valid_pattern(pattern: &str) -> bool {
 }
 
 impl Conditions {
-    /// 启动前校验，避免没有停止条件的抽卡循环。
+    /// 启动前校验，避免没有停止条件的抽牌循环。
     pub(crate) fn validate(&self) -> Result<(), &'static str> {
         if self
             .sum

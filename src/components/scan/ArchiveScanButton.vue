@@ -24,7 +24,7 @@ async function toggleScan(): Promise<CommandResult | undefined> {
   } catch (error: unknown) {
     const facts = normalizeBackendError(error, { operation: 'automation' });
     toast.add({ color: 'error' }, () => ({
-      title: t('scan.failed'),
+      title: t('scan.error.title'),
       description: formatBackendError(facts),
     }));
   }
@@ -36,7 +36,7 @@ const scanButtonLabel: ComputedRef<string> = computed((): string => {
   if (phase.value === 'running') {
     return t('scan.stop');
   }
-  return archiveScanWorkerType.value === 'simulation' ? t('scan.startSimulation') : t('scan.start');
+  return archiveScanWorkerType.value === 'simulation' ? t('scan.simulate') : t('scan.start');
 });
 </script>
 

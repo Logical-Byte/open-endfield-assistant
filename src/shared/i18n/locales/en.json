@@ -1,19 +1,32 @@
 {
-  "application": {
+  "app": {
     "description": "OEA is a free, open-source Endfield assistant for finding missing archives and auto-drawing cards in Arena of Games.",
     "title": "OEA - Open Endfield Assistant"
   },
   "common": {
+    "all": "All",
+    "cancel": "Cancel",
+    "clear": "Clear",
+    "close": "Close",
+    "disableHdr": "Disable HDR",
+    "dismiss": "Got it",
+    "download": "Download",
+    "gotIt": "Got it",
+    "help": "Help",
     "mirrorchyan": "MirrorChyan",
-    "retrySave": "Retry saving"
+    "restoreDefaults": "Restore defaults",
+    "retry": "Retry",
+    "retrySave": "Retry saving",
+    "viewLogs": "View logs",
+    "windowed": "windowed mode"
   },
   "errors": {
     "automation": {
       "captureFailed": "Unable to capture the game. Check the game window and try again.",
       "failed": "Automation failed. Please check the logs.",
       "navigationFailed": "Unable to navigate to the required game screen. Check the game screen and try again.",
-      "stoppedByUser": "Automation was stopped by the user.",
-      "threadStartFailed": "Unable to start the automation worker. Please try again."
+      "startFailed": "Unable to start the automation worker. Please try again.",
+      "stoppedByUser": "Automation was stopped by the user."
     },
     "game": {
       "hdrEnabled": "HDR is enabled on the game display. Turn off HDR and try again.",
@@ -61,95 +74,121 @@
     "allowEarlyStop": "Stop early when a condition is met",
     "allowEarlyStopDescription": "Allow stopping with fewer than five datapletes.",
     "blocked": "Another task is running",
-    "clear": "Clear",
-    "conditionPattern": "BP pattern contains: {value}",
-    "conditionScore": "Score: {value} ≥ {{threshold}}",
-    "conditionSum": "Total BP: {value} ≥ {{threshold}}",
-    "conditions": "Stop drawing when any of the following conditions is met",
+    "conditions": {
+      "pattern": {
+        "condition": "BP pattern contains: {value}",
+        "input": "BP sequence (digits 1 to 5, length 1 to 5)",
+        "invalid": "Enter 1 to 5 digits from 1 to 5.",
+        "label": "BP sequence contains a substring",
+        "matched": "BP sequence contains {{pattern}}"
+      },
+      "required": "Enable at least one stop condition.",
+      "score": {
+        "condition": "Score: {value} ≥ {{threshold}}",
+        "invalid": "Enter a whole number greater than 0.",
+        "label": "Score at least",
+        "matched": "Score {{score}} ≥ {{threshold}}",
+        "threshold": "Score threshold"
+      },
+      "sum": {
+        "condition": "Total BP: {value} ≥ {{threshold}}",
+        "invalid": "Enter a whole number from 1 to 25.",
+        "label": "Total BP at least",
+        "matched": "Total BP {{total}} ≥ {{threshold}}",
+        "threshold": "BP threshold (1 to 25)"
+      },
+      "title": "Stop drawing when any of the following conditions is met"
+    },
     "dataplete": "{{rank}} {{suit}}",
-    "elapsed": "Elapsed: ",
-    "empty": "No matches yet.",
     "event": "Event",
     "failed": "Arena of Games automation failed",
     "guide": {
-      "arena": "Open {screen} in Endfield.",
-      "confirm": "Got it",
-      "hdr": "{hdr} and turn off performance monitoring software.",
-      "help": "Show tutorial",
-      "open": "Open Endfield and set {resolution} {windowed} and {language}.",
-      "start": "Select {start}.",
-      "target": "Choose {targetHands}.",
+      "disableHdr": "{hdr} and turn off performance monitoring software.",
+      "openArena": "Open {screen} in Endfield.",
+      "selectTarget": "Choose {targetHands}.",
+      "setup": "Open Endfield and set {resolution} {windowed} and {language}.",
+      "show": "Show tutorial",
+      "startDrawing": "Select {start}.",
       "title": "How to use"
     },
-    "handTotal": "Hand: {value}",
-    "hands": {
-      "flush": "Flush",
-      "fullHouse": "Full House",
-      "pair": "Pair",
-      "quad": "Quad",
-      "straight": "Straight",
-      "straightFlush": "Straight Flush",
-      "triplet": "Triplet",
-      "twoPair": "Two Pair"
+    "hand": {
+      "label": "Hand: {value}",
+      "names": {
+        "flush": "Flush",
+        "fullHouse": "Full House",
+        "pair": "Pair",
+        "quad": "Quad",
+        "straight": "Straight",
+        "straightFlush": "Straight Flush",
+        "triplet": "Triplet",
+        "twoPair": "Two Pair"
+      },
+      "none": "No hand"
     },
-    "heading": "Arena of Games",
-    "invalidPattern": "Enter 1 to 5 digits from 1 to 5.",
-    "invalidScore": "Enter a whole number greater than 0.",
-    "invalidThreshold": "Enter a whole number from 1 to 25.",
-    "luckyBadge": "Lucky bonus ×2",
-    "luckyHand": "Today's lucky hand: {{hand}}",
-    "matchedElapsed": "Elapsed: {{seconds}} seconds",
-    "matchedRound": "Round: {{round}}",
-    "noHand": "No hand",
-    "originalScreenshot": "Original screenshot",
-    "pattern": "BP sequence contains a substring",
-    "patternInput": "BP sequence (digits 1 to 5, length 1 to 5)",
-    "patternMatched": "BP sequence contains {{pattern}}",
-    "results": "Match history",
-    "round": "Round: ",
-    "score": "Score at least",
-    "scoreMatched": "Score {{score}} ≥ {{threshold}}",
-    "scoreThreshold": "Score threshold",
-    "scoreTotal": "Score: {{score}}",
-    "screenshot": "Arena of Games matching screenshot",
-    "seconds_one": "{{count}} second",
-    "seconds_other": "{{count}} seconds",
-    "selectCondition": "Enable at least one stop condition.",
+    "history": {
+      "empty": "No matches yet.",
+      "title": "Match history"
+    },
+    "lucky": {
+      "badge": "Lucky bonus ×2",
+      "hand": "Today's lucky hand: {{hand}}"
+    },
+    "matched": {
+      "elapsed": "Elapsed: {{seconds}} seconds",
+      "round": "Round: {{round}}",
+      "score": "Score: {{score}}",
+      "total": "Total BP: {{total}}"
+    },
+    "screenshot": {
+      "original": "Original screenshot",
+      "title": "Arena of Games matching screenshot"
+    },
+    "simulate": "Start simulation",
     "start": "Start drawing",
-    "startSimulation": "Start simulation",
     "stop": "Stop automation",
     "stopPreferences": "Stopping preferences",
     "stopping": "Stopping",
-    "suits": {
-      "bing": "Bing",
-      "tiao": "Tiao",
-      "wan": "Wan"
+    "suit": {
+      "names": {
+        "bing": "Bing",
+        "tiao": "Tiao",
+        "wan": "Wan"
+      }
     },
-    "sum": "Total BP at least",
-    "sumMatched": "Total BP {{total}} ≥ {{threshold}}",
-    "threshold": "BP threshold (1 to 25)",
-    "title": "Arena of Games",
-    "total": "Total BP: {{total}}"
+    "title": "Arena of Games"
   },
   "help": {
-    "archive": {
-      "main": "archive library home screen"
+    "archiveScan": {
+      "archiveHome": "archive library home screen",
+      "export": "When the scan finishes, select {export}.",
+      "exportButton": "Export collection status",
+      "openArchive": "Open the {archive} in Endfield.",
+      "startScan": "Select {scan}, or press {key} (apostrophe).",
+      "tip": "Scanning can start from the protocol terminal, the open world or any archive library screen. For stability, always start from the {archive}.",
+      "title": "Finding missing archives"
+    },
+    "arena": {
+      "any": "any",
+      "autoStop": "Drawing stops automatically once {any} target is met.",
+      "chooseTargets": "Choose {targetHands}.",
+      "open": "Open {screen} in Endfield.",
+      "screen": "the Arena of Games card draw screen",
+      "start": "Select {start}, or press {key} (semicolon).",
+      "targetHands": "the stop conditions",
+      "title": "Arena of Games auto-drawing"
     },
     "credits": {
       "endfieldMap": "Open Endfield Map",
-      "rapidOcrModels": "RapidOCR models",
-      "title": "Acknowledgements"
+      "rapidOcrModels": "RapidOCR models"
     },
     "disclaimer": {
       "acceptance": "By using this tool, you agree to all of the above.",
       "compliance": "You must ensure that your use complies with applicable laws and terms of service. Illegal activity and infringement are prohibited.",
       "recognition": "Automated recognition may produce errors. Please report any errors you find.",
       "risk": "You assume all risks, losses and liabilities arising from use of this tool.",
-      "title": "Disclaimer",
       "updates": "Automatic updates delete files on disk. Back up important data before using automatic updates to avoid accidental loss.",
       "warranty": "This tool is provided “as is”, “with all faults” and “as available”. The authors make no promises or warranties regarding availability, accuracy or results."
     },
-    "export": "Export collection status",
     "faq": {
       "accuracy": {
         "answer": "Use the input fields to correct recognition results manually. Please report recognition errors so we can improve the recognition.",
@@ -166,92 +205,75 @@
       "mobile": {
         "answer": "No. OEA only supports Windows 10 / 11 (x86_64).",
         "question": "Can I use OEA on a phone?"
-      },
-      "title": "Frequently asked questions"
+      }
     },
     "feedback": {
       "group": "QQ feedback group: 954628501",
       "issue": "Open a GitHub issue",
-      "logs": "Please send us issues and suggestions with log files from {directory} in the application directory to help diagnose problems.",
-      "title": "Feedback"
+      "logs": "Please send us issues and suggestions with log files from {directory} in the application directory to help diagnose problems."
     },
-    "gambleBattle": {
-      "any": "any",
-      "conditions": "Choose {targetHands}.",
-      "open": "Open {screen} in Endfield.",
-      "screen": "the Arena of Games card draw screen",
-      "start": "Select {start}, or press {key} (semicolon).",
-      "stop": "Drawing stops automatically once {any} target is met.",
-      "targetHands": "the stop conditions"
+    "gettingStarted": {
+      "disableOverlay": "{hdr} and close performance monitoring software and any software that covers the Endfield window.",
+      "recommended": "Any {ratio} resolution is supported in theory. We recommend {resolution} {windowed} for a balance of accuracy and performance.",
+      "setup": "Open Endfield and set the game to {resolution} {windowed} and {language}."
     },
-    "hdr": {
-      "disable": "Disable HDR"
+    "sections": {
+      "archiveScan": "Archive Scan",
+      "arena": "Arena of Games",
+      "credits": "Acknowledgements",
+      "disclaimer": "Disclaimer",
+      "faq": "Frequently asked questions",
+      "feedback": "Feedback",
+      "gettingStarted": "Before you start",
+      "shortcuts": "Shortcuts"
     },
-    "scan": {
-      "start": "Start scan"
-    },
-    "shortcut": {
-      "gambleBattle": "Press {key} (semicolon) to start Arena of Games auto-drawing. Press it again to stop.",
+    "shortcuts": {
+      "arena": "Press {key} (semicolon) to start Arena of Games auto-drawing. Press it again to stop.",
       "quit": "Press {keys} to quit the application.",
       "scan": "Press {key} (apostrophe) to start scanning the archive library. Press it again while scanning to stop."
-    },
-    "start": {
-      "archive": "Finding missing archives",
-      "closeOverlay": "{hdr} and close performance monitoring software and any software that covers the Endfield window.",
-      "export": "When the scan finishes, select {export}.",
-      "gambleBattle": "Arena of Games auto-drawing",
-      "nav": {
-        "archive": "Archive Scan",
-        "gambleBattle": "Arena of Games"
-      },
-      "open": "Open the {archive} in Endfield.",
-      "preparation": "Before you start",
-      "recommended": "Any {ratio} resolution is supported in theory. We recommend {resolution} {windowed} for a balance of accuracy and performance.",
-      "scan": "Select {scan}, or press {key} (apostrophe).",
-      "setup": "Open Endfield and set the game to {resolution} {windowed} and {language}.",
-      "tip": "Scanning can start from the protocol terminal, the open world or any archive library screen. For stability, always start from the {archive}."
-    },
-    "usage": {
-      "title": "Shortcuts"
-    },
-    "windowed": "windowed mode"
+    }
   },
-  "image": {
+  "imageViewer": {
     "background": "Change background color",
-    "close": "Close",
-    "download": "Download",
-    "guide": {
-      "accelerate": "Speed up panning, rotation and zoom",
-      "actionKey": "Action key",
-      "advanced": "Advanced controls",
-      "download": "Download image",
-      "drag": "Drag",
-      "inputMode": "Use an English keyboard input mode for shortcuts.",
-      "openTab": "Open in a new tab",
-      "panImage": "Pan image",
-      "panView": "Pan view",
-      "preset": "Zoom to preset size",
-      "rotateCounterclockwise": "Rotate 90° counterclockwise",
-      "rotation": "Rotation controls",
-      "smoothRotation": "Rotate smoothly",
-      "smoothZoom": "Zoom smoothly",
-      "title": "Keyboard shortcuts and controls",
-      "view": "View controls",
-      "wheel": "Scroll",
-      "zoom": "Zoom controls",
-      "zoomImage": "Zoom image"
-    },
-    "help": "Help",
     "openTab": "Open image in a new tab",
-    "reset": "Reset view",
+    "resetView": "Reset view",
     "rotateClockwise": "Rotate 90° clockwise",
+    "shortcuts": {
+      "advanced": {
+        "accelerate": "Speed up panning, rotation and zoom",
+        "actionKey": "Action key",
+        "download": "Download image",
+        "openTab": "Open in a new tab",
+        "title": "Advanced controls"
+      },
+      "inputMode": "Use an English keyboard input mode for shortcuts.",
+      "rotation": {
+        "counterClockwise": "Rotate 90° counterclockwise",
+        "smooth": "Rotate smoothly",
+        "title": "Rotation controls"
+      },
+      "title": "Keyboard shortcuts and controls",
+      "view": {
+        "drag": "Drag",
+        "pan": "Pan view",
+        "panImage": "Pan image",
+        "title": "View controls"
+      },
+      "zoom": {
+        "image": "Zoom image",
+        "preset": "Zoom to preset size",
+        "smooth": "Zoom smoothly",
+        "title": "Zoom controls",
+        "wheel": "Scroll"
+      }
+    },
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out"
   },
-  "log": {
+  "logs": {
     "clear": "Clear logs",
     "empty": "No logs yet",
-    "levelFilter": "Log level",
+    "level": "Log level",
     "openDirectory": "Open log folder"
   },
   "monitor": {
@@ -259,20 +281,16 @@
     "format": "Screenshot format",
     "frameRate": "Capture frame rate",
     "imageAlt": "Game window monitor",
-    "openLogs": "View logs",
     "running": "Monitoring at {{fps}} FPS.",
     "start": "Start monitoring",
     "stop": "Stop monitoring",
     "updated": "Monitoring at {{fps}} FPS. Last updated at {{time}}."
   },
-  "navigation": {
+  "nav": {
     "back": "Back",
-    "help": "Help",
     "logs": "Logs",
-    "maps": "Maps",
     "menu": {
-      "description": "Open archive scanning, Arena of Games, logs, monitor, settings or help.",
-      "title": "Navigation menu"
+      "label": "Navigation menu"
     },
     "monitor": "Monitor",
     "scan": "Archive scanning",
@@ -283,112 +301,124 @@
       "resizeHint": "Drag to resize. Double-click to reset. You can also use the left and right arrow keys.",
       "unpin": "Unpin sidebar",
       "width": "Sidebar width {{width}}px"
-    },
-    "yituliu": "Yituliu"
+    }
   },
   "scan": {
     "acquisition": {
-      "auto": "Automatic unlock",
-      "invstgt": "Report summary",
-      "map": "Map pickup",
-      "mission": "Mission",
-      "shop": "Shop purchase"
+      "title": "Acquisition method",
+      "unknown": "Unknown acquisition method",
+      "values": {
+        "auto": "Automatic unlock",
+        "invstgt": "Report summary",
+        "map": "Map pickup",
+        "mission": "Mission",
+        "shop": "Shop purchase"
+      }
     },
-    "acquisitionMethod": "Acquisition method",
-    "all": "All",
-    "allArchives": "All archives",
-    "allCategories": "All categories",
-    "allMatched": "All scan results are matched",
-    "archiveCategory": "Archive category",
-    "archiveCount": "Showing {{visible}} of {{total}} archives",
-    "assignment": "Scan #{{id}} assigned to “{{title}}”",
-    "assignmentCleared": "Scan #{{id}} left unassigned",
-    "automatic": "Automatic exact match",
+    "archive": {
+      "collapse": "Collapse archive: {{title}}",
+      "collectionStatus": "Collection status",
+      "contentPreview": "Content preview",
+      "expand": "Expand archive: {{title}}",
+      "locateScan": "Locate scan",
+      "viewIntel": "View in Intel Station",
+      "viewOem": "View in OEM"
+    },
+    "assignment": {
+      "hint": "Search titles or choose a recommendation",
+      "noRecommendations": "No recommended archives",
+      "recommendations": "Recommended archives",
+      "reset": "Clear and choose again",
+      "title": "Choose the corresponding archive"
+    },
     "blocked": "Another automation task is running",
-    "cancelEdit": "Discard edit",
-    "chooseArchive": "Choose the corresponding archive",
-    "chooseArchiveHint": "Search titles or choose a recommendation",
-    "clear": "Clear",
-    "clearResults": "Clear scan results",
-    "collapseArchive": "Collapse archive: {{title}}",
-    "collected": "Collected",
-    "collectionStatus": "Collection status",
-    "confirmEdit": "Confirm edit",
-    "contentPreview": "Content preview",
-    "editArchive": "Edit the corresponding archive",
-    "editing": "Editing",
-    "evidenceCount_one": "{{count}} linked scan",
-    "evidenceCount_other": "{{count}} linked scans",
-    "expandArchive": "Expand archive: {{title}}",
-    "export": "Export collection",
-    "exportDescription": "Open the OEM import page in your browser with the current collection status.",
-    "exportFailedDescription": "Try again or check the logs for details.",
-    "exportFailedTitle": "Unable to open the OEM import page",
-    "exportSubmit": "Export to OEM",
-    "exportTitle": "Export collection status to OEM",
-    "exportTooltip": "Export current collection status to OEM",
-    "exportWarningLabel": "View export warning for unmatched scans",
-    "exportWarning_one": "{{count}} scan has no matching archive yet. Reviewing it may reduce the uncollected count and improve the export.",
-    "exportWarning_other": "{{count}} scans have no matching archive yet. Reviewing them may reduce the uncollected count and improve the export.",
-    "failed": "Scan failed",
-    "filters": "Catalog filters",
-    "gotIt": "Got it",
-    "guide": {
-      "archive": "Open the {archive} in Endfield.",
-      "export": "After scanning, select {export} in the all archives pane.",
-      "hdr": "{hdr} and turn off performance monitoring software.",
-      "open": "Open Endfield and set {resolution} {windowed} and {language}.",
-      "scan": "Select {scan} in the scan results pane."
+    "catalog": {
+      "count": "Showing {{visible}} of {{total}} archives",
+      "empty": "No archives match these filters",
+      "search": "Search archive titles",
+      "title": "All archives"
     },
-    "hasRecords": "With evidence",
-    "hideGuide": "Hide until the next guide update",
-    "hideOcr": "Hide OCR result",
-    "linkedSummary_one": "Scan #{{id}} is linked to {{count}} archive",
-    "linkedSummary_other": "Scan #{{id}} is linked to {{count}} archives",
-    "locateArchive": "Locate archive",
-    "locateScan": "Locate scan",
-    "logs": "View details in logs",
-    "manual": "Manual selection",
-    "mapOnly": "Only archives found on the map",
-    "matched": "Matched",
-    "matches_one": "{{count}} match",
-    "matches_other": "{{count}} matches",
-    "noArchives": "No archives match these filters",
-    "noEvidence": "No scan evidence yet. In-game collection status is unknown.",
-    "noRecommendations": "No recommended archives",
-    "noRecords": "No evidence",
-    "noScans": "No scans match these filters",
-    "noText": "No text recognized",
-    "noTextShort": "No text",
-    "notCollected": "Not collected",
-    "ocr": "OCR result",
-    "ocrEmpty": "OCR recognized no text",
-    "ocrValue": "OCR result: {{text}}",
-    "recommendations": "Recommended archives",
-    "reselectArchive": "Clear and choose again",
+    "error": {
+      "title": "Scan failed",
+      "viewLogs": "View details in logs"
+    },
+    "export": {
+      "action": "Export collection",
+      "description": "Open the OEM import page in your browser with the current collection status.",
+      "failed": {
+        "description": "Try again or check the logs for details.",
+        "title": "Unable to open the OEM import page"
+      },
+      "submit": "Export to OEM",
+      "title": "Export collection status to OEM",
+      "tooltip": "Export current collection status to OEM",
+      "warningTrigger": "View export warning for unmatched scans",
+      "warning_one": "{{count}} scan has no matching archive yet. Reviewing it may reduce the uncollected count and improve the export.",
+      "warning_other": "{{count}} scans have no matching archive yet. Reviewing them may reduce the uncollected count and improve the export."
+    },
+    "filters": {
+      "allCategories": "All categories",
+      "archiveCategory": "Archive category",
+      "mapOnly": "Only archives found on the map",
+      "scanCategory": "Scan category",
+      "title": "Catalog filters"
+    },
+    "guide": {
+      "disableHdr": "{hdr} and turn off performance monitoring software.",
+      "export": "After scanning, select {export} in the all archives pane.",
+      "hide": "Hide until the next guide update",
+      "openArchive": "Open the {archive} in Endfield.",
+      "setup": "Open Endfield and set {resolution} {windowed} and {language}.",
+      "startScan": "Select {scan} in the scan results pane."
+    },
+    "ocr": {
+      "empty": "OCR recognized no text",
+      "hide": "Hide OCR result",
+      "noText": "No text recognized",
+      "noTextShort": "No text",
+      "show": "View OCR result",
+      "title": "OCR result",
+      "value": "OCR result: {{text}}"
+    },
+    "record": {
+      "assigned": "Scan #{{id}} assigned to “{{title}}”",
+      "edit": {
+        "cancel": "Discard edit",
+        "confirm": "Confirm edit",
+        "start": "Edit the corresponding archive",
+        "undo": "Undo edit"
+      },
+      "editing": "Editing",
+      "locateArchive": "Locate archive",
+      "matching": {
+        "automatic": "Automatic exact match",
+        "manual": "Manual selection"
+      },
+      "unassigned": "Scan #{{id}} left unassigned",
+      "viewScreenshot": "View full archive screenshot"
+    },
     "resize": "Resize archive and scan panes",
-    "results": "Scan results",
-    "review": "Needs review",
-    "scanCategory": "Scan category",
-    "scanCount": "Showing {{visible}} of {{total}} scans",
+    "results": {
+      "allMatched": "All scan results are matched",
+      "clear": "Clear scan results",
+      "count": "Showing {{visible}} of {{total}} scans",
+      "empty": "No scans match these filters",
+      "search": "Search scan results",
+      "searchTitle": "Search recognized or corrected titles",
+      "startHint": "Start a scan to see results here",
+      "title": "Scan results"
+    },
     "screenshot": "Archive screenshot",
-    "searchArchive": "Search archive titles",
-    "searchResults": "Search scan results",
-    "searchTitle": "Search recognized or corrected titles",
+    "simulate": "Start simulated scan",
     "start": "Start scan",
-    "startHint": "Start a scan to see results here",
-    "startSimulation": "Start simulated scan",
+    "status": {
+      "collected": "Collected",
+      "matched": "Matched",
+      "notCollected": "Not collected",
+      "review": "Needs review"
+    },
     "stop": "Stop scan",
-    "stopping": "Stopping scan",
-    "undo": "Undo edit",
-    "unknownAcquisition": "Unknown acquisition method",
-    "unmatched": "Unmatched",
-    "viewDetails": "View details",
-    "viewIntel": "View in Intel Station",
-    "viewLocation": "View location",
-    "viewOcr": "View OCR result",
-    "viewOem": "View in OEM",
-    "viewScreenshot": "View full archive screenshot"
+    "stopping": "Stopping scan"
   },
   "settings": {
     "about": {
@@ -408,74 +438,76 @@
       "releaseNotes": "What's new",
       "restart": "Restart and update to {{version}}",
       "retryDownload": "Retry download",
-      "title": "About OEA",
       "update": "Update to {{version}}",
       "updateBusy": "Complete the current update operation first",
       "website": "Website"
     },
     "developer": {
-      "close": "Hide developer options",
       "description": "Show advanced tools for development and troubleshooting.",
+      "disable": "Hide developer options",
+      "enable": "Show developer options",
       "install": {
         "button": "Select .zip update package (developer)",
         "description": "Install a local .zip update package in place. Supports incremental and full packages.",
         "title": "Install update package"
       },
-      "open": "Show developer options",
-      "section": "Developer options",
-      "simulate": {
-        "description": "Debug archive scanning with fixed example results, without a game window. Takes about 20 seconds and can be stopped at any time. Disabled after restarting the app.",
-        "enable": "Use simulated scan results",
-        "title": "Simulate archive scanning"
-      },
-      "simulateGambleBattle": {
+      "simulateArena": {
         "description": "Simulate Arena of Games without a game window. Disabled after restarting the app.",
         "enable": "Use simulation",
         "title": "Simulate Arena of Games"
+      },
+      "simulateScan": {
+        "description": "Debug archive scanning with fixed example results, without a game window. Takes about 20 seconds and can be stopped at any time. Disabled after restarting the app.",
+        "enable": "Use simulated scan results",
+        "title": "Simulate archive scanning"
       },
       "trace": {
         "empty": "Installation logs"
       },
       "warning": "Only use these options if you understand what they do."
     },
-    "initialize": {
-      "failed": {
-        "description": "Automatic updates and scan guidance cannot use your settings yet.",
-        "pageDescription": "Could not load settings from the backend. Interface scaling and developer features remain available.",
-        "title": "Could not initialize settings"
-      },
-      "open": "Open settings",
-      "retry": "Retry initialization"
+    "initializeError": {
+      "openSettings": "Open settings",
+      "pageDescription": "Could not load settings from the backend. Interface scaling and developer features remain available.",
+      "retry": "Retry initialization",
+      "title": "Could not initialize settings",
+      "toastDescription": "Automatic updates and scan guidance cannot use your settings yet."
     },
     "interface": {
       "appearance": {
-        "modeDescription": "Choose light, dark, or follow the system.",
-        "neutralDescription": "Used for backgrounds, text, and borders.",
-        "primaryDescription": "Used for buttons, selections, and other highlights.",
+        "accentColor": {
+          "description": "Used for buttons, selections, and other highlights."
+        },
+        "colorMode": {
+          "description": "Choose light, dark, or follow the system."
+        },
+        "neutralColor": {
+          "description": "Used for backgrounds, text, and borders."
+        },
         "reset": "Restore defaults for appearance and colors only",
-        "section": "Appearance and colors"
+        "title": "Appearance and colors"
       },
       "behavior": {
-        "section": "Window and hints"
+        "title": "Window and hints"
       },
       "fonts": {
         "reset": "Restore font defaults only",
-        "section": "Fonts"
+        "title": "Fonts"
       },
       "guide": {
         "description": "Show instructions when opening archive scanning. Dismissed instructions stay hidden until updated. You can enable them again at any time.",
         "title": "Show scanning instructions"
       },
-      "restoreDefaults": "Restore defaults",
       "scale": {
         "description": "Set the application window scale to change the size of all interface elements.",
         "title": "Interface scale"
       },
-      "section": "Interface",
       "shape": {
-        "radiusDescription": "Adjust the corners of buttons, inputs, and other controls.",
+        "radius": {
+          "description": "Adjust the corners of buttons, inputs, and other controls."
+        },
         "reset": "Restore shape and scale defaults only",
-        "section": "Shape and scale"
+        "title": "Shape and scale"
       },
       "tray": {
         "description": "Hide the window in the system tray when closed. Use the tray menu or Alt+Delete to quit.",
@@ -489,21 +521,24 @@
       },
       "game": {
         "description": "Configure the language that matches what the Endfield game is using. This will affect automation runs, and also affects some automation results shown in the OEA app.",
-        "fixed": "Simplified Chinese",
+        "name": "Simplified Chinese",
         "title": "Game language",
         "warning": "WIP: only simplified Chinese is supported for now"
-      },
-      "section": "Language",
-      "shortcut": "Language / 语言设置"
-    },
-    "save": {
-      "failed": {
-        "description": "Your edits are preserved. The application still uses the last successfully saved settings.",
-        "title": "Settings were not saved"
       }
     },
+    "saveError": {
+      "description": "Your edits are preserved. The application still uses the last successfully saved settings.",
+      "title": "Settings were not saved"
+    },
+    "sections": {
+      "about": "About OEA",
+      "developer": "Developer options",
+      "interface": "Interface",
+      "language": "Language",
+      "sound": "Sound",
+      "update": "Updates"
+    },
     "sound": {
-      "section": "Sound",
       "volume": {
         "description": "Play a sound when archive scanning or Arena of Games starts, completes, fails or stops.",
         "title": "Automation sound volume"
@@ -531,11 +566,6 @@
         "title": "MirrorChyan CDK",
         "unreadable": "The saved CDK could not be decrypted. Enter it again or clear it."
       },
-      "check": {
-        "button": "Check for updates",
-        "description": "Check the update service for available updates.",
-        "title": "Check for updates manually"
-      },
       "developmentBuild": "Updates are disabled in the OEA dev version.",
       "mirror": {
         "free": "OEA is free and also provides free downloads. Download and use it for free from {releases}.",
@@ -552,7 +582,6 @@
         "description": "Custom proxy server address, for example http://127.0.0.1:7890.",
         "title": "Proxy address"
       },
-      "section": "Updates",
       "source": {
         "description": "Choose where to download new versions.",
         "title": "Update source"
@@ -560,9 +589,9 @@
     }
   },
   "theme": {
-    "change": "Change theme",
-    "chineseFont": "Chinese font",
-    "color": {
+    "accentColor": "Accent color",
+    "colorMode": "Color mode",
+    "colors": {
       "amber": "Amber",
       "black": "Black",
       "blue": "Blue",
@@ -592,42 +621,41 @@
       "yellow": "Yellow",
       "zinc": "Zinc"
     },
-    "colorMode": "Color mode",
+    "cornerRadius": "Corner radius",
     "cornerShape": "Corner shape",
-    "englishFont": "English font",
-    "font": {
-      "browser": "Browser default",
-      "system": "System default",
-      "useChinese": "Use Chinese font"
+    "fonts": {
+      "chinese": "Chinese font",
+      "defaults": {
+        "browser": "Browser default",
+        "system": "System default",
+        "useChinese": "Use Chinese font"
+      },
+      "english": "English font",
+      "monospace": "Monospace font"
     },
-    "mode": {
+    "modes": {
       "auto": "System",
       "dark": "Dark",
       "light": "Light"
     },
-    "monospaceFont": "Monospace font",
-    "neutral": "Neutral color",
-    "primary": "Accent color",
-    "radius": {
+    "neutralColor": "Neutral color",
+    "radii": {
       "large": "Large",
       "larger": "Larger",
       "medium": "Medium",
       "none": "None",
-      "small": "Small",
-      "title": "Corner radius"
+      "small": "Small"
     },
-    "reset": "Reset theme",
-    "shape": {
+    "shapes": {
       "bevel": "Bevel",
       "notch": "Notch",
       "round": "Round",
       "smooth": "Smooth",
       "soft": "Soft"
     },
-    "toggleMode": "Toggle color mode"
+    "toggleColorMode": "Toggle color mode"
   },
   "update": {
-    "cancel": "Cancel",
     "check": {
       "action": "Check for updates",
       "available": "New version available",
@@ -635,8 +663,6 @@
       "failed": "Update check failed",
       "upToDate": "You are up to date"
     },
-    "close": "Close",
-    "dismiss": "Got it",
     "download": {
       "cancelling": "Cancelling…",
       "completed": "Download complete",
@@ -648,7 +674,8 @@
       "etaSeconds_one": "About {{count}} second remaining.",
       "etaSeconds_other": "About {{count}} seconds remaining.",
       "failed": "Download failed",
-      "progress": "Downloaded {{percent}} at {{speed}}."
+      "progress": "Downloaded {{percent}} at {{speed}}.",
+      "start": "Update now"
     },
     "install": {
       "action": "Install now",
@@ -662,24 +689,20 @@
       "taskRunning": "Automation task in progress"
     },
     "notice": "New version available: {{version}}",
-    "now": "Update now",
+    "openSettings": "Update settings",
     "releaseNotes": {
       "empty": "No release notes available.",
       "title": "Release notes"
     },
-    "retry": "Retry",
-    "settings": "Update settings",
-    "stage": {
+    "stages": {
       "cleanup": "Cleaning up temporary files",
       "extracting": "Extracting update package",
       "full": "Applying full update",
       "incremental": "Applying incremental update",
       "preparing": "Preparing update files"
-    },
-    "viewLogs": "View logs"
+    }
   },
   "window": {
-    "close": "Close",
     "maximize": "Maximize",
     "minimize": "Minimize",
     "restore": "Restore"
