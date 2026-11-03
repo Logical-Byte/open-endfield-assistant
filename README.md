@@ -1,16 +1,25 @@
+<p align="center">
+<img alt="OEA" src="https://cos.yituliu.cn/endfield/oea/assets/icon.png" width="256" height="256">
+</p>
+
+<div align="center">
+
 # OEA：终末地小助手
 
-[![Rust](https://img.shields.io/badge/Rust-1.99+-orange.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![Tauri](https://img.shields.io/badge/Tauri-2.x-purple.svg?logo=tauri&logoColor=white)](https://tauri.app/)
-[![Vue.js](https://img.shields.io/badge/Vue.js-3.x-green.svg?logo=vue.js)](https://vuejs.org/)
-[![Nuxt UI](https://img.shields.io/badge/Nuxt%20UI-4.x-lightblue.svg?logo=nuxtdotjs&logoColor=white)](https://ui.nuxt.com/)
+[![Rust](https://img.shields.io/badge/Rust-orange.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Tauri](https://img.shields.io/badge/Tauri-purple.svg?logo=tauri&logoColor=white)](https://tauri.app/)
+[![Vue.js](https://img.shields.io/badge/Vue.js-darkgreen.svg?logo=vue.js&logoColor=white)](https://vuejs.org/)
+[![Nuxt UI](https://img.shields.io/badge/Nuxt%20UI-green.svg?logo=nuxt&logoColor=white)](https://ui.nuxt.com/)
+[![Release](https://img.shields.io/github/v/release/Logical-Byte/open-endfield-assistant?label=release)](https://github.com/Logical-Byte/open-endfield-assistant/releases/latest)
 [![反馈交流群](https://img.shields.io/badge/反馈交流群-954628501-orange.svg?logo=qq)](https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms)
 [![官网](https://img.shields.io/badge/官网-终末地一图流-yellow.svg)](https://ef.yituliu.cn/resources/oea)
 
-> 想参与开发？请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+</div>
 
 - [OEA 官网（下载最新版）](https://ef.yituliu.cn/resources/oea)
 - [反馈交流群：954628501](https://qm.qq.com/cgi-bin/qm/qr?k=khxbEudh62jRo1KzV_ZnnGqM3Ueq6Yms)
+
+> 想参与开发？请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 OEA 是开源免费的终末地小助手，支持**档案查漏补缺**和**百趣演武自动抽**。
 

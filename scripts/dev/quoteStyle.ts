@@ -3,7 +3,7 @@
  * pnpm quote:fix：删除引号内侧的多余空格、按规则补齐或删除外侧空格后写回文件。
  * 规则见 docs/rule-frontend.md 的「引号与空格」。检查范围为 docs、src、src-tauri、scripts
  * 以及仓库根目录的 Markdown。代码块、行内代码、`resources/` 下的游戏数据、逐字记录游戏原文的
- * 文档和含 ❌ 的反例行不参与。
+ * 文档、HTML 标签和含 ❌ 的反例行不参与。
  * 发现问题时输出位置与原因并以非零状态退出。
  */
 import { readdir, readFile, writeFile } from 'node:fs/promises';
@@ -77,12 +77,25 @@ function findClosingTicks(line: string, from: number, length: number): number {
   return -1;
 }
 
+/** 将代码、HTML 标签与自然语言拆开，避免改写非自然语言内容。 */
 function splitSpans(line: string, maskCode: boolean): Span[] {
   if (!maskCode) return [{ text: line, isCode: false, offset: 0 }];
   const spans: Span[] = [];
   let plainStart = 0;
   let index = 0;
   while (index < line.length) {
+    // HTML 属性中的引号属于语法，不应被当作自然语言引号检查。
+    if (line[index] === '<' && /<\/?[A-Za-z][^>]*>/u.test(line.slice(index))) {
+      const closing = line.indexOf('>', index + 1);
+      if (closing !== -1) {
+        if (plainStart < index)
+          spans.push({ text: line.slice(plainStart, index), isCode: false, offset: plainStart });
+        spans.push({ text: line.slice(index, closing + 1), isCode: true, offset: index });
+        index = closing + 1;
+        plainStart = index;
+        continue;
+      }
+    }
     if (line[index] !== '`') {
       index++;
       continue;
@@ -124,6 +137,7 @@ function isExample(line: string): boolean {
 }
 
 function markFences(lines: string[], extension: string): boolean[] {
+  // Markdown 围栏代码块中的内容保持原样，不参与引号检查或修复。
   let fence = false;
   return lines.map((line) => {
     if (extension !== '.md') return false;
@@ -151,6 +165,7 @@ function processProse(
   checkStraightQuotes: boolean,
   repair: boolean,
 ): { text: string; problems: Problem[] } {
+  // 检查模式只收集问题，修复模式则同时构造替换后的文本。
   const { text, offset } = span;
   const output: string[] = [];
   const problems: Problem[] = [];
@@ -200,6 +215,7 @@ function processProse(
 }
 
 async function main(): Promise<void> {
+  // 根目录 Markdown 与指定源码目录共同构成检查范围。
   const files: string[] = [];
   for (const entry of await readdir(root, { withFileTypes: true }))
     if (entry.isFile() && entry.name.endsWith('.md')) files.push(join(root, entry.name));
