@@ -97,7 +97,7 @@
         "matched": "战力点之和 {{total}} ≥ {{threshold}}",
         "threshold": "战力点阈值（1 到 25）"
       },
-      "title": "当满足以下任意一个条件时，停止抽卡"
+      "title": "当满足以下任意一个条件时，停止抽牌"
     },
     "dataplete": "{{rank}} {{suit}}",
     "event": "活动",
@@ -143,8 +143,8 @@
       "original": "原始截图",
       "title": "百趣演武命中截图"
     },
-    "simulate": "开始模拟抽卡",
-    "start": "开始抽卡",
+    "simulate": "开始模拟抽牌",
+    "start": "开始抽牌",
     "stop": "停止自动化",
     "stopPreferences": "停止偏好",
     "stopping": "正在停止",
@@ -169,7 +169,7 @@
     },
     "arena": {
       "any": "任意一个",
-      "autoStop": "满足{any}目标后会自动停止抽卡。",
+      "autoStop": "满足{any}目标后会自动停止抽牌。",
       "chooseTargets": "选择{targetHands}。",
       "open": "终末地打开{screen}。",
       "screen": "百趣演武的抽牌界面",
