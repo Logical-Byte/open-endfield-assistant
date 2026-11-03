@@ -328,11 +328,8 @@ pub(crate) fn classify(cards: &[Card]) -> Option<HandKind> {
             .filter(|card| usize::from(card.rank) == i + 1)
             .count()
     });
-    let flush = [Suit::Bing, Suit::Tiao, Suit::Wan]
-        .iter()
-        .any(|&suit| cards.iter().filter(|card| card.suit == suit).count() >= 4);
-    if counts.iter().all(|&count| count == 1) && cards.iter().all(|card| card.suit == cards[0].suit)
-    {
+    let flush = cards.len() >= 4 && cards.iter().all(|card| card.suit == cards[0].suit);
+    if counts.iter().all(|&count| count == 1) && flush {
         Some(HandKind::StraightFlush)
     } else if counts.iter().any(|&count| count >= 4) {
         Some(HandKind::Quad)
@@ -420,13 +417,114 @@ mod tests {
             classify(&cards([1, 2, 3, 4], [Suit::Bing; 4])),
             Some(HandKind::Flush)
         );
-        assert_eq!(
-            classify(&cards(
-                [1, 2, 3, 4, 5],
-                [Suit::Bing, Suit::Bing, Suit::Bing, Suit::Bing, Suit::Tiao]
-            )),
-            Some(HandKind::Flush)
-        );
+    }
+
+    #[test]
+    fn flush_requires_all_current_cards_to_share_a_suit() {
+        assert_eq!(classify(&[]), None);
+        for suit in [Suit::Bing, Suit::Tiao, Suit::Wan] {
+            let hand = cards([1, 1, 2, 3, 3], [suit; 5]);
+            assert_eq!(classify(&hand[..3]), Some(HandKind::Pair));
+            assert_eq!(classify(&hand[..4]), Some(HandKind::Flush));
+            assert_eq!(classify(&hand), Some(HandKind::Flush));
+            for other in [Suit::Bing, Suit::Tiao, Suit::Wan] {
+                if other == suit {
+                    continue;
+                }
+                for slot in 0..5 {
+                    let mut mixed = hand;
+                    mixed[slot].suit = other;
+                    assert_eq!(classify(&mixed), Some(HandKind::TwoPair));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn mixed_five_card_hands_do_not_match_flush_or_inflate_scores() {
+        let suits = [Suit::Bing, Suit::Bing, Suit::Bing, Suit::Bing, Suit::Tiao];
+        let conditions = Conditions {
+            straight_flush: true,
+            flush: true,
+            full_house: true,
+            score: Some(100_000),
+            ..Conditions::default()
+        };
+        for (ranks, expected, expected_score) in [
+            ([1, 2, 3, 4, 5], HandKind::Straight, 162_000),
+            ([1, 1, 2, 3, 3], HandKind::TwoPair, 56_000),
+            ([1, 1, 1, 3, 3], HandKind::FullHouse, 70_000),
+        ] {
+            let hand = cards(ranks, suits);
+            assert_eq!(classify(&hand), Some(expected));
+            assert_eq!(score(&hand, HandKind::Flush), expected_score);
+            let mut reasons = Vec::new();
+            if expected == HandKind::FullHouse {
+                reasons.push(StopReason::Hand { hand: expected });
+            }
+            if expected_score >= 100_000 {
+                reasons.push(StopReason::Score {
+                    threshold: 100_000,
+                    score: expected_score,
+                });
+            }
+            for early_stop in [false, true] {
+                let expected_reasons = if early_stop {
+                    &reasons[..reasons.len().min(1)]
+                } else {
+                    &reasons
+                };
+                assert_eq!(
+                    evaluate(&hand, &conditions, HandKind::Flush, early_stop),
+                    expected_reasons
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn flush_conditions_respect_current_cards_and_remaining_draws() {
+        let conditions = Conditions {
+            flush: true,
+            ..Conditions::default()
+        };
+        let lucky = HandKind::Pair;
+        let hand = cards([1, 1, 2, 3, 3], [Suit::Wan; 5]);
+        let reason = vec![StopReason::Hand {
+            hand: HandKind::Flush,
+        }];
+        for count in 1..=5 {
+            let expected = if count >= 4 {
+                reason.clone()
+            } else {
+                Vec::new()
+            };
+            assert_eq!(
+                evaluate(&hand[..count], &conditions, lucky, false),
+                expected
+            );
+            for allow_early_stop in [false, true] {
+                assert!(can_still_match(
+                    &hand[..count],
+                    &conditions,
+                    lucky,
+                    allow_early_stop
+                ));
+            }
+        }
+        let mut mixed = hand;
+        mixed[1].suit = Suit::Bing;
+        for count in 2..=5 {
+            assert!(evaluate(&mixed[..count], &conditions, lucky, false).is_empty());
+            for allow_early_stop in [false, true] {
+                assert!(!can_still_match(
+                    &mixed[..count],
+                    &conditions,
+                    lucky,
+                    allow_early_stop
+                ));
+            }
+        }
     }
 
     #[test]
