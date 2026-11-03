@@ -3,7 +3,7 @@
  * pnpm quote:fix：删除引号内侧的多余空格、按规则补齐或删除外侧空格后写回文件。
  * 规则见 docs/rule-frontend.md 的「引号与空格」。检查范围为 docs、src、src-tauri、scripts
  * 以及仓库根目录的 Markdown。代码块、行内代码、`resources/` 下的游戏数据、逐字记录游戏原文的
- * 文档和含 ❌ 的反例行不参与。
+ * 文档、HTML 标签和含 ❌ 的反例行不参与。
  * 发现问题时输出位置与原因并以非零状态退出。
  */
 import { readdir, readFile, writeFile } from 'node:fs/promises';
@@ -83,6 +83,17 @@ function splitSpans(line: string, maskCode: boolean): Span[] {
   let plainStart = 0;
   let index = 0;
   while (index < line.length) {
+    if (line[index] === '<' && /<\/?[A-Za-z][^>]*>/u.test(line.slice(index))) {
+      const closing = line.indexOf('>', index + 1);
+      if (closing !== -1) {
+        if (plainStart < index)
+          spans.push({ text: line.slice(plainStart, index), isCode: false, offset: plainStart });
+        spans.push({ text: line.slice(index, closing + 1), isCode: true, offset: index });
+        index = closing + 1;
+        plainStart = index;
+        continue;
+      }
+    }
     if (line[index] !== '`') {
       index++;
       continue;
