@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, type Ref } from 'vue';
-import { useColorMode } from '@vueuse/core';
-import { isTauri } from '@tauri-apps/api/core';
 import { useTheme } from '@/composables/useTheme';
-import { useAppI18n } from '@/shared/i18n';
-import { uiScale } from '@/features/appearance/uiScale';
 import type { FontOption } from '@/features/appearance/fonts';
-import type { SettingsItemState, SliderSettingsItem } from './settingsItem';
+import { uiScale } from '@/features/appearance/uiScale';
+import { useAppI18n } from '@/shared/i18n';
+import { isTauri } from '@tauri-apps/api/core';
+import { useColorMode } from '@vueuse/core';
+import { computed, type Ref } from 'vue';
 import SettingsCard from './SettingsCard.vue';
+import type { SettingsItemState, SliderSettingsItem } from './settingsItem';
 import SettingsItem from './SettingsItem.vue';
 import ThemeColorPicker from './ThemeColorPicker.vue';
 
@@ -55,7 +55,7 @@ const fontFields = computed<FontField[]>((): FontField[] => [
     icon: 'i-lucide-quote',
     value: chineseFont,
     options: chineseFontOptions.value,
-    sample: '受困者的录音，探索塔卫二的故事。',
+    sample: '关注逻辑元喵，关注逻辑元谢谢喵~',
   },
   {
     type: 'english',
