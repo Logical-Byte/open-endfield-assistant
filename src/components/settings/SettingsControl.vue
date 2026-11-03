@@ -27,6 +27,12 @@ const {
 
 // 保持 lazy 修饰符的引用稳定，避免内联 item 更新时 UInput 重渲染并清掉未提交的文本。
 const inputModelModifiers: { lazy: boolean } = { lazy: true };
+
+// 刻度标签按数值在滑块轨道上的百分比定位，中心与对应刻度对齐。
+function markOffset(min: number, max: number, mark: number): string {
+  const ratio = max === min ? 0 : (mark - min) / (max - min);
+  return `${Math.min(Math.max(ratio, 0), 1) * 100}%`;
+}
 </script>
 
 <template>
@@ -49,8 +55,15 @@ const inputModelModifiers: { lazy: boolean } = { lazy: true };
         :tooltip="item.tooltip"
         @update:model-value="updateSlider"
       />
-      <div v-if="item.marks" class="mt-1 flex justify-between text-xs text-dimmed tabular-nums">
-        <span v-for="mark in item.marks" :key="mark">{{ item.formatValue(mark) }}</span>
+      <!-- mx-2 让定位容器与滑块轨道可用区间一致：滑块 thumb 为 size-4，居中含 0.5rem 内缩。 -->
+      <div v-if="item.marks" class="relative mx-2 mt-1 h-4 text-xs text-dimmed tabular-nums">
+        <span
+          v-for="mark in item.marks"
+          :key="mark"
+          class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap"
+          :style="{ left: markOffset(item.min, item.max, mark) }"
+          >{{ item.formatValue(mark) }}</span
+        >
       </div>
     </div>
     <span class="text-end text-sm tabular-nums" :class="item.marks ? 'w-12 shrink-0' : 'w-10'">{{
