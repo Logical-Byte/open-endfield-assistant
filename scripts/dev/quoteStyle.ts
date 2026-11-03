@@ -77,12 +77,14 @@ function findClosingTicks(line: string, from: number, length: number): number {
   return -1;
 }
 
+/** 将代码、HTML 标签与自然语言拆开，避免改写非自然语言内容。 */
 function splitSpans(line: string, maskCode: boolean): Span[] {
   if (!maskCode) return [{ text: line, isCode: false, offset: 0 }];
   const spans: Span[] = [];
   let plainStart = 0;
   let index = 0;
   while (index < line.length) {
+    // HTML 属性中的引号属于语法，不应被当作自然语言引号检查。
     if (line[index] === '<' && /<\/?[A-Za-z][^>]*>/u.test(line.slice(index))) {
       const closing = line.indexOf('>', index + 1);
       if (closing !== -1) {
@@ -135,6 +137,7 @@ function isExample(line: string): boolean {
 }
 
 function markFences(lines: string[], extension: string): boolean[] {
+  // Markdown 围栏代码块中的内容保持原样，不参与引号检查或修复。
   let fence = false;
   return lines.map((line) => {
     if (extension !== '.md') return false;
@@ -162,6 +165,7 @@ function processProse(
   checkStraightQuotes: boolean,
   repair: boolean,
 ): { text: string; problems: Problem[] } {
+  // 检查模式只收集问题，修复模式则同时构造替换后的文本。
   const { text, offset } = span;
   const output: string[] = [];
   const problems: Problem[] = [];
@@ -211,6 +215,7 @@ function processProse(
 }
 
 async function main(): Promise<void> {
+  // 根目录 Markdown 与指定源码目录共同构成检查范围。
   const files: string[] = [];
   for (const entry of await readdir(root, { withFileTypes: true }))
     if (entry.isFile() && entry.name.endsWith('.md')) files.push(join(root, entry.name));
