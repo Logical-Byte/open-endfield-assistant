@@ -133,15 +133,31 @@ impl Window {
         }
     }
 
-    /// 将客户区移回显示器工作区，必要时缩小窗口。跳过最小化和最大化窗口。
-    pub fn ensure_on_screen(&self) -> anyhow::Result<()> {
+    /// 切换到窗口模式并等待客户区稳定到指定物理像素尺寸。
+    pub fn ensure_windowed_client_size(&self, width: i32, height: i32) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             let _dpi = windows::DpiContext::enter()?;
-            windows::window::ensure_window_on_screen(*self)
+            windows::validate(*self)?;
+            windows::window::ensure_windowed_client_size(*self, width, height)
         }
         #[cfg(not(windows))]
         {
+            let _ = (width, height);
+            Err(unsupported())
+        }
+    }
+
+    /// 将客户区移回显示器工作区，可选择保留尺寸。跳过最小化和最大化窗口。
+    pub fn ensure_on_screen(&self, preserve_size: bool) -> anyhow::Result<()> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::window::ensure_window_on_screen(*self, preserve_size)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = preserve_size;
             Err(unsupported())
         }
     }

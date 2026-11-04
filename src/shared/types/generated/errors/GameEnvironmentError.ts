@@ -5,12 +5,13 @@
  *
  * 由 `kind` 区分原因：
  * - `windowUnavailable`：未能取得游戏窗口或窗口尺寸。
+ * - `windowPreparationFailed`：未能自动将游戏调整为 1280×720 窗口模式。
  * - `hdrEnabled`：游戏显示器开启 HDR，截图颜色无法保证。
  * - `unsupportedResolution`：游戏窗口分辨率不支持，`width` / `height` 为观察到的像素尺寸。
  * - `windowSizeChanged`：当前截图尺寸与会话开始时不同，
  *   `expected_width` / `expected_height` 为原始尺寸，`actual_width` / `actual_height` 为当前尺寸。
  */
-export type GameEnvironmentError = { "kind": "windowUnavailable" } | { "kind": "hdrEnabled" } | { "kind": "unsupportedResolution", 
+export type GameEnvironmentError = { "kind": "windowUnavailable" } | { "kind": "windowPreparationFailed" } | { "kind": "hdrEnabled" } | { "kind": "unsupportedResolution", 
 /**
  * 观察到的游戏窗口宽度，单位像素。
  */

@@ -1,13 +1,13 @@
-use ::windows::Win32::Foundation::{POINT, RECT};
-use ::windows::Win32::Graphics::Gdi::{
+use anyhow::bail;
+use windows::Win32::Foundation::{POINT, RECT};
+use windows::Win32::Graphics::Gdi::{
     ClientToScreen, GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow,
 };
-use ::windows::Win32::UI::WindowsAndMessaging::{
+use windows::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetForegroundWindow, GetWindowRect, HWND_TOP, IsIconic, IsWindow, IsZoomed,
     SW_RESTORE, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
     SWP_SHOWWINDOW, SetForegroundWindow, SetWindowPos, ShowWindow,
 };
-use anyhow::bail;
 
 use crate::Window;
 
@@ -60,8 +60,8 @@ pub(crate) fn restore_window_if_minimized(window: Window) -> anyhow::Result<()> 
 
 /// Ensure the window's client area is fully visible on the monitor.
 /// If the window extends beyond the monitor bounds, move it back.
-/// If the client area is larger than the monitor, resize the window.
-pub(crate) fn ensure_window_on_screen(window: Window) -> anyhow::Result<()> {
+/// If the client area is larger than the monitor, resize unless its size must be preserved.
+pub(crate) fn ensure_window_on_screen(window: Window, preserve_size: bool) -> anyhow::Result<()> {
     let hwnd = window.raw;
     if hwnd.is_invalid() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
         bail!("Invalid window handle");
@@ -111,11 +111,11 @@ pub(crate) fn ensure_window_on_screen(window: Window) -> anyhow::Result<()> {
     let mut new_client_w = client_w;
     let mut new_client_h = client_h;
 
-    if new_client_w > monitor_w {
+    if !preserve_size && new_client_w > monitor_w {
         new_client_w = monitor_w;
         need_change = true;
     }
-    if new_client_h > monitor_h {
+    if !preserve_size && new_client_h > monitor_h {
         new_client_h = monitor_h;
         need_change = true;
     }
@@ -154,7 +154,13 @@ pub(crate) fn ensure_window_on_screen(window: Window) -> anyhow::Result<()> {
     let new_window_w = new_client_w + frame_left + frame_right;
     let new_window_h = new_client_h + frame_top + frame_bottom;
 
-    // SWP_ASYNCWINDOWPOS: avoid blocking if the target window's thread is busy/hung
+    // 固定尺寸模式只移动窗口，避免工作区高度不足或跨屏 DPI 变化意外触发缩放。
+    let flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS;
+    let flags = if preserve_size {
+        flags | SWP_NOSIZE
+    } else {
+        flags
+    };
     unsafe {
         SetWindowPos(
             hwnd,
@@ -163,7 +169,7 @@ pub(crate) fn ensure_window_on_screen(window: Window) -> anyhow::Result<()> {
             new_window_y,
             new_window_w,
             new_window_h,
-            SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS,
+            flags,
         )
     }?;
 

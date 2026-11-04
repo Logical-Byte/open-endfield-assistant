@@ -17,8 +17,7 @@
     "restoreDefaults": "Restore defaults",
     "retry": "Retry",
     "retrySave": "Retry saving",
-    "viewLogs": "View logs",
-    "windowed": "windowed mode"
+    "viewLogs": "View logs"
   },
   "errors": {
     "automation": {
@@ -31,6 +30,7 @@
     "game": {
       "hdrEnabled": "HDR is enabled on the game display. Turn off HDR and try again.",
       "unsupportedResolution": "The game resolution {{width}}×{{height}} is unsupported. Use a 16:9 resolution.",
+      "windowPreparationFailed": "Could not switch the game to 1280×720 windowed mode. Check the logs and try again.",
       "windowSizeChanged": "The game window changed from {{expectedWidth}}×{{expectedHeight}} to {{actualWidth}}×{{actualHeight}}. Start the task again.",
       "windowUnavailable": "The game window was not found. Open the game first."
     },
@@ -106,7 +106,7 @@
       "disableHdr": "{hdr} and turn off performance monitoring software.",
       "openArena": "Open {screen} in Endfield.",
       "selectTarget": "Choose {targetHands}.",
-      "setup": "Open Endfield and set {resolution} {windowed} and {language}.",
+      "setup": "Open Endfield and set the game language to {language}.",
       "show": "Show tutorial",
       "startDrawing": "Select {start}.",
       "title": "How to use"
@@ -214,8 +214,7 @@
     },
     "gettingStarted": {
       "disableOverlay": "{hdr} and close performance monitoring software and any software that covers the Endfield window.",
-      "recommended": "Any {ratio} resolution is supported in theory. We recommend {resolution} {windowed} for a balance of accuracy and performance.",
-      "setup": "Open Endfield and set the game to {resolution} {windowed} and {language}."
+      "setup": "Open Endfield and set the game language to {language}."
     },
     "sections": {
       "archiveScan": "Archive Scan",
@@ -368,7 +367,7 @@
       "export": "After scanning, select {export} in the all archives pane.",
       "hide": "Hide until the next guide update",
       "openArchive": "Open the {archive} in Endfield.",
-      "setup": "Open Endfield and set {resolution} {windowed} and {language}.",
+      "setup": "Open Endfield and set the game language to {language}.",
       "startScan": "Select {scan} in the scan results pane."
     },
     "ocr": {

@@ -56,9 +56,6 @@ function dismissScanGuide(): void {
         <span class="w-8 flex-none text-right text-primary">1.</span>
         <span
           ><TranslationComponent :translation="t('scan.guide.setup')"
-            ><template #resolution><strong class="text-primary">1280 × 720</strong></template
-            ><template #windowed
-              ><strong class="text-primary">{{ t('common.windowed') }}</strong></template
             ><template #language
               ><strong class="text-primary">{{
                 t('settings.language.game.name')

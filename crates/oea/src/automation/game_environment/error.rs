@@ -6,6 +6,7 @@ use ts_rs::TS;
 ///
 /// 由 `kind` 区分原因：
 /// - `windowUnavailable`：未能取得游戏窗口或窗口尺寸。
+/// - `windowPreparationFailed`：未能自动将游戏调整为 1280×720 窗口模式。
 /// - `hdrEnabled`：游戏显示器开启 HDR，截图颜色无法保证。
 /// - `unsupportedResolution`：游戏窗口分辨率不支持，`width` / `height` 为观察到的像素尺寸。
 /// - `windowSizeChanged`：当前截图尺寸与会话开始时不同，
@@ -15,6 +16,7 @@ use ts_rs::TS;
 #[ts(export, export_to = "errors/", rename = "GameEnvironmentError")]
 pub enum Error {
     WindowUnavailable,
+    WindowPreparationFailed,
     HdrEnabled,
     UnsupportedResolution {
         /// 观察到的游戏窗口宽度，单位像素。
@@ -38,6 +40,9 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::WindowUnavailable => write!(f, "未找到游戏窗口，请先打开游戏"),
+            Self::WindowPreparationFailed => {
+                write!(f, "自动调整游戏为 1280×720 窗口模式失败，请查看日志后重试")
+            }
             Self::HdrEnabled => write!(f, "游戏所在显示器已开启 HDR，请关闭后重试"),
             Self::UnsupportedResolution { width, height } => {
                 write!(f, "游戏分辨率 {width}×{height} 不支持，期待 16:9 分辨率")

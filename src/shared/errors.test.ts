@@ -31,6 +31,25 @@ it('嵌套能力错误保留尺寸事实，已有错误随语言切换重新展�
   );
 });
 
+it('窗口自动调整失败保留原因并提供本地化提示', async () => {
+  const facts = normalizeBackendError(
+    {
+      scope: 'worker',
+      kind: 'capability',
+      reason: { kind: 'gameEnvironment', reason: { kind: 'windowPreparationFailed' } },
+    },
+    { operation: 'automation' },
+  );
+  expect(facts.error).not.toBeNull();
+  expect(formatBackendError(facts)).toBe(
+    '自动调整游戏为 1280×720 窗口模式失败，请查看日志后重试。',
+  );
+  await i18n.changeLanguage('en-US');
+  expect(formatBackendError(facts)).toBe(
+    'Could not switch the game to 1280×720 windowed mode. Check the logs and try again.',
+  );
+});
+
 it('嵌套环境事实缺少尺寸时使用操作级提示，不插入无效参数', async () => {
   await i18n.changeLanguage('zh-CN');
   vi.spyOn(console, 'error').mockImplementation(() => {});
