@@ -5,7 +5,7 @@
 ## 工具链
 
 - 在仓库根目录运行 Cargo workspace 命令。默认成员为 `oea`，CLI 使用 `-p oea-cli` 显式选择。检查全部 Rust 代码时使用 `--workspace --all-features`，不能仅依赖默认成员。
-- 依赖版本统一声明在根 `Cargo.toml` 的 `[workspace.dependencies]`，各 crate 通过 `workspace = true` 继承。按需启用的 feature 和平台条件保留在使用依赖的 crate 中。
+- 仅供一个 crate 使用的依赖在该 crate 的 `Cargo.toml` 中声明。多个 crate 使用同一依赖时，再将版本提取到根 `Cargo.toml` 的 `[workspace.dependencies]`，通过 `workspace = true` 继承。按需启用的 feature 和平台条件保留在使用依赖的 crate 中。
 - 使用 `cargo add` 和 `cargo remove` 管理依赖。除非兼容性要求必须锁定版本，否则让 Cargo 选择版本。
 
 ## 编译、检查与测试
