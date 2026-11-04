@@ -108,3 +108,7 @@ OEA 是开源免费的终末地小助手，支持**档案查漏补缺**和**百�
 4. 使用者必须确保使用本工具符合相关法律法规与服务条款，禁止用于任何违法或侵权行为。
 5. 使用者需承担因使用本工具产生的任何风险、损失或责任。
 6. 使用本工具即意味着您同意以上全部内容。
+
+## LICENSE
+
+OEA 的代码、脚本和文档以 [AGPL-3.0](LICENSE) 协议开源。`resources/` 由独立仓库通过 submodule 管理，其许可与代码仓库相互独立，详见 [resources/README.md](https://github.com/Logical-Byte/oea-resource/blob/main/README.md)。
