@@ -31,11 +31,9 @@ pub(super) fn connect() -> Result<Connection, commands::Error> {
 
         let environment = game_environment::connect(game_environment::Requirements::default())
             .map_err(anyhow::Error::new)?;
-        let transform =
-            ResolutionTransform::new(environment.resolution).map_err(anyhow::Error::new)?;
         Ok(Connection {
             window: environment.window,
-            transform,
+            transform: environment.transform,
         })
     }
     #[cfg(not(windows))]

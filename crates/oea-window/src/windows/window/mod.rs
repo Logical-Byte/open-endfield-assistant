@@ -1,3 +1,4 @@
+mod content;
 mod get_window;
 pub(crate) mod hdr;
 #[allow(dead_code)]
@@ -5,6 +6,7 @@ mod window_info;
 mod window_mode;
 mod window_operation;
 
+pub(crate) use content::{content_rect, ensure_viewport_content_size};
 pub(crate) use get_window::search;
 pub(crate) use window_info::get_client_rect;
 pub(crate) use window_mode::{ensure_windowed, resize_windowed_client};
