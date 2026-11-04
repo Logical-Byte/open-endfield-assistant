@@ -1,20 +1,46 @@
-//! 音效播放接口。
+//! 跨平台音效播放（rodio 实现，支持音量调节）。
+//!
+//! 全局持有一个默认输出流（保活到应用退出；输出流被 drop 播放即停），
+//! 每次播放将解码后的音源直接混入输出流：`Mixer::add` 即播即忘、播完自动释放。
+//! 音量通过 `amplify` 逐样本增益实现，由 [`crate::settings::OeaSettings::sound_volume`] 设置。
 
 use std::path::Path;
+use std::{fs::File, io::BufReader, sync::OnceLock};
 
-#[cfg(target_os = "windows")]
-use super::windows;
+use rodio::{Decoder, DeviceSinkBuilder, MixerDeviceSink, source::Source};
+use tracing::{debug, warn};
+
+/// 全局默认输出流（首次播放时懒初始化，保活到进程退出）。
+static OUTPUT_SINK: OnceLock<Option<MixerDeviceSink>> = OnceLock::new();
+
+/// 将 `canonicalize` 产生的 verbatim 路径转换为便于阅读的日志路径。
+fn path_for_log(path: &Path) -> String {
+    let path = path.display().to_string();
+    if let Some(path) = path.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{path}")
+    } else {
+        path.strip_prefix(r"\\?\").unwrap_or(&path).to_owned()
+    }
+}
 
 /// 播放 wav 音效文件（异步，立即返回；`volume` 取值 0.0–1.0）。
-/// macOS 开发外壳不执行任何操作。
 pub fn play_wav(path: &Path, volume: f32) {
-    #[cfg(target_os = "windows")]
-    {
-        windows::sound::play_wav(path, volume);
-    }
-
-    #[cfg(unix)]
-    {
-        let _ = (path, volume);
+    let sink = OUTPUT_SINK
+        .get_or_init(|| DeviceSinkBuilder::open_default_sink().ok())
+        .as_ref();
+    let Some(sink) = sink else {
+        warn!("打开默认音频输出设备失败，跳过音效: {}", path_for_log(path));
+        return;
+    };
+    let Ok(file) = File::open(path) else {
+        warn!("音效文件不存在: {}", path_for_log(path));
+        return;
+    };
+    match Decoder::try_from(BufReader::new(file)) {
+        Ok(source) => {
+            sink.mixer().add(source.amplify(volume.clamp(0.0, 1.0)));
+            debug!("播放音效: {}", path_for_log(path));
+        }
+        Err(e) => warn!("解码音效失败 ({}): {e}", path_for_log(path)),
     }
 }
