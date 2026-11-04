@@ -14,4 +14,4 @@ pub use pixel_rect::PixelRect;
 
 pub mod ocr;
 pub mod statistics;
-pub mod template_matching;
+pub mod template;

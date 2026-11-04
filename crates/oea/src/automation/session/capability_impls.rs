@@ -73,7 +73,7 @@ impl TemplateMatching for Session {
         screenshot: &RgbaImage,
         target: &TemplateTarget,
     ) -> Result<Option<TemplateMatch>, capabilities::Error> {
-        let matched = vision::template_matching::match_template(
+        let matched = vision::template::match_(
             &vision::ImageRegion::new(screenshot, target.roi.into()).map_err(|error| {
                 debug!(roi = ?target.roi, error = ?error, "模板匹配区域无效");
                 capabilities::Error::ExecutionFailed

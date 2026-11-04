@@ -18,10 +18,7 @@ use super::ccoeff;
 /// 使用已加载的模板在已校验的区域内搜索。
 ///
 /// 结果区域始终相对于原图，而非区域视图。
-pub fn match_template<I, T>(
-    search: &ImageRegion<'_, I>,
-    template: &T,
-) -> anyhow::Result<MatchResult>
+pub fn match_<I, T>(search: &ImageRegion<'_, I>, template: &T) -> anyhow::Result<MatchResult>
 where
     I: GenericImageView,
     I::Pixel: Pixel<Subpixel = u8>,

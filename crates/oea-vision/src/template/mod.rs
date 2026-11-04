@@ -4,4 +4,4 @@
 mod ccoeff;
 mod matching;
 
-pub use matching::{MatchResult, match_template};
+pub use matching::{MatchResult, match_};

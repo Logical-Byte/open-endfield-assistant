@@ -83,8 +83,7 @@ impl Recognizer {
                 screenshot,
                 Region2D::from_ltrb(x + 10, 269, x + 130, 305).into(),
             )?;
-            if vision::template_matching::match_template(&empty_region, &self.empty)?.score >= 0.85
-            {
+            if vision::template::match_(&empty_region, &self.empty)?.score >= 0.85 {
                 empty_seen = true;
                 continue;
             }
@@ -98,8 +97,7 @@ impl Recognizer {
                 .ranks
                 .iter()
                 .map(|template| {
-                    vision::template_matching::match_template(&rank_region, template)
-                        .map(|matched| matched.score)
+                    vision::template::match_(&rank_region, template).map(|matched| matched.score)
                 })
                 .collect::<anyhow::Result<Vec<_>>>()?;
             let rank = best_candidate(&rank_scores)
@@ -114,8 +112,7 @@ impl Recognizer {
                 .suits
                 .iter()
                 .map(|(_, template)| {
-                    vision::template_matching::match_template(&suit_region, template)
-                        .map(|matched| matched.score)
+                    vision::template::match_(&suit_region, template).map(|matched| matched.score)
                 })
                 .collect::<anyhow::Result<Vec<_>>>()?;
             let suit = self.suits[best_candidate(&suit_scores)

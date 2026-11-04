@@ -150,8 +150,8 @@ impl TemplateMatching for NavigationContext {
         screenshot: &RgbaImage,
         target: &TemplateTarget,
     ) -> Result<Option<TemplateMatch>, capabilities::Error> {
-        let matched = (|| -> anyhow::Result<vision::template_matching::MatchResult> {
-            vision::template_matching::match_template(
+        let matched = (|| -> anyhow::Result<vision::template::MatchResult> {
+            vision::template::match_(
                 &vision::ImageRegion::new(screenshot, target.roi.into())?,
                 self.templates.get(target.template_name)?,
             )

@@ -154,7 +154,7 @@ fn match_image(
         })?
         .to_rgb8();
     let template = json!({"path":template_path.to_string_lossy(), "width":template_image.width(), "height":template_image.height()});
-    let matched = vision::template_matching::match_template(
+    let matched = vision::template::match_(
         &vision::ImageRegion::new(image, search.into())?,
         &template_image,
     )

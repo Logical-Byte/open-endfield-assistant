@@ -32,9 +32,9 @@ connect / navigate / screenshot / match
     NavigationContext 组合截图、输入、模板缓存和时钟，沿用生产输入的等待与鼠标归位规则
 
 match-image
-  本地原图，不缩放 -> template_matching::match_template
+  本地原图，不缩放 -> vision::template::match_
 match
-  生产 720p 图像 -> template_matching::match_template
+  生产 720p 图像 -> vision::template::match_
 ```
 
 `--crop` 和 `--region` 使用 `LEFT,TOP,WIDTH,HEIGHT`，四个字段均为十进制无符号整数。宽高必须为正，整个矩形必须位于输入图像内。窗口命令使用 1280×720 坐标，本地图像使用原始像素坐标。匹配返回最高分位置和原始 `CCOEFF_NORMED` score，不添加 threshold。
