@@ -7,7 +7,9 @@
 OEA 是一个 [Tauri](https://tauri.app/) 2 桌面应用，前端使用 [Vue](https://vuejs.org/) 3、[Nuxt UI](https://ui.nuxt.com/)、[Vite](https://vite.dev/) 和 [TypeScript](https://www.typescriptlang.org/)，后端使用 [Rust](https://www.rust-lang.org/)，OCR 使用 [RapidOCR](https://github.com/RapidAI/RapidOCR)。
 
 - `src/`：前端界面与交互。
-- `src-tauri/`：[Rust](https://www.rust-lang.org/) 桌面后端。
+- `Cargo.toml`：Rust workspace，统一管理根目录的 `Cargo.lock` 与 `target/`。
+- `crates/oea-cli/`：独立开发者 CLI，使用方式见[开发者 CLI](docs/developer-cli.md)。
+- `crates/oea/`：[Rust](https://www.rust-lang.org/) 桌面后端。
 - `resources/`：前后端共享的模板图、游戏数据和图标，通过 [Git](https://git-scm.com/) submodule 管理。
 - `scripts/`：数据生成、打包等脚本。
 

@@ -21,8 +21,8 @@ pre-commit:
       run: pnpm exec oxfmt --check --no-error-on-unmatched-pattern {staged_files}
 
     - name: backend-rustfmt
-      glob: 'src-tauri/**/*.rs'
-      run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+      glob: 'crates/**/*.rs'
+      run: cargo fmt --all -- --check
 
 pre-push:
   parallel: true
@@ -42,8 +42,10 @@ pre-push:
 
     - name: backend-clippy
       glob:
-        - 'src-tauri/**'
+        - 'crates/**'
+        - 'Cargo.toml'
+        - 'Cargo.lock'
         - '.cargo/**'
         - 'rust-toolchain'
         - 'rust-toolchain.toml'
-      run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      run: cargo clippy --workspace --all-features --all-targets -- -D warnings

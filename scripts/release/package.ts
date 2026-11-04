@@ -35,7 +35,7 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.
 
 // 读取 tauri.conf.json（版本与产品名的唯一事实来源）
 const tauriConfig = JSON.parse(
-  readFileSync(path.join(rootDir, 'src-tauri', 'tauri.conf.json'), 'utf8'),
+  readFileSync(path.join(rootDir, 'crates', 'oea', 'tauri.conf.json'), 'utf8'),
 ) as TauriConfig;
 const productName = tauriConfig.productName ?? 'OEA';
 const version = tauriConfig.version ?? '0.0.0';
@@ -100,8 +100,8 @@ async function main() {
 
 // 在 release 目录中查找主程序：优先 productName，其次 Cargo 包名
 function findReleaseExe(): string | null {
-  const releaseDir = path.join(rootDir, 'src-tauri', 'target', 'release');
-  const cargoName = readFileSync(path.join(rootDir, 'src-tauri', 'Cargo.toml'), 'utf8').match(
+  const releaseDir = path.join(rootDir, 'target', 'release');
+  const cargoName = readFileSync(path.join(rootDir, 'crates', 'oea', 'Cargo.toml'), 'utf8').match(
     /^\s*name\s*=\s*"([^"]+)"/m,
   )?.[1];
   const candidates = [productName, cargoName]

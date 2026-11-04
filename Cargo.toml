@@ -1,0 +1,10 @@
+[workspace]
+members = ["crates/oea", "crates/oea-cli"]
+default-members = ["crates/oea"]
+resolver = "3"
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.dev]
+opt-level = 1
+debug = false
+overflow-checks = false

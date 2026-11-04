@@ -1,7 +1,7 @@
 /**
  * pnpm quote:check：检查自然语言文本中的引号与空格。
  * pnpm quote:fix：删除引号内侧的多余空格、按规则补齐或删除外侧空格后写回文件。
- * 规则见 docs/rule-frontend.md 的「引号与空格」。检查范围为 docs、src、src-tauri、scripts
+ * 规则见 docs/rule-frontend.md 的「引号与空格」。检查范围为 docs、src、crates、scripts
  * 以及仓库根目录的 Markdown。代码块、行内代码、`resources/` 下的游戏数据、逐字记录游戏原文的
  * 文档、HTML 标签和含 ❌ 的反例行不参与。
  * 发现问题时输出位置与原因并以非零状态退出。
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const write = process.argv.includes('--fix');
-const directories = ['docs', 'src', 'src-tauri', 'scripts'];
+const directories = ['docs', 'src', 'crates', 'scripts'];
 const extensions = new Set(['.md', '.vue', '.ts', '.json', '.rs']);
 const skippedDirectories = new Set([
   'node_modules',

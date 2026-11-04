@@ -1,0 +1,157 @@
+//! 应用资源路径模块。
+//!
+//! 集中解析 `resources/`、`logs/` 等资源目录的绝对路径，
+//! 避免代码依赖运行时的工作目录（cwd）。
+//!
+//! 定位策略（根目录下应有 `resources`、`logs` 等文件夹，OCR 模型位于 `resources/ocr-models/`）：
+//! - OEA dev：以 `CARGO_MANIFEST_DIR`（编译时指向 `crates/oea/`）的
+//!   上两级作为项目根，再拼接各资源目录；
+//! - OEA release：以 exe 所在目录作为根目录（便携式分发，资源与 exe 同目录）。
+//!
+//! 注意：不能用 `env!("CARGO_MANIFEST_DIR")` 直接当作运行时路径——它是编译期常量，
+//! 会把开发机路径（如 `D:\BioHazard\...`）烧进二进制，换机器后必然失效。
+
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
+
+use anyhow::Context;
+
+use crate::app_variant::{self, AppVariant};
+use crate::utils::path::resolve_existing_relative_file;
+
+/// 应用形态决定资源来源，避免编译优化等级切换资源目录。
+fn get_root_dir() -> Result<PathBuf, String> {
+    match app_variant::CURRENT {
+        AppVariant::Dev => get_root_dir_for_dev(),
+        AppVariant::Release => get_root_dir_for_release(),
+    }
+}
+
+/// OEA dev 根目录：`CARGO_MANIFEST_DIR` 的上两级即项目根。
+fn get_root_dir_for_dev() -> Result<PathBuf, String> {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    manifest_dir
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| "无法定位项目根目录（crates/oea 的上两级）".to_string())
+        .map(Path::to_path_buf)
+}
+
+/// OEA release 根目录：exe 所在目录即分发根目录。
+fn get_root_dir_for_release() -> Result<PathBuf, String> {
+    let exe_path = env::current_exe().map_err(|error| format!("无法获取当前 exe 路径: {error}"))?;
+    exe_path
+        .parent()
+        .ok_or_else(|| "无法定位 exe 所在目录".to_string())
+        .map(Path::to_path_buf)
+}
+
+/// 应用各资源目录的绝对路径。
+///
+/// 仅持有应用根目录，各资源目录由方法按需拼接。
+#[derive(Debug, Clone)]
+pub struct AppPaths {
+    /// 应用根目录
+    root_dir: PathBuf,
+}
+
+impl AppPaths {
+    /// 解析应用根目录。
+    ///
+    /// - OEA dev：`CARGO_MANIFEST_DIR` 的上两级，即项目根目录。
+    /// - OEA release：当前可执行文件所在的分发目录。
+    pub fn new() -> Result<Self, String> {
+        get_root_dir()
+            .map(Self::with_root_dir)
+            .map_err(|error| format!("无法定位应用根目录: {error}"))
+    }
+
+    pub fn with_root_dir(root_dir: impl Into<PathBuf>) -> Self {
+        Self {
+            root_dir: root_dir.into(),
+        }
+    }
+
+    /// 应用根目录。
+    /// 由 `new()` 解析时，OEA dev 使用项目根目录，OEA release 使用可执行文件所在目录。
+    pub fn root_dir(&self) -> &Path {
+        &self.root_dir
+    }
+
+    /// 共享资源目录（`<root_dir>/resources`，前后端共用，submodule）。
+    pub fn resources_dir(&self) -> PathBuf {
+        self.root_dir.join("resources")
+    }
+
+    /// 解析并验证共享资源目录内当前存在的文件。
+    pub fn resolve_resource_file(&self, relative_path: &str) -> anyhow::Result<PathBuf> {
+        resolve_existing_relative_file(&self.resources_dir(), relative_path)
+            .with_context(|| format!("解析资源文件失败: {relative_path:?}"))
+    }
+
+    /// OCR 模型目录（`<root_dir>/resources/ocr-models`）。
+    pub fn models_dir(&self) -> PathBuf {
+        self.resources_dir().join("ocr-models")
+    }
+
+    /// 运行日志目录（`<root_dir>/logs`）。
+    pub fn logs_dir(&self) -> PathBuf {
+        self.root_dir.join("logs")
+    }
+
+    /// 缓存目录（`<root_dir>/cache`，存放运行期缓存与临时文件，如 WebView2 安装引导程序）。
+    pub fn cache_dir(&self) -> PathBuf {
+        self.root_dir.join("cache")
+    }
+
+    /// 更新包下载目录（`<root_dir>/cache/downloads`）。
+    pub fn downloads_dir(&self) -> PathBuf {
+        self.cache_dir().join("downloads")
+    }
+
+    /// WebView2 用户数据目录（`<root_dir>/cache/webview-data`，不写入 `%LOCALAPPDATA%`，）。
+    pub fn webview_data_dir(&self) -> PathBuf {
+        self.cache_dir().join("webview-data")
+    }
+
+    /// 模板图片根目录（`<root_dir>/resources/templates`）。
+    pub fn templates_dir(&self) -> PathBuf {
+        self.resources_dir().join("templates")
+    }
+
+    /// 设置文件目录（`<root_dir>/config`）。
+    pub fn config_dir(&self) -> PathBuf {
+        self.root_dir.join("config")
+    }
+
+    /// OEA 用户设置文件。为兼容现有安装，磁盘路径仍为 `<root_dir>/config/oea_config.json`。
+    pub fn oea_settings_file(&self) -> PathBuf {
+        self.config_dir().join("oea_config.json")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::AppPaths;
+
+    #[test]
+    fn resolves_an_existing_resource_file() {
+        let root = tempfile::tempdir().unwrap();
+        let sounds_dir = root.path().join("resources").join("sounds");
+        fs::create_dir_all(&sounds_dir).unwrap();
+        let sound_file = sounds_dir.join("enable.wav");
+        fs::write(&sound_file, b"wav").unwrap();
+        let app_paths = AppPaths::with_root_dir(root.path());
+
+        assert_eq!(
+            app_paths
+                .resolve_resource_file("sounds/enable.wav")
+                .unwrap(),
+            sound_file.canonicalize().unwrap()
+        );
+    }
+}

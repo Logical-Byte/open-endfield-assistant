@@ -1,7 +1,7 @@
 /**
- * 版本号提升脚本：更新 `src-tauri/tauri.conf.json` 的 `version`，暂存提交并打 tag。
+ * 版本号提升脚本：更新 `crates/oea/tauri.conf.json` 的 `version`，暂存提交并打 tag。
  *
- * `src-tauri/tauri.conf.json` 是版本号的唯一来源：
+ * `crates/oea/tauri.conf.json` 是版本号的唯一来源：
  * 前端编译期注入（`vite.config.ts`）、打包命名（`scripts/release/package.ts`）、
  * release tag 校验（`.github/workflows/release.yml`）均以此文件为准，
  * 无需维护 `package.json` / `Cargo.toml` 的版本号。
@@ -26,7 +26,7 @@ import { parseStrictSemver } from './semver';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 // 版本号的唯一来源
-const configPath = path.join(rootDir, 'src-tauri', 'tauri.conf.json');
+const configPath = path.join(rootDir, 'crates', 'oea', 'tauri.conf.json');
 
 interface TauriConfig {
   version?: string;
@@ -36,7 +36,7 @@ interface TauriConfig {
 function readVersion(): string {
   const config = JSON.parse(readFileSync(configPath, 'utf8')) as TauriConfig;
   if (!config.version) {
-    throw new Error('`src-tauri/tauri.conf.json` 缺少 version 字段');
+    throw new Error('`crates/oea/tauri.conf.json` 缺少 version 字段');
   }
   return config.version;
 }
@@ -112,8 +112,8 @@ async function main(): Promise<void> {
   console.log(`[bump] ${current} -> ${next}（${configPath}）`);
 
   // 2) 暂存并提交（只提交版本文件，不影响其他已暂存/未暂存改动）
-  runGit(['add', '--', 'src-tauri/tauri.conf.json']);
-  runGit(['commit', '-m', `chore: release ${tag}`, '--', 'src-tauri/tauri.conf.json']);
+  runGit(['add', '--', 'crates/oea/tauri.conf.json']);
+  runGit(['commit', '-m', `chore: release ${tag}`, '--', 'crates/oea/tauri.conf.json']);
 
   // 3) 打 tag
   runGit(['tag', tag]);

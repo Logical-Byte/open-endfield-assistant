@@ -39,7 +39,9 @@ jobs:
               - 'resources'
               - 'rust-toolchain'
               - 'rust-toolchain.toml'
-              - 'src-tauri/**'
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
               - 'src/shared/types/generated/**'
 
   frontend-ci:
@@ -104,19 +106,20 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: 'src-tauri -> target'
+          workspaces: '. -> target'
 
       - name: Backend format check
         id: fmt
         continue-on-error: true
-        working-directory: src-tauri
         run: cargo fmt --all -- --check
+
+      - name: Backend check
+        run: cargo check --workspace --all-targets --all-features
 
       - name: Backend test
         id: test
         continue-on-error: true
-        working-directory: src-tauri
-        run: cargo test --features cli
+        run: cargo test --workspace --all-features
 
       - name: Check generated TypeScript types
         shell: pwsh
@@ -129,8 +132,7 @@ jobs:
           }
 
       - name: Backend clippy
-        working-directory: src-tauri
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Propagate backend failures
         if: ${{ !cancelled() }}

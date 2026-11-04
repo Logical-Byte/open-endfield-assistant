@@ -41,19 +41,19 @@ function resourcesFavicon(): Plugin {
 }
 
 /**
- * 从 `src-tauri/tauri.conf.json` 读取应用版本，并用 semver 严格校验
+ * 从 `crates/oea/tauri.conf.json` 读取应用版本，并用 semver 严格校验
  * （编译期注入，与打包产物版本保持一致）。
  */
 function readAppVersion(): string {
   const config = JSON.parse(
-    readFileSync(fileURLToPath(new URL('./src-tauri/tauri.conf.json', import.meta.url)), 'utf-8'),
+    readFileSync(fileURLToPath(new URL('./crates/oea/tauri.conf.json', import.meta.url)), 'utf-8'),
   ) as { version?: string };
   if (!config.version) {
-    throw new Error('`src-tauri/tauri.conf.json` 缺少 `version` 字段');
+    throw new Error('`crates/oea/tauri.conf.json` 缺少 `version` 字段');
   }
   if (!parseStrictSemver(config.version)) {
     throw new Error(
-      `\`src-tauri/tauri.conf.json\` 的 \`version\` 不是干净的 semver（如 \`0.1.0\`，不接受 \`v\` 前缀或构建元数据）: ${config.version}`,
+      `\`crates/oea/tauri.conf.json\` 的 \`version\` 不是干净的 semver（如 \`0.1.0\`，不接受 \`v\` 前缀或构建元数据）: ${config.version}`,
     );
   }
   return config.version;
@@ -128,8 +128,8 @@ export default defineConfig(({ command }) => {
           }
         : undefined,
       watch: {
-        // 3. tell Vite to ignore watching `src-tauri`
-        ignored: ['**/src-tauri/**', '**/EBWebView/**'],
+        // 3. tell Vite to ignore watching `crates/oea`
+        ignored: ['**/crates/**', '**/target/**', '**/EBWebView/**'],
       },
     },
   };

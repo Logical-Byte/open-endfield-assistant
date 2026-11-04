@@ -42,3 +42,6 @@ tsconfig.node.tsbuildinfo
 
 # Local agent settings
 AGENTS.local.md
+
+# Cargo workspace build artifacts
+/target/
