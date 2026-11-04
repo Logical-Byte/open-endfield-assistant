@@ -94,11 +94,10 @@ impl Window {
         {
             let _dpi = windows::DpiContext::enter()?;
             windows::validate(*self)?;
-            let rect = windows::window::get_client_rect(*self)?;
-            anyhow::ensure!(rect.width() > 0 && rect.height() > 0, "窗口客户区尺寸无效");
+            let (width, height) = windows::window::client_size(*self)?;
             Ok(ClientSize {
-                width: rect.width() as u32,
-                height: rect.height() as u32,
+                width: width as u32,
+                height: height as u32,
             })
         }
         #[cfg(not(windows))]

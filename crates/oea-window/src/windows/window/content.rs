@@ -3,10 +3,7 @@
 //! 浏览器窗口的客户区包含自绘的标签栏与地址栏，游戏画面只占其中的网页视口。
 //! 网页视口由 UI Automation 的 `Document` 元素矩形给出，`GetClientRect` 无法区分两者。
 
-use std::{
-    thread,
-    time::{Duration, Instant},
-};
+use std::time::Instant;
 
 use ::windows::Win32::Foundation::{HWND, POINT, RECT};
 use ::windows::Win32::Graphics::Gdi::ClientToScreen;
@@ -19,34 +16,30 @@ use ::windows::Win32::UI::Accessibility::{
     UIA_DocumentControlTypeId,
 };
 use ::windows::Win32::UI::WindowsAndMessaging::{
-    GWL_STYLE, GetClientRect, GetWindowLongPtrW, GetWindowRect, IsIconic, IsZoomed, SW_RESTORE,
-    SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOZORDER, SetWindowPos, ShowWindowAsync,
-    WINDOW_STYLE, WS_POPUP,
+    GWL_STYLE, GetWindowLongPtrW, WINDOW_STYLE, WS_POPUP,
 };
 use anyhow::{Context, ensure};
 
 use crate::{ContentKind, ContentRect, Window};
 
-const POLL_INTERVAL: Duration = Duration::from_millis(50);
-const PREPARE_TIMEOUT: Duration = Duration::from_secs(5);
-const SIZE_SETTLE_TIME: Duration = Duration::from_millis(300);
+use super::state::{self, SIZE_SETTLE_TIME};
 
 pub(crate) fn content_rect(window: Window, kind: ContentKind) -> anyhow::Result<ContentRect> {
-    let (width, height) = client_size(window)?;
+    let (width, height) = state::client_size(window)?;
     match kind {
         ContentKind::Client => Ok(ContentRect {
             x: 0,
             y: 0,
-            width,
-            height,
+            width: width as u32,
+            height: height as u32,
         }),
         ContentKind::BrowserViewport => {
             let top = viewport_top(window)?;
             Ok(ContentRect {
                 x: 0,
                 y: top,
-                width,
-                height: height - top as u32,
+                width: width as u32,
+                height: (height - top) as u32,
             })
         }
     }
@@ -62,34 +55,24 @@ pub(crate) fn ensure_viewport_content_size(
     height: i32,
 ) -> anyhow::Result<()> {
     ensure!(width > 0 && height > 0, "窗口视口尺寸必须为正数");
-    let hwnd = window.raw;
-
-    if unsafe { IsIconic(hwnd) }.as_bool() || unsafe { IsZoomed(hwnd) }.as_bool() {
-        unsafe { ShowWindowAsync(hwnd, SW_RESTORE) }.ok()?;
-        wait_until(|| {
-            Ok(!unsafe { IsIconic(hwnd) }.as_bool() && !unsafe { IsZoomed(hwnd) }.as_bool())
-        })
-        .context("恢复云游戏窗口超时")?;
-    }
+    state::restore(window).context("恢复云游戏窗口超时")?;
 
     // 全屏窗口的视口跟随显示器，无法通过调整窗口尺寸控制。
-    let style = WINDOW_STYLE(unsafe { GetWindowLongPtrW(hwnd, GWL_STYLE) } as u32);
+    let style = WINDOW_STYLE(unsafe { GetWindowLongPtrW(window.raw, GWL_STYLE) } as u32);
     ensure!(
         !style.contains(WS_POPUP),
         "云游戏窗口处于全屏状态，请先退出全屏"
     );
 
     let mut stable_since = None;
-    wait_until(|| {
+    state::wait_until(|| {
         let top = viewport_top(window)?;
-        let (client_width, client_height) = client_size(window)?;
-        if i32::try_from(client_width).ok() == Some(width)
-            && i32::try_from(client_height).ok() == Some(height + top)
-        {
+        let (client_width, client_height) = state::client_size(window)?;
+        if client_width == width && client_height == height + top {
             return Ok(stable_since.get_or_insert_with(Instant::now).elapsed() >= SIZE_SETTLE_TIME);
         }
         stable_since = None;
-        resize_client(window, width, height + top)?;
+        state::set_client_size(window, width, height + top)?;
         Ok(false)
     })
     .context("云游戏窗口未能稳定到指定视口尺寸")
@@ -97,56 +80,15 @@ pub(crate) fn ensure_viewport_content_size(
 
 /// 读取网页视口上沿在客户区中的物理像素偏移。
 fn viewport_top(window: Window) -> anyhow::Result<i32> {
-    let hwnd = window.raw;
-    let (_, client_height) = client_size(window)?;
-    let viewport = document_viewport(hwnd)?;
+    let (_, client_height) = state::client_size(window)?;
+    let viewport = document_viewport(window.raw)?;
     let mut origin = POINT::default();
-    unsafe { ClientToScreen(hwnd, &mut origin) }
+    unsafe { ClientToScreen(window.raw, &mut origin) }
         .ok()
         .context("转换客户区坐标失败")?;
     let top = viewport.top - origin.y;
-    ensure!(
-        (0..i32::try_from(client_height).unwrap_or(i32::MAX)).contains(&top),
-        "网页视口位置超出客户区"
-    );
+    ensure!((0..client_height).contains(&top), "网页视口位置超出客户区");
     Ok(top)
-}
-
-fn resize_client(window: Window, width: i32, height: i32) -> anyhow::Result<()> {
-    let hwnd = window.raw;
-    let mut outer = RECT::default();
-    unsafe { GetWindowRect(hwnd, &mut outer) }?;
-    let mut client = RECT::default();
-    unsafe { GetClientRect(hwnd, &mut client) }?;
-    ensure!(
-        client.right > client.left && client.bottom > client.top,
-        "窗口客户区尺寸无效"
-    );
-    // 浏览器自行处理 `WM_NCCALCSIZE`，外框与客户区的差值与 `AdjustWindowRectExForDpi`
-    // 的预测不同，只能按当前实测差值反推外框尺寸。
-    let frame_width = (outer.right - outer.left) - (client.right - client.left);
-    let frame_height = (outer.bottom - outer.top) - (client.bottom - client.top);
-    unsafe {
-        SetWindowPos(
-            hwnd,
-            None,
-            0,
-            0,
-            width + frame_width,
-            height + frame_height,
-            SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS,
-        )
-    }?;
-    Ok(())
-}
-
-fn client_size(window: Window) -> anyhow::Result<(u32, u32)> {
-    let mut rect = RECT::default();
-    unsafe { GetClientRect(window.raw, &mut rect) }?;
-    let width = rect.right - rect.left;
-    let height = rect.bottom - rect.top;
-    ensure!(width > 0 && height > 0, "窗口客户区尺寸无效");
-    Ok((width as u32, height as u32))
 }
 
 /// 通过 UI Automation 读取浏览器当前标签页的网页视口矩形（物理像素）。
@@ -193,16 +135,5 @@ impl Drop for ComApartment {
         if self.0 {
             unsafe { CoUninitialize() };
         }
-    }
-}
-
-fn wait_until(mut ready: impl FnMut() -> anyhow::Result<bool>) -> anyhow::Result<()> {
-    let started = Instant::now();
-    loop {
-        if ready()? {
-            return Ok(());
-        }
-        ensure!(started.elapsed() < PREPARE_TIMEOUT, "等待窗口调整超时");
-        thread::sleep(POLL_INTERVAL);
     }
 }
