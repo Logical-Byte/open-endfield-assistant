@@ -6,7 +6,7 @@ use anyhow::Context;
 use clap::ValueEnum;
 use oea_lib::automation::ScreenCapture;
 use oea_lib::{app_paths::AppPaths, navigation};
-use oea_vision::{ImageRegion, template_matching};
+use oea_vision as vision;
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -154,8 +154,8 @@ fn match_image(
         })?
         .to_rgb8();
     let template = json!({"path":template_path.to_string_lossy(), "width":template_image.width(), "height":template_image.height()});
-    let matched = template_matching::match_template(
-        &ImageRegion::new(image, search.into())?,
+    let matched = vision::template_matching::match_template(
+        &vision::ImageRegion::new(image, search.into())?,
         &template_image,
     )
     .with_context(|| {

@@ -3,7 +3,7 @@
 use std::{thread, time::Duration};
 
 use image::RgbaImage;
-use oea_vision::{ImageRegion, template_matching};
+use oea_vision as vision;
 use tracing::debug;
 
 use crate::{
@@ -73,8 +73,8 @@ impl TemplateMatching for Session {
         screenshot: &RgbaImage,
         target: &TemplateTarget,
     ) -> Result<Option<TemplateMatch>, capabilities::Error> {
-        let matched = template_matching::match_template(
-            &ImageRegion::new(screenshot, target.roi.into()).map_err(|error| {
+        let matched = vision::template_matching::match_template(
+            &vision::ImageRegion::new(screenshot, target.roi.into()).map_err(|error| {
                 debug!(roi = ?target.roi, error = ?error, "模板匹配区域无效");
                 capabilities::Error::ExecutionFailed
             })?,
@@ -107,7 +107,7 @@ impl Ocr for Session {
             .lock()
             .unwrap()
             .recognize_region(
-                &ImageRegion::new(screenshot, region.into()).map_err(|error| {
+                &vision::ImageRegion::new(screenshot, region.into()).map_err(|error| {
                     debug!(?region, error = ?error, "OCR 区域无效");
                     capabilities::Error::ExecutionFailed
                 })?,

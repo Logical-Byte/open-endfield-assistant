@@ -15,7 +15,7 @@ use oea_lib::{
         input::{Contact, InputBase, SeizeInput},
     },
 };
-use oea_vision::{ImageRegion, template_matching};
+use oea_vision as vision;
 use tracing::debug;
 
 use super::commands;
@@ -150,9 +150,9 @@ impl TemplateMatching for NavigationContext {
         screenshot: &RgbaImage,
         target: &TemplateTarget,
     ) -> Result<Option<TemplateMatch>, capabilities::Error> {
-        let matched = (|| -> anyhow::Result<template_matching::MatchResult> {
-            template_matching::match_template(
-                &ImageRegion::new(screenshot, target.roi.into())?,
+        let matched = (|| -> anyhow::Result<vision::template_matching::MatchResult> {
+            vision::template_matching::match_template(
+                &vision::ImageRegion::new(screenshot, target.roi.into())?,
                 self.templates.get(target.template_name)?,
             )
         })()

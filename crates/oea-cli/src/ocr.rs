@@ -2,7 +2,7 @@
 use std::{collections::BTreeMap, path::Path, time::Instant};
 
 use anyhow::{Context, ensure};
-use oea_vision::{ImageRegion, ocr};
+use oea_vision as vision;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -92,9 +92,9 @@ pub(super) fn recognize(
     paths.sort();
     ensure!(!paths.is_empty(), "输入目录没有可识别的图片");
     let started = Instant::now();
-    let mut engine = ocr::OcrEngine::new(
+    let mut engine = vision::ocr::OcrEngine::new(
         models,
-        ocr::Config {
+        vision::ocr::Config {
             threads: threads as usize,
         },
     )?;
@@ -117,7 +117,7 @@ pub(super) fn recognize(
         };
         let rgb = image::DynamicImage::ImageRgba8(image.clone()).to_rgb8();
         let region = region
-            .map(|bounds| ImageRegion::new(&image, bounds.into()))
+            .map(|bounds| vision::ImageRegion::new(&image, bounds.into()))
             .transpose()?;
         let mut recognize = || {
             if let Some(region) = &region {
@@ -164,7 +164,7 @@ pub(super) fn recognize(
         });
     }
     let report = Report {
-        backend: ocr::BACKEND_NAME.to_owned(),
+        backend: vision::ocr::BACKEND_NAME.to_owned(),
         settings,
         initialization_ms,
         images,

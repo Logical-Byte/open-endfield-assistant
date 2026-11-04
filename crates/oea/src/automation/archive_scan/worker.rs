@@ -6,7 +6,7 @@ use std::{
 };
 
 use image::RgbaImage;
-use oea_vision::ocr;
+use oea_vision as vision;
 use tracing::{debug, info, warn};
 
 use crate::{
@@ -31,7 +31,7 @@ use super::{matching, reporting::ScanReporter};
 /// 一次真实扫描所需的协作者，由控制器在任务获准启动后创建。
 pub(crate) struct Worker {
     settings: settings::OeaSettings,
-    ocr: Arc<Mutex<ocr::OcrEngine>>,
+    ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     navigator: Arc<Navigator>,
     app_data: Arc<AppData>,
 }
@@ -39,7 +39,7 @@ pub(crate) struct Worker {
 impl Worker {
     pub(crate) fn new(
         settings: settings::OeaSettings,
-        ocr: Arc<Mutex<ocr::OcrEngine>>,
+        ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
         navigator: Arc<Navigator>,
         app_data: Arc<AppData>,
     ) -> Self {

@@ -7,7 +7,7 @@ use std::{
 
 use chrono::Utc;
 use image::RgbaImage;
-use oea_vision::ocr;
+use oea_vision as vision;
 use serde::Serialize;
 use tracing::{debug, info, warn};
 use ts_rs::TS;
@@ -44,7 +44,7 @@ pub(crate) struct Worker {
     conditions: Conditions,
     allow_early_stop: bool,
     sound_volume: f32,
-    ocr: Arc<Mutex<ocr::OcrEngine>>,
+    ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
 }
 
 impl Worker {
@@ -52,7 +52,7 @@ impl Worker {
         conditions: Conditions,
         allow_early_stop: bool,
         sound_volume: f32,
-        ocr: Arc<Mutex<ocr::OcrEngine>>,
+        ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     ) -> Self {
         Self {
             conditions,

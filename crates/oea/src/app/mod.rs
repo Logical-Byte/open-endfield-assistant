@@ -11,7 +11,7 @@ mod tray;
 
 use std::sync::{Arc, Mutex};
 
-use oea_vision::ocr;
+use oea_vision as vision;
 use tauri::Manager;
 use tracing::{info, warn};
 
@@ -146,7 +146,7 @@ fn setup_app(app: &mut tauri::App) -> anyhow::Result<()> {
 
     // 加载后端资源。
     let settings_store = settings::SettingsStore::at(app_paths.oea_settings_file());
-    let ocr = ocr::OcrEngine::new(&app_paths.models_dir(), ocr::Config::default())?;
+    let ocr = vision::ocr::OcrEngine::new(&app_paths.models_dir(), vision::ocr::Config::default())?;
     let app_data = data::AppData::load(&app_paths)?;
     let navigator = navigation::Navigator::new();
     let frontend_event_sink = Arc::new(automation_events::TauriEventSink::start(

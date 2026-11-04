@@ -6,7 +6,7 @@ mod capability_impls;
 
 use std::sync::{Arc, Mutex};
 
-use oea_vision::ocr;
+use oea_vision as vision;
 use tracing::info;
 
 use crate::{
@@ -40,7 +40,7 @@ pub struct Session {
     /// 输入器
     input: Box<dyn InputBase>,
     /// 共享 OCR 引擎（跨会话复用模型加载）
-    ocr: Arc<Mutex<ocr::OcrEngine>>,
+    ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     /// 模板加载器（懒加载 + 缓存）
     templates: TemplateLoader,
     /// 停止令牌
@@ -50,7 +50,7 @@ pub struct Session {
 impl Session {
     /// 连接游戏窗口并创建会话。
     pub fn connect(
-        ocr: &Arc<Mutex<ocr::OcrEngine>>,
+        ocr: &Arc<Mutex<vision::ocr::OcrEngine>>,
         templates: TemplateLoader,
         stop: StopToken,
     ) -> Result<Self, capabilities::Error> {
@@ -79,7 +79,7 @@ impl Session {
         hwnd: WindowHandle,
         screencap: Box<dyn ScreencapBase>,
         input: Box<dyn InputBase>,
-        ocr: Arc<Mutex<ocr::OcrEngine>>,
+        ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
         templates: TemplateLoader,
         resolution_transform: ResolutionTransform,
         stop: StopToken,

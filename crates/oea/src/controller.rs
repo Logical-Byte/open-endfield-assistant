@@ -7,7 +7,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use oea_vision::ocr;
+use oea_vision as vision;
 use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
@@ -24,7 +24,7 @@ pub struct Controller {
     /// 用户设置存储
     settings_store: Arc<settings::SettingsStore>,
     /// 共享 OCR 引擎（跨会话复用模型）
-    ocr: Arc<Mutex<ocr::OcrEngine>>,
+    ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     /// 导航器（本游戏全部场景，跨线程共享只读）
     navigator: Arc<Navigator>,
     /// 全局唯一自动化任务运行时
@@ -37,7 +37,7 @@ impl Controller {
     /// 创建控制器。
     pub(crate) fn new(
         settings_store: Arc<settings::SettingsStore>,
-        ocr: Arc<Mutex<ocr::OcrEngine>>,
+        ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
         navigator: Arc<Navigator>,
         automation_runtime: Arc<automation::Runtime>,
         app_data: AppData,

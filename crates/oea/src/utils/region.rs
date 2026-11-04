@@ -1,7 +1,7 @@
 use std::ops::{Add, Div, Mul, Sub};
 
 use az::{Cast, CheckedCast, OverflowingCast, SaturatingCast, StrictCast, WrappingCast};
-use oea_vision::PixelRect;
+use oea_vision as vision;
 
 use crate::utils::point::Point2D;
 
@@ -182,7 +182,7 @@ impl<T> Region2D<T> {
     }
 }
 
-impl From<Region2D<u32>> for PixelRect {
+impl From<Region2D<u32>> for vision::PixelRect {
     fn from(region: Region2D<u32>) -> Self {
         // 倒置边界保留为空区域，交由 `ImageRegion` 拒绝，避免无符号减法溢出。
         Self::new(
@@ -194,8 +194,8 @@ impl From<Region2D<u32>> for PixelRect {
     }
 }
 
-impl From<PixelRect> for Region2D<u32> {
-    fn from(region: PixelRect) -> Self {
+impl From<vision::PixelRect> for Region2D<u32> {
+    fn from(region: vision::PixelRect) -> Self {
         Self::from_ltwh(region.left, region.top, region.width, region.height)
     }
 }
