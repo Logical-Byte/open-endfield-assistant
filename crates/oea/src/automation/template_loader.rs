@@ -1,3 +1,5 @@
+//! OEA 模板资源的相对路径解析、懒加载和缓存。
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -6,31 +8,24 @@ use image::RgbImage;
 
 use crate::utils::path::resolve_existing_relative_file;
 
-/// 按逻辑名称提供模板图片，不向调用方暴露存储与缓存策略。
-pub trait TemplateProvider {
-    /// 返回由模板源持有的图片。
-    fn get(&mut self, template_name: &str) -> anyhow::Result<&RgbImage>;
-}
-
 /// 从模板根目录按需加载图片，并缓存成功加载的结果。
 ///
 /// 缓存结果在加载器的生命周期内保持有效；加载失败不会进入缓存，后续调用会重试。
-pub struct LazyTemplateLoader {
+pub struct TemplateLoader {
     root: PathBuf,
     cache: HashMap<String, RgbImage>,
 }
 
-impl LazyTemplateLoader {
+impl TemplateLoader {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self {
             root: root.into(),
             cache: HashMap::new(),
         }
     }
-}
 
-impl TemplateProvider for LazyTemplateLoader {
-    fn get(&mut self, template_name: &str) -> anyhow::Result<&RgbImage> {
+    /// 按根目录下的相对文件名取模板，首次读取成功后缓存 RGB 图片。
+    pub fn get(&mut self, template_name: &str) -> anyhow::Result<&RgbImage> {
         if self.cache.contains_key(template_name) {
             return Ok(self
                 .cache
@@ -60,7 +55,7 @@ mod tests {
     fn returns_a_cached_template_after_its_file_is_removed() {
         use image::{Rgb, RgbImage};
 
-        use super::{LazyTemplateLoader, TemplateProvider};
+        use super::TemplateLoader;
 
         let templates = tempfile::tempdir().unwrap();
         let template = templates.path().join("cached.png");
@@ -68,15 +63,10 @@ mod tests {
             .save(&template)
             .unwrap();
 
-        let mut loader = LazyTemplateLoader::new(templates.path());
-        TemplateProvider::get(&mut loader, "cached.png").unwrap();
+        let mut loader = TemplateLoader::new(templates.path());
+        loader.get("cached.png").unwrap();
         fs::remove_file(template).unwrap();
 
-        assert_eq!(
-            TemplateProvider::get(&mut loader, "cached.png")
-                .unwrap()
-                .width(),
-            1
-        );
+        assert_eq!(loader.get("cached.png").unwrap().width(), 1);
     }
 }

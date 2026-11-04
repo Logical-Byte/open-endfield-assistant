@@ -20,7 +20,7 @@ cargo run -p oea-cli -- match --template candidate.png --region 100,50,320,180 -
 
 `captures` 必须预先存在。`cargo build -p oea-cli --release` 未启用 `tauri/custom-protocol`，仍使用工作区资源，且仅编译程序，不复制资源。导航模板的资源根目录由应用形态决定，OEA release 使用可执行文件所在目录，分发导航命令时需要在程序旁准备 `resources/templates`。`ocr` 通过 `--models` 显式选择模型目录。`connect`、`screenshot`、`match` 和 `match-image` 无需应用的 OCR 模型或模板资源。
 
-使用 `cargo build -p oea-cli` 生成 `target/debug/oea-cli.exe`。CLI 始终使用 Console subsystem，GUI 的 release profile 构建使用 GUI subsystem。CLI 版本继续读取 `crates/oea/tauri.conf.json`。CLI 直接使用共享后端公开的模块，不需要 `cli` feature，目前仍传递依赖 Tauri 和 GUI 构建依赖。CLI 仅提供开发构建，不进入发行包或发布附件。
+使用 `cargo build -p oea-cli` 生成 `target/debug/oea-cli.exe`。CLI 始终使用 Console subsystem，GUI 的 release profile 构建使用 GUI subsystem。CLI 版本继续读取 `crates/oea/tauri.conf.json`。CLI 的通用图片识别直接使用 `oea-vision`，游戏连接、导航和模板资源加载使用 `oea` 公开的模块，不需要 `cli` feature，目前仍传递依赖 Tauri 和 GUI 构建依赖。CLI 仅提供开发构建，不进入发行包或发布附件。
 
 窗口命令在 Windows 中复用生产连接检查和坐标转换，需要真实游戏窗口。CLI 按命令装配截图器和导航能力，不创建 `Session`，窗口命令均不加载 OCR。仅 `navigate` 使用应用模板目录。`connect` 会恢复最小化窗口并确保窗口位于屏幕内，不截图、不发送点击或按键。`navigate` 等待生产导航器完成目标状态或返回错误，没有额外 CLI timeout。macOS 和 Linux 的窗口命令返回 `platform_unsupported`。`match-image` 可跨平台运行，无需游戏或 OCR 模型。
 

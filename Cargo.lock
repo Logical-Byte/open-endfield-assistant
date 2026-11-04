@@ -3314,9 +3314,9 @@ dependencies = [
  "imageproc",
  "indexmap 2.14.2",
  "libc",
+ "oea-vision",
  "reqwest",
  "rodio",
- "rten",
  "scopeguard",
  "semver",
  "serde",
@@ -3347,11 +3347,24 @@ dependencies = [
  "clap",
  "image",
  "oea",
+ "oea-vision",
  "serde",
  "serde_json",
  "tempfile",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "oea-vision"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "image",
+ "imageproc",
+ "rten",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]

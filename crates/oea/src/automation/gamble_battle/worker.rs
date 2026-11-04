@@ -7,6 +7,7 @@ use std::{
 
 use chrono::Utc;
 use image::RgbaImage;
+use oea_vision::ocr;
 use serde::Serialize;
 use tracing::{debug, info, warn};
 use ts_rs::TS;
@@ -25,10 +26,10 @@ use crate::{
         session::Session,
         sound::{self, Cue},
         stats::counts::Capture,
+        template_loader::TemplateLoader,
     },
     platform,
     utils::region::ltrb,
-    vision,
 };
 
 #[derive(Debug, Clone, Serialize, TS)]
@@ -43,7 +44,7 @@ pub(crate) struct Worker {
     conditions: Conditions,
     allow_early_stop: bool,
     sound_volume: f32,
-    ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
+    ocr: Arc<Mutex<ocr::OcrEngine>>,
 }
 
 impl Worker {
@@ -51,7 +52,7 @@ impl Worker {
         conditions: Conditions,
         allow_early_stop: bool,
         sound_volume: f32,
-        ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
+        ocr: Arc<Mutex<ocr::OcrEngine>>,
     ) -> Self {
         Self {
             conditions,
@@ -70,7 +71,8 @@ impl runtime::Worker for Worker {
             let paths = AppPaths::new().map_err(|error| failure(error.to_string()))?;
             let recognizer = Recognizer::new(&paths.templates_dir())
                 .map_err(|error| failure(format!("加载百趣演武模板失败：{error}")))?;
-            let mut session = Session::connect(&self.ocr, stop)?;
+            let mut session =
+                Session::connect(&self.ocr, TemplateLoader::new(paths.templates_dir()), stop)?;
             session.check_stop()?;
             if let Err(error) = platform::window::ensure_foreground_and_topmost(session.hwnd) {
                 warn!("无法将游戏窗口置于前台：{error:#}");

@@ -7,14 +7,15 @@ use oea_lib::{
     automation::{
         Clock, Input, Key, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
         TemplateTarget, capabilities, game_environment::ResolutionTransform,
+        template_loader::TemplateLoader,
     },
     platform::{
         WindowHandle,
         capture::PrintWindowScreencap,
         input::{Contact, InputBase, SeizeInput},
     },
-    vision::{ImageRegion, template_matching},
 };
+use oea_vision::{ImageRegion, template_matching};
 use tracing::debug;
 
 use super::commands;
@@ -87,7 +88,7 @@ impl ScreenCapture for Capture {
 pub(super) struct NavigationContext {
     capture: Capture,
     input: SeizeInput,
-    templates: template_matching::LazyTemplateLoader,
+    templates: TemplateLoader,
 }
 
 impl NavigationContext {
@@ -96,7 +97,7 @@ impl NavigationContext {
         Self {
             capture: Capture::new(connection),
             input,
-            templates: template_matching::LazyTemplateLoader::new(templates_root),
+            templates: TemplateLoader::new(templates_root),
         }
     }
 }
@@ -150,10 +151,9 @@ impl TemplateMatching for NavigationContext {
         target: &TemplateTarget,
     ) -> Result<Option<TemplateMatch>, capabilities::Error> {
         let matched = (|| -> anyhow::Result<template_matching::MatchResult> {
-            template_matching::find(
-                &ImageRegion::new(screenshot, target.roi)?,
-                target.template_name,
-                &mut self.templates,
+            template_matching::match_template(
+                &ImageRegion::new(screenshot, target.roi.into())?,
+                self.templates.get(target.template_name)?,
             )
         })()
         .map_err(|error| {
@@ -162,7 +162,7 @@ impl TemplateMatching for NavigationContext {
         })?;
         Ok(
             (matched.score >= target.threshold).then_some(TemplateMatch {
-                region: matched.region,
+                region: matched.region.into(),
                 score: matched.score,
             }),
         )

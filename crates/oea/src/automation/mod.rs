@@ -25,6 +25,7 @@ mod runtime;
 mod session;
 mod sound;
 mod stats;
+pub mod template_loader;
 
 pub use archive_scan::OCR_ROI as ARCHIVE_TITLE_OCR_ROI;
 pub use cancellation::{StopToken, new_stop_token};

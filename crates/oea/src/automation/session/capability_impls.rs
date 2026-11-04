@@ -3,6 +3,7 @@
 use std::{thread, time::Duration};
 
 use image::RgbaImage;
+use oea_vision::{ImageRegion, template_matching};
 use tracing::debug;
 
 use crate::{
@@ -12,7 +13,6 @@ use crate::{
     },
     platform::input::Contact,
     utils::region::Region2D,
-    vision::{ImageRegion, template_matching},
 };
 
 use super::Session;
@@ -73,13 +73,15 @@ impl TemplateMatching for Session {
         screenshot: &RgbaImage,
         target: &TemplateTarget,
     ) -> Result<Option<TemplateMatch>, capabilities::Error> {
-        let matched = template_matching::find(
-            &ImageRegion::new(screenshot, target.roi).map_err(|error| {
+        let matched = template_matching::match_template(
+            &ImageRegion::new(screenshot, target.roi.into()).map_err(|error| {
                 debug!(roi = ?target.roi, error = ?error, "模板匹配区域无效");
                 capabilities::Error::ExecutionFailed
             })?,
-            target.template_name,
-            &mut self.templates,
+            self.templates.get(target.template_name).map_err(|error| {
+                debug!(template = target.template_name, error = ?error, "加载模板失败");
+                capabilities::Error::ExecutionFailed
+            })?,
         )
         .map_err(|error| {
             debug!(template = target.template_name, error = ?error, "模板匹配失败");
@@ -87,7 +89,7 @@ impl TemplateMatching for Session {
         })?;
         Ok(
             (matched.score >= target.threshold).then_some(TemplateMatch {
-                region: matched.region,
+                region: matched.region.into(),
                 score: matched.score,
             }),
         )
@@ -104,10 +106,12 @@ impl Ocr for Session {
             .ocr
             .lock()
             .unwrap()
-            .recognize_region(&ImageRegion::new(screenshot, region).map_err(|error| {
-                debug!(?region, error = ?error, "OCR 区域无效");
-                capabilities::Error::ExecutionFailed
-            })?)
+            .recognize_region(
+                &ImageRegion::new(screenshot, region.into()).map_err(|error| {
+                    debug!(?region, error = ?error, "OCR 区域无效");
+                    capabilities::Error::ExecutionFailed
+                })?,
+            )
             .map_err(|error| {
                 debug!(?region, error = ?error, "OCR 识别失败");
                 capabilities::Error::ExecutionFailed

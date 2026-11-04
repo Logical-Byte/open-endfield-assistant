@@ -6,9 +6,11 @@ use std::{
 };
 
 use image::RgbaImage;
+use oea_vision::ocr;
 use tracing::{debug, info, warn};
 
 use crate::{
+    app_paths::AppPaths,
     automation::{
         self, Clock, EventSink, Input, Ocr, ScreenCapture, StopToken, TemplateMatching,
         TemplateTarget, capabilities,
@@ -16,12 +18,12 @@ use crate::{
         session::Session,
         sound::{self, Cue},
         stats::counts::{Capture, CaptureSummary},
+        template_loader::TemplateLoader,
     },
     data::{AppData, archive},
     navigation::{ArchiveState, ArchiveSubscene, CentralPage, Navigator, RecordsPage, UiState},
     platform, settings,
     utils::region::{Region2D, ltrb, ltwh},
-    vision,
 };
 
 use super::{matching, reporting::ScanReporter};
@@ -29,7 +31,7 @@ use super::{matching, reporting::ScanReporter};
 /// 一次真实扫描所需的协作者，由控制器在任务获准启动后创建。
 pub(crate) struct Worker {
     settings: settings::OeaSettings,
-    ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
+    ocr: Arc<Mutex<ocr::OcrEngine>>,
     navigator: Arc<Navigator>,
     app_data: Arc<AppData>,
 }
@@ -37,7 +39,7 @@ pub(crate) struct Worker {
 impl Worker {
     pub(crate) fn new(
         settings: settings::OeaSettings,
-        ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
+        ocr: Arc<Mutex<ocr::OcrEngine>>,
         navigator: Arc<Navigator>,
         app_data: Arc<AppData>,
     ) -> Self {
@@ -71,7 +73,12 @@ fn execute_session(
     capture: &mut Option<CaptureSummary>,
 ) -> Result<(), automation::WorkerError> {
     // 连接游戏可能耗时，所以留在工作线程中。
-    let mut session = Session::connect(&worker.ocr, stop)?;
+    let paths = AppPaths::new().map_err(|error| {
+        debug!(%error, "解析自动化资源路径失败");
+        capabilities::Error::ExecutionFailed
+    })?;
+    let templates = TemplateLoader::new(paths.templates_dir());
+    let mut session = Session::connect(&worker.ocr, templates, stop)?;
 
     // 停止请求可能发生在连接过程中，不能让它被清除或跳过。
     session.check_stop()?;

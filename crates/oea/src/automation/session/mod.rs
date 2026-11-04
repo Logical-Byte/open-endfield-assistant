@@ -4,24 +4,23 @@
 
 mod capability_impls;
 
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use tracing::{debug, info};
+use oea_vision::ocr;
+use tracing::info;
 
 use crate::{
-    app_paths::AppPaths,
     automation::{
         StopToken, capabilities,
         game_environment::{self, ResolutionTransform},
         is_stop_requested,
+        template_loader::TemplateLoader,
     },
     platform::{
         WindowHandle,
         capture::{PrintWindowScreencap, ScreencapBase},
         input::{InputBase, SeizeInput},
     },
-    vision::{ocr, template_matching},
 };
 
 /// # Send 安全性
@@ -43,7 +42,7 @@ pub struct Session {
     /// 共享 OCR 引擎（跨会话复用模型加载）
     ocr: Arc<Mutex<ocr::OcrEngine>>,
     /// 模板加载器（懒加载 + 缓存）
-    templates: template_matching::LazyTemplateLoader,
+    templates: TemplateLoader,
     /// 停止令牌
     stop: StopToken,
 }
@@ -52,6 +51,7 @@ impl Session {
     /// 连接游戏窗口并创建会话。
     pub fn connect(
         ocr: &Arc<Mutex<ocr::OcrEngine>>,
+        templates: TemplateLoader,
         stop: StopToken,
     ) -> Result<Self, capabilities::Error> {
         let environment = game_environment::connect(game_environment::Requirements::default())?;
@@ -62,18 +62,12 @@ impl Session {
         let screencap = Box::new(PrintWindowScreencap::new(hwnd));
         let input = Box::new(SeizeInput::new(hwnd, false));
 
-        let templates_root = AppPaths::new()
-            .map_err(|error| {
-                debug!(%error, "解析自动化资源路径失败");
-                capabilities::Error::ExecutionFailed
-            })?
-            .templates_dir();
         Ok(Self::new(
             hwnd,
             screencap,
             input,
             Arc::clone(ocr),
-            templates_root,
+            templates,
             resolution_transform,
             stop,
         ))
@@ -86,7 +80,7 @@ impl Session {
         screencap: Box<dyn ScreencapBase>,
         input: Box<dyn InputBase>,
         ocr: Arc<Mutex<ocr::OcrEngine>>,
-        templates_root: impl Into<PathBuf>,
+        templates: TemplateLoader,
         resolution_transform: ResolutionTransform,
         stop: StopToken,
     ) -> Self {
@@ -95,7 +89,7 @@ impl Session {
             screencap,
             input,
             ocr,
-            templates: template_matching::LazyTemplateLoader::new(templates_root),
+            templates,
             resolution_transform,
             stop,
         }

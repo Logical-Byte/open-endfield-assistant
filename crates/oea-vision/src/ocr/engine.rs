@@ -4,7 +4,7 @@ use anyhow::Context;
 use image::{RgbImage, RgbaImage, imageops};
 use imageproc::contrast::ThresholdType;
 
-use crate::vision::ImageRegion;
+use crate::ImageRegion;
 
 use super::{Config, Recognition, inference, text_detection};
 
@@ -14,6 +14,9 @@ pub struct OcrEngine {
 
 impl OcrEngine {
     /// 加载 PP-OCRv6 tiny 模型和字典，初始化可复用的识别引擎。
+    ///
+    /// 目录须包含 `PP-OCRv6_rec_tiny.onnx` 和 `ppocrv6_tiny_dict.txt`。
+    /// 文件读取或模型初始化失败时返回带上下文的错误。每个实例持有自己的推理线程池。
     pub fn new(models_dir: &Path, config: Config) -> anyhow::Result<Self> {
         let inference = inference::Inference::new(models_dir, config).with_context(|| {
             format!(
@@ -32,7 +35,8 @@ impl OcrEngine {
         Ok(result)
     }
 
-    /// 输入有效的截图区域，使用生产阈值与 padding 裁剪单行文字。
+    /// 输入包含单行白色文字的 RGBA 区域，以亮度阈值 `128` 二值化，
+    /// 取所有亮像素的包围框并向外扩展 `6` 像素（裁剪到区域范围）后识别。
     /// 区域内没有文字像素时返回 `None`，有像素但未识别出文字时返回空结果。
     pub fn recognize_region(
         &mut self,
@@ -47,10 +51,10 @@ impl OcrEngine {
         };
         let cropped = imageops::crop_imm(
             &rgb,
-            text_region.x0(),
-            text_region.y0(),
-            text_region.width(),
-            text_region.height(),
+            text_region.left,
+            text_region.top,
+            text_region.width,
+            text_region.height,
         )
         .to_image();
         self.recognize(&cropped).map(Some)

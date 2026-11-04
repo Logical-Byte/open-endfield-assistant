@@ -2,14 +2,12 @@
 use std::{collections::BTreeMap, path::Path, time::Instant};
 
 use anyhow::{Context, ensure};
+use oea_vision::{ImageRegion, ocr};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use super::{args::Rect, commands::Output};
-use oea_lib::{
-    automation::{self, game_environment},
-    vision::{ImageRegion, ocr},
-};
+use oea_lib::automation::{self, game_environment};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct Settings {
@@ -32,13 +30,19 @@ struct Report {
 struct ImageResult {
     image: String,
     size: [u32; 2],
-    recognition: Option<ocr::Recognition>,
+    recognition: Option<Recognition>,
     stable_text: bool,
     first_ms: f64,
     samples_ms: Vec<f64>,
     mean_ms: f64,
     p50_ms: f64,
     p95_ms: f64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Recognition {
+    text: String,
+    score: f32,
 }
 
 /// 本地截图按生产规则校验分辨率并归一化，供档案标题 OCR 使用。
@@ -113,7 +117,7 @@ pub(super) fn recognize(
         };
         let rgb = image::DynamicImage::ImageRgba8(image.clone()).to_rgb8();
         let region = region
-            .map(|bounds| ImageRegion::new(&image, bounds))
+            .map(|bounds| ImageRegion::new(&image, bounds.into()))
             .transpose()?;
         let mut recognize = || {
             if let Some(region) = &region {
@@ -147,7 +151,10 @@ pub(super) fn recognize(
                 .to_string_lossy()
                 .into_owned(),
             size,
-            recognition,
+            recognition: recognition.map(|result| Recognition {
+                text: result.text,
+                score: result.score,
+            }),
             stable_text,
             first_ms,
             samples_ms,

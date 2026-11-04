@@ -15,6 +15,7 @@ pub const BACKEND_NAME: &str = inference::NAME;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Config {
+    /// 每个引擎的推理线程数，默认 `8`。
     pub threads: usize,
 }
 
@@ -25,7 +26,7 @@ impl Default for Config {
 }
 
 /// 识别结果。未识别到文字时返回空字符串和零置信度。
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Recognition {
     pub text: String,
     pub score: f32,

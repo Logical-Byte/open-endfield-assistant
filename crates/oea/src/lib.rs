@@ -15,6 +15,5 @@ pub mod settings;
 pub(crate) mod storage;
 pub mod update;
 pub mod utils;
-pub mod vision;
 
 pub use app::run;

@@ -1,7 +1,7 @@
 use image::{RgbImage, imageops};
 use imageproc::contrast::{ThresholdType, threshold};
 
-use crate::utils::region::Region2D;
+use crate::PixelRect;
 
 /// 检测单行连续文字（黑底白字或白底黑字）。
 ///
@@ -15,7 +15,7 @@ pub(crate) fn detect_single_line(
     threshold_value: u8,
     threshold_type: ThresholdType,
     padding: u32,
-) -> Option<Region2D<u32>> {
+) -> Option<PixelRect> {
     let gray = imageops::grayscale(image);
     let binary = threshold(&gray, threshold_value, threshold_type);
 
@@ -42,16 +42,16 @@ pub(crate) fn detect_single_line(
         return None;
     }
 
-    let region = Region2D::from_ltrb(min_x, min_y, max_x + 1, max_y + 1);
+    let region = PixelRect::new(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1);
     Some(apply_padding(region, padding, w, h))
 }
 
 /// 给包围框加 padding，并裁剪到图像边界内
-fn apply_padding(region: Region2D<u32>, padding: u32, img_w: u32, img_h: u32) -> Region2D<u32> {
-    let left = region.x0().saturating_sub(padding);
-    let top = region.y0().saturating_sub(padding);
-    let right = (region.x1() + padding).min(img_w);
-    let bottom = (region.y1() + padding).min(img_h);
+fn apply_padding(region: PixelRect, padding: u32, img_w: u32, img_h: u32) -> PixelRect {
+    let left = region.left.saturating_sub(padding);
+    let top = region.top.saturating_sub(padding);
+    let right = ((region.left + region.width) + padding).min(img_w);
+    let bottom = ((region.top + region.height) + padding).min(img_h);
 
-    Region2D::from_ltrb(left, top, right, bottom)
+    PixelRect::new(left, top, right - left, bottom - top)
 }

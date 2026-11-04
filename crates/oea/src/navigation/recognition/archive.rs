@@ -5,7 +5,7 @@
 
 use crate::navigation;
 use crate::utils::region::{Region2D, ltwh};
-use crate::vision::{ImageRegion, statistics::mean_luma};
+use oea_vision::{ImageRegion, statistics::mean_luma};
 use tracing::debug;
 
 use super::{RecognitionContext, Refinement, UiStateGroup};
@@ -191,7 +191,7 @@ impl UiStateGroup for CentralSubscenes {
 fn tab_darkness(cx: &RecognitionContext<'_>, count: usize) -> Result<[bool; 3], navigation::Error> {
     let mut result = [false; 3];
     for (index, roi) in TAB_ROIS.iter().take(count).enumerate() {
-        let region = ImageRegion::new(cx.screenshot, *roi).map_err(|error| {
+        let region = ImageRegion::new(cx.screenshot, (*roi).into()).map_err(|error| {
             debug!(?roi, error = ?error, "导航图像分析失败");
             navigation::Error::failed("导航图像分析失败")
         })?;

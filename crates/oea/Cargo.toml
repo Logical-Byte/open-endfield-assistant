@@ -29,12 +29,12 @@ chrono = { workspace = true }
 fastrand = "2.5.0"
 futures-util = "0.3.34"
 image = { workspace = true }
-imageproc = "0.27.0"
+imageproc = { workspace = true }
 indexmap = { version = "2.14.0", features = ["serde"] }
 libc = "0.2.189"
+oea-vision = { version = "0.0.0", path = "../oea-vision" }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "native-tls", "query", "stream"] }
 rodio = { version = "0.23", default-features = false, features = ["wav", "playback", "tracing"] }
-rten = { version = "0.24", default-features = false, features = ["onnx_format"] }
 scopeguard = "1.2.0"
 semver = "1.0.28"
 serde = { workspace = true, features = ["derive"] }

@@ -5,11 +5,8 @@ use super::{
 use anyhow::Context;
 use clap::ValueEnum;
 use oea_lib::automation::ScreenCapture;
-use oea_lib::{
-    app_paths::AppPaths,
-    navigation,
-    vision::{ImageRegion, template_matching},
-};
+use oea_lib::{app_paths::AppPaths, navigation};
+use oea_vision::{ImageRegion, template_matching};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -157,19 +154,21 @@ fn match_image(
         })?
         .to_rgb8();
     let template = json!({"path":template_path.to_string_lossy(), "width":template_image.width(), "height":template_image.height()});
-    let matched =
-        template_matching::match_template(&ImageRegion::new(image, search)?, &template_image)
-            .with_context(|| {
-                format!(
-                    "failed to match template {} ({}x{}) in region ({region}) of {}x{} input",
-                    template_path.display(),
-                    template_image.width(),
-                    template_image.height(),
-                    image.width(),
-                    image.height()
-                )
-            })?;
-    let matched_region = Rect::from_region(matched.region);
+    let matched = template_matching::match_template(
+        &ImageRegion::new(image, search.into())?,
+        &template_image,
+    )
+    .with_context(|| {
+        format!(
+            "failed to match template {} ({}x{}) in region ({region}) of {}x{} input",
+            template_path.display(),
+            template_image.width(),
+            template_image.height(),
+            image.width(),
+            image.height()
+        )
+    })?;
+    let matched_region = Rect::from_region(matched.region.into());
     Ok(Output {
         human: format!(
             "input: {input}\ntemplate: {template}\nsearch region: {},{},{},{}\nmatch region: {},{},{},{}\nscore: {:.6}",
