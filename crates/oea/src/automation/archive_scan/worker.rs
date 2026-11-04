@@ -6,9 +6,11 @@ use std::{
 };
 
 use image::RgbaImage;
+use oea_vision as vision;
 use tracing::{debug, info, warn};
 
 use crate::{
+    app_paths::AppPaths,
     automation::{
         self, Clock, EventSink, Input, Ocr, ScreenCapture, StopToken, TemplateMatching,
         TemplateTarget, capabilities,
@@ -16,12 +18,12 @@ use crate::{
         session::Session,
         sound::{self, Cue},
         stats::counts::{Capture, CaptureSummary},
+        template_loader::TemplateLoader,
     },
     data::{AppData, archive},
     navigation::{ArchiveState, ArchiveSubscene, CentralPage, Navigator, RecordsPage, UiState},
-    platform, settings,
+    settings,
     utils::region::{Region2D, ltrb, ltwh},
-    vision,
 };
 
 use super::{matching, reporting::ScanReporter};
@@ -71,13 +73,18 @@ fn execute_session(
     capture: &mut Option<CaptureSummary>,
 ) -> Result<(), automation::WorkerError> {
     // 连接游戏可能耗时，所以留在工作线程中。
-    let mut session = Session::connect(&worker.ocr, stop)?;
+    let paths = AppPaths::new().map_err(|error| {
+        debug!(%error, "解析自动化资源路径失败");
+        capabilities::Error::ExecutionFailed
+    })?;
+    let templates = TemplateLoader::new(paths.templates_dir());
+    let mut session = Session::connect(&worker.ocr, templates, stop)?;
 
     // 停止请求可能发生在连接过程中，不能让它被清除或跳过。
     session.check_stop()?;
 
     // 扫描需要点击游戏窗口，先确保窗口在前台（失败不阻断）。
-    if let Err(error) = platform::window::ensure_foreground_and_topmost(session.hwnd) {
+    if let Err(error) = session.window.activate() {
         warn!("无法将游戏窗口置于前台: {error:#}，继续尝试执行任务");
     }
 

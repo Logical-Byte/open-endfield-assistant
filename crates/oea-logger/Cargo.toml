@@ -1,0 +1,15 @@
+[package]
+name = "oea-logger"
+description = "OEA 日志输出、文件轮转与日志条目通道"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+
+[dependencies]
+chrono.workspace = true
+serde = { workspace = true, features = ["derive"] }
+tracing.workspace = true
+tracing-appender = "0.2.5"
+tracing-log = "0.2.0"
+tracing-subscriber = { workspace = true, features = ["chrono"] }
+ts-rs.workspace = true

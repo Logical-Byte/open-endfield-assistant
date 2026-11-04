@@ -4,12 +4,10 @@ use std::path::Path;
 
 use anyhow::{Context, ensure};
 use image::{RgbImage, RgbaImage};
+use oea_vision as vision;
 
 use super::model::{Card, Suit};
-use crate::{
-    utils::region::Region2D,
-    vision::{ImageRegion, statistics, template_matching::pure},
-};
+use crate::utils::region::Region2D;
 
 /// 只统计牌头空白区域的亮度，不加载或匹配数字、花色模板。
 pub(super) fn count_cards(screenshot: &RgbaImage) -> anyhow::Result<usize> {
@@ -21,8 +19,9 @@ pub(super) fn count_cards(screenshot: &RgbaImage) -> anyhow::Result<usize> {
     let mut empty_seen = false;
     for slot in 0..5 {
         let x = 170 + slot * 184;
-        let region = ImageRegion::new(screenshot, Region2D::from_ltrb(x, 165, x + 45, 180))?;
-        let luma = statistics::mean_luma(&region);
+        let region =
+            vision::ImageRegion::new(screenshot, Region2D::from_ltrb(x, 165, x + 45, 180).into())?;
+        let luma = vision::statistics::mean_luma(&region);
         // 图包中牌面约 239、牌背约 140，独立视频的变暗牌面最低约 183。
         // 阈值间留出不确定区间，弹窗遮罩或翻牌过渡交给工作流重试。
         if luma >= 175.0 {
@@ -80,34 +79,40 @@ impl Recognizer {
         let mut empty_seen = false;
         for slot in 0..5 {
             let x = 105 + slot * 184;
-            let empty_region =
-                ImageRegion::new(screenshot, Region2D::from_ltrb(x + 10, 269, x + 130, 305))?;
-            if pure::match_template(&empty_region, &self.empty)?.score >= 0.85 {
+            let empty_region = vision::ImageRegion::new(
+                screenshot,
+                Region2D::from_ltrb(x + 10, 269, x + 130, 305).into(),
+            )?;
+            if vision::template::match_(&empty_region, &self.empty)?.score >= 0.85 {
                 empty_seen = true;
                 continue;
             }
             // 未识别的牌头不是空槽，动画或未知画面交由工作流重试。
             ensure!(!empty_seen, "百趣演武铭牌未按顺序翻开");
-            let rank_region =
-                ImageRegion::new(screenshot, Region2D::from_ltrb(x + 6, 165, x + 39, 205))?;
+            let rank_region = vision::ImageRegion::new(
+                screenshot,
+                Region2D::from_ltrb(x + 6, 165, x + 39, 205).into(),
+            )?;
             let rank_scores = self
                 .ranks
                 .iter()
                 .map(|template| {
-                    pure::match_template(&rank_region, template).map(|matched| matched.score)
+                    vision::template::match_(&rank_region, template).map(|matched| matched.score)
                 })
                 .collect::<anyhow::Result<Vec<_>>>()?;
             let rank = best_candidate(&rank_scores)
                 .with_context(|| format!("第 {} 张铭牌战力点不明确", slot + 1))?
                 as u8
                 + 1;
-            let suit_region =
-                ImageRegion::new(screenshot, Region2D::from_ltrb(x + 38, 174, x + 69, 205))?;
+            let suit_region = vision::ImageRegion::new(
+                screenshot,
+                Region2D::from_ltrb(x + 38, 174, x + 69, 205).into(),
+            )?;
             let suit_scores = self
                 .suits
                 .iter()
                 .map(|(_, template)| {
-                    pure::match_template(&suit_region, template).map(|matched| matched.score)
+                    vision::template::match_(&suit_region, template).map(|matched| matched.score)
                 })
                 .collect::<anyhow::Result<Vec<_>>>()?;
             let suit = self.suits[best_candidate(&suit_scores)

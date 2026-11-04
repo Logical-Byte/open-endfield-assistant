@@ -2,14 +2,12 @@
 use std::{collections::BTreeMap, path::Path, time::Instant};
 
 use anyhow::{Context, ensure};
+use oea_vision as vision;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use super::{args::Rect, commands::Output};
-use oea_lib::{
-    automation,
-    vision::{ImageRegion, ocr},
-};
+use oea_lib::automation::{self, game_environment};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct Settings {
@@ -32,13 +30,30 @@ struct Report {
 struct ImageResult {
     image: String,
     size: [u32; 2],
-    recognition: Option<ocr::Recognition>,
+    recognition: Option<Recognition>,
     stable_text: bool,
     first_ms: f64,
     samples_ms: Vec<f64>,
     mean_ms: f64,
     p50_ms: f64,
     p95_ms: f64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Recognition {
+    text: String,
+    score: f32,
+}
+
+/// 本地截图按生产规则校验分辨率并归一化，供档案标题 OCR 使用。
+fn normalize_screenshot(
+    image: image::RgbaImage,
+) -> Result<image::RgbaImage, game_environment::Error> {
+    game_environment::ResolutionTransform::new(game_environment::Resolution::new(
+        image.width(),
+        image.height(),
+    )?)?
+    .to_canonical_image(image)
 }
 
 pub(super) fn recognize(
@@ -77,9 +92,9 @@ pub(super) fn recognize(
     paths.sort();
     ensure!(!paths.is_empty(), "输入目录没有可识别的图片");
     let started = Instant::now();
-    let mut engine = ocr::OcrEngine::new(
+    let mut engine = vision::ocr::OcrEngine::new(
         models,
-        ocr::Config {
+        vision::ocr::Config {
             threads: threads as usize,
         },
     )?;
@@ -90,7 +105,7 @@ pub(super) fn recognize(
             .with_context(|| format!("读取图片 {}", path.display()))?
             .to_rgba8();
         if archive_title {
-            image = automation::normalize_screenshot(image)?;
+            image = normalize_screenshot(image)?;
         }
         let size = [image.width(), image.height()];
         let region = if archive_title {
@@ -102,7 +117,7 @@ pub(super) fn recognize(
         };
         let rgb = image::DynamicImage::ImageRgba8(image.clone()).to_rgb8();
         let region = region
-            .map(|bounds| ImageRegion::new(&image, bounds))
+            .map(|bounds| vision::ImageRegion::new(&image, bounds.into()))
             .transpose()?;
         let mut recognize = || {
             if let Some(region) = &region {
@@ -136,7 +151,10 @@ pub(super) fn recognize(
                 .to_string_lossy()
                 .into_owned(),
             size,
-            recognition,
+            recognition: recognition.map(|result| Recognition {
+                text: result.text,
+                score: result.score,
+            }),
             stable_text,
             first_ms,
             samples_ms,
@@ -146,7 +164,7 @@ pub(super) fn recognize(
         });
     }
     let report = Report {
-        backend: ocr::BACKEND_NAME.to_owned(),
+        backend: vision::ocr::BACKEND_NAME.to_owned(),
         settings,
         initialization_ms,
         images,

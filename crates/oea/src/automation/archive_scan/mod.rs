@@ -7,7 +7,6 @@ mod reporting;
 mod simulation_worker;
 mod worker;
 
-#[cfg(feature = "cli")]
 pub use worker::OCR_ROI;
 
 pub(crate) use reporting::ScannedItem;

@@ -7,6 +7,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use oea_vision as vision;
 use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
@@ -16,7 +17,6 @@ use crate::{
     navigation::Navigator,
     settings,
     update::UpdateManager,
-    vision,
 };
 
 /// 应用控制器（Tauri 托管状态）。

@@ -4,13 +4,13 @@ mod error;
 mod resolution;
 
 pub use error::Error;
-pub(crate) use resolution::{Resolution, ResolutionTransform};
+pub use resolution::{Resolution, ResolutionTransform};
 
 use tracing::{debug, warn};
 
-use crate::platform::{self, WindowHandle};
+use oea_window::{Window, WindowQuery};
 
-pub(crate) struct Requirements {
+pub struct Requirements {
     pub restore_if_minimized: bool,
     pub ensure_on_screen: bool,
     pub hdr_disabled: bool,
@@ -26,38 +26,38 @@ impl Default for Requirements {
     }
 }
 
-pub(crate) struct Environment {
-    pub window: WindowHandle,
+pub struct Environment {
+    pub window: Window,
     pub resolution: Resolution,
 }
 
 /// 按要求准备窗口并检查显示条件。所有调用都检查客户区尺寸有效性。
-pub(crate) fn connect(requirements: Requirements) -> Result<Environment, Error> {
-    let window = platform::window::get_window_by_title(
-        Some(platform::window::ENDFIELD_WINDOW_CLASS),
-        Some(platform::window::ENDFIELD_WINDOW_TITLE),
-    )
-    .map_err(|error| {
-        debug!(error = ?error, "定位游戏窗口失败");
-        Error::WindowUnavailable
-    })?;
+pub fn connect(requirements: Requirements) -> Result<Environment, Error> {
+    let window = oea_window::search(window_query())
+        .map_err(|error| {
+            debug!(error = ?error, "定位游戏窗口失败");
+            Error::WindowUnavailable
+        })?
+        .ok_or(Error::WindowUnavailable)?;
     if requirements.restore_if_minimized {
-        let _ = platform::window::restore_window_if_minimized(window)
+        let _ = window
+            .restore_if_minimized()
             .inspect_err(|error| warn!("恢复窗口失败: {error:#}"));
     }
     if requirements.ensure_on_screen {
-        let _ = platform::window::ensure_window_on_screen(window)
+        let _ = window
+            .ensure_on_screen()
             .inspect_err(|error| warn!("确保窗口在屏幕上失败: {error:#}"));
     }
 
-    let rect = platform::window::get_client_rect(window).map_err(|error| {
+    let size = window.client_size().map_err(|error| {
         debug!(error = ?error, "读取游戏窗口尺寸失败");
         Error::WindowUnavailable
     })?;
-    let resolution = client_resolution(rect.width(), rect.height())?;
+    let resolution = Resolution::new(size.width, size.height)?;
 
     if requirements.hdr_disabled {
-        match platform::window::hdr::is_hdr_enabled_on_window_monitor(window) {
+        match window.is_hdr_enabled() {
             Ok(true) => return Err(Error::HdrEnabled),
             Ok(false) => {}
             Err(error) => warn!("检查显示器 HDR 状态失败: {error:#}，继续执行任务"),
@@ -67,10 +67,10 @@ pub(crate) fn connect(requirements: Requirements) -> Result<Environment, Error> 
     Ok(Environment { window, resolution })
 }
 
-fn client_resolution(width: i32, height: i32) -> Result<Resolution, Error> {
-    let (Ok(width), Ok(height)) = (u32::try_from(width), u32::try_from(height)) else {
-        debug!(width, height, "游戏窗口尺寸无效");
-        return Err(Error::WindowUnavailable);
-    };
-    Resolution::new(width, height)
+/// 游戏窗口选择条件集中于应用侧，供连接流程和热键前台规则复用。
+pub(crate) fn window_query() -> WindowQuery<'static> {
+    WindowQuery {
+        class_name: Some("UnityWndClass"),
+        title: Some("Endfield"),
+    }
 }

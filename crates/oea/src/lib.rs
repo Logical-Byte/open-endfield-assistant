@@ -8,13 +8,11 @@ pub mod automation;
 pub mod controller;
 pub mod data;
 pub mod locale;
-pub mod logger;
 pub mod navigation;
 pub mod platform;
 pub mod settings;
 pub(crate) mod storage;
 pub mod update;
 pub mod utils;
-pub mod vision;
 
 pub use app::run;

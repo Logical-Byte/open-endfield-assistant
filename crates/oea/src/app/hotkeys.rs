@@ -13,7 +13,11 @@ use std::{
 use tauri::{AppHandle, Emitter, Manager};
 use tracing::{debug, warn};
 
+#[cfg(windows)]
+use crate::automation::game_environment;
 use crate::{controller::Controller, platform};
+#[cfg(windows)]
+use oea_window::Window;
 
 const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
 
@@ -38,13 +42,53 @@ const EXIT_HOTKEY: platform::hotkey::KeyEvent = platform::hotkey::KeyEvent {
     modifiers: platform::hotkey::ALT_MODIFIER,
 };
 
+/// 任务热键的适用范围：OEA 主窗口或游戏窗口位于前台。
+pub(super) struct TaskHotkeyScope {
+    #[cfg(windows)]
+    app_window: Window,
+}
+
+impl TaskHotkeyScope {
+    pub(super) fn new(app_handle: &AppHandle) -> anyhow::Result<Self> {
+        #[cfg(windows)]
+        {
+            Ok(Self {
+                app_window: platform::window::app_window(app_handle)?,
+            })
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = app_handle;
+            Ok(Self {})
+        }
+    }
+
+    fn is_active(&self) -> bool {
+        #[cfg(windows)]
+        {
+            if self.app_window.is_foreground().unwrap_or(false) {
+                return true;
+            }
+            oea_window::search(game_environment::window_query())
+                .ok()
+                .flatten()
+                .and_then(|window| window.is_foreground().ok())
+                .unwrap_or(false)
+        }
+        #[cfg(not(windows))]
+        {
+            false
+        }
+    }
+}
+
 /// 启动热键动作分发线程。
 ///
 /// `stop` 被设置为 `true` 后，线程会在观察到该值后退出。
 pub(super) fn spawn_dispatcher(
     rx: Receiver<platform::hotkey::KeyEvent>,
     stop: Arc<AtomicBool>,
-    foreground: platform::window::ForegroundGuard,
+    scope: TaskHotkeyScope,
     app_handle: AppHandle,
 ) -> JoinHandle<()> {
     thread::Builder::new()
@@ -63,7 +107,7 @@ pub(super) fn spawn_dispatcher(
                 } else if key_event == TOGGLE_MAIN_TASK_HOTKEY
                     || key_event == TOGGLE_GAMBLE_BATTLE_HOTKEY
                 {
-                    if foreground.is_foreground_eligible() {
+                    if scope.is_active() {
                         let controller = app_handle.state::<Controller>();
                         if key_event == TOGGLE_MAIN_TASK_HOTKEY {
                             controller.toggle_archive_scan();

@@ -6,11 +6,13 @@ rust-version = "1.99"
 publish = false
 
 [dependencies]
-oea = { path = "../oea", features = ["cli"] }
 anyhow = { workspace = true }
 chrono = { workspace = true }
 clap = { version = "4.6.7", features = ["derive"] }
 image = { workspace = true }
+oea = { path = "../oea" }
+oea-vision = { version = "0.0.0", path = "../oea-vision" }
+oea-window = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tracing = { workspace = true }
