@@ -32,6 +32,7 @@ image = { workspace = true }
 imageproc = { workspace = true }
 indexmap = { version = "2.14.0", features = ["serde"] }
 libc = "0.2.189"
+oea-logger = { version = "0.0.0", path = "../oea-logger" }
 oea-vision = { version = "0.0.0", path = "../oea-vision" }
 oea-window = { workspace = true }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "native-tls", "query", "stream"] }
@@ -46,10 +47,7 @@ tauri-plugin-opener = "2"
 tokio = { version = "1.53.1", features = ["sync", "macros", "time", "rt"] }
 tokio-util = { version = "0.7.19", features = ["rt"] }
 tracing = { workspace = true }
-tracing-appender = "0.2.5"
-tracing-log = "0.2.0"
-tracing-subscriber = { workspace = true, features = ["chrono"] }
-ts-rs = "11"
+ts-rs = { workspace = true }
 zip = "7.2.0"
 
 
@@ -59,6 +57,7 @@ windows = { workspace = true, features = ["Win32_Foundation", "Win32_Globalizati
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tracing-subscriber.workspace = true
 
 # strip = "symbols"
 # lto = true

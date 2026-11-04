@@ -1,3 +1,5 @@
+//! OEA 日志策略：控制台、按本地日期轮转的文件与日志条目通道。
+
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -54,6 +56,13 @@ pub struct LogEntry {
     pub level: LogLevel,
     /// 格式化后的日志文本（事件字段，不含时间 / 等级 / 调用者）
     pub message: String,
+}
+
+/// 文件日志后台写入线程的保活资源。
+///
+/// 应持有至日志生产结束。释放时刷新待写入的日志并关闭后台写入线程。
+pub struct LogGuard {
+    _worker: WorkerGuard,
 }
 
 /// 按本地日期每日轮换的文件写入器（tracing-appender 本身仅按 UTC 轮换，故自定义）。
@@ -156,15 +165,20 @@ where
 ///   源文件位置、行号、线程名 / ID 与全部字段，按**本地日期**轮转到 `<logs_dir>/YYYY-mm-dd.log`
 /// - 前端转发所有级别（TRACE 及以上），以 `LogEntry`（时间 + 等级 + 文本）逐条发送，
 ///   时间为本地 ISO 8601 字符串（含微秒与时区偏移），由前端自行格式化展示，并可按等级过滤
-/// - `ort` 及 `onnxruntime` 模块的日志仅输出 WARN 及以上（屏蔽 ONNX Runtime 的冗余信息）
+/// - `ort` 及 `tao` 模块的日志仅输出 WARN 及以上
 ///
 /// # 参数
-/// - `logs_dir`: 日志输出目录（如 [`crate::app_paths::AppPaths::logs_dir()`]）
+/// - `logs_dir`: 由调用方选择的日志输出目录。
 ///
-/// 返回 `(WorkerGuard, mpsc::Receiver<LogEntry>)`：
-/// - `WorkerGuard` 必须被持有，否则文件写入线程会在 drop 时被关闭；
-/// - `Receiver` 每收到一条日志，即由上层转发给 Tauri 前端。
-pub fn init(logs_dir: &Path) -> (WorkerGuard, mpsc::Receiver<LogEntry>) {
+/// 返回 `(LogGuard, mpsc::Receiver<LogEntry>)`：
+/// - `LogGuard` 必须被持有，否则文件写入线程会在 `drop` 时被关闭。
+/// - 接收器供调用方消费日志条目，例如向前端转发。无需消费时应立即释放接收器，
+///   避免日志条目积累。接收器关闭不影响控制台与文件输出。
+///
+/// # Panics
+///
+/// 每个进程只能初始化一次。已安装全局 subscriber 时会 panic。
+pub fn init(logs_dir: &Path) -> (LogGuard, mpsc::Receiver<LogEntry>) {
     // 前端转发通道
     let (tx, rx) = mpsc::channel();
 
@@ -220,5 +234,5 @@ pub fn init(logs_dir: &Path) -> (WorkerGuard, mpsc::Receiver<LogEntry>) {
 
     info!("日志系统初始化完成，日志目录: {}", logs_dir.display());
 
-    (guard, rx)
+    (LogGuard { _worker: guard }, rx)
 }

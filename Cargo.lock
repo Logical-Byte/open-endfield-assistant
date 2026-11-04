@@ -3314,6 +3314,7 @@ dependencies = [
  "imageproc",
  "indexmap 2.14.2",
  "libc",
+ "oea-logger",
  "oea-vision",
  "oea-window",
  "reqwest",
@@ -3330,8 +3331,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
- "tracing-appender",
- "tracing-log",
  "tracing-subscriber",
  "ts-rs",
  "webview2-com",
@@ -3355,6 +3354,19 @@ dependencies = [
  "tempfile",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "oea-logger"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "tracing",
+ "tracing-appender",
+ "tracing-log",
+ "tracing-subscriber",
+ "ts-rs",
 ]
 
 [[package]]

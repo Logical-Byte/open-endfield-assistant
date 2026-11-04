@@ -9,11 +9,11 @@ use std::{
     thread::JoinHandle,
 };
 
+use oea_logger::{LogEntry, LogGuard};
 use tauri::AppHandle;
 use tracing::{error, info};
-use tracing_appender::non_blocking::WorkerGuard;
 
-use crate::{logger::LogEntry, platform};
+use crate::platform;
 
 use super::{automation_events, frontend_forwarders, hotkeys};
 
@@ -28,7 +28,7 @@ struct Inner {
     keyboard_hook: platform::hotkey::KeyboardHookGuard,
     hotkey_thread: JoinHandle<()>,
     log_thread: JoinHandle<()>,
-    logger_guard: WorkerGuard,
+    logger_guard: LogGuard,
 }
 
 impl BackgroundThreads {
@@ -38,7 +38,7 @@ impl BackgroundThreads {
     pub(super) fn start(
         app_handle: &AppHandle,
         frontend_event_sink: Arc<automation_events::TauriEventSink>,
-        logger_guard: WorkerGuard,
+        logger_guard: LogGuard,
         log_rx: mpsc::Receiver<LogEntry>,
     ) -> anyhow::Result<Self> {
         let hotkey_scope = hotkeys::TaskHotkeyScope::new(app_handle)?;
