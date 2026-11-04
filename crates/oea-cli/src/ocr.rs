@@ -41,6 +41,17 @@ struct ImageResult {
     p95_ms: f64,
 }
 
+/// 本地截图按生产规则校验分辨率并归一化，供档案标题 OCR 使用。
+fn normalize_screenshot(
+    image: image::RgbaImage,
+) -> Result<image::RgbaImage, game_environment::Error> {
+    game_environment::ResolutionTransform::new(game_environment::Resolution::new(
+        image.width(),
+        image.height(),
+    )?)?
+    .to_canonical_image(image)
+}
+
 pub(super) fn recognize(
     input: &Path,
     models: &Path,
@@ -90,7 +101,7 @@ pub(super) fn recognize(
             .with_context(|| format!("读取图片 {}", path.display()))?
             .to_rgba8();
         if archive_title {
-            image = game_environment::normalize_screenshot(image)?;
+            image = normalize_screenshot(image)?;
         }
         let size = [image.width(), image.height()];
         let region = if archive_title {

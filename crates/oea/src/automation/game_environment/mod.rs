@@ -67,12 +67,6 @@ pub fn connect(requirements: Requirements) -> Result<Environment, Error> {
     Ok(Environment { window, resolution })
 }
 
-/// 按游戏识别的分辨率校验和缩放规则归一化一张本地截图。
-pub fn normalize_screenshot(image: image::RgbaImage) -> Result<image::RgbaImage, Error> {
-    ResolutionTransform::new(Resolution::new(image.width(), image.height())?)?
-        .to_canonical_image(image)
-}
-
 fn client_resolution(width: i32, height: i32) -> Result<Resolution, Error> {
     let (Ok(width), Ok(height)) = (u32::try_from(width), u32::try_from(height)) else {
         debug!(width, height, "游戏窗口尺寸无效");
