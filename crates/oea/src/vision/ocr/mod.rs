@@ -25,8 +25,7 @@ impl Default for Config {
 }
 
 /// 识别结果。未识别到文字时返回空字符串和零置信度。
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "cli", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Recognition {
     pub text: String,
     pub score: f32,

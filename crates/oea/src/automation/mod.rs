@@ -20,17 +20,12 @@ pub mod capabilities;
 mod error;
 mod events;
 pub(crate) mod gamble_battle;
-pub(crate) mod game_environment;
+pub mod game_environment;
 mod runtime;
 mod session;
-#[cfg(feature = "cli")]
-pub use session::Session;
-#[cfg(feature = "cli")]
-pub use session::normalize_screenshot;
 mod sound;
 mod stats;
 
-#[cfg(feature = "cli")]
 pub use archive_scan::OCR_ROI as ARCHIVE_TITLE_OCR_ROI;
 pub use cancellation::{StopToken, new_stop_token};
 use cancellation::{is_stop_requested, request_stop};

@@ -7,7 +7,7 @@ use serde_json::json;
 
 use super::{args::Rect, commands::Output};
 use oea_lib::{
-    automation,
+    automation::{self, game_environment},
     vision::{ImageRegion, ocr},
 };
 
@@ -90,7 +90,7 @@ pub(super) fn recognize(
             .with_context(|| format!("读取图片 {}", path.display()))?
             .to_rgba8();
         if archive_title {
-            image = automation::normalize_screenshot(image)?;
+            image = game_environment::normalize_screenshot(image)?;
         }
         let size = [image.width(), image.height()];
         let region = if archive_title {

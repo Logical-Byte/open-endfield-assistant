@@ -59,8 +59,6 @@ windows = { version = "0.62", features = ["Foundation_Metadata", "Graphics_Captu
 [dev-dependencies]
 tempfile = { workspace = true }
 
-[features]
-cli = []
 # strip = "symbols"
 # lto = true
 # panic = "abort"

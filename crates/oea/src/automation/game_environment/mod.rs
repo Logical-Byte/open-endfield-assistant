@@ -4,13 +4,13 @@ mod error;
 mod resolution;
 
 pub use error::Error;
-pub(crate) use resolution::{Resolution, ResolutionTransform};
+pub use resolution::{Resolution, ResolutionTransform};
 
 use tracing::{debug, warn};
 
 use crate::platform::{self, WindowHandle};
 
-pub(crate) struct Requirements {
+pub struct Requirements {
     pub restore_if_minimized: bool,
     pub ensure_on_screen: bool,
     pub hdr_disabled: bool,
@@ -26,13 +26,13 @@ impl Default for Requirements {
     }
 }
 
-pub(crate) struct Environment {
+pub struct Environment {
     pub window: WindowHandle,
     pub resolution: Resolution,
 }
 
 /// 按要求准备窗口并检查显示条件。所有调用都检查客户区尺寸有效性。
-pub(crate) fn connect(requirements: Requirements) -> Result<Environment, Error> {
+pub fn connect(requirements: Requirements) -> Result<Environment, Error> {
     let window = platform::window::get_window_by_title(
         Some(platform::window::ENDFIELD_WINDOW_CLASS),
         Some(platform::window::ENDFIELD_WINDOW_TITLE),
@@ -65,6 +65,12 @@ pub(crate) fn connect(requirements: Requirements) -> Result<Environment, Error> 
     }
 
     Ok(Environment { window, resolution })
+}
+
+/// 按游戏识别的分辨率校验和缩放规则归一化一张本地截图。
+pub fn normalize_screenshot(image: image::RgbaImage) -> Result<image::RgbaImage, Error> {
+    ResolutionTransform::new(Resolution::new(image.width(), image.height())?)?
+        .to_canonical_image(image)
 }
 
 fn client_resolution(width: i32, height: i32) -> Result<Resolution, Error> {

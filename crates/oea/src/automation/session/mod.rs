@@ -24,19 +24,6 @@ use crate::{
     vision::{ocr, template_matching},
 };
 
-/// 本地截图验证复用游戏会话的分辨率校验和缩放规则。
-#[cfg(feature = "cli")]
-pub fn normalize_screenshot(
-    image: image::RgbaImage,
-) -> Result<image::RgbaImage, capabilities::Error> {
-    ResolutionTransform::new(game_environment::Resolution::new(
-        image.width(),
-        image.height(),
-    )?)?
-    .to_canonical_image(image)
-    .map_err(capabilities::Error::from)
-}
-
 /// # Send 安全性
 /// `Session` 持有非拥有型窗口句柄，不自动 `Send`。
 /// 窗口句柄在 OS 层面对线程无亲和性，且本类型始终由调用方以 `&mut`
@@ -62,13 +49,6 @@ pub struct Session {
 }
 
 impl Session {
-    /// 客户区在连接时观察到的截图尺寸。
-    #[cfg(feature = "cli")]
-    pub fn client_size(&self) -> (u32, u32) {
-        let physical = self.resolution_transform.physical();
-        (physical.width, physical.height)
-    }
-
     /// 连接游戏窗口并创建会话。
     pub fn connect(
         ocr: &Arc<Mutex<ocr::OcrEngine>>,

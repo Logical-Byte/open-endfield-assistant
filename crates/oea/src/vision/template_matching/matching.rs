@@ -14,7 +14,7 @@ pub struct MatchResult {
 }
 
 /// 通过模板名称取得模板，并在已校验的区域内搜索。结果坐标相对于原图。
-pub(crate) fn find<I, P>(
+pub fn find<I, P>(
     search: &ImageRegion<'_, I>,
     template_name: &str,
     templates: &mut P,

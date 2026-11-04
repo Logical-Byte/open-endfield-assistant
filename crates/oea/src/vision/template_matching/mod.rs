@@ -9,7 +9,6 @@ mod ccoeff;
 mod matching;
 mod template_source;
 
-#[cfg(feature = "cli")]
-pub use matching::{MatchResult, pure::match_template};
-pub(crate) use matching::{find, pure};
-pub(crate) use template_source::LazyTemplateLoader;
+pub(crate) use matching::pure;
+pub use matching::{MatchResult, find, pure::match_template};
+pub use template_source::{LazyTemplateLoader, TemplateProvider};

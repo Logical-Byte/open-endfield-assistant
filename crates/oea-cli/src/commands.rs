@@ -1,9 +1,13 @@
-use super::args::{Command, Rect};
+use super::{
+    args::{Command, Rect},
+    game,
+};
 use anyhow::Context;
 use clap::ValueEnum;
 use oea_lib::automation::ScreenCapture;
 use oea_lib::{
-    automation, navigation,
+    app_paths::AppPaths,
+    navigation,
     vision::{ImageRegion, template_matching},
 };
 use serde_json::{Value, json};
@@ -66,15 +70,17 @@ pub(super) fn execute(command: &Command) -> std::result::Result<Output, Error> {
             match_image(command.name(), &image, input, template, *region).map_err(Error::from)
         }
         Command::Connect => {
-            let session = connect()?;
-            let (width, height) = session.client_size();
+            let connection = game::connect()?;
+            let (width, height) = connection.client_size();
             Ok(Output {
                 json: json!({"ok":true, "command":"connect", "client_size":{"width":width,"height":height}}),
                 human: format!("Connected: client size {width}x{height}"),
             })
         }
         Command::Navigate { state } => {
-            let mut session = connect()?;
+            let connection = game::connect()?;
+            let paths = AppPaths::new().map_err(anyhow::Error::msg)?;
+            let mut context = game::NavigationContext::new(connection, paths.templates_dir());
             let target = state.ui_state();
             let state = state
                 .to_possible_value()
@@ -82,7 +88,7 @@ pub(super) fn execute(command: &Command) -> std::result::Result<Output, Error> {
                 .get_name()
                 .to_owned();
             navigation::Navigator::new()
-                .navigate_to(target, &mut session)
+                .navigate_to(target, &mut context)
                 .with_context(|| format!("failed to navigate to {state}"))?;
             Ok(Output {
                 json: json!({"ok":true,"command":"navigate","state":state}),
@@ -90,9 +96,10 @@ pub(super) fn execute(command: &Command) -> std::result::Result<Output, Error> {
             })
         }
         Command::Screenshot { output, crop } => {
-            let mut session = connect()?;
-            let (width, height) = session.client_size();
-            let mut image = session.screenshot().map_err(anyhow::Error::new)?;
+            let connection = game::connect()?;
+            let (width, height) = connection.client_size();
+            let mut capture = game::Capture::new(connection);
+            let mut image = capture.screenshot().map_err(anyhow::Error::new)?;
             let normalized_size = json!({"width":image.width(),"height":image.height()});
             if let Some(crop) = crop {
                 crop.validate(image.width(), image.height())
@@ -120,35 +127,11 @@ pub(super) fn execute(command: &Command) -> std::result::Result<Output, Error> {
             })
         }
         Command::Match { template, region } => {
-            let mut session = connect()?;
-            let image = session.screenshot().map_err(anyhow::Error::new)?;
+            let mut capture = game::Capture::new(game::connect()?);
+            let image = capture.screenshot().map_err(anyhow::Error::new)?;
             let input = json!({"kind":"game", "width":image.width(),"height":image.height()});
             match_image(command.name(), &image, input, template, *region).map_err(Error::from)
         }
-    }
-}
-
-fn connect() -> std::result::Result<automation::Session, Error> {
-    #[cfg(windows)]
-    {
-        use oea_lib::{app_paths, platform, vision};
-        use std::sync::{Arc, Mutex};
-        platform::window::set_thread_dpi_awareness_context();
-        let paths = app_paths::AppPaths::new().map_err(anyhow::Error::msg)?;
-        let ocr = vision::ocr::OcrEngine::new(&paths.models_dir(), vision::ocr::Config::default())?;
-        automation::Session::connect(&Arc::new(Mutex::new(ocr)), automation::new_stop_token())
-            .map_err(anyhow::Error::new)
-            .map_err(Error::from)
-    }
-    #[cfg(not(windows))]
-    {
-        Err(Error {
-            kind: "platform_unsupported",
-            source: anyhow::anyhow!(
-                "game window commands are unsupported on {}",
-                std::env::consts::OS
-            ),
-        })
     }
 }
 

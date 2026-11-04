@@ -10,19 +10,24 @@ use crate::{automation::Point720p, utils::point::Point2D};
 
 /// 非零的像素尺寸。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Resolution {
+pub struct Resolution {
     pub(crate) width: u32,
     pub(crate) height: u32,
 }
 
 impl Resolution {
     /// 创建像素尺寸。
-    pub(crate) fn new(width: u32, height: u32) -> Result<Self, GameEnvironmentError> {
+    pub fn new(width: u32, height: u32) -> Result<Self, GameEnvironmentError> {
         if width == 0 || height == 0 {
             return Err(GameEnvironmentError::UnsupportedResolution { width, height });
         }
 
         Ok(Self { width, height })
+    }
+
+    /// 像素尺寸的宽度与高度。
+    pub fn dimensions(&self) -> (u32, u32) {
+        (self.width, self.height)
     }
 }
 
@@ -39,13 +44,13 @@ static CANONICAL_RESOLUTION: Resolution = Resolution {
 };
 
 /// 固定一次游戏会话使用的物理分辨率，并负责双向坐标空间转换。
-pub(crate) struct ResolutionTransform {
+pub struct ResolutionTransform {
     physical: Resolution,
 }
 
 impl ResolutionTransform {
     /// 创建转换器，并确认物理分辨率与 720p 识别空间的比例兼容。
-    pub(crate) fn new(physical: Resolution) -> Result<Self, GameEnvironmentError> {
+    pub fn new(physical: Resolution) -> Result<Self, GameEnvironmentError> {
         let transform = Self { physical };
         let canonical = transform.canonical();
         let physical = transform.physical();
@@ -63,7 +68,7 @@ impl ResolutionTransform {
     }
 
     /// 将调用方保证有效的 720p 识别坐标翻译为物理窗口坐标。
-    pub(crate) fn to_physical(&self, point: Point720p) -> Point2D<i32> {
+    pub fn to_physical(&self, point: Point720p) -> Point2D<i32> {
         let canonical = self.canonical();
         let physical = self.physical();
 
@@ -75,10 +80,7 @@ impl ResolutionTransform {
     }
 
     /// 校验物理截图尺寸，并将其归一化到 720p 识别空间。
-    pub(crate) fn to_canonical_image(
-        &self,
-        image: RgbaImage,
-    ) -> Result<RgbaImage, GameEnvironmentError> {
+    pub fn to_canonical_image(&self, image: RgbaImage) -> Result<RgbaImage, GameEnvironmentError> {
         let physical = self.physical();
         if image.width() != physical.width || image.height() != physical.height {
             return Err(GameEnvironmentError::WindowSizeChanged {
@@ -106,7 +108,7 @@ impl ResolutionTransform {
         &CANONICAL_RESOLUTION
     }
 
-    pub(crate) fn physical(&self) -> &Resolution {
+    pub fn physical(&self) -> &Resolution {
         &self.physical
     }
 }

@@ -7,7 +7,7 @@ use image::RgbImage;
 use crate::utils::path::resolve_existing_relative_file;
 
 /// 按逻辑名称提供模板图片，不向调用方暴露存储与缓存策略。
-pub(crate) trait TemplateProvider {
+pub trait TemplateProvider {
     /// 返回由模板源持有的图片。
     fn get(&mut self, template_name: &str) -> anyhow::Result<&RgbImage>;
 }
@@ -15,13 +15,13 @@ pub(crate) trait TemplateProvider {
 /// 从模板根目录按需加载图片，并缓存成功加载的结果。
 ///
 /// 缓存结果在加载器的生命周期内保持有效；加载失败不会进入缓存，后续调用会重试。
-pub(crate) struct LazyTemplateLoader {
+pub struct LazyTemplateLoader {
     root: PathBuf,
     cache: HashMap<String, RgbImage>,
 }
 
 impl LazyTemplateLoader {
-    pub(crate) fn new(root: impl Into<PathBuf>) -> Self {
+    pub fn new(root: impl Into<PathBuf>) -> Self {
         Self {
             root: root.into(),
             cache: HashMap::new(),
