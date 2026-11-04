@@ -93,7 +93,7 @@ flowchart LR
     rust --> generate --> ts --> use
 ```
 
-运行 `cargo test` 命令时，ts-rs 导出测试将会运行，以副作用直接更新生成文件。[package.json](../package.json) 中的 `pnpm generate:types` 直接调用 `cargo test -p oea -p oea-logger --lib export_bindings`，可以单独运行这些导出测试。默认输出的根目录位置目前由 [.cargo/config.toml](../.cargo/config.toml) 指定。
+运行 `cargo test` 命令时，ts-rs 导出测试将会运行，以副作用直接更新生成文件。[package.json](../package.json) 中的 `pnpm generate:types` 直接调用 `cargo test --workspace --lib export_bindings`，可以单独运行这些导出测试。默认输出的根目录位置目前由 [.cargo/config.toml](../.cargo/config.toml) 指定。
 
 ## ts-rs 编写与管理约定
 
