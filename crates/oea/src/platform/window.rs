@@ -1,47 +1,18 @@
-//! OEA 主窗口接入与应用热键的前台判定。
+//! OEA 主窗口与 Tauri 的平台接入。
 
 #[cfg(windows)]
 use super::windows;
-#[cfg(windows)]
-use crate::automation::game_environment;
+use oea_window::Window;
 
-/// 全局热键仅在 OEA 主窗口或游戏窗口位于前台时生效。
-pub struct ForegroundGuard {
+pub fn app_window(app_handle: &tauri::AppHandle) -> anyhow::Result<Window> {
     #[cfg(windows)]
-    state: windows::window::AppWindow,
-}
-
-impl ForegroundGuard {
-    pub fn new(app_handle: &tauri::AppHandle) -> anyhow::Result<Self> {
-        #[cfg(windows)]
-        {
-            Ok(Self {
-                state: windows::window::AppWindow::new(app_handle)?,
-            })
-        }
-        #[cfg(not(windows))]
-        {
-            let _ = app_handle;
-            Ok(Self {})
-        }
+    {
+        windows::window::app_window(app_handle)
     }
-
-    pub fn is_foreground_eligible(&self) -> bool {
-        #[cfg(windows)]
-        {
-            if self.state.is_foreground() {
-                return true;
-            }
-            oea_window::search(game_environment::window_query())
-                .ok()
-                .flatten()
-                .and_then(|window| window.is_foreground().ok())
-                .unwrap_or(false)
-        }
-        #[cfg(not(windows))]
-        {
-            false
-        }
+    #[cfg(not(windows))]
+    {
+        let _ = app_handle;
+        Err(super::unsupported("app window access"))
     }
 }
 

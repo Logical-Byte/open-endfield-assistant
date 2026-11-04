@@ -41,12 +41,16 @@ impl BackgroundThreads {
         logger_guard: WorkerGuard,
         log_rx: mpsc::Receiver<LogEntry>,
     ) -> anyhow::Result<Self> {
-        let foreground = platform::window::ForegroundGuard::new(app_handle)?;
+        let hotkey_scope = hotkeys::TaskHotkeyScope::new(app_handle)?;
         let (hotkey_rx, keyboard_hook) = platform::hotkey::listen()?;
         let stop = Arc::new(AtomicBool::new(false));
 
-        let hotkey_thread =
-            hotkeys::spawn_dispatcher(hotkey_rx, Arc::clone(&stop), foreground, app_handle.clone());
+        let hotkey_thread = hotkeys::spawn_dispatcher(
+            hotkey_rx,
+            Arc::clone(&stop),
+            hotkey_scope,
+            app_handle.clone(),
+        );
         let log_thread =
             frontend_forwarders::spawn_log_forwarder(log_rx, Arc::clone(&stop), app_handle.clone());
 
