@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-/** 构建期注入的应用版本号（来自 `src-tauri/tauri.conf.json`）。 */
+/** 构建期注入的应用版本号（来自 `crates/oea/tauri.conf.json`）。 */
 declare const __OEA_VERSION__: string;
 
 /** 构建时注入 OEA dev 或 OEA release 对应的枚举值。 */

@@ -1,6 +1,6 @@
 # 档案匹配决策
 
-领域含义见[术语表](GLOSSARY.md)，后端建议的判定条件见[匹配模块](../src-tauri/src/automation/archive_scan/matching.rs)。本文记录设计原因与扩展约束，具体坐标、判别文本和档案标识以代码为准。
+领域含义见[术语表](GLOSSARY.md)，后端建议的判定条件见[匹配模块](../crates/oea/src/automation/archive_scan/matching.rs)。本文记录设计原因与扩展约束，具体坐标、判别文本和档案标识以代码为准。
 
 ## 决策理由
 

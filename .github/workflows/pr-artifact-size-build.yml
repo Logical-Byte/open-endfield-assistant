@@ -145,7 +145,7 @@ jobs:
           prefix-key: oea-size-rust-v1
           shared-key: pr-${{ inputs.pr }}-windows-x86_64-release
           add-job-id-key: false
-          workspaces: app/src-tauri -> target
+          workspaces: app/. -> target
 
       - name: Install the temporary ZIP reader
         if: steps.request.outputs.active == 'true'

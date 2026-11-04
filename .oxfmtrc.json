@@ -17,7 +17,7 @@
     ]
   },
   "ignorePatterns": [
-    "src-tauri/",
+    "crates/",
     "resources/",
     "temp/",
     "src/route-map.d.ts",

@@ -11,8 +11,8 @@
 相关 schema 和类型定义位置：
 
 - 解包数据 schema 定义：[scripts/data/models/tableCfg/](../scripts/data/models/tableCfg/)、[scripts/data/models/json/](../scripts/data/models/json/)（TS）
-- `resources` 文件 schema 定义：生成侧 [scripts/data/models/resources/](../scripts/data/models/resources/)（TS），接收侧 [archive/source.rs](../src-tauri/src/data/archive/source.rs)（Rust，只声明读取所需字段）
-- 后端数据类型与生成的前端数据类型：[archive/model.rs](../src-tauri/src/data/archive/model.rs)（Rust）、[src/shared/types/generated/archive/](../src/shared/types/generated/archive/)（TS）
+- `resources` 文件 schema 定义：生成侧 [scripts/data/models/resources/](../scripts/data/models/resources/)（TS），接收侧 [archive/source.rs](../crates/oea/src/data/archive/source.rs)（Rust，只声明读取所需字段）
+- 后端数据类型与生成的前端数据类型：[archive/model.rs](../crates/oea/src/data/archive/model.rs)（Rust）、[src/shared/types/generated/archive/](../src/shared/types/generated/archive/)（TS）
 
 前端通过 [src/shared/types/archive.ts](../src/shared/types/archive.ts) 的手写 barrel 导入档案类型，生成文件单独放在 `generated/` 下。
 

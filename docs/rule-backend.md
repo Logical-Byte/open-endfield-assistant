@@ -1,10 +1,11 @@
 # 后端代码规范
 
-修改 `src-tauri/` 下的后端代码、配置或依赖时遵循本文件。
+修改 `crates/` 下的后端代码、配置或依赖时遵循本文件。
 
 ## 工具链
 
-- 在 `src-tauri/` 目录中运行 Cargo 命令。从仓库根目录运行时，利用 `--manifest-path src-tauri/Cargo.toml`。
+- 在仓库根目录运行 Cargo workspace 命令。默认成员为 `oea`，CLI 使用 `-p oea-cli` 显式选择。检查全部 Rust 代码时使用 `--workspace --all-features`，不能仅依赖默认成员。
+- 仅供一个 crate 使用的依赖在该 crate 的 `Cargo.toml` 中声明。多个 crate 使用同一依赖时，再将版本提取到根 `Cargo.toml` 的 `[workspace.dependencies]`，通过 `workspace = true` 继承。按需启用的 feature 和平台条件保留在使用依赖的 crate 中。
 - 使用 `cargo add` 和 `cargo remove` 管理依赖。除非兼容性要求必须锁定版本，否则让 Cargo 选择版本。
 
 ## 编译、检查与测试
@@ -13,9 +14,9 @@ Windows x86_64 是后端唯一支持的平台和验收环境。CI 只要求 Wind
 
 ```bash
 cargo fmt --all -- --check
-cargo check --all-targets
-cargo clippy --all-targets -- -D warnings
-cargo test
+cargo check --workspace --all-targets --all-features
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
 ```
 
 macOS 上的开发、测试和打包不属于验收范围。可以使用 `cargo xwin` 检查 Windows 编译、Clippy 和构建结果。测试以 Windows/CI 结果为准。
@@ -55,7 +56,7 @@ macOS 上的开发、测试和打包不属于验收范围。可以使用 `cargo 
 ### 应用根目录、相对路径、`AppPaths`
 
 - 只读写*应用根目录*内的文件。开发环境的*应用根目录*是 `package.json` 所在目录。打包后的*应用根目录*是可执行文件所在目录。
-- `cli` feature 的开发者命令按 [Developer CLI](developer-cli.md) 规则读写用户指定的文件系统路径，相对路径基于当前工作目录。这一例外仅适用于 CLI 的显式图片、模板和截图输出，不改变生产 `AppPaths` 资源发现与模板缓存的根目录约束。
+- `oea-cli` 的开发者命令按 [Developer CLI](developer-cli.md) 规则读写用户指定的文件系统路径，相对路径基于当前工作目录。这一例外仅适用于 CLI 的显式图片、模板和截图输出，不改变生产 `AppPaths` 资源发现与模板缓存的根目录约束。
 - 外部输入的相对于*应用根目录*的路径，应验证其不能使用绝对路径、父目录片段、Windows 路径前缀或符号链接逃逸根目录。最终目标仍位于根目录内的符号链接可以使用。解析已经存在的相对文件时复用 `resolve_existing_relative_file`。
 - 避免为了让下游取得某一个路径而层层透传或长期保存 `AppPaths`。调用方应优先解析出具体的 `Path` 或 `PathBuf` 后传入。下列情形例外：
   - 一段内聚流程需要访问多个应用目录、需要保持已经验证或选择的应用根目录。

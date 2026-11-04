@@ -26,7 +26,7 @@
     "r2:publish": "jiti scripts/release/publishR2.ts publish",
     "r2:promote": "jiti scripts/release/publishR2.ts promote",
     "test:r2-release": "vitest run scripts/release/publishR2Core.test.ts",
-    "generate:types": "cargo test --manifest-path src-tauri/Cargo.toml --lib export_bindings",
+    "generate:types": "cargo test -p oea --lib export_bindings",
     "i18n:check": "jiti scripts/dev/i18n.ts",
     "i18n:fix": "jiti scripts/dev/i18n.ts --fix",
     "quote:check": "jiti scripts/dev/quoteStyle.ts",

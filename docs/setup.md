@@ -4,7 +4,7 @@
 
 - Node.js：建议使用 22 LTS。
 - pnpm：版本见 [package.json](../package.json) 的 `packageManager`，建议启用 Corepack。
-- Rust：使用 stable，最低版本见 [Cargo.toml](../src-tauri/Cargo.toml) 的 `rust-version`。
+- Rust：使用 stable，最低版本见 [Cargo.toml](../crates/oea/Cargo.toml) 的 `rust-version`。
 - Windows 10 / 11（x86_64）：后端编译需要 MSVC（Microsoft C++ Build Tools，含 Windows SDK）。平台支持范围见[后端规范](rule-backend.md#编译检查与测试)。
 
 WebView2 缺失时，应用会在首次启动时引导下载安装。
@@ -35,7 +35,7 @@ pnpm hooks:pre-commit
 
 ## OCR 模型
 
-模型位于 `resources/ocr-models/`，不纳入 Git。Tauri 开发与构建命令会自动下载缺失模型，配置见 [tauri.conf.json](../src-tauri/tauri.conf.json)。也可手动下载：
+模型位于 `resources/ocr-models/`，不纳入 Git。Tauri 开发与构建命令会自动下载缺失模型，配置见 [tauri.conf.json](../crates/oea/tauri.conf.json)。也可手动下载：
 
 ```bash
 pnpm download:models

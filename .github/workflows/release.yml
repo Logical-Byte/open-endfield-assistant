@@ -2,7 +2,7 @@
 #
 # 触发方式：推送 `v*` tag（如 `v0.1.0`）后，一次构建，同时分发到 GitHub Release、OEM Cloudflare R2 与 MirrorChyan。
 #
-# 要求：tag 必须与 `src-tauri/tauri.conf.json` 中的 `version` 一致（例如 version=0.1.0 时打 v0.1.0），
+# 要求：tag 必须与 `crates/oea/tauri.conf.json` 中的 `version` 一致（例如 version=0.1.0 时打 v0.1.0），
 #       下方「校验版本号与 tag 一致」步骤会在构建前校验，不一致直接失败。
 #
 # 说明：
@@ -62,7 +62,7 @@ jobs:
             throw "无效 release tag: $tag"
           }
           $version = $tag -replace '^v', ''
-          $config = Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json
+          $config = Get-Content -Raw crates/oea/tauri.conf.json | ConvertFrom-Json
           if ($config.version -ne $version) {
             throw "tag $tag 与 tauri.conf.json 版本 $($config.version) 不一致"
           }
@@ -85,7 +85,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: 'src-tauri -> target'
+          workspaces: '. -> target'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
