@@ -5,8 +5,8 @@ use anyhow::{anyhow, bail};
 use image::RgbaImage;
 
 use super::desktop_dup::DesktopDupScreencap;
-use crate::platform::WindowHandle;
-use crate::platform::capture::ScreencapBase;
+use crate::Window;
+use crate::windows::capture::ScreencapBase;
 
 /// 基于 Desktop Duplication 的窗口截图器
 /// 先截取全屏，再根据窗口客户区坐标裁剪
@@ -16,7 +16,7 @@ struct DesktopDupWindowScreencap {
 }
 
 impl DesktopDupWindowScreencap {
-    fn new(window: WindowHandle) -> Self {
+    fn new(window: Window) -> Self {
         Self {
             hwnd: window.raw,
             inner: DesktopDupScreencap::new(window),

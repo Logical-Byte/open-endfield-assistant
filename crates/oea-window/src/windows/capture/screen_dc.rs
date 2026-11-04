@@ -8,16 +8,16 @@ use anyhow::{Context, bail};
 use image::RgbaImage;
 use scopeguard::defer;
 
-use crate::platform::WindowHandle;
-use crate::platform::capture::ScreencapBase;
-use crate::utils::region::Region2D;
+use crate::Window;
+use crate::windows::capture::ScreencapBase;
+use crate::windows::geometry::Region;
 
 struct ScreenDCScreencap {
     hwnd: HWND,
 }
 
 impl ScreenDCScreencap {
-    pub fn new(window: WindowHandle) -> Self {
+    pub fn new(window: Window) -> Self {
         Self { hwnd: window.raw }
     }
 
@@ -26,22 +26,22 @@ impl ScreenDCScreencap {
         let mut client_rect = RECT::default();
         unsafe { GetClientRect(self.hwnd, &mut client_rect) }?;
 
-        self.screencap_region(Region2D::from(client_rect))
+        self.screencap_region(Region::from(client_rect))
     }
 
-    pub fn screencap_region(&mut self, region: Region2D<i32>) -> anyhow::Result<RgbaImage> {
+    pub fn screencap_region(&mut self, region: Region) -> anyhow::Result<RgbaImage> {
         let mut p0 = POINT::from(region.p0());
         unsafe { ClientToScreen(self.hwnd, &mut p0) }.ok()?;
 
         let mut p1 = POINT::from(region.p1());
         unsafe { ClientToScreen(self.hwnd, &mut p1) }.ok()?;
 
-        let region = Region2D::from_points(p0.into(), p1.into());
+        let region = Region::from_points(p0.into(), p1.into());
 
         self.screencap_screen_region(region)
     }
 
-    fn screencap_screen_region(&self, region: Region2D<i32>) -> anyhow::Result<RgbaImage> {
+    fn screencap_screen_region(&self, region: Region) -> anyhow::Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -107,8 +107,8 @@ impl ScreenDCScreencap {
                 x0,
                 y0,
                 SRCCOPY,
-            )?;
-        }
+            )
+        }?;
 
         let mut mat = vec![0u8; (width * height * 4) as usize];
         if unsafe { GetBitmapBits(bitmap, width * height * 4, mat.as_mut_ptr() as *mut _) } == 0 {
@@ -129,7 +129,7 @@ impl ScreencapBase for ScreenDCScreencap {
         Self::screencap(self)
     }
 
-    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> anyhow::Result<RgbaImage> {
+    fn screencap_region(&mut self, relative_region: Region) -> anyhow::Result<RgbaImage> {
         Self::screencap_region(self, relative_region)
     }
 }

@@ -8,28 +8,26 @@ use anyhow::{Context, bail};
 use image::RgbaImage;
 use scopeguard::defer;
 
-use crate::platform::WindowHandle;
-use crate::platform::capture::ScreencapBase;
-use crate::utils::region::Region2D;
+use crate::Window;
+use crate::windows::capture::ScreencapBase;
+use crate::windows::geometry::Region;
 
 struct GdiScreencap {
     hwnd: HWND,
 }
 
 impl GdiScreencap {
-    pub fn new(window: WindowHandle) -> Self {
+    pub fn new(window: Window) -> Self {
         Self { hwnd: window.raw }
     }
 
     pub fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         let mut rect = RECT::default();
-        unsafe {
-            GetClientRect(self.hwnd, &mut rect)?;
-        }
-        self.screencap_region(Region2D::from(rect))
+        unsafe { GetClientRect(self.hwnd, &mut rect) }?;
+        self.screencap_region(Region::from(rect))
     }
 
-    pub fn screencap_region(&mut self, region: Region2D<i32>) -> anyhow::Result<RgbaImage> {
+    pub fn screencap_region(&mut self, region: Region) -> anyhow::Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -102,7 +100,7 @@ impl ScreencapBase for GdiScreencap {
         self.screencap()
     }
 
-    fn screencap_region(&mut self, relative_region: Region2D<i32>) -> anyhow::Result<RgbaImage> {
+    fn screencap_region(&mut self, relative_region: Region) -> anyhow::Result<RgbaImage> {
         self.screencap_region(relative_region)
     }
 }

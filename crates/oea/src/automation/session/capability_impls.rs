@@ -4,6 +4,7 @@ use std::{thread, time::Duration};
 
 use image::RgbaImage;
 use oea_vision as vision;
+use oea_window::MouseButton;
 use tracing::debug;
 
 use crate::{
@@ -11,7 +12,6 @@ use crate::{
         Clock, Input, Key, Ocr, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
         TemplateTarget, capabilities,
     },
-    platform::input::Contact,
     utils::region::Region2D,
 };
 
@@ -23,7 +23,7 @@ const SAFE_MOUSE_POSITION: Point720p = Point720p { x: 640, y: 360 };
 impl ScreenCapture for Session {
     fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
         self.check_stop()?;
-        let raw = self.screencap.screencap().map_err(|error| {
+        let raw = self.window.screenshot().map_err(|error| {
             debug!(error = ?error, "游戏截图失败");
             capabilities::Error::CaptureFailed
         })?;
@@ -37,10 +37,12 @@ impl Input for Session {
     fn click(&mut self, point: Point720p) -> Result<(), capabilities::Error> {
         self.check_stop()?;
         let point = self.resolution_transform.to_physical(point);
-        self.input.click(Contact::Left, point).map_err(|error| {
-            debug!(?point, error = ?error, "点击游戏窗口失败");
-            capabilities::Error::ExecutionFailed
-        })?;
+        self.input
+            .click(MouseButton::Left, point)
+            .map_err(|error| {
+                debug!(?point, error = ?error, "点击游戏窗口失败");
+                capabilities::Error::ExecutionFailed
+            })?;
         thread::sleep(Duration::from_millis(50));
         self.move_mouse_to_safe_position()
     }
@@ -58,12 +60,10 @@ impl Input for Session {
 
     fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
         let point = self.resolution_transform.to_physical(SAFE_MOUSE_POSITION);
-        self.input
-            .touch_move(Contact::Left, point)
-            .map_err(|error| {
-                debug!(error = ?error, "移动游戏鼠标失败");
-                capabilities::Error::ExecutionFailed
-            })
+        self.input.move_mouse(point).map_err(|error| {
+            debug!(error = ?error, "移动游戏鼠标失败");
+            capabilities::Error::ExecutionFailed
+        })
     }
 }
 

@@ -26,8 +26,8 @@ cargo run -p oea-cli -- match --template candidate.png --region 100,50,320,180 -
 
 ```text
 connect / navigate / screenshot / match
-  DPI 初始化 -> game_environment::connect -> ResolutionTransform
-  screenshot / match -> PrintWindowScreencap -> 1280×720 Lanczos3
+  game_environment::connect -> ResolutionTransform
+  screenshot / match -> oea_window::Window::screenshot -> 1280×720 Lanczos3
   navigate -> CLI NavigationContext -> Navigator::navigate_to
     NavigationContext 组合截图、输入、模板缓存和时钟，沿用生产输入的等待与鼠标归位规则
 

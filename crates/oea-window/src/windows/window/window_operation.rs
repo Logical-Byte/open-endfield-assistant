@@ -2,9 +2,6 @@ use ::windows::Win32::Foundation::{POINT, RECT};
 use ::windows::Win32::Graphics::Gdi::{
     ClientToScreen, GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow,
 };
-use ::windows::Win32::UI::HiDpi::{
-    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetThreadDpiAwarenessContext,
-};
 use ::windows::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetForegroundWindow, GetWindowRect, HWND_TOP, IsIconic, IsWindow, IsZoomed,
     SW_RESTORE, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
@@ -12,18 +9,11 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
 };
 use anyhow::bail;
 
-use crate::platform::WindowHandle;
-
-/// 设置当前线程的 DPI 感知上下文为 Per Monitor v2
-pub(in crate::platform) fn set_thread_dpi_awareness_context() {
-    let _ = unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
-}
+use crate::Window;
 
 // 窗口激活并置顶工具函数（强化版本，用于需要前台的物理输入方式）
-// 用于 LegacyEventInput 和 SeizeInput，因为它们使用 SendInput/mouse_event 等物理输入 API
-pub(in crate::platform) fn ensure_foreground_and_topmost(
-    window: WindowHandle,
-) -> anyhow::Result<()> {
+// 物理输入前使用。
+pub(crate) fn ensure_foreground_and_topmost(window: Window) -> anyhow::Result<()> {
     let hwnd = window.raw;
     if hwnd.is_invalid() {
         bail!("hwnd is invalid");
@@ -55,7 +45,7 @@ pub(in crate::platform) fn ensure_foreground_and_topmost(
 ///
 /// 连接游戏时调用：窗口最小化时 [`ensure_window_on_screen`] 会跳过调整，
 /// 需先恢复窗口才能正确获取并调整客户区。
-pub(in crate::platform) fn restore_window_if_minimized(window: WindowHandle) -> anyhow::Result<()> {
+pub(crate) fn restore_window_if_minimized(window: Window) -> anyhow::Result<()> {
     let hwnd = window.raw;
     if hwnd.is_invalid() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
         bail!("Invalid window handle");
@@ -71,7 +61,7 @@ pub(in crate::platform) fn restore_window_if_minimized(window: WindowHandle) -> 
 /// Ensure the window's client area is fully visible on the monitor.
 /// If the window extends beyond the monitor bounds, move it back.
 /// If the client area is larger than the monitor, resize the window.
-pub(in crate::platform) fn ensure_window_on_screen(window: WindowHandle) -> anyhow::Result<()> {
+pub(crate) fn ensure_window_on_screen(window: Window) -> anyhow::Result<()> {
     let hwnd = window.raw;
     if hwnd.is_invalid() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
         bail!("Invalid window handle");

@@ -9,22 +9,22 @@ use anyhow::{Context, bail};
 use image::RgbaImage;
 use scopeguard::defer;
 
-use crate::platform::WindowHandle;
-use crate::utils::region::Region2D;
+use crate::Window;
+use crate::windows::geometry::Region;
 
 // PW_RENDERFULLCONTENT (0x2): 捕获非最小化后台窗口
 const PW_RENDERFULLCONTENT: PRINT_WINDOW_FLAGS = PRINT_WINDOW_FLAGS(0x2_u32);
 
-pub(in crate::platform) struct PrintWindowState {
+pub(crate) struct PrintWindowState {
     hwnd: HWND,
 }
 
 impl PrintWindowState {
-    pub(in crate::platform) fn new(window: WindowHandle) -> Self {
+    pub(crate) fn new(window: Window) -> Self {
         Self { hwnd: window.raw }
     }
 
-    pub(in crate::platform) fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
+    pub(crate) fn screencap(&mut self) -> anyhow::Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
         }
@@ -32,9 +32,7 @@ impl PrintWindowState {
         // 确定要捕获的区域大小
         // 使用 PW_CLIENTONLY 标志，只获取客户端区域（不含窗口边框）
         let mut rect = RECT::default();
-        unsafe {
-            GetClientRect(self.hwnd, &mut rect)?;
-        }
+        unsafe { GetClientRect(self.hwnd, &mut rect) }?;
 
         let width = rect.right - rect.left;
         let height = rect.bottom - rect.top;
@@ -123,9 +121,10 @@ impl PrintWindowState {
         RgbaImage::from_raw_bgra(width as u32, height as u32, mat).context("从原始数据创建图像失败")
     }
 
-    pub(in crate::platform) fn screencap_region(
+    #[allow(dead_code)]
+    pub(crate) fn screencap_region(
         &mut self,
-        relative_region: Region2D<i32>,
+        relative_region: Region,
     ) -> anyhow::Result<RgbaImage> {
         if self.hwnd.is_invalid() {
             bail!("hwnd is nullptr");
@@ -142,9 +141,7 @@ impl PrintWindowState {
 
         // 获取整个客户区大小
         let mut rect = RECT::default();
-        unsafe {
-            GetClientRect(self.hwnd, &mut rect)?;
-        }
+        unsafe { GetClientRect(self.hwnd, &mut rect) }?;
 
         let full_w = rect.right - rect.left;
         let full_h = rect.bottom - rect.top;
@@ -241,8 +238,8 @@ impl PrintWindowState {
                 relative_region.x0(),
                 relative_region.y0(),
                 SRCCOPY,
-            )?;
-        }
+            )
+        }?;
 
         // 使用 GetDIBits 从区域位图读取像素数据
         let mut bmi = BITMAPINFO {

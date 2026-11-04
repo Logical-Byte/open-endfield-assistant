@@ -28,7 +28,6 @@ use crate::{
         stats::counts::Capture,
         template_loader::TemplateLoader,
     },
-    platform,
     utils::region::ltrb,
 };
 
@@ -74,7 +73,7 @@ impl runtime::Worker for Worker {
             let mut session =
                 Session::connect(&self.ocr, TemplateLoader::new(paths.templates_dir()), stop)?;
             session.check_stop()?;
-            if let Err(error) = platform::window::ensure_foreground_and_topmost(session.hwnd) {
+            if let Err(error) = session.window.activate() {
                 warn!("无法将游戏窗口置于前台：{error:#}");
             }
             sound::play(self.sound_volume, Cue::Enable);

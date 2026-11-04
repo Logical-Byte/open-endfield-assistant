@@ -22,7 +22,7 @@ use crate::{
     },
     data::{AppData, archive},
     navigation::{ArchiveState, ArchiveSubscene, CentralPage, Navigator, RecordsPage, UiState},
-    platform, settings,
+    settings,
     utils::region::{Region2D, ltrb, ltwh},
 };
 
@@ -84,7 +84,7 @@ fn execute_session(
     session.check_stop()?;
 
     // 扫描需要点击游戏窗口，先确保窗口在前台（失败不阻断）。
-    if let Err(error) = platform::window::ensure_foreground_and_topmost(session.hwnd) {
+    if let Err(error) = session.window.activate() {
         warn!("无法将游戏窗口置于前台: {error:#}，继续尝试执行任务");
     }
 

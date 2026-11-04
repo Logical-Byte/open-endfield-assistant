@@ -1,184 +1,52 @@
-//! 窗口平台接口。
+//! OEA 主窗口接入与应用热键的前台判定。
 
-use crate::utils::region::Region2D;
-
-use super::WindowHandle;
-
-#[cfg(target_os = "windows")]
+#[cfg(windows)]
 use super::windows;
+#[cfg(windows)]
+use crate::automation::game_environment;
 
-/// 终末地游戏窗口标题。
-pub const ENDFIELD_WINDOW_TITLE: &str = "Endfield";
-/// 终末地游戏窗口类名。
-pub const ENDFIELD_WINDOW_CLASS: &str = "UnityWndClass";
-
-/// 判断全局热键触发时前台窗口是否为 OEA 或终末地。
+/// 全局热键仅在 OEA 主窗口或游戏窗口位于前台时生效。
 pub struct ForegroundGuard {
-    #[cfg(target_os = "windows")]
-    oea_window: WindowHandle,
+    #[cfg(windows)]
+    state: windows::window::AppWindow,
 }
 
-// 窗口句柄由热键消费线程串行访问。
-unsafe impl Send for ForegroundGuard {}
-unsafe impl Sync for ForegroundGuard {}
-
 impl ForegroundGuard {
-    /// 绑定 OEA 自身的窗口句柄；macOS 开发外壳不持有原生资源。
-    pub fn new(oea_window: WindowHandle) -> Self {
-        #[cfg(target_os = "windows")]
+    pub fn new(app_handle: &tauri::AppHandle) -> anyhow::Result<Self> {
+        #[cfg(windows)]
         {
-            Self { oea_window }
+            Ok(Self {
+                state: windows::window::AppWindow::new(app_handle)?,
+            })
         }
-
-        #[cfg(unix)]
+        #[cfg(not(windows))]
         {
-            let _ = oea_window;
-            Self {}
+            let _ = app_handle;
+            Ok(Self {})
         }
     }
 
-    /// 当前前台窗口是否为 OEA 自身或终末地；macOS 开发外壳返回 `false`。
     pub fn is_foreground_eligible(&self) -> bool {
-        #[cfg(target_os = "windows")]
+        #[cfg(windows)]
         {
-            let foreground = get_foreground_window();
-            if foreground == self.oea_window {
+            if self.state.is_foreground() {
                 return true;
             }
-
-            match get_window_by_title(Some(ENDFIELD_WINDOW_CLASS), Some(ENDFIELD_WINDOW_TITLE)) {
-                Ok(game_window) if !game_window.is_invalid() => foreground == game_window,
-                _ => false,
-            }
+            oea_window::search(game_environment::window_query())
+                .ok()
+                .flatten()
+                .and_then(|window| window.is_foreground().ok())
+                .unwrap_or(false)
         }
-
-        #[cfg(unix)]
+        #[cfg(not(windows))]
         {
             false
         }
     }
 }
 
-/// 获取 OEA 主窗口的原生窗口句柄；macOS 开发外壳返回空句柄。
-pub fn get_app_window(app_handle: &tauri::AppHandle) -> anyhow::Result<WindowHandle> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::window::get_app_window(app_handle)
-    }
-
-    #[cfg(unix)]
-    {
-        let _ = app_handle;
-        Ok(WindowHandle {})
-    }
-}
-
-#[cfg(target_os = "windows")]
-fn get_foreground_window() -> WindowHandle {
-    windows::window::get_foreground_window()
-}
-
-/// 按窗口类名和标题查找窗口；macOS 开发外壳返回 unsupported error。
-pub fn get_window_by_title(
-    class_name: Option<&str>,
-    title: Option<&str>,
-) -> anyhow::Result<WindowHandle> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::window::get_window_by_title(class_name, title)
-    }
-
-    #[cfg(unix)]
-    {
-        let _ = (class_name, title);
-        Err(super::unsupported("window lookup"))
-    }
-}
-
-/// 获取窗口客户区矩形；macOS 开发外壳返回 unsupported error。
-pub fn get_client_rect(window: WindowHandle) -> anyhow::Result<Region2D<i32>> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::window::get_client_rect(window)
-    }
-
-    #[cfg(unix)]
-    {
-        let _ = window;
-        Err(super::unsupported("window geometry"))
-    }
-}
-
-/// 将当前线程设置为 Per Monitor v2 DPI 感知；macOS 开发外壳不执行任何操作。
+/// 设置 OEA 应用线程的 DPI 上下文。游戏窗口操作由 `oea-window` 自行管理。
 pub fn set_thread_dpi_awareness_context() {
-    #[cfg(target_os = "windows")]
-    {
-        windows::window::set_thread_dpi_awareness_context();
-    }
-
-    #[cfg(unix)]
-    {}
-}
-
-/// 激活窗口并将其置于最前；macOS 开发外壳返回 unsupported error。
-pub fn ensure_foreground_and_topmost(window: WindowHandle) -> anyhow::Result<()> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::window::ensure_foreground_and_topmost(window)
-    }
-
-    #[cfg(unix)]
-    {
-        let _ = window;
-        Err(super::unsupported("foreground window control"))
-    }
-}
-
-/// 窗口最小化时将其恢复；macOS 开发外壳返回 unsupported error。
-pub fn restore_window_if_minimized(window: WindowHandle) -> anyhow::Result<()> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::window::restore_window_if_minimized(window)
-    }
-
-    #[cfg(unix)]
-    {
-        let _ = window;
-        Err(super::unsupported("window restoration"))
-    }
-}
-
-/// 确保窗口客户区位于显示器可见范围内；macOS 开发外壳返回 unsupported error。
-pub fn ensure_window_on_screen(window: WindowHandle) -> anyhow::Result<()> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::window::ensure_window_on_screen(window)
-    }
-
-    #[cfg(unix)]
-    {
-        let _ = window;
-        Err(super::unsupported("window positioning"))
-    }
-}
-
-pub mod hdr {
-    use super::WindowHandle;
-
-    #[cfg(target_os = "windows")]
-    use super::windows;
-
-    /// 判断窗口所在显示器是否开启 HDR；macOS 开发外壳返回 unsupported error。
-    pub fn is_hdr_enabled_on_window_monitor(window: WindowHandle) -> anyhow::Result<bool> {
-        #[cfg(target_os = "windows")]
-        {
-            windows::window::hdr::is_hdr_enabled_on_window_monitor(window)
-        }
-
-        #[cfg(unix)]
-        {
-            let _ = window;
-            Err(super::super::unsupported("HDR detection"))
-        }
-    }
+    #[cfg(windows)]
+    windows::window::set_thread_dpi_awareness_context();
 }

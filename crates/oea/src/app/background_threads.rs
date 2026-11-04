@@ -41,8 +41,7 @@ impl BackgroundThreads {
         logger_guard: WorkerGuard,
         log_rx: mpsc::Receiver<LogEntry>,
     ) -> anyhow::Result<Self> {
-        let oea_window = platform::window::get_app_window(app_handle)?;
-        let foreground = platform::window::ForegroundGuard::new(oea_window);
+        let foreground = platform::window::ForegroundGuard::new(app_handle)?;
         let (hotkey_rx, keyboard_hook) = platform::hotkey::listen()?;
         let stop = Arc::new(AtomicBool::new(false));
 

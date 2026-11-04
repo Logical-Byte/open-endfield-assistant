@@ -6,7 +6,8 @@ use image::{
 };
 
 use super::Error as GameEnvironmentError;
-use crate::{automation::Point720p, utils::point::Point2D};
+use crate::automation::Point720p;
+use oea_window::Point;
 
 /// 非零的像素尺寸。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,11 +69,11 @@ impl ResolutionTransform {
     }
 
     /// 将调用方保证有效的 720p 识别坐标翻译为物理窗口坐标。
-    pub fn to_physical(&self, point: Point720p) -> Point2D<i32> {
+    pub fn to_physical(&self, point: Point720p) -> Point {
         let canonical = self.canonical();
         let physical = self.physical();
 
-        Point2D {
+        Point {
             x: (u64::from(point.x) * u64::from(physical.width) / u64::from(canonical.width)) as i32,
             y: (u64::from(point.y) * u64::from(physical.height) / u64::from(canonical.height))
                 as i32,
@@ -117,7 +118,8 @@ impl ResolutionTransform {
 mod tests {
     use image::RgbaImage;
 
-    use crate::{automation::Point720p, utils::point::Point2D};
+    use crate::automation::Point720p;
+    use oea_window::Point;
 
     use super::{Resolution, ResolutionTransform};
 
@@ -149,7 +151,7 @@ mod tests {
 
         assert_eq!(
             transform.to_physical(Point720p { x: 401, y: 182 }),
-            Point2D { x: 601, y: 273 },
+            Point { x: 601, y: 273 },
         );
     }
 

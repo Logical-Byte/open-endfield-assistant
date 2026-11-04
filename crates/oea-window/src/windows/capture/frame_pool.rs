@@ -31,8 +31,8 @@ use anyhow::{anyhow, bail};
 use image::{ImageBuffer, Rgba, RgbaImage};
 use tracing::{debug, error, info, warn};
 
-use crate::platform::WindowHandle;
-use crate::platform::capture::ScreencapBase;
+use crate::Window;
+use crate::windows::capture::ScreencapBase;
 
 /// FramePool 截图器
 struct FramePoolScreencap {
@@ -60,7 +60,7 @@ impl ScreencapBase for FramePoolScreencap {
 }
 
 impl FramePoolScreencap {
-    pub fn new(window: WindowHandle) -> Self {
+    pub fn new(window: Window) -> Self {
         Self {
             hwnd: window.raw,
             d3d_device: None,
@@ -81,7 +81,7 @@ impl FramePoolScreencap {
             bail!("hwnd_ is nullptr");
         }
         if self.cap_frame_pool.is_none() && !self.init()? {
-            error!("init failed");
+            error!("初始化帧池截图失败");
             self.uninit();
             bail!("init failed");
         }
@@ -115,7 +115,7 @@ impl FramePoolScreencap {
 
         let access: IDirect3DDxgiInterfaceAccess = frame.Surface()?.cast()?;
 
-        let texture: ID3D11Texture2D = unsafe { access.GetInterface()? };
+        let texture: ID3D11Texture2D = unsafe { access.GetInterface() }?;
 
         if self.readable_texture.is_none() && !self.init_texture(&texture)? {
             bail!("falied to init_texture");
@@ -127,11 +127,8 @@ impl FramePoolScreencap {
         unsafe { d3d_context.CopyResource(readable_texture, &texture) };
 
         let mut mapped: D3D11_MAPPED_SUBRESOURCE = D3D11_MAPPED_SUBRESOURCE::default();
-        unsafe {
-            d3d_context
-                .Map(readable_texture, 0, D3D11_MAP_READ, 0, Some(&mut mapped))
-                .map_err(|e| anyhow!("Map failed: {:?}", e))?;
-        }
+        unsafe { d3d_context.Map(readable_texture, 0, D3D11_MAP_READ, 0, Some(&mut mapped)) }
+            .map_err(|e| anyhow!("Map failed: {:?}", e))?;
 
         let _unmap_guard = UnmapGuard(d3d_context.clone(), readable_texture.clone());
 
@@ -148,25 +145,21 @@ impl FramePoolScreencap {
 
         // 获取窗口客户区矩形（相对于窗口）
         let mut client_rect = RECT::default();
-        unsafe {
-            GetClientRect(self.hwnd, &mut client_rect)
-                .map_err(|e| anyhow!("GetClientRect failed: {:?}", e))?;
-        }
+        unsafe { GetClientRect(self.hwnd, &mut client_rect) }
+            .map_err(|e| anyhow!("GetClientRect failed: {:?}", e))?;
 
         // 将客户区左上角转换为屏幕坐标
         let mut client_top_left = POINT {
             x: client_rect.left,
             y: client_rect.top,
         };
-        unsafe {
-            if !ClientToScreen(self.hwnd, &mut client_top_left).as_bool() {
-                bail!("ClientToScreen failed");
-            }
+        if !unsafe { ClientToScreen(self.hwnd, &mut client_top_left) }.as_bool() {
+            bail!("ClientToScreen failed");
         }
 
         // 获取窗口矩形（屏幕坐标）
         let mut window_rect = RECT::default();
-        unsafe { GetWindowRect(self.hwnd, &mut window_rect)? }
+        unsafe { GetWindowRect(self.hwnd, &mut window_rect) }?;
 
         // 计算边框位置，减去 alpha 裁剪的偏移
         let mut border_left = client_top_left.x - window_rect.left - alpha_x;
@@ -197,14 +190,12 @@ impl FramePoolScreencap {
 
         // 裁剪出客户区（去掉边框），并转换 BGRA -> RGBA
         let mut out = vec![0u8; (client_width * client_height * 4) as usize];
-        unsafe {
-            for row in 0..client_height as usize {
-                let src_y = alpha_y as usize + border_top as usize + row;
-                let src_x = alpha_x as usize + border_left as usize;
-                let src = data_ptr.add(src_y * row_pitch + src_x * 4);
-                let dst = out.as_mut_ptr().add(row * client_width as usize * 4);
-                std::ptr::copy_nonoverlapping(src, dst, client_width as usize * 4);
-            }
+        for row in 0..client_height as usize {
+            let src_y = alpha_y as usize + border_top as usize + row;
+            let src_x = alpha_x as usize + border_left as usize;
+            let src = unsafe { data_ptr.add(src_y * row_pitch + src_x * 4) };
+            let dst = unsafe { out.as_mut_ptr().add(row * client_width as usize * 4) };
+            unsafe { std::ptr::copy_nonoverlapping(src, dst, client_width as usize * 4) };
         }
 
         // bgra_to_bgr: 交换 B 和 R 通道（对应 C++ 的 bgra_to_bgr）
@@ -251,8 +242,8 @@ impl FramePoolScreencap {
                 None,
                 Some(&mut self.d3d_context),
             )
-            .map_err(|e| anyhow!("D3D11CreateDevice failed: {:?}", e))?;
         }
+        .map_err(|e| anyhow!("D3D11CreateDevice failed: {:?}", e))?;
         if false {
             unsafe {
                 D3D11CreateDevice(
@@ -266,14 +257,14 @@ impl FramePoolScreencap {
                     None,
                     Some(&mut self.d3d_context),
                 )
-                .map_err(|e| anyhow!("D3D11CreateDevice failed: {:?}", e))?;
             }
+            .map_err(|e| anyhow!("D3D11CreateDevice failed: {:?}", e))?;
         }
 
         // 通过 IGraphicsCaptureItemInterop 为窗口创建 GraphicsCaptureItem
         let interop_factory: IGraphicsCaptureItemInterop =
             ::windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>()?;
-        let cap_item: GraphicsCaptureItem = unsafe { interop_factory.CreateForWindow(self.hwnd)? };
+        let cap_item: GraphicsCaptureItem = unsafe { interop_factory.CreateForWindow(self.hwnd) }?;
         self.cap_item = Some(cap_item);
 
         let cap_item = self.cap_item.as_ref().unwrap();
@@ -286,15 +277,15 @@ impl FramePoolScreencap {
             );
         }
 
-        unsafe {
-            if !IsWindow(Some(self.hwnd)).as_bool() || !IsWindowVisible(self.hwnd).as_bool() {
-                bail!("Window is no longer valid or visible");
-            }
+        if !unsafe { IsWindow(Some(self.hwnd)) }.as_bool()
+            || !unsafe { IsWindowVisible(self.hwnd) }.as_bool()
+        {
+            bail!("Window is no longer valid or visible");
         }
 
         // 从 DXGIDevice 创建 WinRT IDirect3DDevice
         let dxgi_device: IDXGIDevice = self.d3d_device.as_ref().unwrap().cast()?;
-        let inspectable = unsafe { CreateDirect3D11DeviceFromDXGIDevice(&dxgi_device)? };
+        let inspectable = unsafe { CreateDirect3D11DeviceFromDXGIDevice(&dxgi_device) }?;
         let direct3d_device =
             inspectable.cast::<::windows::Graphics::DirectX::Direct3D11::IDirect3DDevice>()?;
 
@@ -355,7 +346,7 @@ impl FramePoolScreencap {
         }
 
         info!(
-            "Window size changed, recreating frame pool Width={} Height={} last=({},{})",
+            "窗口尺寸已变化，正在重建帧池：当前 {}×{}，此前 {}×{}",
             current_size.Width,
             current_size.Height,
             self.last_capture_size.0,
@@ -387,10 +378,9 @@ impl FramePoolScreencap {
 
         let mut readable_texture: Option<ID3D11Texture2D> = None;
         unsafe {
-            d3d_device
-                .CreateTexture2D(&self.texture_desc, None, Some(&mut readable_texture))
-                .map_err(|e| anyhow!("CreateTexture2D failed: {:?}", e))?;
+            d3d_device.CreateTexture2D(&self.texture_desc, None, Some(&mut readable_texture))
         }
+        .map_err(|e| anyhow!("CreateTexture2D failed: {:?}", e))?;
         self.readable_texture = readable_texture;
 
         Ok(true)
@@ -437,7 +427,8 @@ impl FramePoolScreencap {
         ) {
             Ok(op) => op,
             Err(e) => {
-                warn!("RequestAccessAsync failed: {:?}", e);
+                warn!(error = %e, "请求无边框截图权限失败");
+                debug!(error = ?e, "无边框截图权限请求错误");
                 return;
             }
         };
@@ -445,23 +436,26 @@ impl FramePoolScreencap {
         let access_result = match op.join() {
             Ok(r) => r,
             Err(e) => {
-                warn!("RequestAccessAsync did not complete: {:?}", e);
+                warn!(error = %e, "等待无边框截图权限失败");
+                debug!(error = ?e, "无边框截图权限等待错误");
                 return;
             }
         };
 
         if access_result != AppCapabilityAccessStatus::Allowed {
-            warn!("Borderless capture access not granted: {:?}", access_result);
+            warn!("未获准无边框截图权限");
+            debug!(?access_result, "无边框截图权限状态");
             return;
         }
 
         if let Some(session) = &self.cap_session
             && let Err(e) = session.SetIsBorderRequired(false)
         {
-            warn!("SetIsBorderRequired failed: {:?}", e);
+            warn!(error = %e, "关闭截图边框失败");
+            debug!(error = ?e, "关闭截图边框错误");
             return;
         }
-        info!("Capture border disabled successfully");
+        info!("截图边框已关闭");
     }
 }
 

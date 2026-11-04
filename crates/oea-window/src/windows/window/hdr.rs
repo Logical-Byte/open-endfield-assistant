@@ -12,21 +12,19 @@ use ::windows::Win32::Graphics::Gdi::{MONITOR_DEFAULTTONEAREST, MonitorFromWindo
 use ::windows::core::Interface;
 use anyhow::bail;
 
-use crate::platform::WindowHandle;
+use crate::Window;
 
 /// 判断指定窗口所在显示器是否开启了 HDR。
 ///
 /// 检测失败（API 不可用 / 查询出错）时返回 `Err`，由调用方决定是否阻断任务。
-pub(in crate::platform) fn is_hdr_enabled_on_window_monitor(
-    window: WindowHandle,
-) -> anyhow::Result<bool> {
+pub(crate) fn is_hdr_enabled_on_window_monitor(window: Window) -> anyhow::Result<bool> {
     let hwnd = window.raw;
     let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
     if monitor.is_invalid() {
         bail!("无法获取窗口所在显示器");
     }
 
-    let factory: IDXGIFactory1 = unsafe { CreateDXGIFactory1()? };
+    let factory: IDXGIFactory1 = unsafe { CreateDXGIFactory1() }?;
     let mut adapter_index = 0;
     loop {
         let adapter = match unsafe { factory.EnumAdapters1(adapter_index) } {
@@ -42,7 +40,7 @@ pub(in crate::platform) fn is_hdr_enabled_on_window_monitor(
                 Err(error) => return Err(error.into()),
             };
             let output6: IDXGIOutput6 = output.cast()?;
-            let description = unsafe { output6.GetDesc1()? };
+            let description = unsafe { output6.GetDesc1() }?;
             if description.Monitor == monitor {
                 return Ok(description.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
             }

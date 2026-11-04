@@ -3,25 +3,18 @@
 use std::{path::PathBuf, thread, time::Duration};
 
 use image::RgbaImage;
-use oea_lib::{
-    automation::{
-        Clock, Input, Key, Point720p, ScreenCapture, TemplateMatch, TemplateMatching,
-        TemplateTarget, capabilities, game_environment::ResolutionTransform,
-        template_loader::TemplateLoader,
-    },
-    platform::{
-        WindowHandle,
-        capture::PrintWindowScreencap,
-        input::{Contact, InputBase, SeizeInput},
-    },
+use oea_lib::automation::{
+    Clock, Input, Key, Point720p, ScreenCapture, TemplateMatch, TemplateMatching, TemplateTarget,
+    capabilities, game_environment::ResolutionTransform, template_loader::TemplateLoader,
 };
 use oea_vision as vision;
+use oea_window::{InputPolicy, MouseButton, Window};
 use tracing::debug;
 
 use super::commands;
 
 pub(super) struct Connection {
-    window: WindowHandle,
+    window: Window,
     transform: ResolutionTransform,
 }
 
@@ -34,9 +27,8 @@ impl Connection {
 pub(super) fn connect() -> Result<Connection, commands::Error> {
     #[cfg(windows)]
     {
-        use oea_lib::{automation::game_environment, platform};
+        use oea_lib::automation::game_environment;
 
-        platform::window::set_thread_dpi_awareness_context();
         let environment = game_environment::connect(game_environment::Requirements::default())
             .map_err(anyhow::Error::new)?;
         let transform =
@@ -59,14 +51,14 @@ pub(super) fn connect() -> Result<Connection, commands::Error> {
 }
 
 pub(super) struct Capture {
-    screencap: PrintWindowScreencap,
+    window: Window,
     transform: ResolutionTransform,
 }
 
 impl Capture {
     pub(super) fn new(connection: Connection) -> Self {
         Self {
-            screencap: PrintWindowScreencap::new(connection.window),
+            window: connection.window,
             transform: connection.transform,
         }
     }
@@ -74,7 +66,7 @@ impl Capture {
 
 impl ScreenCapture for Capture {
     fn screenshot(&mut self) -> Result<RgbaImage, capabilities::Error> {
-        let raw = self.screencap.screencap().map_err(|error| {
+        let raw = self.window.screenshot().map_err(|error| {
             debug!(error = ?error, "游戏截图失败");
             capabilities::Error::CaptureFailed
         })?;
@@ -87,13 +79,13 @@ impl ScreenCapture for Capture {
 /// 导航器需要的四种能力。截图命令无需创建输入器或模板缓存。
 pub(super) struct NavigationContext {
     capture: Capture,
-    input: SeizeInput,
+    input: oea_window::Input,
     templates: TemplateLoader,
 }
 
 impl NavigationContext {
     pub(super) fn new(connection: Connection, templates_root: impl Into<PathBuf>) -> Self {
-        let input = SeizeInput::new(connection.window, false);
+        let input = InputPolicy::default().bind(connection.window);
         Self {
             capture: Capture::new(connection),
             input,
@@ -111,10 +103,12 @@ impl ScreenCapture for NavigationContext {
 impl Input for NavigationContext {
     fn click(&mut self, point: Point720p) -> Result<(), capabilities::Error> {
         let point = self.capture.transform.to_physical(point);
-        self.input.click(Contact::Left, point).map_err(|error| {
-            debug!(?point, error = ?error, "点击游戏窗口失败");
-            capabilities::Error::ExecutionFailed
-        })?;
+        self.input
+            .click(MouseButton::Left, point)
+            .map_err(|error| {
+                debug!(?point, error = ?error, "点击游戏窗口失败");
+                capabilities::Error::ExecutionFailed
+            })?;
         // 保持生产输入的点击后等待与鼠标归位，避免悬停影响后续识别。
         thread::sleep(Duration::from_millis(50));
         self.move_mouse_to_safe_position()
@@ -135,12 +129,10 @@ impl Input for NavigationContext {
             .capture
             .transform
             .to_physical(Point720p { x: 640, y: 360 });
-        self.input
-            .touch_move(Contact::Left, point)
-            .map_err(|error| {
-                debug!(error = ?error, "移动游戏鼠标失败");
-                capabilities::Error::ExecutionFailed
-            })
+        self.input.move_mouse(point).map_err(|error| {
+            debug!(error = ?error, "移动游戏鼠标失败");
+            capabilities::Error::ExecutionFailed
+        })
     }
 }
 

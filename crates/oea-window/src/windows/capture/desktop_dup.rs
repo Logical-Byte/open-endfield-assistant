@@ -15,8 +15,8 @@ use anyhow::{anyhow, bail};
 use image::{ImageBuffer, Rgba, RgbaImage};
 use tracing::{debug, warn};
 
-use crate::platform::WindowHandle;
-use crate::platform::capture::ScreencapBase;
+use crate::Window;
+use crate::windows::capture::ScreencapBase;
 
 // AcquireNextFrame 的超时参数
 const ACQUIRE_TIMEOUT: u32 = 2000;
@@ -36,7 +36,7 @@ pub(super) struct DesktopDupScreencap {
 }
 
 impl DesktopDupScreencap {
-    pub(super) fn new(window: WindowHandle) -> Self {
+    pub(super) fn new(window: Window) -> Self {
         Self {
             hwnd: window.raw,
             d3d_device: None,
@@ -57,7 +57,8 @@ impl DesktopDupScreencap {
         if self.d3d_device.is_none()
             && let Err(e) = self.init()
         {
-            warn!("failed to init_d3d_device: {:?}", e);
+            warn!(error = %e, "初始化桌面复制截图失败");
+            debug!(error = ?e, "桌面复制截图初始化错误");
             self.uninit();
             return Err(e);
         }
@@ -118,7 +119,7 @@ impl DesktopDupScreencap {
         let target_monitor = if !self.hwnd.is_invalid() {
             let m = unsafe { MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTONEAREST) };
             if m.is_invalid() {
-                warn!("MonitorFromWindow failed, falling back to primary monitor");
+                warn!("无法获取窗口所在显示器，改用主显示器");
                 HMONITOR::default()
             } else {
                 m
@@ -176,17 +177,16 @@ impl DesktopDupScreencap {
                 None,
                 Some(&mut d3d_context),
             )
-            .map_err(|e| anyhow!("D3D11CreateDevice failed: {:?}", e))?;
         }
+        .map_err(|e| anyhow!("D3D11CreateDevice failed: {:?}", e))?;
         self.d3d_device = d3d_device;
         self.d3d_context = d3d_context;
         Ok(())
     }
 
     fn init_dxgi_factory(&mut self) -> anyhow::Result<()> {
-        let dxgi_factory: IDXGIFactory = unsafe {
-            CreateDXGIFactory().map_err(|e| anyhow!("CreateDXGIFactory failed: {:?}", e))?
-        };
+        let dxgi_factory: IDXGIFactory = unsafe { CreateDXGIFactory() }
+            .map_err(|e| anyhow!("CreateDXGIFactory failed: {:?}", e))?;
         self.dxgi_factory = Some(dxgi_factory);
         Ok(())
     }
@@ -240,17 +240,11 @@ impl DesktopDupScreencap {
             .as_ref()
             .ok_or_else(|| anyhow!("dxgi_factory is null"))?;
 
-        let adapter: IDXGIAdapter = unsafe {
-            dxgi_factory
-                .EnumAdapters(0)
-                .map_err(|e| anyhow!("EnumAdapters failed: {:?}", e))?
-        };
+        let adapter: IDXGIAdapter = unsafe { dxgi_factory.EnumAdapters(0) }
+            .map_err(|e| anyhow!("EnumAdapters failed: {:?}", e))?;
 
-        let output: IDXGIOutput = unsafe {
-            adapter
-                .EnumOutputs(0)
-                .map_err(|e| anyhow!("EnumOutputs failed: {:?}", e))?
-        };
+        let output: IDXGIOutput = unsafe { adapter.EnumOutputs(0) }
+            .map_err(|e| anyhow!("EnumOutputs failed: {:?}", e))?;
 
         self.dxgi_adapter = Some(adapter);
         self.dxgi_output = Some(
@@ -271,11 +265,8 @@ impl DesktopDupScreencap {
             .as_ref()
             .ok_or_else(|| anyhow!("d3d_device is null"))?;
 
-        let dxgi_dup = unsafe {
-            dxgi_output
-                .DuplicateOutput(d3d_device)
-                .map_err(|e| anyhow!("DuplicateOutput failed: {:?}", e))?
-        };
+        let dxgi_dup = unsafe { dxgi_output.DuplicateOutput(d3d_device) }
+            .map_err(|e| anyhow!("DuplicateOutput failed: {:?}", e))?;
         self.dxgi_dup = Some(dxgi_dup);
         Ok(())
     }
@@ -296,10 +287,9 @@ impl DesktopDupScreencap {
 
         let mut readable_texture: Option<ID3D11Texture2D> = None;
         unsafe {
-            d3d_device
-                .CreateTexture2D(&self.texture_desc, None, Some(&mut readable_texture))
-                .map_err(|e| anyhow!("CreateTexture2D failed: {:?}", e))?;
+            d3d_device.CreateTexture2D(&self.texture_desc, None, Some(&mut readable_texture))
         }
+        .map_err(|e| anyhow!("CreateTexture2D failed: {:?}", e))?;
         self.readable_texture = readable_texture;
         Ok(())
     }
@@ -334,7 +324,7 @@ impl DesktopDupScreencap {
         };
         if let Err(e) = ret {
             if e.code() == DXGI_ERROR_ACCESS_LOST {
-                warn!("Desktop duplication access lost, reinitializing");
+                warn!("桌面复制访问已失效，正在重新初始化");
                 self.dxgi_dup = None;
                 self.readable_texture = None;
                 self.current_monitor = HMONITOR::default();
@@ -366,11 +356,8 @@ impl DesktopDupScreencap {
         unsafe { d3d_context.CopyResource(&readable_texture, &raw_texture) };
 
         let mut mapped = D3D11_MAPPED_SUBRESOURCE::default();
-        unsafe {
-            d3d_context
-                .Map(&readable_texture, 0, D3D11_MAP_READ, 0, Some(&mut mapped))
-                .map_err(|e| anyhow!("Map failed: {:?}", e))?;
-        }
+        unsafe { d3d_context.Map(&readable_texture, 0, D3D11_MAP_READ, 0, Some(&mut mapped)) }
+            .map_err(|e| anyhow!("Map failed: {:?}", e))?;
         // OnScopeLeave 等价：d3d_context_->Unmap(readable_texture_, 0)
         let _unmap_guard = UnmapGuard(d3d_context.clone(), readable_texture.clone());
 
@@ -388,8 +375,8 @@ impl DesktopDupScreencap {
                     src.add(row * row_pitch),
                     mat.as_mut_ptr().add(row * stride),
                     stride,
-                );
-            }
+                )
+            };
         }
 
         Ok(mat)
@@ -417,9 +404,7 @@ impl Drop for DesktopDupScreencap {
 struct FrameGuard(IDXGIOutputDuplication);
 impl Drop for FrameGuard {
     fn drop(&mut self) {
-        unsafe {
-            let _ = self.0.ReleaseFrame();
-        }
+        let _ = unsafe { self.0.ReleaseFrame() };
     }
 }
 
@@ -427,8 +412,6 @@ impl Drop for FrameGuard {
 struct UnmapGuard(ID3D11DeviceContext, ID3D11Texture2D);
 impl Drop for UnmapGuard {
     fn drop(&mut self) {
-        unsafe {
-            self.0.Unmap(&self.1, 0);
-        }
+        unsafe { self.0.Unmap(&self.1, 0) };
     }
 }
