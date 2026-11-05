@@ -225,6 +225,38 @@ impl Window {
         }
     }
 
+    /// 查询窗口是否处于全屏显示，不改变窗口状态。
+    ///
+    /// 同时识别 `WS_POPUP` 全屏与浏览器 `F11` 全屏（无标题栏且外框铺满显示器）。
+    pub fn is_fullscreen(&self) -> anyhow::Result<bool> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::validate(*self)?;
+            windows::window::is_fullscreen(*self)
+        }
+        #[cfg(not(windows))]
+        {
+            Err(unsupported())
+        }
+    }
+
+    /// 让全屏窗口退出全屏。非全屏窗口直接返回成功。
+    ///
+    /// 云游戏页面会锁住键盘，只有浏览器自身的「长按 Esc」手势能退出全屏。
+    pub fn exit_fullscreen(&self) -> anyhow::Result<()> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::validate(*self)?;
+            windows::window::exit_fullscreen(*self)
+        }
+        #[cfg(not(windows))]
+        {
+            Err(unsupported())
+        }
+    }
+
     /// 将客户区移回显示器工作区，可选择保留尺寸。跳过最小化和最大化窗口。
     pub fn ensure_on_screen(&self, preserve_size: bool) -> anyhow::Result<()> {
         #[cfg(windows)]

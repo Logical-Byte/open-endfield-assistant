@@ -3,7 +3,7 @@
 //! 浏览器窗口的客户区包含自绘的标签栏与地址栏，游戏画面只占其中的网页视口。
 //! 网页视口由 UI Automation 的 `Document` 元素矩形给出，`GetClientRect` 无法区分两者。
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use ::windows::Win32::Foundation::{HWND, POINT, RECT};
 use ::windows::Win32::Graphics::Gdi::ClientToScreen;
@@ -15,14 +15,18 @@ use ::windows::Win32::UI::Accessibility::{
     CUIAutomation, IUIAutomation, TreeScope_Descendants, UIA_ControlTypePropertyId,
     UIA_DocumentControlTypeId,
 };
-use ::windows::Win32::UI::WindowsAndMessaging::{
-    GWL_STYLE, GetWindowLongPtrW, WINDOW_STYLE, WS_POPUP,
-};
+use ::windows::Win32::UI::Input::KeyboardAndMouse::VK_ESCAPE;
+use ::windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 use anyhow::{Context, ensure};
+use tracing::debug;
 
 use crate::{ContentKind, ContentRect, Window};
 
 use super::state::{self, SIZE_SETTLE_TIME};
+use super::window_operation::ensure_foreground_and_topmost;
+
+/// 浏览器退出全屏需要保持 Esc 按下的时长。
+const FULLSCREEN_EXIT_HOLD: Duration = Duration::from_secs(3);
 
 pub(crate) fn content_rect(window: Window, kind: ContentKind) -> anyhow::Result<ContentRect> {
     let (width, height) = state::client_size(window)?;
@@ -49,6 +53,9 @@ pub(crate) fn content_rect(window: Window, kind: ContentKind) -> anyhow::Result<
 ///
 /// 客户区比视口多出浏览器工具栏等浏览器自身界面，因此每次调整前重新测量视口边距，
 /// 按实测边距反推目标客户区尺寸，直到客户区与视口同时稳定。
+///
+/// 全屏窗口的几何由浏览器锁定，无法通过 `SetWindowPos` 改变，键盘也已被游戏拦截，
+/// 调用方应先判断全屏并改用实际视口缩放识别。
 pub(crate) fn ensure_viewport_content_size(
     window: Window,
     width: i32,
@@ -56,13 +63,7 @@ pub(crate) fn ensure_viewport_content_size(
 ) -> anyhow::Result<()> {
     ensure!(width > 0 && height > 0, "窗口视口尺寸必须为正数");
     state::restore(window).context("恢复云游戏窗口超时")?;
-
-    // 全屏窗口的视口跟随显示器，无法通过调整窗口尺寸控制。
-    let style = WINDOW_STYLE(unsafe { GetWindowLongPtrW(window.raw, GWL_STYLE) } as u32);
-    ensure!(
-        !style.contains(WS_POPUP),
-        "云游戏窗口处于全屏状态，请先退出全屏"
-    );
+    exit_fullscreen(window)?;
 
     let mut stable_since = None;
     state::wait_until(|| {
@@ -78,6 +79,26 @@ pub(crate) fn ensure_viewport_content_size(
         Ok(false)
     })
     .context("云游戏窗口未能稳定到指定视口尺寸")
+}
+
+/// 让浏览器退出全屏。
+///
+/// 云游戏页面在播放时会锁住键盘，普通按键（包括 `F11` 与短按 `Esc`）到不了浏览器；
+/// 但 Chromium 把「长按 `Esc`」当作退出全屏的手势，键盘锁不会拦截它。
+/// 全屏窗口的几何由浏览器锁定，不先退出全屏就无法调整视口尺寸。
+pub(crate) fn exit_fullscreen(window: Window) -> anyhow::Result<()> {
+    if !state::is_fullscreen(window)? {
+        return Ok(());
+    }
+    // 物理按键只发送给前台窗口，跨输入队列激活异步完成，以实际前台窗口为准。
+    ensure_foreground_and_topmost(window)?;
+    state::wait_until(|| Ok(unsafe { GetForegroundWindow() } == window.raw))
+        .context("等待云游戏窗口获得前台焦点超时")?;
+
+    debug!("长按 Esc 退出云游戏窗口全屏");
+    state::hold_key(VK_ESCAPE, FULLSCREEN_EXIT_HOLD)?;
+    state::wait_until(|| Ok(!state::is_fullscreen(window)?))
+        .context("长按 Esc 后云游戏窗口仍处于全屏")
 }
 
 /// 视口相对客户区的边距，已消除舍入误差，且保证能在客户区内切出视口。

@@ -5,9 +5,9 @@ mod state;
 mod window_mode;
 mod window_operation;
 
-pub(crate) use content::{content_rect, ensure_viewport_content_size};
+pub(crate) use content::{content_rect, ensure_viewport_content_size, exit_fullscreen};
 pub(crate) use get_window::search;
-pub(crate) use state::client_size;
+pub(crate) use state::{client_size, is_fullscreen};
 pub(crate) use window_mode::{ensure_windowed, resize_windowed_client};
 pub(crate) use window_operation::{
     ensure_foreground_and_topmost, ensure_window_on_screen, restore_window_if_minimized,

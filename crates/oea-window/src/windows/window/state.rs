@@ -7,11 +7,16 @@ use std::{
 
 use ::windows::Win32::Foundation::{POINT, RECT};
 use ::windows::Win32::Graphics::Gdi::{
-    ClientToScreen, HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow,
+    ClientToScreen, GetMonitorInfoW, HMONITOR, MONITOR_DEFAULTTONEAREST, MONITORINFO,
+    MonitorFromWindow,
+};
+use ::windows::Win32::UI::Input::KeyboardAndMouse::{
+    INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput, VIRTUAL_KEY,
 };
 use ::windows::Win32::UI::WindowsAndMessaging::{
-    GetClientRect, GetWindowRect, IsIconic, IsZoomed, SW_RESTORE, SWP_ASYNCWINDOWPOS,
-    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOZORDER, SetWindowPos, ShowWindowAsync,
+    GWL_STYLE, GetClientRect, GetWindowLongPtrW, GetWindowRect, IsIconic, IsZoomed, SW_RESTORE,
+    SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOZORDER, SetWindowPos, ShowWindowAsync,
+    WINDOW_STYLE, WS_CAPTION, WS_POPUP,
 };
 use anyhow::{Context, ensure};
 
@@ -117,6 +122,65 @@ pub(crate) fn monitor(window: Window) -> anyhow::Result<HMONITOR> {
     let monitor = unsafe { MonitorFromWindow(window.raw, MONITOR_DEFAULTTONEAREST) };
     ensure!(!monitor.is_invalid(), "无法获取窗口所在显示器");
     Ok(monitor)
+}
+
+/// 判断窗口是否处于全屏显示。
+///
+/// 两种形式：设置了 `WS_POPUP` 的独占/无边框全屏，以及 Chromium 的 `F11` 全屏——
+/// 后者去掉标题栏与边框，外框正好铺满显示器，但不用 `WS_POPUP`。
+pub(crate) fn is_fullscreen(window: Window) -> anyhow::Result<bool> {
+    let style = WINDOW_STYLE(unsafe { GetWindowLongPtrW(window.raw, GWL_STYLE) } as u32);
+    if style.contains(WS_POPUP) {
+        return Ok(true);
+    }
+    if style.contains(WS_CAPTION) {
+        return Ok(false);
+    }
+
+    let monitor = monitor(window)?;
+    let mut info = MONITORINFO {
+        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+        ..Default::default()
+    };
+    unsafe { GetMonitorInfoW(monitor, &mut info) }.ok()?;
+    let mut outer = RECT::default();
+    unsafe { GetWindowRect(window.raw, &mut outer) }?;
+    let monitor_rect = info.rcMonitor;
+    Ok(outer.left == monitor_rect.left
+        && outer.top == monitor_rect.top
+        && outer.right == monitor_rect.right
+        && outer.bottom == monitor_rect.bottom)
+}
+
+/// 按住按键指定时长后释放。
+///
+/// 浏览器在键盘被锁定时把「长按 Esc」作为退出全屏的手势，需要保持按下而不是点按。
+pub(crate) fn hold_key(key: VIRTUAL_KEY, hold: Duration) -> anyhow::Result<()> {
+    let pressed = key_input(key, false);
+    let size = std::mem::size_of::<INPUT>() as i32;
+    let written = unsafe { SendInput(&[pressed], size) };
+    ensure!(written == 1, "无法按下按键，请确认有操作窗口的权限");
+    thread::sleep(hold);
+    let released = unsafe { SendInput(&[key_input(key, true)], size) };
+    ensure!(released == 1, "无法释放按键，请确认有操作窗口的权限");
+    Ok(())
+}
+
+fn key_input(key: VIRTUAL_KEY, released: bool) -> INPUT {
+    INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: key,
+                dwFlags: if released {
+                    KEYEVENTF_KEYUP
+                } else {
+                    Default::default()
+                },
+                ..Default::default()
+            },
+        },
+    }
 }
 
 /// 反复求值直到返回 `true`，超时返回错误。

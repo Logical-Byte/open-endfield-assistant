@@ -63,8 +63,8 @@ impl Target {
 
     /// 把游戏画面调整为 1280×720。
     ///
-    /// 客户端通过 `Alt+Enter` 退出全屏后调整客户区；云游戏没有可用的全屏快捷键，
-    /// 按浏览器实测视口边距反推客户区，让网页视口等于 1280×720。
+    /// 客户端通过 `Alt+Enter` 退出全屏后调整客户区；云游戏靠长按 `Esc` 退出全屏，
+    /// 再按浏览器实测视口边距反推客户区，让网页视口等于 1280×720。
     fn prepare(self, window: Window) -> anyhow::Result<()> {
         match self {
             Self::Desktop => window
