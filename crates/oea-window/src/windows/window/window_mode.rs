@@ -30,14 +30,9 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 const TRANSITION_TIMEOUT: Duration = Duration::from_secs(5);
 const SIZE_SETTLE_TIME: Duration = Duration::from_millis(300);
 
-/// 通过游戏的 `Alt+Enter` 切换退出全屏，再调整实际客户区像素尺寸。
-pub(crate) fn ensure_windowed_client_size(
-    window: Window,
-    width: i32,
-    height: i32,
-) -> anyhow::Result<()> {
+/// 恢复最小化或最大化窗口，并通过游戏的 `Alt+Enter` 切换退出全屏。
+pub(crate) fn ensure_windowed(window: Window) -> anyhow::Result<()> {
     let hwnd = window.raw;
-    ensure!(width > 0 && height > 0, "窗口客户区尺寸必须为正数");
     ensure!(
         !hwnd.is_invalid() && unsafe { IsWindow(Some(hwnd)) }.as_bool(),
         "游戏窗口无效"
@@ -60,8 +55,24 @@ pub(crate) fn ensure_windowed_client_size(
         debug!("游戏窗口已获得前台焦点，发送 Alt+Enter 退出全屏");
         send_fullscreen_toggle()?;
         wait_for_windowed_transition(window).context("游戏未能完成退出全屏模式")?;
-        debug!("游戏已完成窗口化尺寸恢复，开始调整客户区尺寸");
+        debug!("游戏已完成窗口化尺寸恢复");
     }
+
+    Ok(())
+}
+
+/// 将客户区调整为指定物理像素尺寸，并等待尺寸连续稳定。
+pub(crate) fn resize_windowed_client(
+    window: Window,
+    width: i32,
+    height: i32,
+) -> anyhow::Result<()> {
+    let hwnd = window.raw;
+    ensure!(width > 0 && height > 0, "窗口客户区尺寸必须为正数");
+    ensure!(
+        !hwnd.is_invalid() && unsafe { IsWindow(Some(hwnd)) }.as_bool(),
+        "游戏窗口无效"
+    );
 
     let mut client = RECT::default();
     unsafe { GetClientRect(hwnd, &mut client) }?;
@@ -94,17 +105,14 @@ pub(crate) fn ensure_windowed_client_size(
     let mut stable_since = None;
     wait_until(|| {
         unsafe { GetClientRect(hwnd, &mut client) }?;
-        if is_windowed(window)
-            && client.right - client.left == width
-            && client.bottom - client.top == height
-        {
+        if client.right - client.left == width && client.bottom - client.top == height {
             Ok(stable_since.get_or_insert_with(Instant::now).elapsed() >= SIZE_SETTLE_TIME)
         } else {
             stable_since = None;
             Ok(false)
         }
     })
-    .context("游戏窗口未能稳定到指定的窗口化尺寸")
+    .context("游戏窗口未能稳定到指定的客户区尺寸")
 }
 
 fn wait_for_windowed_transition(window: Window) -> anyhow::Result<()> {

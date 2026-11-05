@@ -32,7 +32,7 @@ function gameEnvironment(value: unknown): value is GameEnvironmentError {
   if (!record(value)) return false;
   switch (value.kind) {
     case 'windowUnavailable':
-    case 'windowPreparationFailed':
+    case 'windowCannotResizeTo720p':
     case 'hdrEnabled':
       return true;
     case 'unsupportedResolution':
@@ -154,8 +154,8 @@ export function formatGameEnvironmentError(reason: GameEnvironmentError): string
   switch (reason.kind) {
     case 'windowUnavailable':
       return t('errors.game.windowUnavailable');
-    case 'windowPreparationFailed':
-      return t('errors.game.windowPreparationFailed');
+    case 'windowCannotResizeTo720p':
+      return t('errors.game.windowCannotResizeTo720p');
     case 'hdrEnabled':
       return t('errors.game.hdrEnabled');
     case 'unsupportedResolution':

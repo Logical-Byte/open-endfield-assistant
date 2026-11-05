@@ -133,13 +133,27 @@ impl Window {
         }
     }
 
-    /// 切换到窗口模式并等待客户区稳定到指定物理像素尺寸。
-    pub fn ensure_windowed_client_size(&self, width: i32, height: i32) -> anyhow::Result<()> {
+    /// 恢复最小化或最大化窗口并退出全屏，等待游戏完成窗口化。
+    pub fn ensure_windowed(&self) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             let _dpi = windows::DpiContext::enter()?;
             windows::validate(*self)?;
-            windows::window::ensure_windowed_client_size(*self, width, height)
+            windows::window::ensure_windowed(*self)
+        }
+        #[cfg(not(windows))]
+        {
+            Err(unsupported())
+        }
+    }
+
+    /// 将客户区调整为指定物理像素尺寸，并等待尺寸连续稳定。
+    pub fn resize_windowed_client(&self, width: i32, height: i32) -> anyhow::Result<()> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::validate(*self)?;
+            windows::window::resize_windowed_client(*self, width, height)
         }
         #[cfg(not(windows))]
         {

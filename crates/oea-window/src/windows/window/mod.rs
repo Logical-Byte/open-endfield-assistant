@@ -7,7 +7,7 @@ mod window_operation;
 
 pub(crate) use get_window::search;
 pub(crate) use window_info::get_client_rect;
-pub(crate) use window_mode::ensure_windowed_client_size;
+pub(crate) use window_mode::{ensure_windowed, resize_windowed_client};
 pub(crate) use window_operation::{
     ensure_foreground_and_topmost, ensure_window_on_screen, restore_window_if_minimized,
 };

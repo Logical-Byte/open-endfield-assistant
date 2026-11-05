@@ -48,11 +48,12 @@ pub fn connect(requirements: Requirements) -> Result<Environment, Error> {
     }
     if requirements.windowed_720p {
         window
-            .ensure_windowed_client_size(1280, 720)
+            .ensure_windowed()
+            .and_then(|()| window.resize_windowed_client(1280, 720))
             .map_err(|error| {
                 warn!(error = %error, "自动调整游戏窗口为 1280×720 窗口模式失败");
                 debug!(error = ?error, "游戏窗口调整失败详情");
-                Error::WindowPreparationFailed
+                Error::WindowCannotResizeTo720p
             })?;
     }
     if requirements.ensure_on_screen {
@@ -68,7 +69,7 @@ pub fn connect(requirements: Requirements) -> Result<Environment, Error> {
     let resolution = Resolution::new(size.width, size.height)?;
     if requirements.windowed_720p && (resolution.width != 1280 || resolution.height != 720) {
         warn!(%resolution, "游戏窗口在定位后未保持 1280×720");
-        return Err(Error::WindowPreparationFailed);
+        return Err(Error::WindowCannotResizeTo720p);
     }
 
     if requirements.hdr_disabled {
