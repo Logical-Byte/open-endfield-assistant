@@ -10,6 +10,8 @@ use std::{
     path::{Component, Path, PathBuf},
     process::{Child, Command},
 };
+
+use oea_logger as logger;
 use tracing::{debug, error, info};
 
 use crate::{
@@ -123,7 +125,9 @@ pub fn run_helper_request_with_logging(
             return Err(error);
         }
     };
-    let (_logger_guard, _log_rx) = crate::logger::init(&target.app_paths().logs_dir());
+    let (_logger_guard, log_rx) = logger::init(&target.app_paths().logs_dir());
+    // helper 不转发日志条目，释放接收器以免无界队列积累日志。
+    drop(log_rx);
     debug!(
         process_role = "update_helper",
         pid = std::process::id(),

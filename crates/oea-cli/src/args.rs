@@ -60,7 +60,7 @@ pub(super) enum Command {
         #[arg(long)]
         after: PathBuf,
     },
-    /// Probe the production game session without capturing or sending input
+    /// Check the game window and display conditions without capturing or sending input
     Connect,
     /// Navigate using production recognition, input, waits and retries
     Navigate { state: State },

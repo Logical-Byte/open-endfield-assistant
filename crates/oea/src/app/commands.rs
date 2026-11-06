@@ -199,8 +199,7 @@ pub async fn screenshot(
     .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
 
     // 截图
-    let mut screencap = platform::capture::PrintWindowScreencap::new(environment.window);
-    let raw = screencap.screencap().map_err(|error| {
+    let raw = environment.window.screenshot().map_err(|error| {
         debug!(error = ?error, width, height, format = ?format, "游戏截图失败");
         ScreenshotError::CaptureFailed
     })?;

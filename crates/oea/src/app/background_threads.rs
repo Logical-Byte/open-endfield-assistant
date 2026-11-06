@@ -9,11 +9,11 @@ use std::{
     thread::JoinHandle,
 };
 
+use oea_logger::{LogEntry, LogGuard};
 use tauri::AppHandle;
 use tracing::{error, info};
-use tracing_appender::non_blocking::WorkerGuard;
 
-use crate::{logger::LogEntry, platform};
+use crate::platform;
 
 use super::{automation_events, frontend_forwarders, hotkeys};
 
@@ -28,7 +28,7 @@ struct Inner {
     keyboard_hook: platform::hotkey::KeyboardHookGuard,
     hotkey_thread: JoinHandle<()>,
     log_thread: JoinHandle<()>,
-    logger_guard: WorkerGuard,
+    logger_guard: LogGuard,
 }
 
 impl BackgroundThreads {
@@ -38,16 +38,19 @@ impl BackgroundThreads {
     pub(super) fn start(
         app_handle: &AppHandle,
         frontend_event_sink: Arc<automation_events::TauriEventSink>,
-        logger_guard: WorkerGuard,
+        logger_guard: LogGuard,
         log_rx: mpsc::Receiver<LogEntry>,
     ) -> anyhow::Result<Self> {
-        let oea_window = platform::window::get_app_window(app_handle)?;
-        let foreground = platform::window::ForegroundGuard::new(oea_window);
+        let hotkey_scope = hotkeys::TaskHotkeyScope::new(app_handle)?;
         let (hotkey_rx, keyboard_hook) = platform::hotkey::listen()?;
         let stop = Arc::new(AtomicBool::new(false));
 
-        let hotkey_thread =
-            hotkeys::spawn_dispatcher(hotkey_rx, Arc::clone(&stop), foreground, app_handle.clone());
+        let hotkey_thread = hotkeys::spawn_dispatcher(
+            hotkey_rx,
+            Arc::clone(&stop),
+            hotkey_scope,
+            app_handle.clone(),
+        );
         let log_thread =
             frontend_forwarders::spawn_log_forwarder(log_rx, Arc::clone(&stop), app_handle.clone());
 

@@ -11,12 +11,13 @@ mod tray;
 
 use std::sync::{Arc, Mutex};
 
+use oea_logger as logger;
+use oea_vision as vision;
 use tauri::Manager;
 use tracing::{info, warn};
 
 use crate::{
-    app_paths::AppPaths, automation, controller, data, logger, navigation, platform, settings,
-    update, vision,
+    app_paths::AppPaths, automation, controller, data, navigation, platform, settings, update,
 };
 
 use self::hooks::{crash, portable};

@@ -10,9 +10,8 @@ use std::{
     time::Duration,
 };
 
+use oea_logger::LogEntry;
 use tauri::{AppHandle, Emitter};
-
-use crate::logger::LogEntry;
 
 const RECEIVE_TIMEOUT: Duration = Duration::from_millis(100);
 

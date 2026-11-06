@@ -1,6 +1,7 @@
 //! Developer commands with filesystem paths and explicit image coordinates.
 mod args;
 mod commands;
+mod game;
 mod ocr;
 mod screenshot;
 use clap::Parser;
