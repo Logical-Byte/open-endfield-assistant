@@ -3,6 +3,7 @@ members = [
   "crates/oea",
   "crates/oea-cli",
   "crates/oea-logger",
+  "crates/oea-update",
   "crates/oea-vision",
   "crates/oea-window",
 ]
@@ -15,6 +16,7 @@ chrono = "0.4.45"
 image = "0.25.10"
 imageproc = "0.27.0"
 oea-window = { path = "crates/oea-window" }
+reqwest = { version = "0.13", default-features = false }
 scopeguard = "1.2.0"
 serde = "1.0"
 serde_json = "1.0"

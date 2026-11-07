@@ -1,16 +1,16 @@
 //! 将已缓存的可用更新解析为一次下载所需的私有计划。
 
-use crate::update;
-use crate::update::error::Reason;
+use crate as update;
+use crate::error::Reason;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::settings::{OeaSettings, UpdateSource};
+use crate::{Options, UpdateSource};
 
 use super::{
-    check::{self, AvailableUpdateMetadata, MirrorchyanPackage},
+    check::{AvailableUpdateMetadata, MirrorchyanPackage},
     http, response,
 };
 
@@ -60,19 +60,19 @@ struct GithubAsset {
 
 pub(super) async fn resolve_download_plan(
     metadata: &AvailableUpdateMetadata,
-    settings: &OeaSettings,
+    settings: &Options,
     user_agent: &str,
     cancellation: &CancellationToken,
 ) -> Result<DownloadPlan, update::Error> {
-    let cdk = check::configured_cdk(settings);
+    let cdk = &settings.cdk;
     let selected = select_source(
-        settings.update_source,
+        settings.source,
         cdk.as_deref(),
         metadata.mirrorchyan_package.as_ref(),
     );
     debug!(
         operation = "download",
-        configured_source = ?settings.update_source,
+        configured_source = ?settings.source,
         selected_source = ?selected,
         has_cdk = cdk.is_some(),
         has_mirrorchyan_package = metadata.mirrorchyan_package.is_some(),
@@ -125,7 +125,7 @@ fn mirrorchyan_plan(
 
 async fn resolve_oem_plan(
     metadata: &AvailableUpdateMetadata,
-    settings: &OeaSettings,
+    settings: &Options,
     user_agent: &str,
     cancellation: &CancellationToken,
 ) -> Result<DownloadPlan, update::Error> {
@@ -206,7 +206,7 @@ pub(super) fn update_source_label(source: UpdateSource) -> &'static str {
 
 async fn resolve_github_plan(
     metadata: &AvailableUpdateMetadata,
-    settings: &OeaSettings,
+    settings: &Options,
     user_agent: &str,
     cancellation: &CancellationToken,
 ) -> Result<DownloadPlan, update::Error> {

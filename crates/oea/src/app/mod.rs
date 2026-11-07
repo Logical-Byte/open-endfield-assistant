@@ -82,7 +82,7 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let app_handle = window.app_handle();
                 // 安装更新期间拒绝关闭窗口（配合不可关闭的安装弹窗）
-                if app_handle.state::<update::UpdateManager>().is_installing() {
+                if app_handle.state::<update::Updater>().is_installing() {
                     warn!("正在安装更新，拒绝关闭窗口");
                     api.prevent_close();
                     return;
@@ -139,7 +139,7 @@ fn setup_app(app: &mut tauri::App) -> anyhow::Result<()> {
     platform::window::set_thread_dpi_awareness_context();
 
     // 窗口关闭处理和前端更新命令需要此状态，必须在创建窗口之前托管。
-    app.manage(update::UpdateManager::default());
+    app.manage(update::Updater::default());
 
     // 创建 Webview 窗口。
     main_window::create(app, &app_paths)?;

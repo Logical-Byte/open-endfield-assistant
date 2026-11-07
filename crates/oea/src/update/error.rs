@@ -85,6 +85,38 @@ pub enum Reason {
     Failed,
 }
 
+impl From<oea_update::Error> for Error {
+    fn from(error: oea_update::Error) -> Self {
+        Self::new(error.reason.into())
+    }
+}
+impl From<oea_update::Reason> for Reason {
+    fn from(reason: oea_update::Reason) -> Self {
+        match reason {
+            oea_update::Reason::Cancelled => Self::Cancelled,
+            oea_update::Reason::Busy => Self::Busy,
+            oea_update::Reason::NoUpdate => Self::NoUpdate,
+            oea_update::Reason::ProxyConfiguration => Self::ProxyConfiguration,
+            oea_update::Reason::Network => Self::Network,
+            oea_update::Reason::InvalidMetadata => Self::InvalidMetadata,
+            oea_update::Reason::Integrity => Self::Integrity,
+            oea_update::Reason::FileAccess => Self::FileAccess,
+            oea_update::Reason::DevelopmentBuild => Self::DevelopmentBuild,
+            oea_update::Reason::InvalidPackage => Self::InvalidPackage,
+            oea_update::Reason::Preparation => Self::Preparation,
+            oea_update::Reason::HelperStart => Self::HelperStart,
+            oea_update::Reason::Failed => Self::Failed,
+            oea_update::Reason::Service { code } => Self::Service { code },
+            oea_update::Reason::VersionMismatch { expected, actual } => {
+                Self::VersionMismatch { expected, actual }
+            }
+            oea_update::Reason::PackageUnavailable { version } => {
+                Self::PackageUnavailable { version }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -94,6 +126,35 @@ mod tests {
 
     use super::Reason;
     use crate::update;
+
+    #[test]
+    fn core_error_conversion_preserves_structured_service_and_version_details() {
+        for (reason, expected) in [
+            (
+                oea_update::Reason::Service { code: 7001 },
+                serde_json::json!({ "kind": "service", "code": 7001 }),
+            ),
+            (
+                oea_update::Reason::VersionMismatch {
+                    expected: "v1.3.0".into(),
+                    actual: "v1.2.0".into(),
+                },
+                serde_json::json!({ "kind": "versionMismatch", "expected": "v1.3.0", "actual": "v1.2.0" }),
+            ),
+            (
+                oea_update::Reason::PackageUnavailable {
+                    version: "v1.3.0".into(),
+                },
+                serde_json::json!({ "kind": "packageUnavailable", "version": "v1.3.0" }),
+            ),
+        ] {
+            let error = update::Error::from(oea_update::Error::new(reason));
+            assert_eq!(
+                serde_json::to_value(error).unwrap(),
+                serde_json::json!({ "reason": expected })
+            );
+        }
+    }
 
     struct LogWriter(Arc<Mutex<Vec<u8>>>);
 

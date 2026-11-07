@@ -1,5 +1,5 @@
-use crate::update;
-use crate::update::error::Reason;
+use crate as update;
+use crate::error::Reason;
 use std::{
     io::Write,
     path::{Path, PathBuf},
@@ -10,7 +10,7 @@ use futures_util::StreamExt;
 use sha2::{Digest, Sha256};
 
 use super::target::DownloadTarget;
-use crate::update::manager::DownloadSession;
+use crate::manager::DownloadSession;
 
 pub(super) struct DownloadSummary {
     /// 原子发布后的最终文件路径。

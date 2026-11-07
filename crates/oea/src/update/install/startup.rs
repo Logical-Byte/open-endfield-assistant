@@ -1,29 +1,18 @@
 //! v2 启动期的事务 adapter。
 
 use crate::platform::update::UpdatePrompt;
-use tracing::{error, info};
+use tracing::error;
 
 use crate::{app_paths::AppPaths, locale::UiLocale, settings};
 
-use super::{
-    transaction,
-    workspace::{InstallTarget, InstallWorkspace},
-};
-
-/// 启动阶段对更新事务的结果。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StartupUpdateResult {
-    NoTransaction,
-    WaitingForHelper,
-    Completed,
-}
+use oea_update::install::{self, InstallTarget, StartupUpdateResult};
 
 /// 完成启动期更新并保存前端可消费的结果。
 ///
 /// 调用方须先启用日志，并在本函数成功返回后才能创建窗口或加载模型、静态数据。
 /// 更新目标解析、事务提交及结果记录由安装模块统一负责。
 pub(crate) fn initialize_at_startup(paths: &AppPaths) -> anyhow::Result<()> {
-    let target = InstallTarget::for_current_executable(paths)
+    let target = super::install_target(paths)
         .map_err(|error| anyhow::anyhow!("无法确定更新 executable name: {error}"))?;
     let result = complete_startup_transaction(
         &target,
@@ -57,18 +46,15 @@ pub(crate) fn complete_startup_transaction(
 ) -> Result<StartupUpdateResult, String> {
     let (title, progress) = startup_messages(locale);
     let mut prompt = None;
-    let result = transaction::complete_startup(target, || {
+    let result = install::complete_startup_transaction(target, || {
         prompt = Some(UpdatePrompt::new(title, progress));
     });
     match result {
-        Ok(StartupUpdateResult::NoTransaction) => {
-            InstallWorkspace::new(target).best_effort_cleanup();
-            Ok(StartupUpdateResult::NoTransaction)
-        }
+        Ok(StartupUpdateResult::NoTransaction) => Ok(StartupUpdateResult::NoTransaction),
         Ok(StartupUpdateResult::Completed) => {
-            InstallWorkspace::new(target).best_effort_cleanup();
-            prompt.expect("提交 resources 前必须创建提示").finish();
-            info!("更新安装完成");
+            if let Some(mut prompt) = prompt {
+                prompt.finish();
+            }
             Ok(StartupUpdateResult::Completed)
         }
         other => other,

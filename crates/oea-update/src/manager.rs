@@ -1,4 +1,4 @@
-use crate::update;
+use crate as update;
 use std::{
     path::{Path, PathBuf},
     sync::{
@@ -7,16 +7,14 @@ use std::{
     },
 };
 
-use crate::update::error::Reason;
-use serde::Serialize;
+use crate::error::Reason;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
-use ts_rs::TS;
 
 use super::check::AvailableUpdateMetadata;
 
 /// 集中管理更新下载和安装的后端状态。
-pub struct UpdateManager {
+pub(crate) struct UpdateManager {
     inner: Mutex<UpdateState>,
 }
 
@@ -51,18 +49,14 @@ impl UpdateOperation {
 }
 
 /// 前端可见的更新展示信息。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "update/")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateInfo {
-    pub(super) version_name: String,
-    pub(super) release_note: String,
+    pub version_name: String,
+    pub release_note: String,
 }
 
 /// 前端可见的更新操作状态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "update/")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateOperationStatus {
     Idle,
     Checking,
@@ -71,13 +65,11 @@ pub enum UpdateOperationStatus {
 }
 
 /// 一次加锁取得的更新状态快照。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "update/")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateStatus {
-    operation: UpdateOperationStatus,
-    available_update: Option<UpdateInfo>,
-    pending_update: Option<UpdateInfo>,
+    pub operation: UpdateOperationStatus,
+    pub available_update: Option<UpdateInfo>,
+    pub pending_update: Option<UpdateInfo>,
 }
 
 pub(super) struct CheckLease<'a> {
@@ -585,7 +577,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{UpdateManager, UpdateOperationStatus};
-    use crate::update::check::AvailableUpdateMetadata;
+    use crate::check::AvailableUpdateMetadata;
 
     fn metadata(version: &str) -> AvailableUpdateMetadata {
         AvailableUpdateMetadata {
@@ -792,24 +784,5 @@ mod tests {
         assert!(manager.start_check().is_err());
         drop(download);
         manager.start_check().unwrap();
-    }
-
-    #[test]
-    fn status_serialization_hides_pending_package_path() {
-        let manager = UpdateManager::default();
-        cache_update(&manager);
-        complete_download(&manager);
-
-        let json = serde_json::to_value(manager.status()).unwrap();
-
-        assert_eq!(
-            json,
-            serde_json::json!({
-                "operation": "idle",
-                "availableUpdate": { "versionName": "1.3.0", "releaseNote": "notes" },
-                "pendingUpdate": { "versionName": "1.3.0", "releaseNote": "notes" }
-            })
-        );
-        assert!(!json.to_string().contains("update.zip"));
     }
 }

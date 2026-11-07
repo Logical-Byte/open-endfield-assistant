@@ -1,27 +1,16 @@
-//! helper 子进程的参数、启动和 exe 提交。
-//!
-//! helper 与 v1/v2 通过 `transaction.lock` 串行访问事务。helper 在 v1 退出前启动，
-//! 会重试原子替换 exe，直到 v1 释放文件；替换成功只会让 candidate exe 消失，资源
-//! 仍交给新 exe 的启动阶段提交。替换失败则删除整个事务 workspace，下一次必须重新
-//! 下载并构造 candidate。
-
-use std::{
-    ffi::OsString,
-    path::{Component, Path, PathBuf},
-    process::{Child, Command},
-};
-
-use oea_logger as logger;
-use tracing::{debug, error, info};
-
+//! 统一二进制的 helper 参数分派、日志和原生提示。
 use crate::{
-    app_paths::AppPaths,
     locale::UiLocale,
     platform::update::{UpdatePrompt, show_update_error},
     settings,
 };
-
-use super::{transaction, workspace::InstallTarget};
+use oea_logger as logger;
+use oea_update::install::{self, HelperLaunch, HelperRequest, HelperResult, InstallTarget};
+use std::{
+    ffi::OsString,
+    path::{Component, Path, PathBuf},
+};
+use tracing::{debug, error, info};
 
 /// helper 模式命令行参数。
 pub(super) const HELPER_ARGUMENT: &str = "--oea-update-helper";
@@ -31,15 +20,29 @@ pub(super) const ROOT_ARGUMENT: &str = "--oea-update-root";
 pub(super) const EXECUTABLE_NAME_ARGUMENT: &str = "--oea-update-executable-name";
 const UI_LOCALE_ARGUMENT: &str = "--oea-update-ui-locale";
 
-/// helper 执行结果。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HelperResult {
-    /// 未发现事务。
-    NoTransaction,
-    /// candidate exe 已经消失，说明 helper 之前已完成 exe 提交。
-    AlreadyCommitted,
-    /// 本次 helper 成功提交了 exe。
-    ExecutableCommitted,
+/// 当前 OEA 二进制承载 helper 入口，参数由 OEA 显式交给内核。
+pub(super) fn helper_launch(
+    target: &InstallTarget,
+    locale: UiLocale,
+) -> Result<HelperLaunch, String> {
+    let source_executable =
+        std::env::current_exe().map_err(|error| format!("获取当前可执行文件路径失败: {error}"))?;
+    Ok(HelperLaunch {
+        source_executable,
+        args: vec![
+            HELPER_ARGUMENT.into(),
+            ROOT_ARGUMENT.into(),
+            target.root().as_os_str().to_owned(),
+            EXECUTABLE_NAME_ARGUMENT.into(),
+            target.executable_name().clone(),
+            UI_LOCALE_ARGUMENT.into(),
+            match locale {
+                UiLocale::ZhCn => "zh-CN",
+                UiLocale::EnUs => "en-US",
+            }
+            .into(),
+        ],
+    })
 }
 
 /// 从命令行参数解析事务目标和提示语言快照。
@@ -103,7 +106,7 @@ pub fn run_helper_request(
     locale: UiLocale,
 ) -> Result<HelperResult, String> {
     let result = validate_helper_request(root, executable_name)
-        .and_then(|target| run_helper(&target, locale));
+        .and_then(|request| run_helper(&request, locale));
     if let Err(error) = &result {
         show_helper_error(locale, error);
     }
@@ -118,25 +121,25 @@ pub fn run_helper_request_with_logging(
     executable_name: OsString,
     locale: UiLocale,
 ) -> Result<HelperResult, String> {
-    let target = match validate_helper_request(root, executable_name) {
-        Ok(target) => target,
+    let request = match validate_helper_request(root, executable_name) {
+        Ok(request) => request,
         Err(error) => {
             show_helper_error(locale, &error);
             return Err(error);
         }
     };
-    let (_logger_guard, log_rx) = logger::init(&target.app_paths().logs_dir());
+    let (_logger_guard, log_rx) = logger::init(&request.root().join("logs"));
     // helper 不转发日志条目，释放接收器以免无界队列积累日志。
     drop(log_rx);
     debug!(
         process_role = "update_helper",
         pid = std::process::id(),
-        root = %target.root().display(),
+        root = %request.root().display(),
         "更新 helper 进程已启动"
     );
     info!("更新安装程序已启动");
 
-    let result = run_helper(&target, locale);
+    let result = run_helper(&request, locale);
     match &result {
         Ok(helper_result) => {
             debug!(
@@ -167,54 +170,10 @@ pub fn run_helper_request_with_logging(
 fn validate_helper_request(
     root: PathBuf,
     executable_name: OsString,
-) -> Result<InstallTarget, String> {
-    let root = root
-        .canonicalize()
-        .map_err(|error| format!("解析 helper 应用根目录失败: {error}"))?;
-    let app_paths = AppPaths::with_root_dir(root);
-    let target = InstallTarget::with_executable_name(&app_paths, executable_name);
+) -> Result<HelperRequest, String> {
     let actual_helper =
         std::env::current_exe().map_err(|error| format!("获取 helper 实际路径失败: {error}"))?;
-    target.validate_helper_executable(&actual_helper)?;
-    Ok(target)
-}
-
-/// 启动真实的 helper 子进程。当前应用退出后，helper 会从相同的根目录继续事务。
-pub(super) fn spawn_helper(target: &InstallTarget, locale: UiLocale) -> Result<Child, String> {
-    let executable =
-        std::env::current_exe().map_err(|error| format!("获取当前可执行文件路径失败: {error}"))?;
-    spawn_helper_with_executable(target, &executable, locale)
-}
-
-/// 复制显式 source binary 到 cache/update/helper，再从副本启动 helper。
-///
-/// 不能直接执行根目录下当前 exe：Windows 可能仍持有它，且 helper 随后要原子替换
-/// 这个路径。source 复制失败或子进程启动失败时会清理 transaction workspace；helper
-/// 副本本身留给后续启动的 best-effort cleanup，因为当前进程可能仍在使用它。
-pub(super) fn spawn_helper_with_executable(
-    target: &InstallTarget,
-    source_executable: &Path,
-    locale: UiLocale,
-) -> Result<Child, String> {
-    let helper_executable = target
-        .prepare_helper_copy(source_executable)
-        .map_err(|error| format!("准备更新 helper 失败: {error}"))?;
-    let result = Command::new(&helper_executable)
-        .arg(HELPER_ARGUMENT)
-        .arg(ROOT_ARGUMENT)
-        .arg(target.root())
-        .arg(EXECUTABLE_NAME_ARGUMENT)
-        .arg(target.executable_name())
-        .arg(UI_LOCALE_ARGUMENT)
-        .arg(match locale {
-            UiLocale::ZhCn => "zh-CN",
-            UiLocale::EnUs => "en-US",
-        })
-        .spawn();
-    match result {
-        Ok(child) => Ok(child),
-        Err(error) => Err(format!("启动更新 helper 失败: {error}")),
-    }
+    install::validate_helper_request(root, executable_name, &actual_helper)
 }
 
 /// 执行一次 helper 的 exe 提交。
@@ -223,11 +182,11 @@ pub(super) fn spawn_helper_with_executable(
 /// 根路径，`transaction.json` 保持不变，candidate/resources 留待 v2 启动提交。若在
 /// 重试窗口内仍无法替换，事务材料会被删除，根目录保持旧版本，调用方下次必须重新
 /// 下载 package。
-pub(crate) fn run_helper(target: &InstallTarget, locale: UiLocale) -> Result<HelperResult, String> {
+fn run_helper(request: &HelperRequest, locale: UiLocale) -> Result<HelperResult, String> {
     // 同一个 helper 从进度到结果始终使用启动时的语言快照。
     let (title, progress, success) = helper_messages(locale);
     let mut prompt = None;
-    let result = transaction::commit_executable(target, || {
+    let result = request.run(|| {
         prompt = Some(UpdatePrompt::new(title, progress));
     });
     if result == Ok(HelperResult::ExecutableCommitted) {

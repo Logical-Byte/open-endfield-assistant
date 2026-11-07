@@ -543,13 +543,11 @@ mod tests {
         process::Command,
     };
 
-    use crate::{app_paths::AppPaths, locale::UiLocale};
-
     use super::super::{candidate, helper, startup};
     use super::*;
 
     fn target(root: &Path) -> InstallTarget {
-        InstallTarget::with_executable_name(&AppPaths::with_root_dir(root), "OEA")
+        InstallTarget::new(root, "OEA").unwrap()
     }
 
     fn write_file(path: &Path, content: &str) {
@@ -715,7 +713,7 @@ mod tests {
         let target = target(root.path());
 
         assert_eq!(
-            startup::complete_startup_transaction(&target, UiLocale::EnUs).unwrap(),
+            startup::complete_startup_transaction(&target, || {}).unwrap(),
             startup::StartupUpdateResult::NoTransaction
         );
         assert!(!root.path().join("cache/update").exists());
@@ -727,7 +725,7 @@ mod tests {
         let target = target(root.path());
         write_file(&root.path().join("cache/update/transaction.json"), "{");
 
-        let error = startup::complete_startup_transaction(&target, UiLocale::EnUs).unwrap_err();
+        let error = startup::complete_startup_transaction(&target, || {}).unwrap_err();
         assert!(error.contains("解析 transaction.json 失败"));
     }
 
@@ -740,7 +738,7 @@ mod tests {
             r#"{"schema_version":2}"#,
         );
 
-        let error = startup::complete_startup_transaction(&target, UiLocale::EnUs).unwrap_err();
+        let error = startup::complete_startup_transaction(&target, || {}).unwrap_err();
         assert!(error.contains("不支持的 transaction schema version: 2"));
     }
 
@@ -796,11 +794,13 @@ mod tests {
         let role = env::var("OEA_TEST_TRANSACTION_ROLE").unwrap();
         if role == "helper" {
             assert_eq!(
-                helper::run_helper_request(
+                helper::validate_helper_request(
                     PathBuf::from(root),
                     OsString::from("OEA"),
-                    UiLocale::EnUs
+                    &env::current_exe().unwrap(),
                 )
+                .unwrap()
+                .run(|| {})
                 .unwrap(),
                 helper::HelperResult::ExecutableCommitted
             );
@@ -834,17 +834,29 @@ mod tests {
 
         let helper_copy = target.prepare_helper_copy(&binary).unwrap();
         let status = Command::new(helper_copy)
-            .arg("update::install::transaction::tests::helper_subprocess_hands_off_to_v2_startup_subprocess")
-            .arg("--exact").arg("--nocapture")
-            .env("OEA_TEST_TRANSACTION_ROOT", root.path()).env("OEA_TEST_TRANSACTION_ROLE", "helper")
-            .env("OEA_UPDATE_SILENT", "1").status().unwrap();
+            .arg(
+                "install::transaction::tests::helper_subprocess_hands_off_to_v2_startup_subprocess",
+            )
+            .arg("--exact")
+            .arg("--nocapture")
+            .env("OEA_TEST_TRANSACTION_ROOT", root.path())
+            .env("OEA_TEST_TRANSACTION_ROLE", "helper")
+            .env("OEA_UPDATE_SILENT", "1")
+            .status()
+            .unwrap();
         assert!(status.success(), "helper 子进程失败: {status}");
 
         let status = Command::new(root.path().join("OEA"))
-            .arg("update::install::transaction::tests::helper_subprocess_hands_off_to_v2_startup_subprocess")
-            .arg("--exact").arg("--nocapture")
-            .env("OEA_TEST_TRANSACTION_ROOT", root.path()).env("OEA_TEST_TRANSACTION_ROLE", "startup")
-            .env("OEA_UPDATE_SILENT", "1").status().unwrap();
+            .arg(
+                "install::transaction::tests::helper_subprocess_hands_off_to_v2_startup_subprocess",
+            )
+            .arg("--exact")
+            .arg("--nocapture")
+            .env("OEA_TEST_TRANSACTION_ROOT", root.path())
+            .env("OEA_TEST_TRANSACTION_ROLE", "startup")
+            .env("OEA_UPDATE_SILENT", "1")
+            .status()
+            .unwrap();
         assert!(status.success(), "v2 startup 子进程失败: {status}");
         assert_eq!(
             fs::read_to_string(root.path().join("resources/data/new.txt")).unwrap(),
