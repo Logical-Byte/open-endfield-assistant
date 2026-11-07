@@ -14,6 +14,7 @@ pub struct Requirements {
     pub restore_if_minimized: bool,
     pub ensure_on_screen: bool,
     pub hdr_disabled: bool,
+    pub windowed_720p: bool,
 }
 
 impl Default for Requirements {
@@ -22,6 +23,7 @@ impl Default for Requirements {
             restore_if_minimized: true,
             ensure_on_screen: true,
             hdr_disabled: true,
+            windowed_720p: true,
         }
     }
 }
@@ -39,14 +41,24 @@ pub fn connect(requirements: Requirements) -> Result<Environment, Error> {
             Error::WindowUnavailable
         })?
         .ok_or(Error::WindowUnavailable)?;
-    if requirements.restore_if_minimized {
+    if requirements.restore_if_minimized && !requirements.windowed_720p {
         let _ = window
             .restore_if_minimized()
             .inspect_err(|error| warn!("恢复窗口失败: {error:#}"));
     }
+    if requirements.windowed_720p {
+        window
+            .ensure_windowed()
+            .and_then(|()| window.resize_windowed_client(1280, 720))
+            .map_err(|error| {
+                warn!(error = %error, "自动调整游戏窗口为 1280×720 窗口模式失败");
+                debug!(error = ?error, "游戏窗口调整失败详情");
+                Error::WindowCannotResizeTo720p
+            })?;
+    }
     if requirements.ensure_on_screen {
         let _ = window
-            .ensure_on_screen()
+            .ensure_on_screen(requirements.windowed_720p)
             .inspect_err(|error| warn!("确保窗口在屏幕上失败: {error:#}"));
     }
 
@@ -55,6 +67,10 @@ pub fn connect(requirements: Requirements) -> Result<Environment, Error> {
         Error::WindowUnavailable
     })?;
     let resolution = Resolution::new(size.width, size.height)?;
+    if requirements.windowed_720p && (resolution.width != 1280 || resolution.height != 720) {
+        warn!(%resolution, "游戏窗口在定位后未保持 1280×720");
+        return Err(Error::WindowCannotResizeTo720p);
+    }
 
     if requirements.hdr_disabled {
         match window.is_hdr_enabled() {

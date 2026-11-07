@@ -97,9 +97,6 @@ onBeforeUnmount(() => {
             <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
             ><span
               ><TranslationComponent :translation="t('help.gettingStarted.setup')"
-                ><template #resolution><strong class="text-primary">1280 × 720</strong></template
-                ><template #windowed
-                  ><strong class="text-primary">{{ t('common.windowed') }}</strong></template
                 ><template #language
                   ><strong class="text-primary">{{
                     t('settings.language.game.name')
@@ -119,15 +116,6 @@ onBeforeUnmount(() => {
             >
           </li>
         </ol>
-        <p class="mt-3 text-sm text-muted">
-          <TranslationComponent :translation="t('help.gettingStarted.recommended')"
-            ><template #ratio><strong>16:9</strong></template
-            ><template #resolution><strong>1280 × 720</strong></template
-            ><template #windowed
-              ><strong>{{ t('common.windowed') }}</strong></template
-            ></TranslationComponent
-          >
-        </p>
       </WorkspaceSection>
 
       <!-- 档案查漏补缺 -->
