@@ -8,6 +8,7 @@ use std::{
 };
 
 use crate::app_paths::AppPaths;
+use crate::controller::Controller;
 use crate::update;
 use crate::update::Updater;
 use tauri::Manager;
@@ -25,10 +26,7 @@ pub fn developer_install_update(
         choose_and_stage_developer_package,
         &target,
         || {
-            let locale = app
-                .state::<crate::controller::Controller>()
-                .settings_snapshot()
-                .ui_locale;
+            let locale = app.state::<Controller>().settings_snapshot().ui_locale;
             super::helper::helper_launch(&target, locale)
         },
         |stage| super::emit_install_stage(&app, stage),
