@@ -1,6 +1,6 @@
 //! 检查、下载及安装的高层编排。
 use crate::{
-    Error, Options, Reason, check, download, http,
+    CheckOptions, Error, Reason, check, download, http,
     install::{self, HelperLaunch, HelperStarted, InstallStage, InstallTarget},
     manager::{UpdateInfo, UpdateManager, UpdateStatus},
     source,
@@ -52,7 +52,7 @@ impl Updater {
     pub async fn check(
         &self,
         current_version: &str,
-        options: impl FnOnce() -> Options,
+        options: impl FnOnce() -> Result<CheckOptions, Error>,
     ) -> Result<UpdateAvailability, Error> {
         let check_lease = self.manager.start_check().inspect_err(|check_error| {
             warn!(
@@ -61,20 +61,18 @@ impl Updater {
                 "更新检查请求被状态机拒绝"
             );
         })?;
-        let settings = options();
+        let settings = options()?;
         let user_agent = http::update_user_agent(current_version);
         debug!(
             operation = "check",
             current_version = %current_version,
-            configured_source = ?settings.source,
-            proxy_configured = settings.proxy_url.as_ref().is_ok_and(Option::is_some),
+            proxy_configured = settings.proxy_url.is_some(),
             "更新检查开始"
         );
         info!(
-            "开始检查更新：当前版本 {}，设置的下载源为 {}，{}",
+            "开始检查更新：当前版本 {}，{}",
             current_version,
-            source::update_source_label(settings.source),
-            if settings.proxy_url.as_ref().is_ok_and(Option::is_some) {
+            if settings.proxy_url.is_some() {
                 "使用代理"
             } else {
                 "不使用代理"
@@ -131,12 +129,12 @@ impl Updater {
     }
 
     /// 使用缓存的可用更新和当前设置完成更新包下载。
-    /// `options` 在接受下载操作后调用，不复用检查时的设置快照。
+    /// 接受下载操作后由宿主根据缓存元数据和当前设置选择下载源，内核不执行源回退。
     pub async fn download(
         &self,
         current_version: &str,
         download_dir: &Path,
-        options: impl FnOnce() -> Options,
+        select_source: impl FnOnce(&source::AvailableUpdateMetadata) -> Result<source::Source, Error>,
         on_progress: ProgressSink,
     ) -> Result<DownloadOutcome, Error> {
         let download_lease =
@@ -149,8 +147,8 @@ impl Updater {
                         "更新下载请求被状态机拒绝"
                     );
                 })?;
-        let settings = options();
         let metadata = download_lease.available_update().clone();
+        let selected = select_source(&metadata)?;
         let session = download_lease.session();
         let session_id = download_lease.id();
         let cancellation = session.cancellation();
@@ -159,22 +157,16 @@ impl Updater {
             operation = "download",
             session_id,
             version = %metadata.version_name,
-            configured_source = ?settings.source,
-            proxy_configured = settings.proxy_url.as_ref().is_ok_and(Option::is_some),
+            source = selected.label(),
             "更新下载请求已接受"
         );
         info!(
-            "开始下载更新 {}：设置的下载源为 {}，{}",
+            "开始下载更新 {}：下载源为 {}",
             metadata.version_name,
-            source::update_source_label(settings.source),
-            if settings.proxy_url.as_ref().is_ok_and(Option::is_some) {
-                "使用代理"
-            } else {
-                "不使用代理"
-            }
+            selected.label(),
         );
         let plan =
-            match source::resolve_download_plan(&metadata, &settings, &user_agent, &cancellation)
+            match source::resolve_download_plan(&metadata, selected, &user_agent, &cancellation)
                 .await
             {
                 Ok(plan) => plan,
@@ -197,7 +189,6 @@ impl Updater {
             plan,
             session_id,
             session,
-            &settings,
             &user_agent,
             download_dir,
             on_progress,

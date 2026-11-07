@@ -101,7 +101,7 @@ pub async fn check_update(
     update::ensure_enabled()?;
     manager
         .check(&app.package_info().version.to_string(), || {
-            options::from_settings(&controller.settings_snapshot())
+            options::check_options(&controller.settings_snapshot())
         })
         .await
         .map(Into::into)
@@ -122,7 +122,7 @@ pub async fn download_update(
         .download(
             &app.package_info().version.to_string(),
             &downloads,
-            || options::from_settings(&controller.settings_snapshot()),
+            |metadata| options::download_source(&controller.settings_snapshot(), metadata),
             Arc::new(move |progress| {
                 on_progress
                     .send(DownloadProgress::from(progress))

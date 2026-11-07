@@ -4,7 +4,10 @@ use semver::Version;
 use serde::Deserialize;
 use tracing::{error, warn};
 
-use crate::Options;
+use crate::{
+    CheckOptions,
+    source::{AvailableUpdateMetadata, MirrorchyanPackage},
+};
 
 use super::http;
 
@@ -12,20 +15,6 @@ const CHECK_URL_BASES: [&str; 2] = [
     "https://mirrorchyan.com/api/resources/OEA/latest",
     "https://mirrorchyan.net/api/resources/OEA/latest",
 ];
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct AvailableUpdateMetadata {
-    pub(super) version_name: String,
-    pub(super) release_note: String,
-    pub(super) mirrorchyan_package: Option<MirrorchyanPackage>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct MirrorchyanPackage {
-    pub(super) url: String,
-    pub(super) expected_sha256: Option<String>,
-    pub(super) file_size: Option<u64>,
-}
 
 #[derive(Debug, Deserialize)]
 struct MirrorchyanResponse {
@@ -44,11 +33,11 @@ struct MirrorchyanData {
 }
 
 pub(super) async fn check_for_update(
-    settings: &Options,
+    settings: &CheckOptions,
     current_version: &str,
     user_agent: &str,
 ) -> Result<Option<AvailableUpdateMetadata>, update::Error> {
-    let client = http::build_client(settings, user_agent)?;
+    let client = http::build_client(settings.proxy_url.as_deref(), user_agent)?;
     let cdk = &settings.cdk;
     let mut last_response = None;
     let mut last_error = None;

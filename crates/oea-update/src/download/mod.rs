@@ -13,8 +13,6 @@ use std::{
 
 use tracing::{debug, info, warn};
 
-use crate::{Options, UpdateSource};
-
 use progress::ProgressReporter;
 use target::DownloadTarget;
 use transfer::download_to_target;
@@ -31,7 +29,6 @@ pub(super) async fn download_update_plan(
     plan: DownloadPlan,
     session_id: u64,
     session: Arc<DownloadSession>,
-    settings: &Options,
     user_agent: &str,
     download_dir: &Path,
     on_progress: ProgressSink,
@@ -51,24 +48,15 @@ pub(super) async fn download_update_plan(
     debug!(
         operation = "download",
         session_id,
-        source = ?plan.source,
+        source = plan.source_label,
         host = %download_host,
         filename = %plan.filename,
         expected_bytes = ?plan.total_size,
         verify_sha256 = expected_sha256.is_some(),
         "更新包下载开始"
     );
-    info!(
-        "开始从 {} 下载更新包 {}",
-        super::source::update_source_label(plan.source),
-        plan.filename
-    );
-    let client = match plan.source {
-        UpdateSource::Mirrorchyan => super::http::build_direct_client(user_agent)?,
-        UpdateSource::Oem | UpdateSource::Github => {
-            super::http::build_client(settings, user_agent)?
-        }
-    };
+    info!("开始从 {} 下载更新包 {}", plan.source_label, plan.filename);
+    let client = super::http::build_client(plan.proxy_url.as_deref(), user_agent)?;
     let mut request = client.get(download_url);
     if let Some(accept) = plan.accept {
         request = request.header(reqwest::header::ACCEPT, accept);

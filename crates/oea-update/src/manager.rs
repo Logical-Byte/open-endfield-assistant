@@ -11,7 +11,7 @@ use crate::error::Reason;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 
-use super::check::AvailableUpdateMetadata;
+use super::source::AvailableUpdateMetadata;
 
 /// 集中管理更新下载和安装的后端状态。
 pub(crate) struct UpdateManager {
@@ -577,7 +577,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{UpdateManager, UpdateOperationStatus};
-    use crate::check::AvailableUpdateMetadata;
+    use crate::source::AvailableUpdateMetadata;
 
     fn metadata(version: &str) -> AvailableUpdateMetadata {
         AvailableUpdateMetadata {

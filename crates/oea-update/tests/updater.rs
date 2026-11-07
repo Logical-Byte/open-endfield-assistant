@@ -1,7 +1,7 @@
 use std::{cell::RefCell, fs, io::Write, path::Path};
 
 use oea_update::{
-    Options, Reason, UpdateOperationStatus, UpdateSource, Updater,
+    Error, Reason, UpdateOperationStatus, Updater,
     install::{
         HelperLaunch, InstallStage, InstallTarget, StartupUpdateResult,
         complete_startup_transaction, validate_helper_request,
@@ -32,11 +32,7 @@ async fn failed_host_options_release_the_check_operation() {
         let error = updater
             .check("1.0.0", || {
                 assert_eq!(updater.status().operation, UpdateOperationStatus::Checking);
-                Options {
-                    source: UpdateSource::Oem,
-                    cdk: None,
-                    proxy_url: Err("host proxy resolution failed".into()),
-                }
+                Err(Error::new(Reason::ProxyConfiguration))
             })
             .await
             .unwrap_err();

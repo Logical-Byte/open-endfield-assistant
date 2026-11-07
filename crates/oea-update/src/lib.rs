@@ -7,25 +7,16 @@ pub mod install;
 mod manager;
 mod platform;
 mod response;
-mod source;
+pub mod source;
 mod updater;
 
 pub use error::{Error, Reason};
 pub use manager::{UpdateInfo, UpdateOperationStatus, UpdateStatus};
 pub use updater::{DownloadOutcome, DownloadProgress, ProgressSink, UpdateAvailability, Updater};
 
-/// 一次操作使用的宿主设置快照。CDK 已解密，代理已解析为具体地址。
+/// 检查更新使用的宿主设置快照。CDK 已解密，代理已解析为具体地址。
 #[derive(Debug, Clone)]
-pub struct Options {
-    pub source: UpdateSource,
+pub struct CheckOptions {
     pub cdk: Option<String>,
-    /// 系统代理解析失败只在请求实际使用代理配置时报告，Mirror酱下载仍可直连。
-    pub proxy_url: Result<Option<String>, String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UpdateSource {
-    Mirrorchyan,
-    Oem,
-    Github,
+    pub proxy_url: Option<String>,
 }
