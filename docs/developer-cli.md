@@ -22,7 +22,7 @@ cargo run -p oea-cli -- match --template candidate.png --region 100,50,320,180 -
 
 使用 `cargo build -p oea-cli` 生成 `target/debug/oea-cli.exe`。CLI 始终使用 Console subsystem，GUI 的 release profile 构建使用 GUI subsystem。CLI 版本继续读取 `crates/oea/tauri.conf.json`。CLI 的通用图片识别直接使用 `oea-vision`，游戏连接、导航和模板资源加载使用 `oea` 公开的模块，不需要 `cli` feature，目前仍传递依赖 Tauri 和 GUI 构建依赖。CLI 仅提供开发构建，不进入发行包或发布附件。
 
-窗口命令在 Windows 中复用生产连接检查和坐标转换，需要真实游戏窗口。CLI 按命令装配截图器和导航能力，不创建 `Session`，窗口命令均不加载 OCR。仅 `navigate` 使用应用模板目录。`connect` 会恢复窗口并自动调整为 1280×720 窗口模式，保留该尺寸定位到屏幕内。全屏时会等待前台激活完成并发送 Alt+Enter，不截图、不点击游戏界面。`navigate` 等待生产导航器完成目标状态或返回错误，没有额外 CLI timeout。macOS 和 Linux 的窗口命令返回 `platform_unsupported`。`match-image` 可跨平台运行，无需游戏或 OCR 模型。
+窗口命令在 Windows 中复用生产连接检查和坐标转换，需要真实游戏窗口。CLI 按命令装配截图器和导航能力，不创建 `Session`，窗口命令均不加载 OCR。仅 `navigate` 使用应用模板目录。`connect` 会恢复窗口并自动调整为 1280×720 游戏画面（Windows 客户端是客户区，云终末地是浏览器网页视口），保留该尺寸定位到屏幕内。全屏客户端会等待前台激活完成并发送 Alt+Enter，全屏的云游戏窗口直接报错，不截图、不点击游戏界面。`navigate` 等待生产导航器完成目标状态或返回错误，没有额外 CLI timeout。macOS 和 Linux 的窗口命令返回 `platform_unsupported`。`match-image` 可跨平台运行，无需游戏或 OCR 模型。
 
 ```text
 connect / navigate / screenshot / match

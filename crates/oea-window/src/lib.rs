@@ -25,11 +25,40 @@ pub struct ClientSize {
     pub height: u32,
 }
 
+/// 窗口内容区域在客户区中的位置与尺寸，使用物理像素。
+///
+/// 浏览器窗口的客户区还包含自绘的标签栏与地址栏，游戏画面只占据其中的网页视口。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ContentRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// 内容区域的判定方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContentKind {
+    /// 整个客户区，例如原生游戏客户端。
+    Client,
+    /// 浏览器网页视口，排除标签栏、地址栏等浏览器自身界面。
+    BrowserViewport,
+}
+
+/// 窗口标题匹配方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TitleMatch<'a> {
+    /// 与窗口标题完全一致。
+    Exact(&'a str),
+    /// 窗口标题包含指定文本。浏览器会改写标题，云游戏只能按包含匹配。
+    Contains(&'a str),
+}
+
 /// 精确匹配窗口条件，指定的条件必须同时满足。未指定的字段不参与匹配。
 #[derive(Debug, Default, Clone, Copy)]
 pub struct WindowQuery<'a> {
     pub class_name: Option<&'a str>,
-    pub title: Option<&'a str>,
+    pub title: Option<TitleMatch<'a>>,
 }
 
 /// 查找第一个匹配的顶层窗口，未找到返回 `None`。
@@ -65,11 +94,10 @@ impl Window {
         {
             let _dpi = windows::DpiContext::enter()?;
             windows::validate(*self)?;
-            let rect = windows::window::get_client_rect(*self)?;
-            anyhow::ensure!(rect.width() > 0 && rect.height() > 0, "窗口客户区尺寸无效");
+            let (width, height) = windows::window::client_size(*self)?;
             Ok(ClientSize {
-                width: rect.width() as u32,
-                height: rect.height() as u32,
+                width: width as u32,
+                height: height as u32,
             })
         }
         #[cfg(not(windows))]
@@ -158,6 +186,73 @@ impl Window {
         #[cfg(not(windows))]
         {
             let _ = (width, height);
+            Err(unsupported())
+        }
+    }
+
+    /// 读取内容区域在客户区中的矩形，不缓存。
+    ///
+    /// `ContentKind::BrowserViewport` 通过 UI Automation 读取网页视口，读不到时返回错误。
+    pub fn content_rect(&self, kind: ContentKind) -> anyhow::Result<ContentRect> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::validate(*self)?;
+            windows::window::content_rect(*self, kind)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = kind;
+            Err(unsupported())
+        }
+    }
+
+    /// 调整窗口，使网页视口的物理像素尺寸等于指定尺寸并保持稳定。
+    ///
+    /// 浏览器窗口的客户区包含自绘的工具栏，外框尺寸由实测的视口偏移反推，
+    /// 不能使用 `AdjustWindowRectExForDpi` 预测。窗口全屏或读不到网页视口时返回错误。
+    pub fn ensure_viewport_content_size(&self, width: i32, height: i32) -> anyhow::Result<()> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::validate(*self)?;
+            windows::window::ensure_viewport_content_size(*self, width, height)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (width, height);
+            Err(unsupported())
+        }
+    }
+
+    /// 查询窗口是否处于全屏显示，不改变窗口状态。
+    ///
+    /// 同时识别 `WS_POPUP` 全屏与浏览器 `F11` 全屏（无标题栏且外框铺满显示器）。
+    pub fn is_fullscreen(&self) -> anyhow::Result<bool> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::validate(*self)?;
+            windows::window::is_fullscreen(*self)
+        }
+        #[cfg(not(windows))]
+        {
+            Err(unsupported())
+        }
+    }
+
+    /// 让全屏窗口退出全屏。非全屏窗口直接返回成功。
+    ///
+    /// 云游戏页面会锁住键盘，只有浏览器自身的「长按 Esc」手势能退出全屏。
+    pub fn exit_fullscreen(&self) -> anyhow::Result<()> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::validate(*self)?;
+            windows::window::exit_fullscreen(*self)
+        }
+        #[cfg(not(windows))]
+        {
             Err(unsupported())
         }
     }

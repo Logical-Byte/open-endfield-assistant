@@ -205,9 +205,15 @@ pub async fn screenshot(
         ScreenshotError::CaptureFailed
     })?;
 
+    // 裁出游戏画面区域并归一化到 1280×720：云游戏还需要排除浏览器工具栏。
+    let canonical = environment
+        .transform
+        .to_canonical_image(raw)
+        .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
+
     // 缩放到指定尺寸
     let resized = imageops::resize(
-        &raw,
+        &canonical,
         width.max(1),
         height.max(1),
         imageops::FilterType::Triangle,
