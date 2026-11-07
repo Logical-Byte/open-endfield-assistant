@@ -124,7 +124,7 @@ pub(super) async fn download_update_plan(
     Ok(download.path)
 }
 
-/// 返回文件下载目录（`<root>/cache/downloads`），不存在时创建。
+/// 创建调用方指定的下载目录（如不存在），并返回该路径。
 fn ensure_download_dir(dir: &Path) -> Result<PathBuf, update::Error> {
     std::fs::create_dir_all(dir).map_err(|e| {
         update::Error::failed(

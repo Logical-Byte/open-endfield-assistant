@@ -12,6 +12,13 @@ use std::{
 };
 
 /// 宿主选择的 helper 源程序与原生参数，内核只复制并启动。
+///
+/// 源程序会复制到安装目标的 `cache/update/helper[.exe]`，`args` 原样传给副本。
+/// 程序和参数必须让副本进入宿主实现的 helper 入口。该入口须以同一安装目标的
+/// 根目录、executable 名称及实际运行程序路径调用 [`validate_helper_request`]，
+/// 然后调用返回请求的 [`HelperRequest::run`] 执行 executable 提交。
+/// 参数的编码和解析由宿主负责，内核不会自动添加入口标志或安装目标参数。
+/// 启动成功只表示子进程已创建，不保证上述入口已经执行或更新已经完成。
 #[derive(Debug, Clone)]
 pub struct HelperLaunch {
     pub source_executable: PathBuf,

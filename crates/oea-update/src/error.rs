@@ -31,23 +31,23 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-/// 更新流程的类型化原因。由 `kind` 区分：
-/// - `cancelled`：用户主动取消操作。
-/// - `busy`：已有互斥更新操作正在运行。
-/// - `noUpdate`：没有可下载或安装的更新。
-/// - `proxyConfiguration`：代理配置无法使用。
-/// - `network`：更新网络请求失败。
-/// - `invalidMetadata`：更新元数据缺失或格式无效。
-/// - `service`：更新服务拒绝请求，`code` 为服务返回的原始错误码。
-/// - `versionMismatch`：下载目标与服务返回的版本不一致，`expected` 为请求版本，`actual` 为返回版本。
-/// - `packageUnavailable`：目标版本没有可用安装包，`version` 为该版本。
-/// - `integrity`：更新包完整性检查失败。
-/// - `fileAccess`：更新文件读写失败。
-/// - `developmentBuild`：OEA dev 不支持此更新操作。
-/// - `invalidPackage`：更新包结构或内容无效。
-/// - `preparation`：更新事务准备失败。
-/// - `helperStart`：无法启动更新辅助进程。
-/// - `failed`：未进一步归类的更新失败。
+/// 更新流程的类型化原因，调用方通过 Rust 枚举变体匹配：
+/// - `Reason::Cancelled`：用户主动取消操作。
+/// - `Reason::Busy`：已有互斥更新操作正在运行。
+/// - `Reason::NoUpdate`：没有可下载或安装的更新。
+/// - `Reason::ProxyConfiguration`：代理配置无法使用。
+/// - `Reason::Network`：更新网络请求失败。
+/// - `Reason::InvalidMetadata`：更新元数据缺失或格式无效。
+/// - `Reason::Service`：更新服务拒绝请求，`code` 为服务返回的原始错误码。
+/// - `Reason::VersionMismatch`：下载目标与服务返回的版本不一致，`expected` 为请求版本，`actual` 为返回版本。
+/// - `Reason::PackageUnavailable`：目标版本没有可用安装包，`version` 为该版本。
+/// - `Reason::Integrity`：更新包完整性检查失败。
+/// - `Reason::FileAccess`：更新文件读写失败。
+/// - `Reason::DevelopmentBuild`：OEA dev 不支持此更新操作。
+/// - `Reason::InvalidPackage`：更新包结构或内容无效。
+/// - `Reason::Preparation`：更新事务准备失败。
+/// - `Reason::HelperStart`：无法启动更新辅助进程。
+/// - `Reason::Failed`：未进一步归类的更新失败。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Reason {
     Cancelled,

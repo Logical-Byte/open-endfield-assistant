@@ -130,6 +130,10 @@ impl Updater {
 
     /// 使用缓存的可用更新和当前设置完成更新包下载。
     /// 接受下载操作后由宿主根据缓存元数据和当前设置选择下载源，内核不执行源回退。
+    ///
+    /// 若下载结果将交给 [`Self::install`]，其规范化路径必须位于安装目标根目录的
+    /// `cache/downloads` 内。建议将 `download_dir` 设为该目录，避免下载完成后因
+    /// 安装路径校验失败而无法安装。
     pub async fn download(
         &self,
         current_version: &str,
@@ -250,7 +254,17 @@ impl Updater {
         Ok(started)
     }
 
-    /// 在互斥安装状态中让宿主选择并暂存开发者更新包。取消选择会释放状态。
+    /// 在互斥安装状态中让宿主选择并暂存本地更新包。
+    ///
+    /// `choose_package` 返回 `Ok(None)` 表示取消选择，会释放安装状态。
+    /// 返回 `Ok(Some(path))` 时，文件的规范化路径必须位于 `target` 根目录的
+    /// `cache/downloads` 内，且须是宿主允许内核删除的暂存 ZIP。
+    /// 内核会在准备完成后删除该文件，也会在部分准备失败路径尝试删除它。
+    /// 需要保留原始 ZIP 时，宿主应先复制到暂存目录，不能依赖安装失败后文件仍存在。
+    ///
+    /// `helper` 提供的启动配置须满足 [`HelperLaunch`] 的执行协议。
+    /// 成功返回 `Some(HelperStarted)` 后保持安装状态，宿主须立即请求退出，
+    /// 释放目标 executable 的占用。
     pub fn install_local(
         &self,
         choose_package: impl FnOnce() -> Result<Option<PathBuf>, Error>,
