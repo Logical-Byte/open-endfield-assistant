@@ -32,7 +32,7 @@ pub fn show_message(title: &str, content: &str, icon: DialogIcon) -> anyhow::Res
 }
 
 /// 弹出一个 “是/否” 确认对话框，返回用户是否确认。
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "legacy-tauri"))]
 pub(super) fn confirm(title: &str, content: &str, icon: DialogIcon) -> anyhow::Result<bool> {
     windows::dialog::confirm(title, content, icon)
 }

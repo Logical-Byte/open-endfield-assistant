@@ -7,7 +7,7 @@
 - Rust：使用 stable，最低版本见 [Cargo.toml](../crates/oea/Cargo.toml) 的 `rust-version`。
 - Windows 10 / 11（x86_64）：后端编译需要 MSVC（Microsoft C++ Build Tools，含 Windows SDK）。平台支持范围见[后端规范](rule-backend.md#编译检查与测试)。
 
-WebView2 缺失时，应用会在首次启动时引导下载安装。
+默认桌面入口使用 GPUI，不需要 WebView2。旧 Tauri 入口保留在 `legacy-tauri` feature 中，供迁移期间回归对照。
 
 ## 准备代码与依赖
 
@@ -47,12 +47,17 @@ pnpm download:models
 
 以下命令在仓库根目录运行。
 
-- 完整应用（Windows）：`pnpm tauri dev`，同时启动 Vite 开发服务器与 Tauri 窗口。
+- 原生完整应用（Windows）：`pnpm native`，准备 OCR 模型后启动 GPUI 窗口。
+- 仅后台编译：`cargo build -p oea --bin oea`，不会启动窗口。
+- 后台测试：`cargo test -p oea --lib`，不会启动桌面窗口或连接游戏。
+- 旧 Tauri 入口：`pnpm tauri dev --features legacy-tauri -- --no-default-features`，供迁移期间回归对照。
 - 仅前端：`pnpm dev`，无法调用后端命令（`invoke` 会失败），适合纯 UI 调试。
 
 OEA dev 与 OEA release 的资源和更新行为差异见[构建形态](build-variants.md)。
 
-macOS 开发外壳是可选的本地调试入口。初始化 `resources/` 子模块后，可直接运行 `pnpm tauri dev`。能力边界见[后端规范](rule-backend.md#编译检查与测试)。
+macOS 可使用 `pnpm native` 开发原生界面与运行模拟工作者。GPUI 启用了运行时 Metal 着色器编译，Command Line Tools 即可编译。真实游戏自动化与监控仍只支持 Windows。能力边界见[后端规范](rule-backend.md#编译检查与测试)。
+
+设置仍读写 `config/oea_config.json`。原生主题与侧栏状态保存在 `config/appearance.json`。扫描记录与人工匹配同原 Vue 前端一样只保留在本次会话中。原生入口说明见 [GPUI 迁移](gpui-port.md)。
 
 调试档案扫描页面时，可在「设置 → 开发者选项」中勾选「使用模拟扫描结果」，然后点击档案扫描页面的「开始模拟扫描」。模拟扫描无需游戏窗口，约 20 秒内以随机间隔报告示例结果，支持停止和重新开始。该开关重启应用后关闭。
 

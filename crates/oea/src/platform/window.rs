@@ -2,8 +2,10 @@
 
 #[cfg(windows)]
 use super::windows;
+#[cfg(feature = "legacy-tauri")]
 use oea_window::Window;
 
+#[cfg(feature = "legacy-tauri")]
 pub fn app_window(app_handle: &tauri::AppHandle) -> anyhow::Result<Window> {
     #[cfg(windows)]
     {

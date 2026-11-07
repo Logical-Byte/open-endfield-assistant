@@ -4,6 +4,8 @@ use crate::app_variant::{self, AppVariant};
 
 pub mod commands;
 pub mod install;
+#[cfg(feature = "legacy-tauri")]
+pub(crate) mod tauri_commands;
 
 mod check;
 mod download;

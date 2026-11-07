@@ -21,9 +21,12 @@ use std::path::PathBuf;
 use std::sync::Once;
 
 use chrono::Local;
+#[cfg(feature = "legacy-tauri")]
 use tauri::Manager;
 
-use crate::{app_paths::AppPaths, controller::Controller, locale::UiLocale, platform, settings};
+use crate::app_paths::AppPaths;
+#[cfg(feature = "legacy-tauri")]
+use crate::{controller::Controller, locale::UiLocale, platform, settings};
 
 static PANIC_HOOK_INSTALLED: Once = Once::new();
 
@@ -57,6 +60,7 @@ pub fn install_panic_hook() {
 /// 2. 独立写入 crash 文件（即使 tracing 未初始化也有记录）；
 /// 3. 弹原生错误对话框，展示错误详情与日志文件位置（release 无控制台时用户也能看到）；
 /// 4. 退出进程（不返回）。
+#[cfg(feature = "legacy-tauri")]
 pub fn report_fatal(error: &anyhow::Error, app_handle: &tauri::AppHandle) -> ! {
     tracing::error!("启动初始化失败:\n{error:#}");
 
@@ -78,6 +82,7 @@ pub fn report_fatal(error: &anyhow::Error, app_handle: &tauri::AppHandle) -> ! {
     std::process::exit(1);
 }
 
+#[cfg(feature = "legacy-tauri")]
 fn fatal_message(
     locale: UiLocale,
     error: &anyhow::Error,

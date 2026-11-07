@@ -1,4 +1,4 @@
-//! 更新下载相关的 Tauri 命令及其序列化接口。
+//! 更新检查与下载的共享应用接口。
 
 use crate::update::error::Reason;
 use serde::Serialize;
@@ -52,26 +52,27 @@ pub enum DownloadOutcome {
 #[ts(export, export_to = "update/")]
 pub struct DownloadProgress {
     #[ts(type = "number")]
-    pub(super) downloaded_size: u64,
+    pub(crate) downloaded_size: u64,
     #[ts(type = "number")]
-    pub(super) total_size: u64,
+    pub(crate) total_size: u64,
     #[ts(type = "number")]
-    pub(super) speed: u64,
-    pub(super) progress: f64,
+    pub(crate) speed: u64,
+    pub(crate) progress: f64,
 }
 
+pub type ProgressCallback =
+    std::sync::Arc<dyn Fn(DownloadProgress) -> Result<(), String> + Send + Sync>;
+
 /// 读取可用更新、待安装更新和当前操作的一致快照。
-#[tauri::command]
-pub fn get_update_status(manager: tauri::State<'_, UpdateManager>) -> UpdateStatus {
+pub fn get_update_status(manager: &UpdateManager) -> UpdateStatus {
     manager.status()
 }
 
 /// 检查更新并缓存规范化后的可用更新。
-#[tauri::command]
 pub async fn check_update(
-    manager: tauri::State<'_, UpdateManager>,
-    controller: tauri::State<'_, Controller>,
-    app: tauri::AppHandle,
+    manager: &UpdateManager,
+    controller: &Controller,
+    current_version: &str,
 ) -> Result<UpdateAvailability, update::Error> {
     update::ensure_enabled()?;
     let check_lease = manager.start_check().inspect_err(|check_error| {
@@ -82,8 +83,7 @@ pub async fn check_update(
         );
     })?;
     let settings = controller.settings_snapshot();
-    let current_version = app.package_info().version.to_string();
-    let user_agent = http::update_user_agent(&current_version);
+    let user_agent = http::update_user_agent(current_version);
     debug!(
         operation = "check",
         current_version = %current_version,
@@ -97,7 +97,7 @@ pub async fn check_update(
         source::update_source_label(settings.update_source),
         proxy_mode_label(settings.update_proxy_mode)
     );
-    let available = match check::check_for_update(&settings, &current_version, &user_agent).await {
+    let available = match check::check_for_update(&settings, current_version, &user_agent).await {
         Ok(available) => available,
         Err(check_error) => {
             error!(
@@ -147,12 +147,11 @@ pub async fn check_update(
 }
 
 /// 使用缓存的可用更新和当前设置完成更新包下载。
-#[tauri::command]
 pub async fn download_update(
-    manager: tauri::State<'_, UpdateManager>,
-    controller: tauri::State<'_, Controller>,
-    app: tauri::AppHandle,
-    on_progress: tauri::ipc::Channel<DownloadProgress>,
+    manager: &UpdateManager,
+    controller: &Controller,
+    current_version: &str,
+    on_progress: ProgressCallback,
 ) -> Result<DownloadOutcome, update::Error> {
     update::ensure_enabled()?;
     let download_lease = manager
@@ -169,7 +168,7 @@ pub async fn download_update(
     let session = download_lease.session();
     let session_id = download_lease.id();
     let cancellation = session.cancellation();
-    let user_agent = http::update_user_agent(&app.package_info().version.to_string());
+    let user_agent = http::update_user_agent(current_version);
     debug!(
         operation = "download",
         session_id,
@@ -255,8 +254,7 @@ fn proxy_mode_label(mode: UpdateProxyMode) -> &'static str {
 }
 
 /// 取消当前文件下载。
-#[tauri::command]
-pub fn cancel_download(manager: tauri::State<'_, UpdateManager>) -> Result<(), update::Error> {
+pub fn cancel_download(manager: &UpdateManager) -> Result<(), update::Error> {
     manager.cancel_download().inspect_err(|cancel_error| {
         warn!(
             operation = "cancel_download",

@@ -1,10 +1,10 @@
 use ::windows::Win32::UI::HiDpi::{
     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetThreadDpiAwarenessContext,
 };
-use anyhow::Context;
-use oea_window::Window;
-use tauri::Manager;
+#[cfg(feature = "legacy-tauri")]
+use {anyhow::Context, oea_window::Window, tauri::Manager};
 
+#[cfg(feature = "legacy-tauri")]
 pub(in crate::platform) fn app_window(app_handle: &tauri::AppHandle) -> anyhow::Result<Window> {
     let window = app_handle
         .get_webview_window("main")

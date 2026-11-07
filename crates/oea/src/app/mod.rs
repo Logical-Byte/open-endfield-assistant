@@ -69,13 +69,13 @@ pub fn run() {
             commands::log_info,
             commands::log_warn,
             commands::log_error,
-            update::commands::check_update,
-            update::commands::get_update_status,
-            update::commands::download_update,
-            update::commands::cancel_download,
-            update::install::install_update,
-            update::install::consume_startup_update_result,
-            update::install::extra::developer_install_update,
+            update::tauri_commands::check_update,
+            update::tauri_commands::get_update_status,
+            update::tauri_commands::download_update,
+            update::tauri_commands::cancel_download,
+            update::tauri_commands::install_update,
+            update::tauri_commands::consume_startup_update_result,
+            update::tauri_commands::developer_install_update,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用

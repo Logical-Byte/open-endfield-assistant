@@ -16,6 +16,7 @@ pub mod locale;
 pub mod proxy;
 pub mod sound;
 pub mod update;
+#[cfg(feature = "legacy-tauri")]
 pub mod webview;
 pub mod window;
 

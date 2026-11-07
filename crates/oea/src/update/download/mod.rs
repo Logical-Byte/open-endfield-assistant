@@ -18,7 +18,6 @@ use target::DownloadTarget;
 use transfer::download_to_target;
 
 use super::{
-    commands::DownloadProgress,
     manager::DownloadSession,
     response::{extract_filename_from_response, sanitize_filename},
     source::DownloadPlan,
@@ -31,7 +30,7 @@ pub(super) async fn download_update_plan(
     session: Arc<DownloadSession>,
     settings: &OeaSettings,
     user_agent: &str,
-    on_progress: tauri::ipc::Channel<DownloadProgress>,
+    on_progress: crate::update::commands::ProgressCallback,
 ) -> Result<PathBuf, update::Error> {
     let download_url = reqwest::Url::parse(&plan.url).map_err(|url_error| {
         update::Error::failed(

@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "native": "pnpm download:models && cargo run -p oea --bin oea",
+    "native:build": "cargo build -p oea --bin oea --release",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -21,7 +23,7 @@
     "tauri": "tauri",
     "makedata": "jiti scripts/data/makeAllData.ts",
     "download:models": "jiti scripts/dev/downloadModels.ts",
-    "package": "tauri build --no-bundle && jiti scripts/release/package.ts",
+    "package": "pnpm download:models && cargo build -p oea --bin oea --release && jiti scripts/release/package.ts",
     "bump:version": "jiti scripts/release/bumpVersion.ts",
     "r2:publish": "jiti scripts/release/publishR2.ts publish",
     "r2:promote": "jiti scripts/release/publishR2.ts promote",

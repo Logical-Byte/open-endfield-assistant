@@ -55,8 +55,8 @@ impl UpdateOperation {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "update/")]
 pub struct UpdateInfo {
-    pub(super) version_name: String,
-    pub(super) release_note: String,
+    pub(crate) version_name: String,
+    pub(crate) release_note: String,
 }
 
 /// 前端可见的更新操作状态。
@@ -75,9 +75,9 @@ pub enum UpdateOperationStatus {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "update/")]
 pub struct UpdateStatus {
-    operation: UpdateOperationStatus,
-    available_update: Option<UpdateInfo>,
-    pending_update: Option<UpdateInfo>,
+    pub(crate) operation: UpdateOperationStatus,
+    pub(crate) available_update: Option<UpdateInfo>,
+    pub(crate) pending_update: Option<UpdateInfo>,
 }
 
 pub(super) struct CheckLease<'a> {

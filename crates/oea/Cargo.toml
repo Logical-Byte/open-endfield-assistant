@@ -18,7 +18,9 @@ name = "oea_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = "2.6.3"
+serde_json.workspace = true
+tauri-build = { version = "2.6.3", optional = true }
+winresource = "0.1.34"
 
 [dependencies]
 anyhow = { workspace = true }
@@ -27,7 +29,11 @@ base64 = "0.23.0"
 bytes = "1.12.1"
 chrono = { workspace = true }
 fastrand = "2.5.0"
+flate2 = "1.1.11"
 futures-util = "0.3.34"
+gpui = { version = "0.2.2", features = ["runtime_shaders"], optional = true }
+gpui-component = { version = "0.5.1", optional = true }
+gpui-component-assets = { version = "0.5.1", optional = true }
 image = { workspace = true }
 imageproc = { workspace = true }
 indexmap = { version = "2.14.0", features = ["serde"] }
@@ -35,6 +41,7 @@ libc = "0.2.189"
 oea-logger = { version = "0.0.0", path = "../oea-logger" }
 oea-vision = { version = "0.0.0", path = "../oea-vision" }
 oea-window = { workspace = true }
+open = "5.4.5"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "native-tls", "query", "stream"] }
 rodio = { version = "0.23", default-features = false, features = ["wav", "playback", "tracing"] }
 scopeguard = { workspace = true }
@@ -42,22 +49,28 @@ semver = "1.0.28"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = "0.11.0"
-tauri = { version = "~2.12", features = ["tray-icon"] }
-tauri-plugin-opener = "2"
+tauri = { version = "~2.12", features = ["tray-icon"], optional = true }
+tauri-plugin-opener = { version = "2", optional = true }
 tokio = { version = "1.53.1", features = ["sync", "macros", "time", "rt"] }
 tokio-util = { version = "0.7.19", features = ["rt"] }
 tracing = { workspace = true }
+tray-icon = { version = "0.25.1", default-features = false }
 ts-rs = { workspace = true }
 zip = "7.2.0"
 
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.39"
-windows = { workspace = true, features = ["Win32_Foundation", "Win32_Globalization", "Win32_Security", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Registry", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_UI_HiDpi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+webview2-com = { version = "0.39", optional = true }
+windows = { workspace = true, features = ["Win32_Foundation", "Win32_Globalization", "Win32_Security", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Registry", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_UI_Controls", "Win32_UI_HiDpi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 tracing-subscriber.workspace = true
+
+[features]
+default = ["desktop"]
+desktop = ["dep:gpui", "dep:gpui-component", "dep:gpui-component-assets"]
+legacy-tauri = ["dep:tauri", "dep:tauri-plugin-opener", "dep:tauri-build", "dep:webview2-com"]
 
 # strip = "symbols"
 # lto = true

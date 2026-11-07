@@ -12,12 +12,11 @@ use std::{
 };
 
 use serde::Serialize;
-use tauri::{Emitter, Manager};
 use tracing::{debug, error, info, warn};
 use ts_rs::TS;
 
 use crate::app_paths::AppPaths;
-use crate::controller::Controller;
+use crate::locale::UiLocale;
 use crate::update;
 use crate::update::UpdateManager;
 
@@ -61,7 +60,6 @@ pub(crate) fn record_startup_update_result(result: startup::StartupUpdateResult)
 }
 
 /// 取出并清除本进程启动早期的更新结果，没有待消费结果时返回 `NoTransaction`。
-#[tauri::command]
 pub fn consume_startup_update_result() -> StartupUpdateResult {
     startup_result_slot()
         .lock()
@@ -73,7 +71,7 @@ pub fn consume_startup_update_result() -> StartupUpdateResult {
 #[derive(Debug, Clone, Copy, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "update/")]
-enum InstallStage {
+pub(crate) enum InstallStage {
     Preparing,
     Extracting,
     ApplyingIncremental,
@@ -83,24 +81,14 @@ enum InstallStage {
 
 #[derive(Debug, Clone, Copy, Serialize, TS)]
 #[ts(export, export_to = "update/")]
-struct InstallStageEvent {
-    stage: InstallStage,
+#[cfg(feature = "legacy-tauri")]
+pub(crate) struct InstallStageEvent {
+    pub(crate) stage: InstallStage,
 }
 
-fn emit_install_stage(app: &tauri::AppHandle, stage: InstallStage) {
-    debug!(
-        operation = "install",
-        stage = ?stage,
-        "更新安装进入新阶段"
-    );
-    if let Err(emit_error) = app.emit("update-install-stage", InstallStageEvent { stage }) {
-        warn!(
-            operation = "install",
-            stage = ?stage,
-            error = %emit_error,
-            "向前端发送更新安装阶段失败，后端继续执行安装"
-        );
-    }
+fn emit_install_stage(on_stage: &impl Fn(InstallStage), stage: InstallStage) {
+    debug!(operation = "install", ?stage, "更新安装进入新阶段");
+    on_stage(stage);
 }
 
 fn validate_download_package(paths: &AppPaths, package_path: &Path) -> Result<PathBuf, String> {
@@ -124,10 +112,10 @@ fn validate_download_package(paths: &AppPaths, package_path: &Path) -> Result<Pa
 ///
 /// 这是普通自动更新唯一需要调用的安装接口。OEA dev 不执行真实安装；集成测试应直接
 /// 使用 `candidate`、`transaction` 与 `helper` 的语义接口，而非临时 `workspace` module 接口。
-#[tauri::command]
-pub fn install_update(
-    manager: tauri::State<'_, UpdateManager>,
-    app: tauri::AppHandle,
+pub(crate) fn install_update(
+    manager: &UpdateManager,
+    locale: UiLocale,
+    on_stage: impl Fn(InstallStage),
 ) -> Result<(), update::Error> {
     update::ensure_enabled()?;
     let install_lease = manager.start_install().inspect_err(|install_error| {
@@ -143,7 +131,9 @@ pub fn install_update(
         "更新安装开始"
     );
     info!("开始安装更新");
-    if let Err(install_error) = install_update_inner(app, install_lease.package_path()) {
+    if let Err(install_error) =
+        install_update_inner(locale, &on_stage, install_lease.package_path())
+    {
         error!(
             operation = "install",
             error = %install_error,
@@ -157,10 +147,13 @@ pub fn install_update(
 
 /// 准备更新并把已发布的事务交给 helper。
 ///
-/// 成功路径会在 helper 启动后调用 `app.exit(0)`，请求当前 v1 退出。末尾的 `Ok(())`
-/// 只用于满足 Tauri command 的返回类型；前端不应在它之后继续安装流程。
-fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<(), update::Error> {
-    emit_install_stage(&app, InstallStage::Preparing);
+/// 成功返回表示 helper 已经接管事务。调用方随后必须退出当前进程，释放可执行文件。
+fn install_update_inner(
+    locale: UiLocale,
+    on_stage: &impl Fn(InstallStage),
+    package_path: &Path,
+) -> Result<(), update::Error> {
+    emit_install_stage(on_stage, InstallStage::Preparing);
     let paths = AppPaths::new()?;
     let package_zip = validate_download_package(&paths, package_path)
         .map_err(|error| update::Error::failed(Reason::InvalidPackage, anyhow::anyhow!(error)))?;
@@ -215,7 +208,7 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
     }
     let package_dir = workspace.package_path();
 
-    emit_install_stage(&app, InstallStage::Extracting);
+    emit_install_stage(on_stage, InstallStage::Extracting);
     if let Err(error) = extract_package_zip(&package_zip, &package_dir) {
         return Err(update::Error::failed(
             Reason::Preparation,
@@ -225,7 +218,7 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
 
     let kind = PackageKind::detect(&package_dir);
     emit_install_stage(
-        &app,
+        on_stage,
         match kind {
             PackageKind::Full => InstallStage::ApplyingFull,
             PackageKind::Incremental => InstallStage::ApplyingIncremental,
@@ -266,7 +259,7 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
         package = %package_zip.display(),
         "已删除完成消费的更新包"
     );
-    emit_install_stage(&app, InstallStage::CleaningUp);
+    emit_install_stage(on_stage, InstallStage::CleaningUp);
     if let Err(cleanup_error) = fs::remove_dir_all(&package_dir)
         && cleanup_error.kind() != std::io::ErrorKind::NotFound
     {
@@ -278,7 +271,6 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
         );
     }
 
-    let locale = app.state::<Controller>().settings_snapshot().ui_locale;
     let helper = match spawn_helper(&target, locale) {
         Ok(helper) => helper,
         Err(error) => {
@@ -302,7 +294,6 @@ fn install_update_inner(app: tauri::AppHandle, package_path: &Path) -> Result<()
     info!("更新文件准备完成，正在退出 OEA 并启动安装程序");
 
     // helper 已经独立接管事务；当前进程必须退出，释放 Windows 对根 exe 的占用。
-    app.exit(0);
     Ok(())
 }
 

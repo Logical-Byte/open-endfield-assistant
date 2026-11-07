@@ -14,10 +14,10 @@ use crate::update::UpdateManager;
 use tracing::{debug, error, info, warn};
 
 /// 选择、暂存并安装本地 ZIP，不向 WebView 暴露文件路径。
-#[tauri::command]
-pub fn developer_install_update(
-    manager: tauri::State<'_, UpdateManager>,
-    app: tauri::AppHandle,
+pub(crate) fn developer_install_update(
+    manager: &UpdateManager,
+    locale: crate::locale::UiLocale,
+    on_stage: impl Fn(super::InstallStage),
 ) -> Result<bool, update::Error> {
     update::ensure_enabled()?;
     let install_lease = manager
@@ -49,7 +49,7 @@ pub fn developer_install_update(
             return Err(install_error);
         }
     };
-    if let Err(install_error) = super::install_update_inner(app, &package_path) {
+    if let Err(install_error) = super::install_update_inner(locale, &on_stage, &package_path) {
         error!(
             operation = "install",
             install_kind = "developer_package",

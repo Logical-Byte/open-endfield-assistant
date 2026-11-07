@@ -7,7 +7,7 @@
 # OEA：终末地小助手
 
 [![Rust](https://img.shields.io/badge/Rust-orange.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![Tauri](https://img.shields.io/badge/Tauri-purple.svg?logo=tauri&logoColor=white)](https://tauri.app/)
+[![GPUI](https://img.shields.io/badge/GPUI-Rust-orange.svg)](https://www.gpui.rs/)
 [![Vue.js](https://img.shields.io/badge/Vue.js-darkgreen.svg?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![Nuxt UI](https://img.shields.io/badge/Nuxt%20UI-green.svg?logo=nuxt&logoColor=white)](https://ui.nuxt.com/)
 [![Release](https://img.shields.io/github/v/release/Logical-Byte/open-endfield-assistant?label=release)](https://github.com/Logical-Byte/open-endfield-assistant/releases/latest)

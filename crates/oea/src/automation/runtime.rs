@@ -60,8 +60,8 @@ pub enum RunOutcome {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "automation/")]
 pub struct LastRun {
-    task_kind: TaskKind,
-    outcome: RunOutcome,
+    pub(crate) task_kind: TaskKind,
+    pub(crate) outcome: RunOutcome,
 }
 
 /// [`Worker`] 交给 [`Runtime`] 的完整退出信息，不包含任务的领域结果。

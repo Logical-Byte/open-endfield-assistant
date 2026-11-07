@@ -56,11 +56,13 @@ const WINDOWS_PACKAGE_EXCLUDED_PATHS = new Set([
 ]);
 
 async function main() {
-  // 定位 release 主程序：--no-bundle 构建时二进制沿用 Cargo 包名（如 oea.exe），
+  // 定位 release 主程序：Cargo 构建时二进制沿用包名（如 oea.exe），
   // 而非 productName，需要在这里重命名。
   const exePath = findReleaseExe();
   if (!exePath) {
-    console.error('[package] 未找到 release 主程序，请先运行: tauri build --no-bundle');
+    console.error(
+      '[package] 未找到 release 主程序，请先运行: cargo build -p oea --bin oea --release',
+    );
     process.exit(1);
   }
 

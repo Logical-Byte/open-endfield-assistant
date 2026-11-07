@@ -7,7 +7,11 @@ mod reporting;
 mod simulation_worker;
 mod worker;
 
-pub(crate) use lucky::{DailyLucky, daily};
+#[cfg(feature = "legacy-tauri")]
+pub(crate) use lucky::DailyLucky;
+pub(crate) use lucky::daily;
 pub(crate) use model::{Conditions, MatchedHand};
+#[cfg(feature = "desktop")]
+pub(crate) use model::{HandKind, Suit};
 pub(crate) use simulation_worker::SimulationWorker;
 pub(crate) use worker::{Progress, Worker};

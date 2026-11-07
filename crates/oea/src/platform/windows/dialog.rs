@@ -10,12 +10,17 @@
 use ::windows::Win32::Foundation::{HWND, LPARAM, S_OK, WPARAM};
 use ::windows::Win32::UI::Controls::{
     TASKDIALOG_COMMON_BUTTON_FLAGS, TASKDIALOG_NOTIFICATIONS, TASKDIALOGCONFIG, TASKDIALOGCONFIG_0,
-    TD_ERROR_ICON, TD_INFORMATION_ICON, TD_WARNING_ICON, TDCBF_NO_BUTTON, TDCBF_OK_BUTTON,
-    TDCBF_YES_BUTTON, TDF_ALLOW_DIALOG_CANCELLATION, TDF_ENABLE_HYPERLINKS, TDN_HYPERLINK_CLICKED,
+    TD_ERROR_ICON, TD_INFORMATION_ICON, TD_WARNING_ICON, TDCBF_OK_BUTTON,
+    TDF_ALLOW_DIALOG_CANCELLATION, TDF_ENABLE_HYPERLINKS, TDN_HYPERLINK_CLICKED,
     TaskDialogIndirect,
 };
 use ::windows::Win32::UI::Shell::ShellExecuteW;
-use ::windows::Win32::UI::WindowsAndMessaging::{IDYES, SW_SHOWNORMAL};
+use ::windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+#[cfg(feature = "legacy-tauri")]
+use ::windows::Win32::UI::{
+    Controls::{TDCBF_NO_BUTTON, TDCBF_YES_BUTTON},
+    WindowsAndMessaging::IDYES,
+};
 use ::windows::core::{HRESULT, PCWSTR};
 
 use crate::platform::dialog::DialogIcon;
@@ -35,6 +40,7 @@ pub(in crate::platform) fn show_message(
 /// 弹出一个「是/否」确认对话框（默认焦点在「是」），返回用户是否确认。
 ///
 /// 内容同样支持 `<a href="...">` 超链接；按 Esc 或关闭窗口视为「否」。
+#[cfg(feature = "legacy-tauri")]
 pub(in crate::platform) fn confirm(
     title: &str,
     content: &str,

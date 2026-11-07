@@ -4,7 +4,7 @@
 
 ## 项目概览
 
-OEA 是一个 [Tauri](https://tauri.app/) 2 桌面应用，前端使用 [Vue](https://vuejs.org/) 3、[Nuxt UI](https://ui.nuxt.com/)、[Vite](https://vite.dev/) 和 [TypeScript](https://www.typescriptlang.org/)，后端使用 [Rust](https://www.rust-lang.org/)，OCR 使用 [RapidOCR](https://github.com/RapidAI/RapidOCR)。
+OEA 的默认桌面入口使用 Rust 与 GPUI，直接调用共享的自动化、OCR、设置和更新逻辑。原有 Tauri 2 与 Vue 3 前端保留为 `legacy-tauri` 入口，供迁移期间回归比较。原生入口与后台验证方式见 [GPUI 迁移](docs/gpui-port.md)。
 
 - `src/`：前端界面与交互。
 - `Cargo.toml`：Rust workspace，统一管理根目录的 `Cargo.lock` 与 `target/`。

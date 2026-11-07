@@ -14,10 +14,10 @@ pnpm package
 等价于：
 
 ```bash
-tauri build --no-bundle && jiti scripts/release/package.ts
+pnpm download:models && cargo build -p oea --bin oea --release && jiti scripts/release/package.ts
 ```
 
-- `tauri build --no-bundle`：编译 release 版 exe（前端已内嵌）。`tauri.conf.json` 中 `bundle.targets` 为空数组，因此**不会**生成 NSIS/MSI 安装程序。
+- `cargo build -p oea --bin oea --release`：编译原生 GPUI exe，不依赖 WebView 或前端构建产物。Windows 本机构建嵌入图标与版本资源。打包流程生成便携 zip，不生成 NSIS/MSI 安装程序。
 - `scripts/release/package.ts`：组装并打 zip：
   1. 读取 `crates/oea/tauri.conf.json` 的 `productName` / `version` 与 `process.arch`，得到产物名 `OEA-windows-x86_64-v0.1.0.zip`；
   2. 将 `target/release/oea.exe`（`--no-bundle` 下二进制沿用 Cargo 包名，需自行重命名）重命名为 `OEA.exe`，连同 `resources/`（含 `ocr-models/`）拷入暂存目录（跳过 `.` 开头的条目，如子模块 `.git`）；

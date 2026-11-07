@@ -1,4 +1,4 @@
-//! 应用控制器（Tauri 托管状态）。
+//! 应用控制器，由桌面入口持有。
 //!
 //! 职责边界：
 //! - **应用编排**：根据任务种类创建真实游戏工作者。
@@ -8,7 +8,9 @@
 use std::sync::{Arc, Mutex};
 
 use oea_vision as vision;
+#[cfg(feature = "legacy-tauri")]
 use tauri::{AppHandle, Manager};
+#[cfg(feature = "legacy-tauri")]
 use tracing::{info, warn};
 
 use crate::{
@@ -16,10 +18,9 @@ use crate::{
     data::{AppData, archive},
     navigation::Navigator,
     settings,
-    update::UpdateManager,
 };
 
-/// 应用控制器（Tauri 托管状态）。
+/// 应用控制器，统一编排设置与自动化任务。
 pub struct Controller {
     /// 用户设置存储
     settings_store: Arc<settings::SettingsStore>,
@@ -122,14 +123,23 @@ impl Controller {
     }
 
     /// 退出程序：请求停止后退出 Tauri 应用。
+    #[cfg(feature = "legacy-tauri")]
     pub fn quit(&self, app_handle: &AppHandle) {
-        if app_handle.state::<UpdateManager>().is_installing() {
+        if app_handle
+            .state::<crate::update::UpdateManager>()
+            .is_installing()
+        {
             warn!("正在安装更新，拒绝退出");
             return;
         }
         self.automation_runtime.request_stop_for_shutdown();
         info!("收到退出请求，正在退出程序...");
         app_handle.exit(0);
+    }
+
+    #[cfg(feature = "desktop")]
+    pub(crate) fn request_shutdown(&self) {
+        self.automation_runtime.request_stop_for_shutdown();
     }
 
     fn archive_scan_worker(&self) -> archive_scan::Worker {

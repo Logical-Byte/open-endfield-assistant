@@ -9,6 +9,7 @@ pub(super) mod proxy;
 pub(super) mod registry;
 pub(super) mod sound;
 pub(super) mod update;
+#[cfg(feature = "legacy-tauri")]
 pub(super) mod webview2;
 pub(super) mod window;
 
