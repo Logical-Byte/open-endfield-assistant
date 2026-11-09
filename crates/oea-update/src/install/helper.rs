@@ -87,33 +87,3 @@ pub(super) fn spawn_helper(target: &InstallTarget, launch: &HelperLaunch) -> Res
         Err(error) => Err(format!("启动更新 helper 失败: {error}")),
     }
 }
-
-#[cfg(all(test, unix))]
-mod tests {
-    use super::*;
-    use std::{
-        fs,
-        os::unix::{ffi::OsStringExt, fs::PermissionsExt},
-    };
-
-    #[test]
-    fn launches_the_explicit_source_with_native_host_arguments() {
-        let root = tempfile::tempdir().unwrap();
-        let target = InstallTarget::new(root.path(), "OEA").unwrap();
-        let source = root.path().join("host-helper");
-        let output = root.path().join("argument output");
-        fs::write(&source, "#!/bin/sh\nprintf '%s' \"$1\" > \"$2\"\n").unwrap();
-        fs::set_permissions(&source, fs::Permissions::from_mode(0o700)).unwrap();
-        let argument = OsString::from_vec(b"host argument \xff".to_vec());
-        let launch = HelperLaunch {
-            source_executable: source,
-            args: vec![argument.clone(), output.into_os_string()],
-        };
-        let mut helper = spawn_helper(&target, &launch).unwrap();
-        assert!(helper.wait().unwrap().success());
-        assert_eq!(
-            fs::read(root.path().join("argument output")).unwrap(),
-            argument.into_vec()
-        );
-    }
-}

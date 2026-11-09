@@ -1,0 +1,22 @@
+[package]
+name = "oea-update-test-host"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "update-host-v1"
+path = "src/v1.rs"
+test = false
+
+[[bin]]
+name = "update-host-v2"
+path = "src/v2.rs"
+test = false
+
+[dependencies]
+oea-update = { path = "../.." }
+
+[dev-dependencies]
+tempfile.workspace = true
+zip.workspace = true

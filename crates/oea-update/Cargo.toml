@@ -16,7 +16,7 @@ sha2 = "0.11.0"
 tokio = { version = "1.53.1", features = ["sync", "macros", "time", "rt"] }
 tokio-util = { version = "0.7.19", features = ["rt"] }
 tracing.workspace = true
-zip = "7.2.0"
+zip.workspace = true
 
 [target."cfg(unix)".dependencies]
 libc = "0.2.189"
@@ -25,5 +25,4 @@ libc = "0.2.189"
 windows = { workspace = true, features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO"] }
 
 [dev-dependencies]
-tempfile.workspace = true
 tracing-subscriber.workspace = true
