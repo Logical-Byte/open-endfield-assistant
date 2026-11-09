@@ -1,27 +1,27 @@
 //! 文件下载、进度上报、取消与 sha256 校验。
 
-use crate::update;
-use crate::update::error::Reason;
+use crate as update;
+use crate::error::Reason;
 mod progress;
 mod target;
 mod transfer;
 
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use tracing::{debug, info, warn};
-
-use crate::app_paths::AppPaths;
-use crate::settings::{OeaSettings, UpdateSource};
 
 use progress::ProgressReporter;
 use target::DownloadTarget;
 use transfer::download_to_target;
 
 use super::{
-    commands::DownloadProgress,
     manager::DownloadSession,
     response::{extract_filename_from_response, sanitize_filename},
     source::DownloadPlan,
+    updater::ProgressSink,
 };
 
 /// 执行后端解析完成的下载计划，并通过本次调用独享的 Channel 上报进度。
@@ -29,9 +29,9 @@ pub(super) async fn download_update_plan(
     plan: DownloadPlan,
     session_id: u64,
     session: Arc<DownloadSession>,
-    settings: &OeaSettings,
     user_agent: &str,
-    on_progress: tauri::ipc::Channel<DownloadProgress>,
+    download_dir: &Path,
+    on_progress: ProgressSink,
 ) -> Result<PathBuf, update::Error> {
     let download_url = reqwest::Url::parse(&plan.url).map_err(|url_error| {
         update::Error::failed(
@@ -48,24 +48,15 @@ pub(super) async fn download_update_plan(
     debug!(
         operation = "download",
         session_id,
-        source = ?plan.source,
+        source = plan.source_label,
         host = %download_host,
         filename = %plan.filename,
         expected_bytes = ?plan.total_size,
         verify_sha256 = expected_sha256.is_some(),
         "更新包下载开始"
     );
-    info!(
-        "开始从 {} 下载更新包 {}",
-        super::source::update_source_label(plan.source),
-        plan.filename
-    );
-    let client = match plan.source {
-        UpdateSource::Mirrorchyan => super::http::build_direct_client(user_agent)?,
-        UpdateSource::Oem | UpdateSource::Github => {
-            super::http::build_client(settings, user_agent)?
-        }
-    };
+    info!("开始从 {} 下载更新包 {}", plan.source_label, plan.filename);
+    let client = super::http::build_client(plan.proxy_url.as_deref(), user_agent)?;
     let mut request = client.get(download_url);
     if let Some(accept) = plan.accept {
         request = request.header(reqwest::header::ACCEPT, accept);
@@ -83,7 +74,7 @@ pub(super) async fn download_update_plan(
         ));
     }
 
-    let download_dir = ensure_download_dir()?;
+    let download_dir = ensure_download_dir(download_dir)?;
     let fallback_name = sanitize_filename(&plan.filename)
         .unwrap_or_else(|| "OEA-windows-x86_64-update.zip".to_string());
     let requested_path = download_dir.join(fallback_name);
@@ -133,14 +124,13 @@ pub(super) async fn download_update_plan(
     Ok(download.path)
 }
 
-/// 返回文件下载目录（`<root>/cache/downloads`），不存在时创建。
-fn ensure_download_dir() -> Result<PathBuf, update::Error> {
-    let dir = AppPaths::new()?.downloads_dir();
-    std::fs::create_dir_all(&dir).map_err(|e| {
+/// 创建调用方指定的下载目录（如不存在），并返回该路径。
+fn ensure_download_dir(dir: &Path) -> Result<PathBuf, update::Error> {
+    std::fs::create_dir_all(dir).map_err(|e| {
         update::Error::failed(
             Reason::FileAccess,
             anyhow::Error::new(e).context(format!("无法创建下载目录 {}", dir.display())),
         )
     })?;
-    Ok(dir)
+    Ok(dir.to_path_buf())
 }

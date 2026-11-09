@@ -3306,36 +3306,29 @@ dependencies = [
  "anyhow",
  "az",
  "base64 0.23.1",
- "bytes",
  "chrono",
  "fastrand",
- "futures-util",
  "image",
  "imageproc",
  "indexmap 2.14.2",
- "libc",
  "oea-logger",
+ "oea-update",
  "oea-vision",
  "oea-window",
  "reqwest",
  "rodio",
  "scopeguard",
- "semver",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
  "tempfile",
- "tokio",
- "tokio-util",
  "tracing",
  "tracing-subscriber",
  "ts-rs",
  "webview2-com",
  "windows",
- "zip",
 ]
 
 [[package]]
@@ -3367,6 +3360,36 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "ts-rs",
+]
+
+[[package]]
+name = "oea-update"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "futures-util",
+ "libc",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "windows",
+ "zip",
+]
+
+[[package]]
+name = "oea-update-test-host"
+version = "0.0.0"
+dependencies = [
+ "oea-update",
+ "tempfile",
+ "zip",
 ]
 
 [[package]]

@@ -9,47 +9,41 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::app_paths::AppPaths;
-
 /// 一次安装所针对的应用 `payload`。
 #[derive(Debug, Clone)]
-pub(crate) struct InstallTarget {
-    app_paths: AppPaths,
+pub struct InstallTarget {
+    root: PathBuf,
     executable_name: OsString,
 }
 
 impl InstallTarget {
-    pub(crate) fn with_executable_name(
-        app_paths: &AppPaths,
+    /// 使用宿主解析的绝对安装根目录和单个 executable 文件名创建目标。
+    pub fn new(
+        root: impl Into<PathBuf>,
         executable_name: impl Into<OsString>,
-    ) -> Self {
-        Self {
-            app_paths: app_paths.clone(),
-            executable_name: executable_name.into(),
+    ) -> Result<Self, String> {
+        let root = root.into();
+        let executable_name = executable_name.into();
+        let mut components = Path::new(&executable_name).components();
+        if !root.is_absolute()
+            || !matches!(components.next(), Some(std::path::Component::Normal(_)))
+            || components.next().is_some()
+        {
+            return Err("更新目标必须使用绝对根目录和单个 executable 文件名".to_string());
         }
+        Ok(Self {
+            root,
+            executable_name,
+        })
     }
 
-    pub(crate) fn for_current_executable(app_paths: &AppPaths) -> std::io::Result<Self> {
-        let executable_name = if cfg!(target_os = "windows") {
-            OsString::from("OEA.exe")
-        } else {
-            std::env::current_exe()?
-                .file_name()
-                .map(OsString::from)
-                .ok_or_else(|| std::io::Error::other("当前 exe 没有文件名"))?
-        };
-        Ok(Self::with_executable_name(app_paths, executable_name))
+    pub fn root(&self) -> &Path {
+        &self.root
     }
-
-    pub(crate) fn root(&self) -> &Path {
-        self.app_paths.root_dir()
-    }
-    pub(crate) fn executable_name(&self) -> &OsString {
+    pub fn executable_name(&self) -> &OsString {
         &self.executable_name
     }
-    pub(crate) fn app_paths(&self) -> &AppPaths {
-        &self.app_paths
-    }
+
     pub(crate) fn prepare_helper_copy(&self, source: &Path) -> Result<PathBuf, String> {
         InstallWorkspace::new(self).prepare_helper_copy(source)
     }
@@ -79,7 +73,7 @@ impl InstallWorkspace {
             update,
             executable: self.executable_path(),
             executable_name: self.target.executable_name().clone(),
-            resources: self.target.app_paths.resources_dir(),
+            resources: self.target.root().join("resources"),
         }
     }
 
@@ -93,7 +87,7 @@ impl InstallWorkspace {
             update,
             executable: self.executable_path(),
             executable_name: self.target.executable_name().clone(),
-            resources: self.target.app_paths.resources_dir(),
+            resources: self.target.root().join("resources"),
         }
     }
 
@@ -127,8 +121,8 @@ impl InstallWorkspace {
             self.update_path()
                 .join(format!("candidate.building-{}", std::process::id())),
             self.package_path(),
-            self.target.app_paths.cache_dir().join("old"),
-            self.target.app_paths.cache_dir().join("update_extract"),
+            self.target.root().join("cache").join("old"),
+            self.target.root().join("cache").join("update_extract"),
         ] {
             if let Err(error) = fs::remove_dir_all(&path)
                 && error.kind() != std::io::ErrorKind::NotFound
@@ -150,7 +144,7 @@ impl InstallWorkspace {
         self.target.root().join(self.target.executable_name())
     }
     fn update_path(&self) -> PathBuf {
-        self.target.app_paths.cache_dir().join("update")
+        self.target.root().join("cache").join("update")
     }
     fn helper_path(&self) -> PathBuf {
         self.update_path().join(if cfg!(target_os = "windows") {

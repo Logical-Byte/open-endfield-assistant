@@ -1,11 +1,13 @@
-use crate::update;
-use crate::update::error::Reason;
-use base64::{Engine, engine::general_purpose::STANDARD};
+use crate as update;
+use crate::error::Reason;
 use semver::Version;
 use serde::Deserialize;
 use tracing::{error, warn};
 
-use crate::settings::{OeaSettings, UpdateSource};
+use crate::{
+    CheckOptions,
+    source::{AvailableUpdateMetadata, MirrorchyanPackage},
+};
 
 use super::http;
 
@@ -13,20 +15,6 @@ const CHECK_URL_BASES: [&str; 2] = [
     "https://mirrorchyan.com/api/resources/OEA/latest",
     "https://mirrorchyan.net/api/resources/OEA/latest",
 ];
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct AvailableUpdateMetadata {
-    pub(super) version_name: String,
-    pub(super) release_note: String,
-    pub(super) mirrorchyan_package: Option<MirrorchyanPackage>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct MirrorchyanPackage {
-    pub(super) url: String,
-    pub(super) expected_sha256: Option<String>,
-    pub(super) file_size: Option<u64>,
-}
 
 #[derive(Debug, Deserialize)]
 struct MirrorchyanResponse {
@@ -45,12 +33,12 @@ struct MirrorchyanData {
 }
 
 pub(super) async fn check_for_update(
-    settings: &OeaSettings,
+    settings: &CheckOptions,
     current_version: &str,
     user_agent: &str,
 ) -> Result<Option<AvailableUpdateMetadata>, update::Error> {
-    let client = http::build_client(settings, user_agent)?;
-    let cdk = configured_cdk(settings);
+    let client = http::build_client(settings.proxy_url.as_deref(), user_agent)?;
+    let cdk = &settings.cdk;
     let mut last_response = None;
     let mut last_error = None;
 
@@ -62,7 +50,7 @@ pub(super) async fn check_for_update(
             ("os", "windows".to_string()),
             ("arch", "amd64".to_string()),
         ];
-        if let Some(cdk) = &cdk {
+        if let Some(cdk) = cdk {
             query.push(("cdk", cdk.clone()));
         }
 
@@ -162,52 +150,6 @@ pub(super) async fn check_for_update(
             anyhow::anyhow!("检查更新请求失败，请检查网络连接或代理设置"),
         )
     }))
-}
-
-pub(super) fn configured_cdk(settings: &OeaSettings) -> Option<String> {
-    if settings.update_source != UpdateSource::Mirrorchyan {
-        return None;
-    }
-    let encrypted = settings.mirrorchyan_cdk_encrypted.trim();
-    if encrypted.is_empty() {
-        return None;
-    }
-
-    let blob = match STANDARD.decode(encrypted) {
-        Ok(blob) => blob,
-        Err(decode_error) => {
-            warn!(
-                operation = "check",
-                error = %decode_error,
-                "Mirror酱 CDK 密文 Base64 解码失败，将回退到无 CDK 更新流程"
-            );
-            return None;
-        }
-    };
-    let plain = match crate::platform::data_protection::decrypt(&blob) {
-        Ok(plain) => plain,
-        Err(decrypt_error) => {
-            warn!(
-                operation = "check",
-                error = %decrypt_error,
-                "Mirror酱 CDK 解密失败，将回退到无 CDK 更新流程"
-            );
-            return None;
-        }
-    };
-    let plain = match String::from_utf8(plain) {
-        Ok(plain) => plain,
-        Err(utf8_error) => {
-            warn!(
-                operation = "check",
-                error = %utf8_error,
-                "Mirror酱 CDK 明文不是合法 UTF-8，将回退到无 CDK 更新流程"
-            );
-            return None;
-        }
-    };
-    let plain = plain.trim();
-    (!plain.is_empty()).then(|| plain.to_string())
 }
 
 fn normalize_response(

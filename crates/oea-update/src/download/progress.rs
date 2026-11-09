@@ -8,11 +8,14 @@ use std::{
 
 use tracing::warn;
 
-use crate::update::{commands::DownloadProgress, manager::DownloadSession};
+use crate::{
+    manager::DownloadSession,
+    updater::{DownloadProgress, ProgressSink},
+};
 
 /// 管理进度采样任务，并保证成功事件一定是该会话的最后一个进度事件。
 pub(super) struct ProgressReporter {
-    channel: tauri::ipc::Channel<DownloadProgress>,
+    channel: ProgressSink,
     stop_tx: Option<tokio::sync::oneshot::Sender<()>>,
     task: Option<tokio::task::JoinHandle<()>>,
     delivery_failed: Arc<AtomicBool>,
@@ -21,12 +24,12 @@ pub(super) struct ProgressReporter {
 
 impl ProgressReporter {
     pub(super) fn start_channel(
-        channel: tauri::ipc::Channel<DownloadProgress>,
+        channel: ProgressSink,
         session: Arc<DownloadSession>,
         total: u64,
     ) -> Self {
         let session_id = session.id();
-        let channel_for_task = channel.clone();
+        let channel_for_task = Arc::clone(&channel);
         let delivery_failed = Arc::new(AtomicBool::new(false));
         let delivery_failed_for_task = Arc::clone(&delivery_failed);
         let (stop_tx, mut stop_rx) = tokio::sync::oneshot::channel::<()>();
@@ -123,7 +126,7 @@ impl ProgressReporter {
 }
 
 fn send_progress(
-    channel: &tauri::ipc::Channel<DownloadProgress>,
+    channel: &ProgressSink,
     progress: DownloadProgress,
     delivery_failed: &AtomicBool,
     session_id: u64,
@@ -131,14 +134,14 @@ fn send_progress(
     if delivery_failed.load(Ordering::Relaxed) {
         return;
     }
-    if let Err(send_error) = channel.send(progress)
+    if let Err(send_error) = channel(progress)
         && !delivery_failed.swap(true, Ordering::Relaxed)
     {
         warn!(
             operation = "download",
             session_id,
             error = %send_error,
-            "向前端发送下载进度失败，后端继续执行下载"
+            "发送下载进度失败，继续执行下载"
         );
     }
 }

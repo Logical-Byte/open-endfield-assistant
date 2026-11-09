@@ -1,6 +1,5 @@
 //! 开发者选项的本地更新包入口。
 
-use crate::update::error::Reason;
 use std::{
     fs::{self, File, OpenOptions},
     io,
@@ -9,60 +8,37 @@ use std::{
 };
 
 use crate::app_paths::AppPaths;
+use crate::controller::Controller;
 use crate::update;
-use crate::update::UpdateManager;
-use tracing::{debug, error, info, warn};
+use crate::update::Updater;
+use tauri::Manager;
+use tracing::{debug, info};
 
 /// 选择、暂存并安装本地 ZIP，不向 WebView 暴露文件路径。
 #[tauri::command]
 pub fn developer_install_update(
-    manager: tauri::State<'_, UpdateManager>,
+    manager: tauri::State<'_, Updater>,
     app: tauri::AppHandle,
 ) -> Result<bool, update::Error> {
     update::ensure_enabled()?;
-    let install_lease = manager
-        .start_developer_install()
-        .inspect_err(|install_error| {
-            warn!(
-                operation = "install",
-                install_kind = "developer_package",
-                error = %install_error,
-                "开发者更新安装请求被状态机拒绝"
-            );
-        })?;
-    debug!(
-        operation = "install",
-        install_kind = "developer_package",
-        "开发者更新包选择流程开始"
-    );
-    info!("请选择用于安装的开发者更新包");
-    let package_path = match choose_and_stage_developer_package() {
-        Ok(Some(package_path)) => package_path,
-        Ok(None) => return Ok(false),
-        Err(install_error) => {
-            error!(
-                operation = "install",
-                install_kind = "developer_package",
-                error = %install_error,
-                "开发者更新包选择或暂存失败"
-            );
-            return Err(install_error);
-        }
-    };
-    if let Err(install_error) = super::install_update_inner(app, &package_path) {
-        error!(
-            operation = "install",
-            install_kind = "developer_package",
-            error = %install_error,
-            "开发者更新安装失败"
-        );
-        return Err(install_error);
+    let target = super::install_target(&AppPaths::new()?)?;
+    let result = manager.install_local(
+        choose_and_stage_developer_package,
+        &target,
+        || {
+            let locale = app.state::<Controller>().settings_snapshot().ui_locale;
+            super::helper::helper_launch(&target, locale)
+        },
+        |stage| super::emit_install_stage(&app, stage),
+    )?;
+    if result.is_none() {
+        return Ok(false);
     }
-    install_lease.complete();
+    app.exit(0);
     Ok(true)
 }
 
-fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, update::Error> {
+fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, oea_update::Error> {
     debug!(
         operation = "install",
         install_kind = "developer_package",
@@ -83,8 +59,9 @@ fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, update::Error
         info!("已取消安装开发者更新包");
         return Ok(None);
     };
-    let staged = stage_developer_package(&paths, &selected)
-        .map_err(|error| update::Error::failed(Reason::InvalidPackage, anyhow::anyhow!(error)))?;
+    let staged = stage_developer_package(&paths, &selected).map_err(|error| {
+        oea_update::Error::failed(oea_update::Reason::InvalidPackage, anyhow::anyhow!(error))
+    })?;
     debug!(
         operation = "install",
         install_kind = "developer_package",

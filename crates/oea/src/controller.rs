@@ -16,7 +16,7 @@ use crate::{
     data::{AppData, archive},
     navigation::Navigator,
     settings,
-    update::UpdateManager,
+    update::Updater,
 };
 
 /// 应用控制器（Tauri 托管状态）。
@@ -123,7 +123,7 @@ impl Controller {
 
     /// 退出程序：请求停止后退出 Tauri 应用。
     pub fn quit(&self, app_handle: &AppHandle) {
-        if app_handle.state::<UpdateManager>().is_installing() {
+        if app_handle.state::<Updater>().is_installing() {
             warn!("正在安装更新，拒绝退出");
             return;
         }

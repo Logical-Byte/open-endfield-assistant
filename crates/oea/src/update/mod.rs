@@ -5,16 +5,12 @@ use crate::app_variant::{self, AppVariant};
 pub mod commands;
 pub mod install;
 
-mod check;
-mod download;
 pub mod error;
-mod http;
-mod manager;
-mod response;
-mod source;
+mod options;
+mod status;
 
 pub use error::Error;
-pub use manager::UpdateManager;
+pub use oea_update::Updater;
 
 /// OEA dev 不参与自更新，避免更新流程改写工作区资源。
 pub(crate) const fn allow_variant_update() -> bool {
