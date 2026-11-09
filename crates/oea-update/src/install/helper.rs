@@ -11,13 +11,16 @@ use std::{
     process::{Child, Command},
 };
 
-/// 宿主选择的 helper 源程序与原生参数，内核只复制并启动。
+mod cli;
+pub use cli::{HelperHost, HelperLocale, run_helper};
+
+/// 宿主选择的 helper 源程序与原生参数。
 ///
 /// 源程序会复制到安装目标的 `cache/update/helper[.exe]`，`args` 原样传给副本。
-/// 程序和参数必须让副本进入宿主实现的 helper 入口。该入口须以同一安装目标的
-/// 根目录、executable 名称及实际运行程序路径调用 [`validate_helper_request`]，
-/// 然后调用返回请求的 [`HelperRequest::run`] 执行 executable 提交。
-/// 参数的编码和解析由宿主负责，内核不会自动添加入口标志或安装目标参数。
+/// [`Self::new`] 在宿主入口参数后附加内核协议参数。宿主识别并剥离入口参数后，
+/// 将剩余参数交给 [`run_helper`]，由内核解析、校验身份、执行事务并退出进程。
+/// 自定义协议也可直接填写 `args`，但须自行调用 [`validate_helper_request`] 和
+/// [`HelperRequest::run`] 完成同一安装目标的事务。
 /// 启动成功只表示子进程已创建，不保证上述入口已经执行或更新已经完成。
 #[derive(Debug, Clone)]
 pub struct HelperLaunch {

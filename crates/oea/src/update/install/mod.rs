@@ -1,4 +1,4 @@
-//! 更新安装的 OEA 适配：事件、原生提示、helper 参数及退出。
+//! 更新安装的 OEA 适配：事件、原生提示、helper 模式入口及主进程退出。
 use crate::{
     app_paths::AppPaths,
     controller::Controller,
@@ -17,7 +17,7 @@ use ts_rs::TS;
 pub(crate) mod extra;
 mod helper;
 mod startup;
-pub use helper::{helper_request_from_args, run_helper_request, run_helper_request_with_logging};
+pub use helper::run_helper_if_requested;
 pub(crate) use startup::initialize_at_startup;
 
 /// 前端消费启动更新结果时，只区分是否有一次已完成的事务。

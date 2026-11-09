@@ -18,7 +18,8 @@ mod workspace;
 use candidate::{PackageKind, extract_package_zip, prepare};
 use helper::spawn_helper;
 pub use helper::{
-    HelperLaunch, HelperRequest, HelperResult, HelperStarted, validate_helper_request,
+    HelperHost, HelperLaunch, HelperLocale, HelperRequest, HelperResult, HelperStarted, run_helper,
+    validate_helper_request,
 };
 pub use startup::{StartupUpdateResult, complete_startup_transaction};
 pub use workspace::InstallTarget;

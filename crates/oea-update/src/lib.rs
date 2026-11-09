@@ -1,4 +1,4 @@
-//! OEA 的自更新内核。宿主负责设置、界面、helper 参数分派与退出。
+//! OEA 的自更新内核。宿主负责设置、界面、helper 模式分派与主进程退出。
 mod check;
 mod download;
 mod error;
