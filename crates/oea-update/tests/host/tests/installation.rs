@@ -176,9 +176,9 @@ fn startup_defers_resources_until_helper_commits_executable() {
 
 #[cfg(windows)]
 #[test]
-fn running_old_executable_blocks_replacement_until_host_exits() {
+fn locked_old_executable_is_replaced_after_host_exits() {
     let installation = Installation::new();
-    let mut old = installation.install(&installation.full_package(), "normal");
+    let mut old = installation.install(&installation.full_package(), "hold-executable");
     old.expect("installed");
     let mut helper = installation.helper();
     helper.send("run");

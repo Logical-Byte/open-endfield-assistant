@@ -7,7 +7,7 @@ use std::{
     ffi::OsString,
     fs,
     io::{self, Read, Write},
-    net::TcpStream,
+    net::{Shutdown, TcpStream},
     path::Path,
     thread,
     time::Duration,
@@ -78,6 +78,19 @@ fn run(version: u8) -> Result<()> {
         send(&mut control, &format!("install:v{version}"))?;
         let package = args.next().ok_or("missing package path")?;
         let mode = args.next().unwrap_or_default();
+        #[cfg(windows)]
+        let _executable_lock = if mode == "hold-executable" {
+            use std::os::windows::fs::OpenOptionsExt;
+            // 只允许读共享，显式拒绝替换所需的删除共享，直到旧宿主退出。
+            Some(
+                fs::OpenOptions::new()
+                    .read(true)
+                    .share_mode(1)
+                    .open(&actual)?,
+            )
+        } else {
+            None
+        };
         let updater = Updater::default();
         let result = updater.install_local(
             || {
@@ -145,6 +158,9 @@ struct Host(TcpStream);
 impl Drop for Host {
     fn drop(&mut self) {
         let _ = send(&mut self.0, "host-dropped");
+        // Windows 进程退出会取消监控线程的读取。先结束发送，保证终结事件和 EOF
+        // 按序交给驱动，避免依赖进程退出时的隐式 socket 清理。
+        let _ = self.0.shutdown(Shutdown::Write);
     }
 }
 struct LogGuard(TcpStream);
