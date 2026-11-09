@@ -58,9 +58,9 @@ impl ScreenshotFormat {
 pub fn start_automation(
     state: tauri::State<Controller>,
     request: automation::StartRequest,
-) -> automation::Status {
-    state.start_automation(request);
-    state.automation_status()
+) -> Result<automation::Status, settings::SettingsError> {
+    state.start_automation(request)?;
+    Ok(state.automation_status())
 }
 
 /// 请求停止当前自动化任务。
@@ -132,8 +132,19 @@ pub fn open_log_dir() -> Result<(), String> {
 
 /// 加载 OEA 用户设置。
 #[tauri::command]
-pub fn load_oea_settings(state: tauri::State<Controller>) -> settings::OeaSettings {
-    state.settings_store().snapshot()
+pub fn load_oea_settings(
+    state: tauri::State<Controller>,
+    app: tauri::AppHandle,
+) -> Result<settings::OeaSettings, settings::SettingsError> {
+    let snapshot = state
+        .settings_access()
+        .initialize()
+        .inspect_err(|error| {
+            error!(error = %error, "读取设置失败");
+        })?
+        .snapshot();
+    super::tray::refresh_locale(&app);
+    Ok(snapshot)
 }
 
 /// 保存 OEA 用户设置。
@@ -142,15 +153,10 @@ pub fn save_oea_settings(
     app: tauri::AppHandle,
     state: tauri::State<Controller>,
     oea_settings: settings::OeaSettings,
-) -> Result<(), String> {
-    let store = state.settings_store();
-    debug!(
-        "正在保存设置 {oea_settings:?} 到 {}",
-        store.path().display()
-    );
-    store.save(oea_settings).map_err(|e| {
-        error!("保存设置文件失败: {e:#}");
-        format!("{e:#}")
+) -> Result<(), settings::SettingsError> {
+    let store = state.settings_access().get()?;
+    store.save(oea_settings).inspect_err(|error| {
+        error!(error = %error, "保存设置文件失败");
     })?;
     super::tray::refresh_locale(&app);
     info!("已成功保存设置到 {}", store.path().display());

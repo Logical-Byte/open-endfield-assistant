@@ -80,7 +80,7 @@ fn update_items(app: &AppHandle, running: Option<bool>) {
         if let Some(running) = running {
             items.running = running;
         }
-        let text = menu_text(controller.settings_snapshot().ui_locale, items.running);
+        let text = menu_text(controller.ui_locale(), items.running);
         let _ = items.show.set_text(text.0);
         let _ = items.toggle.set_text(text.1);
         let _ = items.quit.set_text(text.2);
@@ -96,7 +96,7 @@ pub(super) fn refresh_locale(app: &AppHandle) {
 pub fn init_tray(app_handle: &AppHandle) -> anyhow::Result<()> {
     let controller = app_handle.state::<Controller>();
     let running = controller.automation_status().is_active();
-    let text = menu_text(controller.settings_snapshot().ui_locale, running);
+    let text = menu_text(controller.ui_locale(), running);
     // 托盘菜单项：开始/停止扫描合并为一个动态切换项
     let show_item = MenuItem::with_id(app_handle, "show", text.0, true, None::<&str>)?;
     let toggle_item = MenuItem::with_id(app_handle, "toggle", text.1, true, None::<&str>)?;

@@ -22,7 +22,7 @@ use crate::{
 /// 应用控制器（Tauri 托管状态）。
 pub struct Controller {
     /// 用户设置存储
-    settings_store: Arc<settings::SettingsStore>,
+    settings_store: Arc<settings::SettingsAccess>,
     /// 共享 OCR 引擎（跨会话复用模型）
     ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
     /// 导航器（本游戏全部场景，跨线程共享只读）
@@ -36,7 +36,7 @@ pub struct Controller {
 impl Controller {
     /// 创建控制器。
     pub(crate) fn new(
-        settings_store: Arc<settings::SettingsStore>,
+        settings_store: Arc<settings::SettingsAccess>,
         ocr: Arc<Mutex<vision::ocr::OcrEngine>>,
         navigator: Arc<Navigator>,
         automation_runtime: Arc<automation::Runtime>,
@@ -51,13 +51,20 @@ impl Controller {
         }
     }
 
-    pub fn settings_store(&self) -> &settings::SettingsStore {
+    pub fn settings_access(&self) -> &settings::SettingsAccess {
         &self.settings_store
     }
 
     /// 获取当前用户设置的独立快照，供无需持锁的异步流程使用。
-    pub fn settings_snapshot(&self) -> settings::OeaSettings {
-        self.settings_store.snapshot()
+    pub fn settings_snapshot(&self) -> Result<settings::OeaSettings, settings::SettingsError> {
+        Ok(self.settings_store.get()?.snapshot())
+    }
+
+    /// 仅用于原生提示和托盘，不创建可写的默认设置。
+    pub fn ui_locale(&self) -> crate::locale::UiLocale {
+        self.settings_snapshot()
+            .map(|settings| settings.ui_locale)
+            .unwrap_or_else(|_| settings::system_ui_locale())
     }
 
     /// 读取当前自动化状态，空闲状态包含最近一次运行的结束信息。
@@ -73,7 +80,11 @@ impl Controller {
     // ========== 启动 / 停止 / 退出 ==========
 
     /// 启动指定种类的自动化任务。
-    pub(crate) fn start_automation(&self, request: automation::StartRequest) {
+    pub(crate) fn start_automation(
+        &self,
+        request: automation::StartRequest,
+    ) -> Result<(), settings::SettingsError> {
+        let settings = self.settings_snapshot()?;
         match request {
             automation::StartRequest::GambleBattle {
                 conditions,
@@ -85,7 +96,7 @@ impl Controller {
                         automation::WorkerType::Production => Box::new(gamble_battle::Worker::new(
                             conditions,
                             allow_early_stop,
-                            self.settings_snapshot().sound_volume,
+                            settings.sound_volume,
                             Arc::clone(&self.ocr),
                         )),
                         automation::WorkerType::Simulation => Box::new(
@@ -96,13 +107,16 @@ impl Controller {
             automation::StartRequest::ArchiveScan { worker_type } => {
                 self.automation_runtime
                     .start(automation::TaskKind::ArchiveScan, || match worker_type {
-                        automation::WorkerType::Production => Box::new(self.archive_scan_worker()),
+                        automation::WorkerType::Production => {
+                            Box::new(self.archive_scan_worker(settings))
+                        }
                         automation::WorkerType::Simulation => Box::new(
                             archive_scan::SimulationWorker::new(Arc::clone(&self.app_data)),
                         ),
                     })
             }
         }
+        Ok(())
     }
 
     /// 请求停止当前自动化任务（原子置位，由任务内部轮询实现优雅停止）。
@@ -115,9 +129,11 @@ impl Controller {
         if self.automation_status().is_active() {
             self.stop_automation();
         } else {
-            self.start_automation(automation::StartRequest::ArchiveScan {
+            if let Err(error) = self.start_automation(automation::StartRequest::ArchiveScan {
                 worker_type: automation::WorkerType::Production,
-            });
+            }) {
+                warn!(error = %error, "设置不可用，未启动档案扫描");
+            }
         }
     }
 
@@ -132,9 +148,9 @@ impl Controller {
         app_handle.exit(0);
     }
 
-    fn archive_scan_worker(&self) -> archive_scan::Worker {
+    fn archive_scan_worker(&self, settings: settings::OeaSettings) -> archive_scan::Worker {
         archive_scan::Worker::new(
-            self.settings_store.snapshot(),
+            settings,
             Arc::clone(&self.ocr),
             Arc::clone(&self.navigator),
             Arc::clone(&self.app_data),

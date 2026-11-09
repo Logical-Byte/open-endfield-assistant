@@ -98,6 +98,8 @@ function updateReason(value: unknown): value is UpdateErrorReason {
     case 'cancelled':
     case 'busy':
     case 'noUpdate':
+    case 'settingsUnavailable':
+    case 'cdkUnavailable':
     case 'proxyConfiguration':
     case 'network':
     case 'invalidMetadata':
@@ -251,6 +253,10 @@ function formatUpdateError(reason: UpdateErrorReason): string {
       return t('errors.update.busy');
     case 'noUpdate':
       return t('errors.update.noUpdate');
+    case 'settingsUnavailable':
+      return t('errors.update.settingsUnavailable');
+    case 'cdkUnavailable':
+      return t('errors.update.cdkUnavailable');
     case 'proxyConfiguration':
       return t('errors.update.proxyConfiguration');
     case 'network':

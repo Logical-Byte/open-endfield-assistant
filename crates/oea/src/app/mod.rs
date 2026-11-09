@@ -88,7 +88,10 @@ pub fn run() {
                     return;
                 }
                 let controller = app_handle.state::<controller::Controller>();
-                if controller.settings_snapshot().minimize_to_tray {
+                if controller
+                    .settings_snapshot()
+                    .is_ok_and(|settings| settings.minimize_to_tray)
+                {
                     api.prevent_close();
                     if let Some(window) = app_handle.get_webview_window("main") {
                         let _ = window.hide();
@@ -145,7 +148,10 @@ fn setup_app(app: &mut tauri::App) -> anyhow::Result<()> {
     main_window::create(app, &app_paths)?;
 
     // 加载后端资源。
-    let settings_store = settings::SettingsStore::at(app_paths.oea_settings_file());
+    let settings_store = settings::SettingsAccess::new(app_paths.oea_settings_file());
+    if let Err(error) = settings_store.initialize() {
+        warn!(error = %error, "设置初始化失败，继续启动，用户可在设置页重试");
+    }
     let ocr = vision::ocr::OcrEngine::new(&app_paths.models_dir(), vision::ocr::Config::default())?;
     let app_data = data::AppData::load(&app_paths)?;
     let navigator = navigation::Navigator::new();

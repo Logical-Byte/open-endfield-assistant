@@ -3,6 +3,7 @@ members = [
   "crates/oea",
   "crates/oea-cli",
   "crates/oea-logger",
+  "crates/oea-settings",
   "crates/oea-update",
   "crates/oea-update/tests/host",
   "crates/oea-vision",

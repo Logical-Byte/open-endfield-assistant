@@ -11,8 +11,6 @@ use std::{
 use anyhow::Context;
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::platform;
-
 /// 一个由 JSON 文本文件持久化的内存模型。
 ///
 /// 写入通过独立互斥锁串行提交。提交期间不会持有缓存写锁，因此读取者可以继续并行
@@ -27,15 +25,6 @@ impl<T> CachedJsonFile<T>
 where
     T: Serialize + DeserializeOwned,
 {
-    /// 读取并反序列化现有文件。
-    pub(crate) fn at(path: PathBuf) -> anyhow::Result<Self> {
-        let text = fs::read_to_string(&path)
-            .with_context(|| format!("读取 JSON 文件失败 [{}]", path.display()))?;
-        let initial = serde_json::from_str(&text)
-            .with_context(|| format!("反序列化 JSON 文件失败 [{}]", path.display()))?;
-        Ok(Self::new(path, initial))
-    }
-
     /// 使用上层提供的初始模型创建缓存，不主动写入文件。
     pub(crate) fn new(path: PathBuf, initial: T) -> Self {
         Self {
@@ -108,13 +97,27 @@ fn write_text_atomically(path: &Path, content: &[u8]) -> io::Result<()> {
         file.write_all(content)?;
         file.sync_all()?;
         drop(file);
-        platform::file::replace(&temporary, path)
+        atomic_replace(&temporary, path)
     })();
 
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
     }
     result
+}
+
+#[cfg(windows)]
+mod windows;
+
+fn atomic_replace(replacement: &Path, target: &Path) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        windows::replace(replacement, target)
+    }
+    #[cfg(not(windows))]
+    {
+        fs::rename(replacement, target)
+    }
 }
 
 #[cfg(test)]
@@ -147,9 +150,8 @@ mod tests {
 
         assert_eq!(cached.snapshot().value, "new");
         assert_eq!(
-            CachedJsonFile::<TestModel>::at(path)
+            serde_json::from_slice::<TestModel>(&fs::read(path).unwrap())
                 .unwrap()
-                .snapshot()
                 .value,
             "new"
         );

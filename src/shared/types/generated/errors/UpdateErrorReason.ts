@@ -5,6 +5,8 @@
  * - `cancelled`：用户主动取消操作。
  * - `busy`：已有互斥更新操作正在运行。
  * - `noUpdate`：没有可下载或安装的更新。
+ * - `settingsUnavailable`：设置尚不可用，需要重新加载。
+ * - `cdkUnavailable`：Mirror酱 CDK 缺失或无法读取。
  * - `proxyConfiguration`：代理配置无法使用。
  * - `network`：更新网络请求失败。
  * - `invalidMetadata`：更新元数据缺失或格式无效。
@@ -19,7 +21,7 @@
  * - `helperStart`：无法启动更新辅助进程。
  * - `failed`：未进一步归类的更新失败。
  */
-export type UpdateErrorReason = { "kind": "cancelled" } | { "kind": "busy" } | { "kind": "noUpdate" } | { "kind": "proxyConfiguration" } | { "kind": "network" } | { "kind": "invalidMetadata" } | { "kind": "service", 
+export type UpdateErrorReason = { "kind": "cancelled" } | { "kind": "busy" } | { "kind": "noUpdate" } | { "kind": "proxyConfiguration" } | { "kind": "settingsUnavailable" } | { "kind": "cdkUnavailable" } | { "kind": "network" } | { "kind": "invalidMetadata" } | { "kind": "service", 
 /**
  * 更新服务返回的原始错误码。
  */

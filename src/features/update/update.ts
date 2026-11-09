@@ -31,7 +31,7 @@ import {
   type StartupUpdateResult,
 } from './ipc';
 import { whenever } from '@vueuse/core';
-import { computed, ref, shallowRef } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 
 const EMPTY_DOWNLOAD_PROGRESS: DownloadProgress = {
   downloadedSize: 0,
@@ -309,8 +309,16 @@ export async function initUpdateState(): Promise<void> {
     if (currentEffectiveSettings()?.autoInstallUpdates !== true) {
       updatePopoverOpen.value = true;
     }
-  } else {
+  } else if (currentEffectiveSettings()) {
     await checkUpdate();
+  } else {
+    // 设置加载重试成功后再执行启动检查，不使用前端默认值启动更新。
+    const stop = watch(settingsState, (state) => {
+      if (state.status === 'ready') {
+        stop();
+        void checkUpdate();
+      }
+    });
   }
 }
 

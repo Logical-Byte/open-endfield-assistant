@@ -11,7 +11,6 @@ pub mod locale;
 pub mod navigation;
 pub mod platform;
 pub mod settings;
-pub(crate) mod storage;
 pub mod update;
 pub mod utils;
 

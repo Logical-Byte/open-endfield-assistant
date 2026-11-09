@@ -3312,6 +3312,7 @@ dependencies = [
  "imageproc",
  "indexmap 2.14.2",
  "oea-logger",
+ "oea-settings",
  "oea-update",
  "oea-vision",
  "oea-window",
@@ -3360,6 +3361,18 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "ts-rs",
+]
+
+[[package]]
+name = "oea-settings"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "ts-rs",
+ "windows",
 ]
 
 [[package]]
