@@ -38,6 +38,8 @@ impl std::error::Error for Error {}
 /// - `cancelled`：用户主动取消操作。
 /// - `busy`：已有互斥更新操作正在运行。
 /// - `noUpdate`：没有可下载或安装的更新。
+/// - `settingsUnavailable`：设置尚不可用，需要重新加载。
+/// - `cdkUnavailable`：Mirror酱 CDK 缺失或无法读取。
 /// - `proxyConfiguration`：代理配置无法使用。
 /// - `network`：更新网络请求失败。
 /// - `invalidMetadata`：更新元数据缺失或格式无效。
@@ -59,6 +61,8 @@ pub enum Reason {
     Busy,
     NoUpdate,
     ProxyConfiguration,
+    SettingsUnavailable,
+    CdkUnavailable,
     Network,
     InvalidMetadata,
     Service {

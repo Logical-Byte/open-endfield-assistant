@@ -64,7 +64,7 @@ pub fn report_fatal(error: &anyhow::Error, app_handle: &tauri::AppHandle) -> ! {
     // Controller 未初始化的失败路径只读语言字段，根目录尚不可用时直接使用系统语言。
     let locale = app_handle
         .try_state::<Controller>()
-        .map(|controller| controller.settings_snapshot().ui_locale)
+        .map(|controller| controller.ui_locale())
         .unwrap_or_else(|| {
             AppPaths::new()
                 .map(|paths| settings::read_ui_locale(&paths.oea_settings_file()))

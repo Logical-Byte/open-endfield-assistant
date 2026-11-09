@@ -21,7 +21,7 @@ pub(super) fn helper_launch(
         source_executable,
         [HELPER_ARGUMENT.into()],
         target,
-        locale.into(),
+        helper_locale(locale),
     ))
 }
 
@@ -29,7 +29,11 @@ pub(super) fn helper_launch(
 pub fn run_helper_if_requested() {
     let mut args = std::env::args_os().skip(1);
     if args.any(|argument| argument == HELPER_ARGUMENT) {
-        install::run_helper(args, settings::system_ui_locale().into(), OeaHelperHost);
+        install::run_helper(
+            args,
+            helper_locale(settings::system_ui_locale()),
+            OeaHelperHost,
+        );
     }
 }
 
@@ -47,35 +51,31 @@ impl HelperHost for OeaHelperHost {
     }
 
     fn show_progress(&mut self, locale: HelperLocale) -> Self::Prompt {
-        let (title, progress, _) = helper_messages(locale.into());
+        let (title, progress, _) = helper_messages(ui_locale(locale));
         UpdatePrompt::new(title, progress)
     }
 
     fn show_success(&mut self, mut prompt: Self::Prompt, locale: HelperLocale) {
-        let (title, _, success) = helper_messages(locale.into());
+        let (title, _, success) = helper_messages(ui_locale(locale));
         prompt.show_success(title, success);
     }
 
     fn show_error(&mut self, locale: HelperLocale, error: &str) {
-        show_helper_error(locale.into(), error);
+        show_helper_error(ui_locale(locale), error);
     }
 }
 
-impl From<UiLocale> for HelperLocale {
-    fn from(locale: UiLocale) -> Self {
-        match locale {
-            UiLocale::ZhCn => Self::ZhCn,
-            UiLocale::EnUs => Self::EnUs,
-        }
+fn helper_locale(locale: UiLocale) -> HelperLocale {
+    match locale {
+        UiLocale::ZhCn => HelperLocale::ZhCn,
+        UiLocale::EnUs => HelperLocale::EnUs,
     }
 }
 
-impl From<HelperLocale> for UiLocale {
-    fn from(locale: HelperLocale) -> Self {
-        match locale {
-            HelperLocale::ZhCn => Self::ZhCn,
-            HelperLocale::EnUs => Self::EnUs,
-        }
+fn ui_locale(locale: HelperLocale) -> UiLocale {
+    match locale {
+        HelperLocale::ZhCn => UiLocale::ZhCn,
+        HelperLocale::EnUs => UiLocale::EnUs,
     }
 }
 

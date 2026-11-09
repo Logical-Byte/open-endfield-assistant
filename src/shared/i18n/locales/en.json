@@ -42,6 +42,7 @@
     "update": {
       "busy": "Another update operation is in progress. Try again later.",
       "cancelled": "The update operation was cancelled.",
+      "cdkUnavailable": "The MirrorChyan CDK cannot be used. Clear it and save a new CDK in Settings, or select another update source.",
       "checkFailed": "Could not check for updates. See the logs for details.",
       "developmentBuild": "Updates are disabled in the OEA dev version. To test update behavior, use the OEA release version.",
       "downloadFailed": "Could not download the update. See the logs for details.",
@@ -67,6 +68,7 @@
         "resource": "MirrorChyan has no resource for this system and architecture. Contact the maintainer.",
         "unknown": "The update service returned error code {{code}}. See the logs for details."
       },
+      "settingsUnavailable": "Settings are unavailable. Retry loading them on the Settings page.",
       "versionMismatch": "The download source version {{actual}} does not match the expected version {{expected}}. Try again later."
     }
   },
@@ -466,6 +468,15 @@
       },
       "warning": "Only use these options if you understand what they do."
     },
+    "errors": {
+      "invalidFile": "The settings file is invalid. Repair it and retry.",
+      "newerVersion": "These settings were created by a newer application. Please use a newer version.",
+      "read": "Cannot read the settings file. Check the file and permissions, then retry.",
+      "unavailable": "Settings are unavailable. Retry loading them.",
+      "unsupportedVersion": "This settings version has no supported migration path.",
+      "validation": "The settings do not meet the current requirements. Save a CDK before selecting MirrorChyan.",
+      "write": "Cannot write the settings file. Check permissions and disk space, then retry."
+    },
     "initializeError": {
       "openSettings": "Open settings",
       "pageDescription": "Could not load settings from the backend. Interface scaling and developer features remain available.",
@@ -560,11 +571,18 @@
         "title": "Install updates automatically"
       },
       "cdk": {
-        "clear": "Clear saved CDK",
-        "placeholder": "Leave empty to download from OEM",
-        "subscribe": "Need a CDK? Subscribe now",
+        "clear": "Clear CDK",
+        "confirm": "Clear",
+        "confirmTitle": "Clear CDK?",
+        "placeholder": "Enter CDK",
+        "required": "Enter and save a CDK before selecting MirrorChyan.",
+        "save": "Save",
+        "saved": "Saved",
+        "service": "MirrorChyan is an independent paid download acceleration service.",
+        "subscribe": "Get a CDK",
         "title": "MirrorChyan CDK",
-        "unreadable": "The saved CDK could not be decrypted. Enter it again or clear it."
+        "unreadable": "The saved CDK cannot be read. Clear it and save a new CDK, or select another update source.",
+        "unsaved": "Unsaved"
       },
       "developmentBuild": "Updates are disabled in the OEA dev version.",
       "mirror": {

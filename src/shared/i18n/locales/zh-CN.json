@@ -42,6 +42,7 @@
     "update": {
       "busy": "已有更新操作正在进行，请稍后重试。",
       "cancelled": "更新操作已取消。",
+      "cdkUnavailable": "Mirror酱 CDK 无法使用，请在设置页清空后重新填写，或选择其他更新源。",
       "checkFailed": "检查更新失败，请查看日志了解详情。",
       "developmentBuild": "OEA dev 版本已禁用更新。要验证更新行为，请使用 OEA release 版本。",
       "downloadFailed": "下载更新失败，请查看日志了解详情。",
@@ -67,6 +68,7 @@
         "resource": "Mirror酱未提供对应系统和架构的资源，请联系维护者。",
         "unknown": "更新服务返回错误代码 {{code}}，请查看日志了解详情。"
       },
+      "settingsUnavailable": "设置不可用，请在设置页重试加载。",
       "versionMismatch": "下载源版本 {{actual}} 与预期版本 {{expected}} 不一致，请稍后重试。"
     }
   },
@@ -465,6 +467,15 @@
       },
       "warning": "如果你不知道自己在做什么，请不要使用下面的选项"
     },
+    "errors": {
+      "invalidFile": "设置文件内容无效，请修复文件后重试。",
+      "newerVersion": "设置文件由更高版本的应用创建，请使用更新版本的应用。",
+      "read": "无法读取设置文件，请检查文件和访问权限后重试。",
+      "unavailable": "设置尚不可用，请重新加载设置。",
+      "unsupportedVersion": "当前应用不支持此设置版本，无法迁移。",
+      "validation": "设置不符合当前规则。使用 Mirror酱需要先保存 CDK。",
+      "write": "无法写入设置文件，请检查访问权限和磁盘空间后重试。"
+    },
     "initializeError": {
       "openSettings": "前往设置",
       "pageDescription": "无法从后端初始化设置。界面缩放和开发者功能仍可使用。",
@@ -559,11 +570,18 @@
         "title": "自动安装更新"
       },
       "cdk": {
-        "clear": "清除已保存 CDK",
-        "placeholder": "未填写时使用 OEM 下载",
-        "subscribe": "没有 CDK？立即订阅",
+        "clear": "清除 CDK",
+        "confirm": "清空",
+        "confirmTitle": "清空CDK？",
+        "placeholder": "输入 CDK",
+        "required": "请先输入并保存 CDK，再选择 Mirror酱。",
+        "save": "保存",
+        "saved": "已保存",
+        "service": "Mirror酱是独立的第三方付费加速服务。",
+        "subscribe": "获取 CDK",
         "title": "Mirror酱 CDK",
-        "unreadable": "已保存的 CDK 无法解密，可重新输入或清除。"
+        "unreadable": "已保存的 CDK 无法读取，请清空后重新填写，或选择其他更新源。",
+        "unsaved": "未保存"
       },
       "developmentBuild": "OEA dev 版本已禁用更新。",
       "mirror": {

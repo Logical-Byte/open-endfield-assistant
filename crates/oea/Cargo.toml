@@ -30,6 +30,7 @@ image = { workspace = true }
 imageproc = { workspace = true }
 indexmap = { version = "2.14.0", features = ["serde"] }
 oea-logger = { version = "0.0.0", path = "../oea-logger" }
+oea-settings = { version = "0.0.0", path = "../oea-settings" }
 oea-update = { version = "0.0.0", path = "../oea-update" }
 oea-vision = { version = "0.0.0", path = "../oea-vision" }
 oea-window = { workspace = true }

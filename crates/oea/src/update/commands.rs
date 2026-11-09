@@ -1,6 +1,8 @@
 //! 更新下载相关的 Tauri 命令及其序列化接口。
 use super::{
-    Updater, options,
+    Updater,
+    error::Reason,
+    options,
     status::{UpdateInfo, UpdateStatus},
 };
 use crate::{app_paths::AppPaths, controller::Controller, update};
@@ -99,10 +101,12 @@ pub async fn check_update(
     app: tauri::AppHandle,
 ) -> Result<UpdateAvailability, update::Error> {
     update::ensure_enabled()?;
+    let settings = controller
+        .settings_snapshot()
+        .map_err(|error| update::Error::failed(Reason::SettingsUnavailable, error.into()))?;
+    let options = options::check_options(&settings)?;
     manager
-        .check(&app.package_info().version.to_string(), || {
-            options::check_options(&controller.settings_snapshot())
-        })
+        .check(&app.package_info().version.to_string(), || Ok(options))
         .await
         .map(Into::into)
         .map_err(Into::into)
@@ -118,11 +122,15 @@ pub async fn download_update(
 ) -> Result<DownloadOutcome, update::Error> {
     update::ensure_enabled()?;
     let downloads = AppPaths::new()?.downloads_dir();
+    let settings = controller
+        .settings_snapshot()
+        .map_err(|error| update::Error::failed(Reason::SettingsUnavailable, error.into()))?;
+    let source = options::download_source(&settings)?;
     manager
         .download(
             &app.package_info().version.to_string(),
             &downloads,
-            |metadata| options::download_source(&controller.settings_snapshot(), metadata),
+            |_| Ok(source),
             Arc::new(move |progress| {
                 on_progress
                     .send(DownloadProgress::from(progress))

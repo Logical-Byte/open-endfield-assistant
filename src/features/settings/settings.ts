@@ -1,15 +1,8 @@
 import { t } from '@/shared/i18n';
-import type { UpdateProxyMode, UpdateSource } from '@/features/settings/types/settings';
+import type { UpdateProxyMode } from '@/features/settings/types/settings';
 import { cdkDecrypt, cdkEncrypt, loadOeaSettings, saveOeaSettings } from '@/features/settings/ipc';
 import { computed } from 'vue';
 import { createSettingsStore } from './settingsStore';
-
-/** 更新源选项 */
-export const updateSourceItems = computed<{ label: string; value: UpdateSource }[]>(() => [
-  { label: t('common.mirrorchyan'), value: 'mirrorchyan' },
-  { label: 'OEM', value: 'oem' },
-  { label: 'GitHub', value: 'github' },
-]);
 
 /** 更新代理模式选项 */
 export const proxyModeItems = computed<{ label: string; value: UpdateProxyMode }[]>(() => [
@@ -40,3 +33,5 @@ export const markSettingsUnsupported = settings.markUnsupported;
 export const editSettings = settings.edit;
 /** 保存失败后重新提交完整 draft。 */
 export const retrySettingsSave = settings.retry;
+/** 离开更新设置时丢弃未保存的 CDK 草稿。 */
+export const discardUnsavedCdk = settings.discardUnsavedCdk;

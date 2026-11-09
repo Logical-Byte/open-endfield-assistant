@@ -45,7 +45,7 @@ watch(settingsSaveError, (error) => {
   if (error) {
     toast.add({ color: 'error' }, () => ({
       title: t('settings.saveError.title'),
-      description: t('settings.saveError.description'),
+      description: settingsSaveError.value?.message ?? t('settings.saveError.description'),
       actions: [{ label: t('common.retrySave'), onClick: retrySettingsSave }],
     }));
   }

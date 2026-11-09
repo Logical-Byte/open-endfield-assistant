@@ -124,7 +124,7 @@ pub fn install_update(
     manager.install(
         &target,
         || {
-            let locale = app.state::<Controller>().settings_snapshot().ui_locale;
+            let locale = app.state::<Controller>().ui_locale();
             helper::helper_launch(&target, locale)
         },
         |stage| emit_install_stage(&app, stage),

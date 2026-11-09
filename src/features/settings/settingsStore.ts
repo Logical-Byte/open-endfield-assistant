@@ -22,6 +22,7 @@ export type SettingsState =
       draft: Readonly<DraftSettings>;
       effective: Readonly<DraftSettings>;
       saveError: Error | null;
+      saving: boolean;
     };
 
 // 修改 ScanGuide 文案且需要所有用户重新确认时递增。无需改变设置文件版本。
@@ -42,6 +43,8 @@ interface SettingsStore {
   markUnsupported(): void;
   edit(patch: Partial<DraftSettings>): void;
   retry(): void;
+  /** 离开更新分类时丢弃尚未保存的输入，不取消已经提交的写盘。 */
+  discardUnsavedCdk(): void;
 }
 
 /** 创建设置 store。`io` 可替换，使测试能直接控制初始化、加密和保存的完成时机。 */
@@ -55,6 +58,7 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
   let saving = false;
   // pending 表示 ready.draft 内的数据等待保存，write() 应当处理。
   let pending = false;
+  let discardCdkAfterSave = false;
 
   /** 首次从后端读取完整设置。成功进入 ready 后，后续调用直接返回。 */
   function initialize(): Promise<void> {
@@ -86,6 +90,7 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
         draft,
         effective: draft,
         saveError: null,
+        saving: false,
       };
     } catch (error) {
       state.value = {
@@ -131,6 +136,24 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
     void write();
   }
 
+  function discardUnsavedCdk(): void {
+    if (saving) {
+      // 已提交的保存仍可成功；失败时必须在处理后续编辑前丢弃凭据草稿。
+      discardCdkAfterSave = true;
+    } else {
+      resetCdkDraft();
+    }
+  }
+
+  function resetCdkDraft(): void {
+    const current = state.value;
+    if (current.status !== 'ready' || !current.draft.mirrorchyanCdk) return;
+    state.value = {
+      ...current,
+      draft: { ...current.draft, mirrorchyanCdk: current.effective.mirrorchyanCdk },
+    };
+  }
+
   /** 保存失败后重新提交完整 draft。 */
   function retry(): void {
     const current = state.value;
@@ -146,7 +169,7 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
     if (initial.status !== 'ready' || persisted === null) return;
 
     saving = true;
-    state.value = { ...initial, saveError: null };
+    state.value = { ...initial, saveError: null, saving: true };
     try {
       while (pending) {
         pending = false;
@@ -182,6 +205,7 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
             state.value = { ...latest, effective: candidate };
           }
         } catch (error) {
+          if (discardCdkAfterSave) resetCdkDraft();
           // 有更新的 draft 等待处理时继续循环，否则保留错误供用户重试。
           if (!pending) {
             const latest: SettingsState = state.value;
@@ -193,6 +217,11 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
       }
     } finally {
       saving = false;
+      if (discardCdkAfterSave) {
+        resetCdkDraft();
+        discardCdkAfterSave = false;
+      }
+      if (state.value.status === 'ready') state.value = { ...state.value, saving: false };
     }
   }
 
@@ -202,6 +231,7 @@ export function createSettingsStore(io: SettingsPersistence): SettingsStore {
     markUnsupported,
     edit,
     retry,
+    discardUnsavedCdk,
   };
 }
 
@@ -221,5 +251,14 @@ function toDraft(settings: Settings, mirrorchyanCdk: string | null): DraftSettin
 }
 
 function asError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
+  if (error instanceof Error) return error;
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return new Error(error.message);
+  }
+  return new Error(String(error));
 }

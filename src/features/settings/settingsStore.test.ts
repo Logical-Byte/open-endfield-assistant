@@ -9,10 +9,10 @@ function createSettingsFixture(overrides: Partial<Settings> = {}): Settings {
   return {
     uiLocale: 'en-US',
     majorVersion: 0,
-    minorVersion: 0,
+    minorVersion: 2,
     minimizeToTray: false,
     soundVolume: 0.5,
-    updateSource: 'mirrorchyan',
+    updateSource: 'oem',
     mirrorchyanCdkEncrypted: '',
     updateProxyMode: 'system',
     updateProxyUrl: '',
@@ -211,6 +211,74 @@ describe('设置提交', () => {
     expect(ready(store).effective.soundVolume).toBe(0.7);
     expect(ready(store).effective.autoInstallUpdates).toBe(false);
     expect(ready(store).saveError).toBeNull();
+  });
+
+  it('清空 CDK 与从 Mirror酱切到 OEM 一起提交，失败保留有效设置并可重试', async () => {
+    const { store, io } = setup(
+      createSettingsFixture({ updateSource: 'mirrorchyan', mirrorchyanCdkEncrypted: 'cipher' }),
+    );
+    await store.initialize();
+    const save = deferred<void>();
+    io.save.mockReturnValueOnce(save.promise);
+    store.edit({ mirrorchyanCdk: '', updateSource: 'oem' });
+    expect(io.save.mock.calls[0]?.[0]).toMatchObject({
+      updateSource: 'oem',
+      mirrorchyanCdkEncrypted: '',
+    });
+    expect(ready(store).saving).toBe(true);
+    expect(ready(store).effective).toMatchObject({
+      updateSource: 'mirrorchyan',
+      mirrorchyanCdk: 'test-plain',
+    });
+    save.reject(new Error('磁盘写入失败'));
+    await save.promise.catch(() => {});
+    expect(ready(store).saving).toBe(false);
+    expect(ready(store).effective.updateSource).toBe('mirrorchyan');
+    store.retry();
+    await Promise.resolve();
+    expect(ready(store).effective).toMatchObject({ updateSource: 'oem', mirrorchyanCdk: '' });
+    expect(ready(store).saveError).toBeNull();
+  });
+
+  it.each([false, true])(
+    '离开更新分类丢弃失败的 CDK 草稿，不随音量编辑重试，在途=%s',
+    async (inFlight) => {
+      const { store, io } = setup();
+      await store.initialize();
+      const save = deferred<void>();
+      io.save.mockReturnValueOnce(save.promise);
+      store.edit({ mirrorchyanCdk: 'alpha' });
+      await Promise.resolve();
+      if (inFlight) {
+        store.discardUnsavedCdk();
+        store.edit({ soundVolume: 0.8 });
+      }
+      save.reject(new Error('写入失败'));
+      await save.promise.catch(() => {});
+      if (!inFlight) {
+        store.discardUnsavedCdk();
+        store.edit({ soundVolume: 0.8 });
+      }
+      await Promise.resolve();
+      expect(ready(store).effective).toMatchObject({ mirrorchyanCdk: '', soundVolume: 0.8 });
+      expect(io.save.mock.calls[1]?.[0].mirrorchyanCdkEncrypted).toBe('');
+      expect(io.encrypt).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('切换到其他源保留已保存 CDK，无需重新加密', async () => {
+    const { store, io } = setup(
+      createSettingsFixture({ updateSource: 'mirrorchyan', mirrorchyanCdkEncrypted: 'cipher' }),
+    );
+    await store.initialize();
+    store.edit({ updateSource: 'github' });
+    await Promise.resolve();
+    expect(ready(store).effective).toMatchObject({
+      updateSource: 'github',
+      mirrorchyanCdk: 'test-plain',
+    });
+    expect(io.save.mock.calls[0]?.[0].mirrorchyanCdkEncrypted).toBe('cipher');
+    expect(io.encrypt).not.toHaveBeenCalled();
   });
 
   it('加密与保存处于同一队列，等待期间的新 CDK 不能被旧密文覆盖', async () => {

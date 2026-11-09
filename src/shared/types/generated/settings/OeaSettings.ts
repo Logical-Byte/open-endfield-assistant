@@ -8,7 +8,7 @@ import type { UpdateSource } from "./UpdateSource";
  */
 export type OeaSettings = { 
 /**
- * 应用语言。缺失字段采用当前用户系统界面语言。
+ * 应用界面与原生提示使用的语言。
  */
 uiLocale: UiLocale, 
 /**
@@ -16,19 +16,19 @@ uiLocale: UiLocale,
  */
 majorVersion: number, 
 /**
- * 设置文件次要版本号，产生兼容变更（添加新字段但不改变原有字段的结构）时，增加 `minorVersion` 的值
+ * 设置文件次要版本号，设置格式或规则发生可迁移的兼容变更时，增加 `minorVersion` 的值
  */
 minorVersion: number, 
 /**
- * 关闭时最小化到托盘而不是退出应用，默认 `false`
+ * 关闭窗口时最小化到托盘。
  */
 minimizeToTray: boolean, 
 /**
- * 扫描音效音量（`0.0` ~ `1.0`，默认 `0.5`）
+ * 扫描音效音量（`0.0` ~ `1.0`）。
  */
 soundVolume: number, 
 /**
- * 更新源，默认 `mirrorchyan`
+ * 用户选择的更新源。
  */
 updateSource: UpdateSource, 
 /**
@@ -36,7 +36,7 @@ updateSource: UpdateSource,
  */
 mirrorchyanCdkEncrypted: string, 
 /**
- * 更新代理模式，默认 `system`
+ * 更新代理模式。
  */
 updateProxyMode: UpdateProxyMode, 
 /**
@@ -44,22 +44,17 @@ updateProxyMode: UpdateProxyMode,
  */
 updateProxyUrl: string, 
 /**
- * 是否自动下载更新（默认 `true`）
+ * 是否自动下载更新。
  */
 autoDownloadUpdates: boolean, 
 /**
- * 是否自动安装更新（默认 `true`；扫描任务运行中不会安装，等待扫描结束后自动安装）
+ * 是否自动安装已下载的更新。
  */
 autoInstallUpdates: boolean, 
 /**
- * 档案扫描启动提示已确认的版本号，默认 `0`。
+ * 档案扫描启动提示已确认的版本号。
  *
- * 与前端 `ScanGuide.vue` 的常量 `CURRENT_SCAN_TIPS_VERSION` 配合：
- * 前端在 `scan_tips_dismissed_version < 当前提示版本` 时展示启动提示；
- * 用户勾选「下次更新前不再提示」并确认后，前端把本字段更新为当前提示版本并持久化。
- *
- * 更新提示文案时，想让所有用户（含已确认过的）重新看一次，只需递增前端
- * `CURRENT_SCAN_TIPS_VERSION`，本字段无需改动；只改文案不递增版本号则老用户不重看。
- * 本字段的「值」不属于 settings 结构变更，不会因此再次 bump `minorVersion`。
+ * 提示内容版本与设置格式版本相互独立。需要用户重新确认提示时，
+ * 递增前端 `CURRENT_SCAN_TIPS_VERSION`，不增加设置格式版本。
  */
 scanTipsDismissedVersion: number, };
