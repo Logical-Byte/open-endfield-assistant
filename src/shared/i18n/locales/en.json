@@ -574,6 +574,7 @@
         "clear": "Clear CDK",
         "confirm": "Clear",
         "confirmTitle": "Clear CDK?",
+        "fallback": "Updates use OEM when no CDK is saved.",
         "placeholder": "Enter CDK",
         "required": "Enter and save a CDK before selecting MirrorChyan.",
         "save": "Save",
@@ -602,6 +603,10 @@
       },
       "source": {
         "description": "Choose where to download new versions.",
+        "githubDescription": "Download updates through {releases}.",
+        "mirrorDescription": "MirrorChyan is an independent paid download acceleration service. {subscribe}",
+        "mirrorUpdateDescription": "Update through MirrorChyan",
+        "oemDescription": "Download updates through the OEM CDN.",
         "title": "Update source"
       }
     }

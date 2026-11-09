@@ -69,26 +69,25 @@ fn rejects_future_unsupported_and_invalid_files_without_overwriting_them() {
 }
 
 #[test]
-fn rejects_invalid_save_and_clears_cdk_with_source_in_one_commit() {
+fn persists_mirror_without_cdk_and_preserves_the_source_when_cleared() {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("settings.json");
     let store = SettingsStore::open(path.clone(), UiLocale::EnUs).unwrap();
     let mut settings = store.snapshot();
     settings.update_source = UpdateSource::Mirrorchyan;
-    assert!(store.save(settings.clone()).is_err());
-    assert_eq!(store.snapshot().update_source, UpdateSource::Oem);
-    assert!(!path.exists());
+    store.save(settings.clone()).unwrap();
+    let reopened = SettingsStore::open(path.clone(), UiLocale::ZhCn).unwrap();
+    assert_eq!(reopened.snapshot().update_source, UpdateSource::Mirrorchyan);
+    assert!(reopened.snapshot().mirrorchyan_cdk_encrypted.is_empty());
+
     settings.mirrorchyan_cdk_encrypted = "cipher".into();
     store.save(settings.clone()).unwrap();
     settings.mirrorchyan_cdk_encrypted.clear();
-    assert!(store.save(settings.clone()).is_err());
-    assert_eq!(store.snapshot().mirrorchyan_cdk_encrypted, "cipher");
-    settings.update_source = UpdateSource::Oem;
     store.save(settings).unwrap();
     let restarted = SettingsStore::open(path, UiLocale::ZhCn)
         .unwrap()
         .snapshot();
-    assert_eq!(restarted.update_source, UpdateSource::Oem);
+    assert_eq!(restarted.update_source, UpdateSource::Mirrorchyan);
     assert!(restarted.mirrorchyan_cdk_encrypted.is_empty());
     assert_eq!(restarted.ui_locale, UiLocale::EnUs);
 }
