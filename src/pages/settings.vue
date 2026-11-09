@@ -226,8 +226,6 @@ onBeforeUnmount(stopResetScroll);
         icon="i-lucide-download"
         :title="t('settings.sections.update')"
       >
-        <UpdateSourceSettings />
-
         <SettingsItem
           :description="t('settings.update.autoDownload.description')"
           icon="i-lucide-cloud-download"
@@ -241,6 +239,8 @@ onBeforeUnmount(stopResetScroll);
           :item="fields.switch('autoInstallUpdates')"
           :title="t('settings.update.autoInstall.title')"
         />
+
+        <UpdateSourceSettings />
 
         <SettingsItem
           :description="t('settings.update.proxy.description')"

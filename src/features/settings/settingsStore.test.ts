@@ -213,16 +213,16 @@ describe('设置提交', () => {
     expect(ready(store).saveError).toBeNull();
   });
 
-  it('清空 CDK 与从 Mirror酱切到 OEM 一起提交，失败保留有效设置并可重试', async () => {
+  it('清空 CDK 保留 Mirror酱选择，失败保留有效凭据并可重试', async () => {
     const { store, io } = setup(
       createSettingsFixture({ updateSource: 'mirrorchyan', mirrorchyanCdkEncrypted: 'cipher' }),
     );
     await store.initialize();
     const save = deferred<void>();
     io.save.mockReturnValueOnce(save.promise);
-    store.edit({ mirrorchyanCdk: '', updateSource: 'oem' });
+    store.edit({ mirrorchyanCdk: '' });
     expect(io.save.mock.calls[0]?.[0]).toMatchObject({
-      updateSource: 'oem',
+      updateSource: 'mirrorchyan',
       mirrorchyanCdkEncrypted: '',
     });
     expect(ready(store).saving).toBe(true);
@@ -236,7 +236,10 @@ describe('设置提交', () => {
     expect(ready(store).effective.updateSource).toBe('mirrorchyan');
     store.retry();
     await Promise.resolve();
-    expect(ready(store).effective).toMatchObject({ updateSource: 'oem', mirrorchyanCdk: '' });
+    expect(ready(store).effective).toMatchObject({
+      updateSource: 'mirrorchyan',
+      mirrorchyanCdk: '',
+    });
     expect(ready(store).saveError).toBeNull();
   });
 

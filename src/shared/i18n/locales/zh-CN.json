@@ -573,6 +573,7 @@
         "clear": "清除 CDK",
         "confirm": "清空",
         "confirmTitle": "清空CDK？",
+        "fallback": "CDK缺失时，将使用 OEM 进行更新",
         "placeholder": "输入 CDK",
         "required": "请先输入并保存 CDK，再选择 Mirror酱。",
         "save": "保存",
@@ -601,6 +602,10 @@
       },
       "source": {
         "description": "选择从哪个源下载新版本",
+        "githubDescription": "通过 {releases} 下载更新",
+        "mirrorDescription": "Mirror酱是独立的第三方付费加速服务。{subscribe}",
+        "mirrorUpdateDescription": "使用 Mirror酱进行更新",
+        "oemDescription": "通过 OEM 地图集的 CDN 下载更新",
         "title": "更新源"
       }
     }
