@@ -190,6 +190,10 @@ impl Installation {
             fs::read(self.root.path().join(APP)).unwrap(),
             fs::read(env!("CARGO_BIN_EXE_update-host-v2")).unwrap()
         );
+        self.assert_resources_updated();
+    }
+
+    pub fn assert_resources_updated(&self) {
         assert_eq!(
             fs::read_to_string(self.root.path().join("resources/new.txt")).unwrap(),
             "new resource"
@@ -208,6 +212,19 @@ impl Installation {
                 .exists()
         );
         assert!(!self.root.path().join("cache/update/candidate").exists());
+    }
+}
+
+impl Drop for Installation {
+    fn drop(&mut self) {
+        // 断言可能在驱动接收 helper 连接前失败。终止仍排队等待 run 的副本。
+        while let Ok((mut stream, _)) = self.listener.accept() {
+            let _ = stream.set_nonblocking(false);
+            let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+            let _ = stream.set_write_timeout(Some(Duration::from_secs(2)));
+            let _ = writeln!(stream, "abort");
+            let _ = io::copy(&mut stream, &mut io::sink());
+        }
     }
 }
 

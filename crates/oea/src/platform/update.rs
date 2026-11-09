@@ -10,7 +10,7 @@ use std::process::Child;
 #[cfg(target_os = "macos")]
 use std::process::Command;
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", not(test)))]
 use super::windows;
 
 pub(crate) mod extra;

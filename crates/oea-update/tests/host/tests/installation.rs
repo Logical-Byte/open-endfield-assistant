@@ -29,37 +29,53 @@ fn full_zip_updates_the_running_host_and_preserves_settings() {
 }
 
 #[test]
-fn incremental_zip_applies_additions_changes_and_deletions() {
-    let installation = Installation::new();
-    let changes = format!(
-        r#"{{"modified":["{APP}","resources/changed.txt"],"added":["resources/new.txt","resources/added-dir/item.txt"],"deleted":["resources/old.txt","resources/old-dir/item.txt"],"added_dir":["resources/added-dir"],"deleted_dir":["resources/old-dir"]}}"#
-    );
-    let package = installation.package(
-        true,
-        &[
-            ("changes.json", changes.as_bytes()),
-            ("resources/new.txt", b"new resource"),
-            ("resources/changed.txt", b"after"),
-            ("resources/added-dir/item.txt", b"added"),
-        ],
-    );
-    commit(&installation, &package);
-    installation.start("Completed", 2);
-    installation.assert_updated();
-    let resources = installation.root.path().join("resources");
-    assert_eq!(
-        fs::read_to_string(resources.join("keep.txt")).unwrap(),
-        "unchanged"
-    );
-    assert_eq!(
-        fs::read_to_string(resources.join("changed.txt")).unwrap(),
-        "after"
-    );
-    assert_eq!(
-        fs::read_to_string(resources.join("added-dir/item.txt")).unwrap(),
-        "added"
-    );
-    assert!(!resources.join("old-dir").exists());
+fn incremental_zip_applies_changes_with_or_without_a_new_executable() {
+    for executable in [true, false] {
+        let installation = Installation::new();
+        let modified_executable = if executable {
+            format!("\"{APP}\",")
+        } else {
+            String::new()
+        };
+        let changes = format!(
+            r#"{{"modified":[{modified_executable}"resources/changed.txt"],"added":["resources/new.txt","resources/added-dir/item.txt"],"deleted":["resources/old.txt","resources/old-dir/item.txt"],"added_dir":["resources/added-dir"],"deleted_dir":["resources/old-dir"]}}"#
+        );
+        let package = installation.package(
+            executable,
+            &[
+                ("changes.json", changes.as_bytes()),
+                ("resources/new.txt", b"new resource"),
+                ("resources/changed.txt", b"after"),
+                ("resources/added-dir/item.txt", b"added"),
+            ],
+        );
+        commit(&installation, &package);
+        installation.start("Completed", if executable { 2 } else { 1 });
+        installation.assert_resources_updated();
+        let expected = if executable {
+            env!("CARGO_BIN_EXE_update-host-v2")
+        } else {
+            env!("CARGO_BIN_EXE_update-host-v1")
+        };
+        assert_eq!(
+            fs::read(installation.root.path().join(APP)).unwrap(),
+            fs::read(expected).unwrap()
+        );
+        let resources = installation.root.path().join("resources");
+        assert_eq!(
+            fs::read_to_string(resources.join("keep.txt")).unwrap(),
+            "unchanged"
+        );
+        assert_eq!(
+            fs::read_to_string(resources.join("changed.txt")).unwrap(),
+            "after"
+        );
+        assert_eq!(
+            fs::read_to_string(resources.join("added-dir/item.txt")).unwrap(),
+            "added"
+        );
+        assert!(!resources.join("old-dir").exists());
+    }
 }
 
 #[test]
@@ -75,9 +91,12 @@ fn failed_installation_preserves_old_payload_and_cancels_prepared_material() {
         let installation = Installation::new();
         let package = match mode {
             "incomplete" => installation.package(false, &[("resources/new.txt", b"new resource")]),
-            "unsafe-incremental" => {
-                installation.package(true, &[("changes.json", br#"{"added":["../escape"]}"#)])
-            }
+            // 被删除目标是实际存在的宿主设置文件。若路径校验失效，操作能够执行，
+            // 不会因源文件缺失而以其他原因失败。
+            "unsafe-incremental" => installation.package(
+                true,
+                &[("changes.json", br#"{"deleted":["../../../settings.json"]}"#)],
+            ),
             "escaping-zip" => installation.package(true, &[("../escape", b"invalid")]),
             _ => installation.full_package(),
         };
@@ -391,5 +410,18 @@ fn repeated_helper_does_not_commit_again_or_show_progress() {
     helper.expect("host-dropped");
     helper.wait(true);
     installation.start("Completed", 2);
+    installation.assert_updated();
+    // 启动恢复会清理 helper 副本。只重建程序，不重建已经结束的事务。
+    fs::copy(
+        env!("CARGO_BIN_EXE_update-host-v1"),
+        installation.helper_path(),
+    )
+    .unwrap();
+    let mut helper = installation.spawn(helper_command(&installation), "helper:v1");
+    helper.send("run");
+    helper.expect("logging");
+    helper.expect("log-dropped");
+    helper.expect("host-dropped");
+    helper.wait(true);
     installation.assert_updated();
 }
