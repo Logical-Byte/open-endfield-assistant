@@ -98,6 +98,7 @@ fn simulate(
                     events,
                     prefix,
                     reasons,
+                    conditions.is_conjunctive(),
                     lucky,
                     sample_image(prefix),
                     Progress {
@@ -201,14 +202,17 @@ fn sample_image(cards: &[Card]) -> RgbaImage {
 
 #[cfg(test)]
 mod tests {
+    use super::model::{Comparison, SumCondition};
     use super::*;
     use crate::automation::{events::testing::RecordingEventSink, new_stop_token};
 
     #[test]
     fn stops_before_five_cards_only_when_enabled() {
-        let conditions = Conditions {
-            sum: Some(3),
-            ..Conditions::default()
+        let conditions = Conditions::Sum {
+            condition: SumCondition {
+                comparison: Comparison::GreaterOrEqual,
+                threshold: 3,
+            },
         };
         // 第一轮样例为 12355。前两张已满足战力点之和，关闭早停时仍需抽满。
         for (allow_early_stop, expected_count) in [(false, 5), (true, 2)] {

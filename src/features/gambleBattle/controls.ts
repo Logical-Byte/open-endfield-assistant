@@ -4,7 +4,7 @@ import {
   allowEarlyStop,
   bpPattern,
   conditions,
-  handKinds,
+  executionConditions,
   scoreThreshold,
   sumThreshold,
 } from './state';
@@ -29,13 +29,7 @@ export function useGambleBattleControls(): {
   const { canStart, tryStart, tryStop } = task;
   const { t } = useAppI18n();
   const toast = useTranslatedToast();
-  const hasCondition = computed(
-    (): boolean =>
-      handKinds.some((hand): boolean => conditions[hand]) ||
-      conditions.sum !== null ||
-      conditions.score !== null ||
-      conditions.pattern !== null,
-  );
+  const hasCondition = computed((): boolean => executionConditions.value !== null);
   const sumValid = computed(
     (): boolean =>
       conditions.sum === null ||
@@ -57,9 +51,10 @@ export function useGambleBattleControls(): {
     submitting.value = true;
     try {
       if (canStart.value) {
-        if (!hasCondition.value || !inputsValid.value) return;
+        const execution = executionConditions.value;
+        if (!execution || !inputsValid.value) return;
         await tryStart({
-          conditions: { ...conditions },
+          conditions: execution,
           allowEarlyStop: allowEarlyStop.value,
           workerType: gambleBattleWorkerType.value,
         });

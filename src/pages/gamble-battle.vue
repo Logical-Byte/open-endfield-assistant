@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SumConditionControls from '@/components/gamble-battle/SumConditionControls.vue';
 import GambleBattleGuide from '@/components/gamble-battle/GambleBattleGuide.vue';
 import MatchedHandCard from '@/components/gamble-battle/MatchedHandCard.vue';
 import WorkspaceCard from '@/components/layout/WorkspaceCard.vue';
@@ -15,6 +16,9 @@ import {
   scoreThreshold,
   showGambleBattleGuide,
   sumThreshold,
+  sumComparison,
+  sumJoin,
+  hasOtherConditions,
 } from '@/features/gambleBattle/state';
 import { gambleBattleWorkerType } from '@/features/gambleBattle/workerType';
 import { formatBackendError, normalizeBackendError } from '@/shared/errors';
@@ -173,113 +177,99 @@ function multiplierLabel(hand: HandKind): string | null {
           variant="subtle"
           @update:open="errorDismissed = true"
         />
-        <fieldset class="space-y-1" :disabled="isActive || submitting">
-          <legend class="mb-2 flex items-center gap-1 text-sm font-medium text-highlighted">
-            {{ t('gambleBattle.conditions.title') }}
-          </legend>
-          <div
-            v-if="luckyHand"
-            class="mb-2 flex items-center gap-2 rounded-md border border-default bg-elevated px-2 py-1.5"
-          >
-            <UIcon class="size-4 shrink-0 text-primary" name="i-lucide-sparkles" />
-            <p class="min-w-0 text-sm font-medium text-highlighted">
-              {{
-                t('gambleBattle.lucky.hand', { hand: t(`gambleBattle.hand.names.${luckyHand}`) })
-              }}
-            </p>
-          </div>
-          <div v-for="hand in handKinds" :key="hand" class="flex items-center gap-2">
-            <USwitch
-              v-model="conditions[hand]"
-              class="min-h-7 min-w-0 flex-1 items-center"
-              :disabled="isActive || submitting"
-              :label="t(`gambleBattle.hand.names.${hand}`)"
-              size="sm"
-              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
-            />
-            <UBadge
-              class="shrink-0 tabular-nums"
-              :color="hand === luckyHand ? 'primary' : 'neutral'"
-              size="md"
-              variant="subtle"
+        <fieldset class="space-y-3" :disabled="isActive || submitting">
+          <legend class="sr-only">{{ t('gambleBattle.conditions.heading') }}</legend>
+          <div class="space-y-1 rounded-lg border border-default p-2">
+            <p class="mb-2 text-xs text-muted">{{ t('gambleBattle.conditions.title') }}</p>
+            <div
+              v-if="luckyHand"
+              class="mb-2 flex items-center gap-2 rounded-md border border-default bg-elevated px-2 py-1.5"
             >
-              {{ multiplierLabel(hand) }}
-            </UBadge>
+              <UIcon class="size-4 shrink-0 text-primary" name="i-lucide-sparkles" />
+              <p class="min-w-0 text-sm font-medium text-highlighted">
+                {{
+                  t('gambleBattle.lucky.hand', { hand: t(`gambleBattle.hand.names.${luckyHand}`) })
+                }}
+              </p>
+            </div>
+            <div v-for="hand in handKinds" :key="hand" class="flex items-center gap-2">
+              <USwitch
+                v-model="conditions[hand]"
+                class="min-h-7 min-w-0 flex-1 items-center"
+                :disabled="isActive || submitting"
+                :label="t(`gambleBattle.hand.names.${hand}`)"
+                size="sm"
+                :ui="{ wrapper: 'text-sm', container: 'h-5' }"
+              />
+              <UBadge
+                class="shrink-0 tabular-nums"
+                :color="hand === luckyHand ? 'primary' : 'neutral'"
+                size="md"
+                variant="subtle"
+              >
+                {{ multiplierLabel(hand) }}
+              </UBadge>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <USwitch
+                class="min-h-7 max-w-full items-center"
+                :disabled="isActive || submitting"
+                :label="t('gambleBattle.conditions.score.label')"
+                :model-value="conditions.score !== null"
+                size="sm"
+                :ui="{ wrapper: 'text-sm', container: 'h-5' }"
+                @update:model-value="toggleScore"
+              />
+              <UInputNumber
+                :aria-label="t('gambleBattle.conditions.score.threshold')"
+                class="ml-auto w-28 shrink-0"
+                :disabled="conditions.score === null || isActive || submitting"
+                :format-options="{ useGrouping: false }"
+                :min="1"
+                :model-value="scoreThreshold"
+                size="sm"
+                :step="1"
+                @update:model-value="changeScore"
+              />
+              <p v-if="!scoreValid" class="w-full text-sm text-error">
+                {{ t('gambleBattle.conditions.score.invalid') }}
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <USwitch
+                class="min-h-7 max-w-full items-center"
+                :disabled="isActive || submitting"
+                :label="t('gambleBattle.conditions.pattern.label')"
+                :model-value="conditions.pattern !== null"
+                size="sm"
+                :ui="{ wrapper: 'text-sm', container: 'h-5' }"
+                @update:model-value="togglePattern"
+              />
+              <UInput
+                :aria-label="t('gambleBattle.conditions.pattern.input')"
+                class="ml-auto w-28 shrink-0"
+                :disabled="conditions.pattern === null || isActive || submitting"
+                maxlength="5"
+                :model-value="bpPattern"
+                size="sm"
+                @update:model-value="changePattern"
+              />
+              <p v-if="!patternValid" class="w-full text-sm text-error">
+                {{ t('gambleBattle.conditions.pattern.invalid') }}
+              </p>
+            </div>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <USwitch
-              class="min-h-7 max-w-full items-center"
-              :disabled="isActive || submitting"
-              :label="t('gambleBattle.conditions.sum.label')"
-              :model-value="conditions.sum !== null"
-              size="sm"
-              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
-              @update:model-value="toggleSum"
-            />
-            <UInputNumber
-              :aria-label="t('gambleBattle.conditions.sum.threshold')"
-              class="ml-auto w-28 shrink-0"
-              :disabled="conditions.sum === null || isActive || submitting"
-              :format-options="{ useGrouping: false }"
-              :max="25"
-              :min="1"
-              :model-value="sumThreshold"
-              size="sm"
-              :step="1"
-              @update:model-value="changeThreshold"
-            />
-            <p v-if="!sumValid" class="w-full text-sm text-error">
-              {{ t('gambleBattle.conditions.sum.invalid') }}
-            </p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <USwitch
-              class="min-h-7 max-w-full items-center"
-              :disabled="isActive || submitting"
-              :label="t('gambleBattle.conditions.score.label')"
-              :model-value="conditions.score !== null"
-              size="sm"
-              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
-              @update:model-value="toggleScore"
-            />
-            <UInputNumber
-              :aria-label="t('gambleBattle.conditions.score.threshold')"
-              class="ml-auto w-28 shrink-0"
-              :disabled="conditions.score === null || isActive || submitting"
-              :format-options="{ useGrouping: false }"
-              :min="1"
-              :model-value="scoreThreshold"
-              size="sm"
-              :step="1"
-              @update:model-value="changeScore"
-            />
-            <p v-if="!scoreValid" class="w-full text-sm text-error">
-              {{ t('gambleBattle.conditions.score.invalid') }}
-            </p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <USwitch
-              class="min-h-7 max-w-full items-center"
-              :disabled="isActive || submitting"
-              :label="t('gambleBattle.conditions.pattern.label')"
-              :model-value="conditions.pattern !== null"
-              size="sm"
-              :ui="{ wrapper: 'text-sm', container: 'h-5' }"
-              @update:model-value="togglePattern"
-            />
-            <UInput
-              :aria-label="t('gambleBattle.conditions.pattern.input')"
-              class="ml-auto w-28 shrink-0"
-              :disabled="conditions.pattern === null || isActive || submitting"
-              maxlength="5"
-              :model-value="bpPattern"
-              size="sm"
-              @update:model-value="changePattern"
-            />
-            <p v-if="!patternValid" class="w-full text-sm text-error">
-              {{ t('gambleBattle.conditions.pattern.invalid') }}
-            </p>
-          </div>
+          <SumConditionControls
+            v-model:comparison="sumComparison"
+            v-model:join="sumJoin"
+            :disabled="isActive || submitting"
+            :enabled="conditions.sum !== null"
+            :has-other-conditions="hasOtherConditions"
+            :threshold="sumThreshold"
+            :valid="sumValid"
+            @update:enabled="toggleSum"
+            @update:threshold="changeThreshold"
+          />
           <p v-if="!hasCondition" class="text-sm text-warning">
             {{ t('gambleBattle.conditions.required') }}
           </p>

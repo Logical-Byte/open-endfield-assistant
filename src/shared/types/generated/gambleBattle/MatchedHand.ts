@@ -10,4 +10,8 @@ export type MatchedHand = { round: number, elapsedSeconds: number, cards: Array<
 /**
  * 生效牌型是否为当天的好运组合，是则得分已经翻倍。
  */
-lucky: boolean, reasons: Array<StopReason>, image: string, };
+lucky: boolean, reasons: Array<StopReason>, 
+/**
+ * 命中理由中的其他条件与战力点之和是否必须同时成立。
+ */
+conjunctive: boolean, image: string, };

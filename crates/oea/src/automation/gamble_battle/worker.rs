@@ -144,6 +144,7 @@ where
                             events,
                             &cards,
                             reasons,
+                            conditions.is_conjunctive(),
                             lucky,
                             frame,
                             Progress {
