@@ -88,17 +88,17 @@ const cropImageStyle: CSSProperties = {
       >
         <span class="shrink-0 text-xs text-muted">#{{ item.scannedItemId }}</span>
         <span class="truncate">{{ item.ocrResult || t('scan.ocr.empty') }}</span>
-        <span
-          v-if="state.editing"
-          class="ml-auto shrink-0 text-xs font-semibold text-primary"
-          role="status"
-          >{{ t('scan.record.editing') }}</span
-        >
-        <UIcon
-          class="ml-auto size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none"
-          :class="expanded && 'rotate-180'"
-          name="i-lucide-chevron-down"
-        />
+        <!-- 编辑提示与箭头共享右侧空白，保持固定间距。 -->
+        <span class="ml-auto flex shrink-0 items-center gap-2">
+          <span v-if="state.editing" class="text-xs font-semibold text-primary" role="status">{{
+            t('scan.record.editing')
+          }}</span>
+          <UIcon
+            class="size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none"
+            :class="expanded && 'rotate-180'"
+            name="i-lucide-chevron-down"
+          />
+        </span>
       </UButton>
       <template #content>
         <div class="space-y-4 border-t border-default p-4">
