@@ -402,6 +402,11 @@
     "results": {
       "allMatched": "所有扫描结果都已匹配",
       "clear": "清空扫描结果",
+      "clearConfirm": {
+        "body": "清空全部 {{total}} 条扫描记录，包括人工匹配。",
+        "confirm": "确认清空",
+        "title": "清空扫描结果？"
+      },
       "count": "显示 {{visible}} / {{total}} 条记录",
       "empty": "当前筛选下没有扫描结果",
       "search": "搜索扫描结果",

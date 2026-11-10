@@ -403,6 +403,11 @@
     "results": {
       "allMatched": "All scan results are matched",
       "clear": "Clear scan results",
+      "clearConfirm": {
+        "body": "This clears all {{total}} scan records, including manual matches.",
+        "confirm": "Clear",
+        "title": "Clear scan results?"
+      },
       "count": "Showing {{visible}} of {{total}} scans",
       "empty": "No scans match these filters",
       "search": "Search scan results",
