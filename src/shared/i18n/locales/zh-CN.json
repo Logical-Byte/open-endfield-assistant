@@ -100,10 +100,10 @@
       "sum": {
         "comparison": "战力点比较符号",
         "condition": "战力点之和：{value} {{comparison}} {{threshold}}",
-        "invalid": "请输入 1 到 25 之间的整数。",
+        "invalid": "请输入 {{min}} 到 {{max}} 之间的整数。",
         "label": "战力点之和",
         "matched": "战力点之和 {{total}} {{comparison}} {{threshold}}",
-        "threshold": "战力点阈值（1 到 25）"
+        "threshold": "战力点阈值"
       },
       "title": "以下任一条件满足"
     },

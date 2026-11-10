@@ -100,10 +100,10 @@
       "sum": {
         "comparison": "Total BP comparison",
         "condition": "Total BP: {value} {{comparison}} {{threshold}}",
-        "invalid": "Enter a whole number from 1 to 25.",
+        "invalid": "Enter a whole number from {{min}} to {{max}}.",
         "label": "Total BP",
         "matched": "Total BP {{total}} {{comparison}} {{threshold}}",
-        "threshold": "BP threshold (1 to 25)"
+        "threshold": "BP threshold"
       },
       "title": "Match any of these conditions"
     },

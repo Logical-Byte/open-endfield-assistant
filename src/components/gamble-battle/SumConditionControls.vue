@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue';
+import { computed, useId, watch } from 'vue';
 import { useAppI18n } from '@/shared/i18n';
 import type { Comparison } from '@/shared/types/gambleBattle';
-import { comparisonSymbols } from '@/features/gambleBattle/comparison';
+import { comparisonSymbols, sumThresholdRange } from '@/features/gambleBattle/comparison';
 
 const props = defineProps<{ disabled: boolean; hasOtherConditions: boolean; valid: boolean }>();
 const enabled = defineModel<boolean>('enabled', { required: true });
@@ -21,6 +21,12 @@ const joins = computed((): { value: 'and' | 'or'; label: string }[] => [
   { value: 'and', label: t('gambleBattle.conditions.join.and') },
   { value: 'or', label: t('gambleBattle.conditions.join.or') },
 ]);
+
+const range = computed((): { min: number; max: number } => sumThresholdRange(comparison.value));
+watch(comparison, (value: Comparison): void => {
+  const { min, max } = sumThresholdRange(value);
+  threshold.value = Math.min(max, Math.max(min, threshold.value));
+});
 
 // Measure the translated select instead of fixing its width. The wrapper owns both
 // opacity and occupied space, so adjacent controls move with the fade.
@@ -90,15 +96,15 @@ function cancel(element: Element): void {
           :decrement="false"
           :disabled="props.disabled || !enabled"
           :increment="false"
-          :max="25"
-          :min="1"
+          :max="range.max"
+          :min="range.min"
           size="sm"
           :ui="{ base: '[field-sizing:content] w-auto min-w-[3ch] text-center' }"
         />
       </div>
     </div>
     <p v-if="!props.valid" class="mt-2 text-sm text-error">
-      {{ t('gambleBattle.conditions.sum.invalid') }}
+      {{ t('gambleBattle.conditions.sum.invalid', { min: range.min, max: range.max }) }}
     </p>
   </div>
 </template>

@@ -376,11 +376,15 @@ impl Conditions {
 
     /// 结构由节点类型保证，启动前校验用户输入的值域。
     pub(crate) fn validate(&self) -> Result<(), &'static str> {
-        if self
-            .sum()
-            .is_some_and(|sum| !(1..=25).contains(&sum.threshold))
-        {
-            return Err("战力点阈值必须在 1 到 25 之间");
+        if self.sum().is_some_and(|sum| {
+            let range = match sum.comparison {
+                Comparison::Less => 2..=25,
+                Comparison::Greater => 1..=24,
+                _ => 1..=25,
+            };
+            !range.contains(&sum.threshold)
+        }) {
+            return Err("战力点阈值超出当前比较符号允许的范围");
         }
         if let Some(other) = self.other() {
             for condition in std::iter::once(&other.first).chain(&other.rest) {
@@ -451,6 +455,33 @@ mod tests {
                 suit: mixed[slot],
             })
             .collect()
+    }
+
+    #[test]
+    fn limits_strict_comparisons_to_thresholds_that_can_match() {
+        for (comparison, valid, invalid) in [
+            (Comparison::Less, vec![2, 25], vec![0, 1, 26]),
+            (Comparison::Greater, vec![1, 24], vec![0, 25, 26]),
+            (Comparison::GreaterOrEqual, vec![1, 25], vec![0, 26]),
+            (Comparison::Equal, vec![1, 25], vec![0, 26]),
+            (Comparison::LessOrEqual, vec![1, 25], vec![0, 26]),
+        ] {
+            for (thresholds, expected) in [(valid, true), (invalid, false)] {
+                for threshold in thresholds {
+                    let conditions = Conditions::Sum {
+                        condition: SumCondition {
+                            comparison,
+                            threshold,
+                        },
+                    };
+                    assert_eq!(
+                        conditions.validate().is_ok(),
+                        expected,
+                        "{comparison:?} {threshold}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
