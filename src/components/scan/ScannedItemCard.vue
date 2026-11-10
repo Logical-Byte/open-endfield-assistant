@@ -15,7 +15,8 @@ const emit = defineEmits<{
   choose: [id: ArchiveId | null];
   locateArchive: [id: ArchiveId];
 }>();
-const expanded = computed((): boolean => state.value.expanded ?? !props.item.archive);
+// 默认折叠扫描记录，保留用户在虚拟列表之外保存的展开状态。
+const expanded = computed((): boolean => state.value.expanded ?? false);
 const currentTitle = computed((): string => props.item.archive?.title ?? props.item.ocrResult);
 const changed = computed(
   (): boolean =>
