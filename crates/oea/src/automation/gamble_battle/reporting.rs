@@ -15,6 +15,7 @@ pub(super) fn report_match(
     events: &dyn EventSink,
     cards: &[Card],
     reasons: Vec<StopReason>,
+    conjunctive: bool,
     lucky: HandKind,
     image: RgbaImage,
     progress: Progress,
@@ -34,6 +35,7 @@ pub(super) fn report_match(
         score: model::score(cards, lucky),
         lucky: hand == Some(lucky),
         reasons,
+        conjunctive,
         image: format!(
             "data:image/png;base64,{}",
             STANDARD.encode(png.into_inner())

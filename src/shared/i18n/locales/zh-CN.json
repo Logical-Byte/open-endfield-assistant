@@ -77,6 +77,13 @@
     "allowEarlyStopDescription": "铭牌不足五张时也可停止抽牌。",
     "blocked": "其他任务正在运行",
     "conditions": {
+      "conjunctiveMatch": "{{other}}，且 {{sum}}",
+      "heading": "停止条件",
+      "join": {
+        "and": "且",
+        "label": "条件组合方式",
+        "or": "或"
+      },
       "pattern": {
         "condition": "点数包含子串：{value}",
         "input": "点数子串（1 到 5 的数字，长度 1 到 5）",
@@ -93,13 +100,14 @@
         "threshold": "分数阈值"
       },
       "sum": {
-        "condition": "战力点之和：{value} ≥ {{threshold}}",
-        "invalid": "请输入 1 到 25 之间的整数。",
-        "label": "战力点大于等于",
-        "matched": "战力点之和 {{total}} ≥ {{threshold}}",
-        "threshold": "战力点阈值（1 到 25）"
+        "comparison": "战力点比较符号",
+        "condition": "战力点之和：{value} {{comparison}} {{threshold}}",
+        "invalid": "请输入 {{min}} 到 {{max}} 之间的整数。",
+        "label": "战力点之和",
+        "matched": "战力点之和 {{total}} {{comparison}} {{threshold}}",
+        "threshold": "战力点阈值"
       },
-      "title": "当满足以下任意一个条件时，停止抽牌"
+      "title": "以下任一条件满足"
     },
     "dataplete": "{{rank}} {{suit}}",
     "event": "活动",
@@ -170,8 +178,7 @@
       "title": "档案查漏补缺"
     },
     "arena": {
-      "any": "任意一个",
-      "autoStop": "满足{any}目标后会自动停止抽牌。",
+      "autoStop": "满足所设停止条件后会自动停止抽牌。战力点之和可选择与其他条件同时满足，或任一满足。",
       "chooseTargets": "选择{targetHands}。",
       "open": "终末地打开{screen}。",
       "screen": "百趣演武的抽牌界面",

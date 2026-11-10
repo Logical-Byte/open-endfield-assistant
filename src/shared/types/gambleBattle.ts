@@ -7,3 +7,7 @@ export type { MatchedHand } from './generated/gambleBattle/MatchedHand';
 export type { Progress } from './generated/gambleBattle/Progress';
 export type { DailyLucky } from './generated/gambleBattle/DailyLucky';
 export type { HandMultiplier } from './generated/gambleBattle/HandMultiplier';
+export type { Comparison } from './generated/gambleBattle/Comparison';
+export type { SumCondition } from './generated/gambleBattle/SumCondition';
+export type { OtherCondition } from './generated/gambleBattle/OtherCondition';
+export type { OtherConditions } from './generated/gambleBattle/OtherConditions';

@@ -1,5 +1,22 @@
-import { reactive, readonly, ref, shallowRef, watch, type DeepReadonly, type Ref } from 'vue';
-import type { Conditions, HandKind, MatchedHand, Progress } from '@/shared/types/gambleBattle';
+import {
+  computed,
+  reactive,
+  readonly,
+  ref,
+  shallowRef,
+  watch,
+  type DeepReadonly,
+  type Ref,
+} from 'vue';
+import type {
+  Comparison,
+  Conditions,
+  HandKind,
+  MatchedHand,
+  OtherCondition,
+  OtherConditions,
+  Progress,
+} from '@/shared/types/gambleBattle';
 import { useAutomationTask } from '@/features/automation/useAutomationTask';
 import { refreshGambleBattleDaily } from './daily';
 import { onGambleBattleMatched, onGambleBattleProgress } from './ipc';
@@ -17,7 +34,13 @@ export const handKinds: HandKind[] = [
 ];
 
 // 一次启动参数在页面切换后继续保留，不写入应用的持久化设置。
-export const conditions = reactive<Conditions>({
+// 编辑状态允许关闭全部条件，执行 AST 则始终由非空条件构造。
+type ConditionDraft = Record<HandKind, boolean> & {
+  sum: number | null;
+  score: number | null;
+  pattern: string | null;
+};
+export const conditions = reactive<ConditionDraft>({
   straightFlush: true,
   quad: false,
   flush: false,
@@ -34,6 +57,28 @@ export const allowEarlyStop = ref(false);
 export const sumThreshold = shallowRef(20);
 export const scoreThreshold = shallowRef(900000);
 export const bpPattern = shallowRef('325');
+export const sumComparison = ref<Comparison>('greaterOrEqual');
+export const sumJoin = ref<'and' | 'or'>('or');
+const otherConditions = computed((): OtherConditions | null => {
+  const items: OtherCondition[] = handKinds
+    .filter((hand: HandKind): boolean => conditions[hand])
+    .map((hand: HandKind): OtherCondition => ({ kind: 'hand', hand }));
+  if (conditions.score !== null) items.push({ kind: 'score', threshold: scoreThreshold.value });
+  if (conditions.pattern !== null) items.push({ kind: 'pattern', pattern: bpPattern.value });
+  const [first, ...rest] = items;
+  return first ? { first, rest } : null;
+});
+export const hasOtherConditions = computed((): boolean => otherConditions.value !== null);
+export const executionConditions = computed((): Conditions | null => {
+  const other = otherConditions.value;
+  const sum =
+    conditions.sum !== null
+      ? { comparison: sumComparison.value, threshold: sumThreshold.value }
+      : null;
+  if (other && sum) return { kind: sumJoin.value, other, sum };
+  if (sum) return { kind: 'sum', condition: sum };
+  return other ? { kind: 'other', conditions: other } : null;
+});
 /** 教程只在本次应用会话内保留显示状态。 */
 export const showGambleBattleGuide = ref(true);
 const matched = shallowRef<MatchedHand[]>([]);

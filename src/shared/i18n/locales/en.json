@@ -77,6 +77,13 @@
     "allowEarlyStopDescription": "Allow stopping with fewer than five datapletes.",
     "blocked": "Another task is running",
     "conditions": {
+      "conjunctiveMatch": "{{other}} and {{sum}}",
+      "heading": "Stop conditions",
+      "join": {
+        "and": "And",
+        "label": "Combine conditions",
+        "or": "Or"
+      },
       "pattern": {
         "condition": "BP pattern contains: {value}",
         "input": "BP sequence (digits 1 to 5, length 1 to 5)",
@@ -93,13 +100,14 @@
         "threshold": "Score threshold"
       },
       "sum": {
-        "condition": "Total BP: {value} ≥ {{threshold}}",
-        "invalid": "Enter a whole number from 1 to 25.",
-        "label": "Total BP at least",
-        "matched": "Total BP {{total}} ≥ {{threshold}}",
-        "threshold": "BP threshold (1 to 25)"
+        "comparison": "Total BP comparison",
+        "condition": "Total BP: {value} {{comparison}} {{threshold}}",
+        "invalid": "Enter a whole number from {{min}} to {{max}}.",
+        "label": "Total BP",
+        "matched": "Total BP {{total}} {{comparison}} {{threshold}}",
+        "threshold": "BP threshold"
       },
-      "title": "Stop drawing when any of the following conditions is met"
+      "title": "Match any of these conditions"
     },
     "dataplete": "{{rank}} {{suit}}",
     "event": "Event",
@@ -170,8 +178,7 @@
       "title": "Finding missing archives"
     },
     "arena": {
-      "any": "any",
-      "autoStop": "Drawing stops automatically once {any} target is met.",
+      "autoStop": "Drawing stops when your stop conditions are met. Total BP can be required alongside the other conditions, or used as an alternative.",
       "chooseTargets": "Choose {targetHands}.",
       "open": "Open {screen} in Endfield.",
       "screen": "the Arena of Games card draw screen",

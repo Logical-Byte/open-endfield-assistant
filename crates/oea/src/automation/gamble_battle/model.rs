@@ -34,25 +34,74 @@ pub(crate) enum HandKind {
     Pair,
 }
 
-/// 启用的停止条件做析取，`None` 表示关闭对应的可选条件。
-#[derive(Debug, Clone, Default, Deserialize, Serialize, TS)]
+/// 战力点之和可用的比较符号。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "gambleBattle/")]
-pub(crate) struct Conditions {
-    pub straight_flush: bool,
-    pub quad: bool,
-    pub flush: bool,
-    pub full_house: bool,
-    pub straight: bool,
-    pub triplet: bool,
-    pub two_pair: bool,
-    pub pair: bool,
-    /// 战力点之和的下限。
-    pub sum: Option<u8>,
-    /// 分数的下限。
-    pub score: Option<u32>,
-    /// 按牌槽顺序拼接战力点后需要包含的子串，例如 `325`。
-    pub pattern: Option<String>,
+pub(crate) enum Comparison {
+    GreaterOrEqual,
+    Greater,
+    Equal,
+    Less,
+    LessOrEqual,
+}
+
+impl Comparison {
+    fn matches(self, total: u8, threshold: u8) -> bool {
+        match self {
+            Self::GreaterOrEqual => total >= threshold,
+            Self::Greater => total > threshold,
+            Self::Equal => total == threshold,
+            Self::Less => total < threshold,
+            Self::LessOrEqual => total <= threshold,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[ts(export, export_to = "gambleBattle/")]
+pub(crate) struct SumCondition {
+    pub comparison: Comparison,
+    pub threshold: u8,
+}
+
+/// 除战力点之和外的原子条件，组内始终做析取。
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[ts(export, export_to = "gambleBattle/")]
+pub(crate) enum OtherCondition {
+    Hand { hand: HandKind },
+    Score { threshold: u32 },
+    Pattern { pattern: String },
+}
+
+/// `first` 使条件组在 Rust、JSON 和生成的 TypeScript 中都不能为空。
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[ts(export, export_to = "gambleBattle/")]
+pub(crate) struct OtherConditions {
+    pub first: OtherCondition,
+    pub rest: Vec<OtherCondition>,
+}
+
+/// 固定四种合法结构，合取与析取节点必须同时携带非空条件组和战力点条件。
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "gambleBattle/")]
+pub(crate) enum Conditions {
+    Other {
+        conditions: OtherConditions,
+    },
+    Sum {
+        condition: SumCondition,
+    },
+    And {
+        other: OtherConditions,
+        sum: SumCondition,
+    },
+    Or {
+        other: OtherConditions,
+        sum: SumCondition,
+    },
 }
 
 /// 命中的停止条件，可以同时包含最终牌型、战力点之和、分数和战力点子串。
@@ -60,10 +109,21 @@ pub(crate) struct Conditions {
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[ts(export, export_to = "gambleBattle/")]
 pub(crate) enum StopReason {
-    Hand { hand: HandKind },
-    Sum { threshold: u8, total: u8 },
-    Score { threshold: u32, score: u32 },
-    Pattern { pattern: String },
+    Hand {
+        hand: HandKind,
+    },
+    Sum {
+        comparison: Comparison,
+        threshold: u8,
+        total: u8,
+    },
+    Score {
+        threshold: u32,
+        score: u32,
+    },
+    Pattern {
+        pattern: String,
+    },
 }
 
 /// 达成目标时保留的铭牌及识别截图。
@@ -79,6 +139,8 @@ pub(crate) struct MatchedHand {
     /// 生效牌型是否为当天的好运组合，是则得分已经翻倍。
     pub lucky: bool,
     pub reasons: Vec<StopReason>,
+    /// 命中理由中的其他条件与战力点之和是否必须同时成立。
+    pub conjunctive: bool,
     pub image: String,
 }
 
@@ -91,40 +153,58 @@ pub(crate) fn evaluate(
     lucky: HandKind,
     early_stop: bool,
 ) -> Vec<StopReason> {
-    let mut reasons = Vec::new();
     let hand = classify(cards);
-    if let Some(hand) = hand
-        && conditions.enables(hand)
-    {
-        reasons.push(StopReason::Hand { hand });
-        if early_stop {
-            return reasons;
-        }
-    }
     let total = total_bp(cards);
-    if let Some(threshold) = conditions.sum
-        && total >= threshold
-    {
-        reasons.push(StopReason::Sum { threshold, total });
-        if early_stop {
-            return reasons;
+    let mut reasons = Vec::new();
+    if let Some(other) = conditions.other() {
+        for condition in std::iter::once(&other.first).chain(&other.rest) {
+            match condition {
+                OtherCondition::Hand { hand: target } if hand == Some(*target) => {
+                    reasons.push(StopReason::Hand { hand: *target });
+                }
+                OtherCondition::Score { threshold } => {
+                    let score = score_of(total, hand, lucky);
+                    if score >= *threshold {
+                        reasons.push(StopReason::Score {
+                            threshold: *threshold,
+                            score,
+                        });
+                    }
+                }
+                OtherCondition::Pattern { pattern } if contains(cards, pattern) => {
+                    reasons.push(StopReason::Pattern {
+                        pattern: pattern.clone(),
+                    });
+                }
+                _ => {}
+            }
         }
     }
-    let score = score_of(total, hand, lucky);
-    if let Some(threshold) = conditions.score
-        && score >= threshold
-    {
-        reasons.push(StopReason::Score { threshold, score });
-        if early_stop {
-            return reasons;
-        }
+    let other_matches = !reasons.is_empty();
+    let matched_sum = conditions
+        .sum()
+        .filter(|sum| sum.comparison.matches(total, sum.threshold));
+    let sum_matches = matched_sum.is_some();
+    if matches!(conditions, Conditions::And { .. }) && !(other_matches && sum_matches) {
+        return Vec::new();
     }
-    if let Some(pattern) = &conditions.pattern
-        && contains(cards, pattern)
-    {
-        reasons.push(StopReason::Pattern {
-            pattern: pattern.clone(),
-        });
+    if let Some(sum) = matched_sum {
+        // 保持历史理由的显示顺序：牌型、战力点之和、分数、子串。
+        let index = reasons
+            .iter()
+            .take_while(|reason| matches!(reason, StopReason::Hand { .. }))
+            .count();
+        reasons.insert(
+            index,
+            StopReason::Sum {
+                comparison: sum.comparison,
+                threshold: sum.threshold,
+                total,
+            },
+        );
+    }
+    if early_stop {
+        reasons.truncate(1);
     }
     reasons
 }
@@ -274,49 +354,50 @@ fn valid_pattern(pattern: &str) -> bool {
 }
 
 impl Conditions {
-    /// 启动前校验，避免没有停止条件的抽牌循环。
-    pub(crate) fn validate(&self) -> Result<(), &'static str> {
-        if self
-            .sum
-            .is_some_and(|threshold| !(1..=25).contains(&threshold))
-        {
-            return Err("战力点阈值必须在 1 到 25 之间");
+    fn other(&self) -> Option<&OtherConditions> {
+        match self {
+            Self::Other { conditions } => Some(conditions),
+            Self::And { other, .. } | Self::Or { other, .. } => Some(other),
+            Self::Sum { .. } => None,
         }
-        if self.score.is_some_and(|threshold| threshold == 0) {
-            return Err("分数阈值必须大于 0");
-        }
-        if self
-            .pattern
-            .as_deref()
-            .is_some_and(|pattern| !valid_pattern(pattern))
-        {
-            return Err("战力点子串必须由 1 到 5 的数字组成，长度为 1 到 5");
-        }
-        let hand_enabled = self.straight_flush
-            || self.quad
-            || self.flush
-            || self.full_house
-            || self.straight
-            || self.triplet
-            || self.two_pair
-            || self.pair;
-        if !hand_enabled && self.sum.is_none() && self.score.is_none() && self.pattern.is_none() {
-            return Err("请至少启用一个停止条件");
-        }
-        Ok(())
     }
 
-    fn enables(&self, hand: HandKind) -> bool {
-        match hand {
-            HandKind::StraightFlush => self.straight_flush,
-            HandKind::Quad => self.quad,
-            HandKind::Flush => self.flush,
-            HandKind::FullHouse => self.full_house,
-            HandKind::Straight => self.straight,
-            HandKind::Triplet => self.triplet,
-            HandKind::TwoPair => self.two_pair,
-            HandKind::Pair => self.pair,
+    fn sum(&self) -> Option<&SumCondition> {
+        match self {
+            Self::Sum { condition } => Some(condition),
+            Self::And { sum, .. } | Self::Or { sum, .. } => Some(sum),
+            Self::Other { .. } => None,
         }
+    }
+
+    pub(crate) fn is_conjunctive(&self) -> bool {
+        matches!(self, Self::And { .. })
+    }
+
+    /// 结构由节点类型保证，启动前校验用户输入的值域。
+    pub(crate) fn validate(&self) -> Result<(), &'static str> {
+        if self.sum().is_some_and(|sum| {
+            let range = match sum.comparison {
+                Comparison::Less => 2..=25,
+                Comparison::Greater => 1..=24,
+                _ => 1..=25,
+            };
+            !range.contains(&sum.threshold)
+        }) {
+            return Err("战力点阈值超出当前比较符号允许的范围");
+        }
+        if let Some(other) = self.other() {
+            for condition in std::iter::once(&other.first).chain(&other.rest) {
+                match condition {
+                    OtherCondition::Score { threshold: 0 } => return Err("分数阈值必须大于 0"),
+                    OtherCondition::Pattern { pattern } if !valid_pattern(pattern) => {
+                        return Err("战力点子串必须由 1 到 5 的数字组成，长度为 1 到 5");
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -374,6 +455,197 @@ mod tests {
                 suit: mixed[slot],
             })
             .collect()
+    }
+
+    #[test]
+    fn limits_strict_comparisons_to_thresholds_that_can_match() {
+        for (comparison, valid, invalid) in [
+            (Comparison::Less, vec![2, 25], vec![0, 1, 26]),
+            (Comparison::Greater, vec![1, 24], vec![0, 25, 26]),
+            (Comparison::GreaterOrEqual, vec![1, 25], vec![0, 26]),
+            (Comparison::Equal, vec![1, 25], vec![0, 26]),
+            (Comparison::LessOrEqual, vec![1, 25], vec![0, 26]),
+        ] {
+            for (thresholds, expected) in [(valid, true), (invalid, false)] {
+                for threshold in thresholds {
+                    let conditions = Conditions::Sum {
+                        condition: SumCondition {
+                            comparison,
+                            threshold,
+                        },
+                    };
+                    assert_eq!(
+                        conditions.validate().is_ok(),
+                        expected,
+                        "{comparison:?} {threshold}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn compares_total_bp_on_both_sides_of_the_threshold() {
+        for (comparison, expected) in [
+            (Comparison::GreaterOrEqual, [false, true, true]),
+            (Comparison::Greater, [false, false, true]),
+            (Comparison::Equal, [false, true, false]),
+            (Comparison::Less, [true, false, false]),
+            (Comparison::LessOrEqual, [true, true, false]),
+        ] {
+            let conditions = Conditions::Sum {
+                condition: SumCondition {
+                    comparison,
+                    threshold: 10,
+                },
+            };
+            for (ranks, matches) in [[1, 1, 2, 2, 3], [1, 1, 2, 2, 4], [1, 1, 2, 2, 5]]
+                .into_iter()
+                .zip(expected)
+            {
+                for early_stop in [false, true] {
+                    let reasons =
+                        evaluate(&prefix(&ranks), &conditions, HandKind::Quad, early_stop);
+                    assert_eq!(!reasons.is_empty(), matches, "{comparison:?} {ranks:?}");
+                    if matches {
+                        assert_eq!(
+                            reasons,
+                            vec![StopReason::Sum {
+                                comparison,
+                                threshold: 10,
+                                total: ranks.iter().sum()
+                            }]
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn combines_the_other_group_with_the_sum_as_a_whole() {
+        let other = OtherConditions {
+            first: OtherCondition::Hand {
+                hand: HandKind::TwoPair,
+            },
+            rest: vec![OtherCondition::Pattern {
+                pattern: "555".into(),
+            }],
+        };
+        let sum = SumCondition {
+            comparison: Comparison::Less,
+            threshold: 10,
+        };
+        let and = Conditions::And {
+            other: other.clone(),
+            sum: sum.clone(),
+        };
+        let or = Conditions::Or { other, sum };
+        for (ranks, and_matches, or_matches) in [
+            (vec![1, 1, 2, 2, 3], true, true),
+            (vec![1, 1, 2, 2, 4], false, true),
+            (vec![1, 1, 1, 1, 1], false, true),
+            (vec![3, 3, 1, 4, 5], false, false),
+            (vec![5, 5, 5, 5, 5], false, true),
+        ] {
+            for early_stop in [false, true] {
+                assert_eq!(
+                    !evaluate(&prefix(&ranks), &and, HandKind::Quad, early_stop).is_empty(),
+                    and_matches
+                );
+                assert_eq!(
+                    !evaluate(&prefix(&ranks), &or, HandKind::Quad, early_stop).is_empty(),
+                    or_matches
+                );
+            }
+        }
+        assert_eq!(
+            evaluate(&prefix(&[1, 1, 2, 2, 3]), &and, HandKind::Quad, false).len(),
+            2
+        );
+    }
+
+    #[test]
+    fn checks_conjunction_before_abandoning_or_stopping_early() {
+        let other = OtherConditions {
+            first: OtherCondition::Hand {
+                hand: HandKind::Pair,
+            },
+            rest: vec![],
+        };
+        let sum = SumCondition {
+            comparison: Comparison::Less,
+            threshold: 5,
+        };
+        let and = Conditions::And {
+            other: other.clone(),
+            sum: sum.clone(),
+        };
+        let or = Conditions::Or { other, sum };
+        // 两张 1 已满足对子且小于 5，补满五张的最小总和为 5。
+        assert!(can_still_match(
+            &prefix(&[1, 1]),
+            &and,
+            HandKind::Quad,
+            true
+        ));
+        assert!(!can_still_match(
+            &prefix(&[1, 1]),
+            &and,
+            HandKind::Quad,
+            false
+        ));
+        assert!(can_still_match(
+            &prefix(&[1, 1]),
+            &or,
+            HandKind::Quad,
+            false
+        ));
+        // 三条无法在后续变成最终生效的对子，当前总和满足也不能误停。
+        assert!(!can_still_match(
+            &prefix(&[1, 1, 1]),
+            &and,
+            HandKind::Quad,
+            true
+        ));
+        let equal = Conditions::Sum {
+            condition: SumCondition {
+                comparison: Comparison::Equal,
+                threshold: 10,
+            },
+        };
+        assert!(can_still_match(
+            &prefix(&[1, 1, 2, 2]),
+            &equal,
+            HandKind::Quad,
+            false
+        ));
+        assert!(!can_still_match(
+            &prefix(&[5, 5, 1]),
+            &equal,
+            HandKind::Quad,
+            false
+        ));
+    }
+
+    #[test]
+    fn rejects_incomplete_or_misplaced_condition_nodes() {
+        for json in [
+            r#"{"kind":"and","sum":{"comparison":"less","threshold":10}}"#,
+            r#"{"kind":"or","other":{"rest":[]},"sum":{"comparison":"less","threshold":10}}"#,
+            r#"{"kind":"other","conditions":{"rest":[]}}"#,
+            r#"{"kind":"sum","condition":{"comparison":"unsupported","threshold":10}}"#,
+            r#"{"kind":"sum","condition":{"comparison":"less","threshold":10},"other":{"first":{"kind":"hand","hand":"pair"},"rest":[]}}"#,
+        ] {
+            assert!(serde_json::from_str::<Conditions>(json).is_err(), "{json}");
+        }
+        let valid = r#"{"kind":"and","other":{"first":{"kind":"hand","hand":"pair"},"rest":[]},"sum":{"comparison":"less","threshold":10}}"#;
+        assert!(
+            serde_json::from_str::<Conditions>(valid)
+                .unwrap()
+                .validate()
+                .is_ok()
+        );
     }
 
     #[test]
@@ -443,12 +715,21 @@ mod tests {
     #[test]
     fn mixed_five_card_hands_do_not_match_flush_or_inflate_scores() {
         let suits = [Suit::Bing, Suit::Bing, Suit::Bing, Suit::Bing, Suit::Tiao];
-        let conditions = Conditions {
-            straight_flush: true,
-            flush: true,
-            full_house: true,
-            score: Some(100_000),
-            ..Conditions::default()
+        let conditions = Conditions::Other {
+            conditions: OtherConditions {
+                first: OtherCondition::Hand {
+                    hand: HandKind::StraightFlush,
+                },
+                rest: vec![
+                    OtherCondition::Hand {
+                        hand: HandKind::Flush,
+                    },
+                    OtherCondition::Hand {
+                        hand: HandKind::FullHouse,
+                    },
+                    OtherCondition::Score { threshold: 100_000 },
+                ],
+            },
         };
         for (ranks, expected, expected_score) in [
             ([1, 2, 3, 4, 5], HandKind::Straight, 162_000),
@@ -484,9 +765,13 @@ mod tests {
 
     #[test]
     fn flush_conditions_respect_current_cards_and_remaining_draws() {
-        let conditions = Conditions {
-            flush: true,
-            ..Conditions::default()
+        let conditions = Conditions::Other {
+            conditions: OtherConditions {
+                first: OtherCondition::Hand {
+                    hand: HandKind::Flush,
+                },
+                rest: vec![],
+            },
         };
         let lucky = HandKind::Pair;
         let hand = cards([1, 1, 2, 3, 3], [Suit::Wan; 5]);
@@ -534,20 +819,40 @@ mod tests {
             [Suit::Bing, Suit::Tiao, Suit::Wan, Suit::Bing, Suit::Tiao],
         );
         let lucky = HandKind::Pair;
-        let mut conditions = Conditions {
-            two_pair: true,
-            ..Conditions::default()
+        let mut conditions = Conditions::Other {
+            conditions: OtherConditions {
+                first: OtherCondition::Hand {
+                    hand: HandKind::TwoPair,
+                },
+                rest: vec![],
+            },
         };
         assert!(evaluate(&hand, &conditions, lucky, false).is_empty());
-        conditions.sum = Some(12);
+        conditions = Conditions::Or {
+            other: OtherConditions {
+                first: OtherCondition::Hand {
+                    hand: HandKind::TwoPair,
+                },
+                rest: vec![],
+            },
+            sum: SumCondition {
+                comparison: Comparison::GreaterOrEqual,
+                threshold: 12,
+            },
+        };
         assert_eq!(
             evaluate(&hand, &conditions, lucky, false),
             vec![StopReason::Sum {
+                comparison: Comparison::GreaterOrEqual,
                 threshold: 12,
                 total: 12
             }]
         );
-        conditions.full_house = true;
+        if let Conditions::Or { other, .. } = &mut conditions {
+            other.rest.push(OtherCondition::Hand {
+                hand: HandKind::FullHouse,
+            });
+        }
         assert_eq!(
             evaluate(&hand, &conditions, lucky, false),
             vec![
@@ -555,12 +860,15 @@ mod tests {
                     hand: HandKind::FullHouse
                 },
                 StopReason::Sum {
+                    comparison: Comparison::GreaterOrEqual,
                     threshold: 12,
                     total: 12
                 },
             ]
         );
-        conditions.sum = Some(13);
+        if let Conditions::Or { sum, .. } = &mut conditions {
+            sum.threshold = 13;
+        }
         assert_eq!(
             evaluate(&hand, &conditions, lucky, false),
             vec![StopReason::Hand {
@@ -572,18 +880,29 @@ mod tests {
     #[test]
     fn evaluates_conditions_on_the_current_prefix() {
         let hand = prefix(&[2, 2, 2]);
-        let conditions = Conditions {
-            pair: true,
-            sum: Some(6),
-            score: Some(64_000),
-            pattern: Some("22".into()),
-            ..Conditions::default()
+        let conditions = Conditions::Or {
+            other: OtherConditions {
+                first: OtherCondition::Hand {
+                    hand: HandKind::Pair,
+                },
+                rest: vec![
+                    OtherCondition::Score { threshold: 64_000 },
+                    OtherCondition::Pattern {
+                        pattern: "22".into(),
+                    },
+                ],
+            },
+            sum: SumCondition {
+                comparison: Comparison::GreaterOrEqual,
+                threshold: 6,
+            },
         };
         // 三条不命中对子。6 点基础分 20000，三条倍率 1.6，好运组合再翻倍。
         assert_eq!(
             evaluate(&hand, &conditions, HandKind::Triplet, false),
             vec![
                 StopReason::Sum {
+                    comparison: Comparison::GreaterOrEqual,
                     threshold: 6,
                     total: 6
                 },
@@ -612,26 +931,38 @@ mod tests {
 
     #[test]
     fn requires_an_enabled_condition_and_an_in_range_sum_threshold() {
-        assert!(Conditions::default().validate().is_err());
         for threshold in [0, 26, 255] {
-            let conditions = Conditions {
-                pair: true,
-                sum: Some(threshold),
-                ..Conditions::default()
+            let conditions = Conditions::Or {
+                other: OtherConditions {
+                    first: OtherCondition::Hand {
+                        hand: HandKind::Pair,
+                    },
+                    rest: vec![],
+                },
+                sum: SumCondition {
+                    comparison: Comparison::GreaterOrEqual,
+                    threshold,
+                },
             };
             assert!(conditions.validate().is_err());
         }
         for threshold in [1, 25] {
-            let conditions = Conditions {
-                sum: Some(threshold),
-                ..Conditions::default()
+            let conditions = Conditions::Sum {
+                condition: SumCondition {
+                    comparison: Comparison::GreaterOrEqual,
+                    threshold,
+                },
             };
             assert!(conditions.validate().is_ok());
         }
         assert!(
-            Conditions {
-                flush: true,
-                ..Conditions::default()
+            Conditions::Other {
+                conditions: OtherConditions {
+                    first: OtherCondition::Hand {
+                        hand: HandKind::Flush
+                    },
+                    rest: vec![]
+                }
             }
             .validate()
             .is_ok()
@@ -671,9 +1002,11 @@ mod tests {
     #[test]
     fn keeps_only_completions_that_can_still_hit_the_score_target() {
         // 900000 分是 25 点四条的上限，只有四条 5 和补 5 点的四条 4 能命中。
-        let conditions = Conditions {
-            score: Some(900_000),
-            ..Conditions::default()
+        let conditions = Conditions::Other {
+            conditions: OtherConditions {
+                first: OtherCondition::Score { threshold: 900_000 },
+                rest: vec![],
+            },
         };
         let lucky = HandKind::Triplet;
         for (ranks, expected) in [
@@ -708,9 +1041,11 @@ mod tests {
     #[test]
     fn accounts_for_the_lucky_hand_when_checking_remaining_draws() {
         // 好运组合为四条时得分翻倍，四条只需 14 点即可达到 900000 分。
-        let conditions = Conditions {
-            score: Some(900_000),
-            ..Conditions::default()
+        let conditions = Conditions::Other {
+            conditions: OtherConditions {
+                first: OtherCondition::Score { threshold: 900_000 },
+                rest: vec![],
+            },
         };
         for (ranks, expected) in [
             (vec![1, 2], false),
@@ -730,9 +1065,11 @@ mod tests {
 
     #[test]
     fn checks_sum_and_pattern_conditions_with_remaining_draws() {
-        let sum = Conditions {
-            sum: Some(20),
-            ..Conditions::default()
+        let sum = Conditions::Sum {
+            condition: SumCondition {
+                comparison: Comparison::GreaterOrEqual,
+                threshold: 20,
+            },
         };
         for (ranks, expected) in [
             (vec![1, 2], false),
@@ -745,9 +1082,13 @@ mod tests {
                 "{ranks:?}"
             );
         }
-        let pattern = Conditions {
-            pattern: Some("5555".into()),
-            ..Conditions::default()
+        let pattern = Conditions::Other {
+            conditions: OtherConditions {
+                first: OtherCondition::Pattern {
+                    pattern: "5555".into(),
+                },
+                rest: vec![],
+            },
         };
         for (ranks, expected) in [
             (vec![5, 5, 1], false),
@@ -765,22 +1106,42 @@ mod tests {
     #[test]
     fn early_stop_preserves_whether_any_condition_matches() {
         let condition_sets = [
-            Conditions {
-                score: Some(900_000),
-                ..Conditions::default()
+            Conditions::Other {
+                conditions: OtherConditions {
+                    first: OtherCondition::Score { threshold: 900_000 },
+                    rest: vec![],
+                },
             },
-            Conditions {
-                quad: true,
-                sum: Some(18),
-                score: Some(300_000),
-                pattern: Some("25".into()),
-                ..Conditions::default()
+            Conditions::Or {
+                other: OtherConditions {
+                    first: OtherCondition::Hand {
+                        hand: HandKind::Quad,
+                    },
+                    rest: vec![
+                        OtherCondition::Score { threshold: 300_000 },
+                        OtherCondition::Pattern {
+                            pattern: "25".into(),
+                        },
+                    ],
+                },
+                sum: SumCondition {
+                    comparison: Comparison::GreaterOrEqual,
+                    threshold: 18,
+                },
             },
-            Conditions {
-                straight_flush: true,
-                full_house: true,
-                sum: Some(20),
-                ..Conditions::default()
+            Conditions::Or {
+                other: OtherConditions {
+                    first: OtherCondition::Hand {
+                        hand: HandKind::StraightFlush,
+                    },
+                    rest: vec![OtherCondition::Hand {
+                        hand: HandKind::FullHouse,
+                    }],
+                },
+                sum: SumCondition {
+                    comparison: Comparison::GreaterOrEqual,
+                    threshold: 20,
+                },
             },
         ];
         let all_same = [Suit::Bing; 5];
@@ -829,9 +1190,13 @@ mod tests {
             [Suit::Bing, Suit::Tiao, Suit::Wan, Suit::Bing, Suit::Tiao],
         );
         let lucky = HandKind::Quad;
-        let mut conditions = Conditions {
-            pattern: Some("325".into()),
-            ..Conditions::default()
+        let mut conditions = Conditions::Other {
+            conditions: OtherConditions {
+                first: OtherCondition::Pattern {
+                    pattern: "325".into(),
+                },
+                rest: vec![],
+            },
         };
         assert_eq!(
             evaluate(&hand, &conditions, lucky, false),
@@ -839,9 +1204,16 @@ mod tests {
                 pattern: "325".into()
             }]
         );
-        conditions.pattern = Some("235".into());
+        if let Conditions::Other { conditions } = &mut conditions {
+            conditions.first = OtherCondition::Pattern {
+                pattern: "235".into(),
+            };
+        }
         assert!(evaluate(&hand, &conditions, lucky, false).is_empty());
-        conditions.score = Some(72_000);
+        if let Conditions::Other { conditions } = &mut conditions {
+            conditions.rest.push(conditions.first.clone());
+            conditions.first = OtherCondition::Score { threshold: 72_000 };
+        }
         assert_eq!(
             evaluate(&hand, &conditions, lucky, false),
             vec![StopReason::Score {
@@ -849,34 +1221,50 @@ mod tests {
                 score: 72_000
             }]
         );
-        conditions.score = Some(72_001);
+        if let Conditions::Other { conditions } = &mut conditions {
+            conditions.first = OtherCondition::Score { threshold: 72_001 };
+        }
         assert!(evaluate(&hand, &conditions, lucky, false).is_empty());
     }
 
     #[test]
     fn rejects_out_of_range_score_and_malformed_pattern() {
         for pattern in ["", "0", "6", "123456", "12a", "12 3"] {
-            let conditions = Conditions {
-                pattern: Some(pattern.into()),
-                ..Conditions::default()
+            let conditions = Conditions::Other {
+                conditions: OtherConditions {
+                    first: OtherCondition::Pattern {
+                        pattern: pattern.into(),
+                    },
+                    rest: vec![],
+                },
             };
             assert!(conditions.validate().is_err(), "{pattern:?}");
         }
         for pattern in ["1", "325", "12345"] {
-            let conditions = Conditions {
-                pattern: Some(pattern.into()),
-                ..Conditions::default()
+            let conditions = Conditions::Other {
+                conditions: OtherConditions {
+                    first: OtherCondition::Pattern {
+                        pattern: pattern.into(),
+                    },
+                    rest: vec![],
+                },
             };
             assert!(conditions.validate().is_ok(), "{pattern:?}");
         }
-        let conditions = Conditions {
-            score: Some(0),
-            ..Conditions::default()
+        let conditions = Conditions::Other {
+            conditions: OtherConditions {
+                first: OtherCondition::Score { threshold: 0 },
+                rest: vec![],
+            },
         };
         assert!(conditions.validate().is_err());
-        let conditions = Conditions {
-            score: Some(u32::MAX),
-            ..Conditions::default()
+        let conditions = Conditions::Other {
+            conditions: OtherConditions {
+                first: OtherCondition::Score {
+                    threshold: u32::MAX,
+                },
+                rest: vec![],
+            },
         };
         assert!(conditions.validate().is_ok());
     }

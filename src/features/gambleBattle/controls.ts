@@ -4,10 +4,12 @@ import {
   allowEarlyStop,
   bpPattern,
   conditions,
-  handKinds,
+  executionConditions,
   scoreThreshold,
   sumThreshold,
+  sumComparison,
 } from './state';
+import { sumThresholdRange } from './comparison';
 import { gambleBattleWorkerType } from './workerType';
 import { useAppI18n } from '@/shared/i18n';
 import { useTranslatedToast } from '@/shared/i18n/toast';
@@ -29,18 +31,14 @@ export function useGambleBattleControls(): {
   const { canStart, tryStart, tryStop } = task;
   const { t } = useAppI18n();
   const toast = useTranslatedToast();
-  const hasCondition = computed(
-    (): boolean =>
-      handKinds.some((hand): boolean => conditions[hand]) ||
-      conditions.sum !== null ||
-      conditions.score !== null ||
-      conditions.pattern !== null,
-  );
-  const sumValid = computed(
-    (): boolean =>
-      conditions.sum === null ||
-      (Number.isInteger(sumThreshold.value) && sumThreshold.value >= 1 && sumThreshold.value <= 25),
-  );
+  const hasCondition = computed((): boolean => executionConditions.value !== null);
+  const sumValid = computed((): boolean => {
+    if (conditions.sum === null) return true;
+    const { min, max } = sumThresholdRange(sumComparison.value);
+    return (
+      Number.isInteger(sumThreshold.value) && sumThreshold.value >= min && sumThreshold.value <= max
+    );
+  });
   const scoreValid = computed(
     (): boolean =>
       conditions.score === null ||
@@ -57,9 +55,10 @@ export function useGambleBattleControls(): {
     submitting.value = true;
     try {
       if (canStart.value) {
-        if (!hasCondition.value || !inputsValid.value) return;
+        const execution = executionConditions.value;
+        if (!execution || !inputsValid.value) return;
         await tryStart({
-          conditions: { ...conditions },
+          conditions: execution,
           allowEarlyStop: allowEarlyStop.value,
           workerType: gambleBattleWorkerType.value,
         });

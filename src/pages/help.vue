@@ -224,13 +224,7 @@ onBeforeUnmount(() => {
           </li>
           <li class="flex items-baseline gap-3">
             <span class="w-6 flex-none text-end text-primary tabular-nums">4.</span
-            ><span
-              ><TranslationComponent :translation="t('help.arena.autoStop')"
-                ><template #any
-                  ><strong class="text-primary">{{ t('help.arena.any') }}</strong></template
-                ></TranslationComponent
-              ></span
-            >
+            ><span>{{ t('help.arena.autoStop') }}</span>
           </li>
         </ol>
       </WorkspaceSection>

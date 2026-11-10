@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, type DeepReadonly } from 'vue';
 import { TranslationComponent } from 'i18next-vue';
+import { comparisonSymbols } from '@/features/gambleBattle/comparison';
 import { useAppI18n } from '@/shared/i18n';
 import { openImagePreview } from '@/composables/image-preview';
 import type { MatchedHand, StopReason } from '@/shared/types/gambleBattle';
@@ -9,20 +10,59 @@ const props = defineProps<{ match: DeepReadonly<MatchedHand>; index: number }>()
 const expanded = defineModel<boolean>('expanded', { default: false });
 const screenshotExpanded = ref(false);
 const { t, n } = useAppI18n();
-const summary = computed((): string => {
-  const firstReason = props.match.reasons[0];
-  return firstReason ? reasonLabel(firstReason) : '';
+const summaryReasons = computed((): DeepReadonly<StopReason>[] => {
+  if (props.match.conjunctive) {
+    const other = props.match.reasons.find(
+      (reason: DeepReadonly<StopReason>): boolean => reason.kind !== 'sum',
+    );
+    const sum = props.match.reasons.find(
+      (
+        reason: DeepReadonly<StopReason>,
+      ): reason is DeepReadonly<Extract<StopReason, { kind: 'sum' }>> => reason.kind === 'sum',
+    );
+    if (other && sum) return [other, sum];
+  }
+  return props.match.reasons.slice(0, 1);
 });
+const summary = computed((): string => {
+  const [other, sum] = summaryReasons.value;
+  if (other && sum)
+    return t('gambleBattle.conditions.conjunctiveMatch', {
+      other: reasonLabel(other),
+      sum: reasonLabel(sum),
+    });
+  return other ? reasonLabel(other) : '';
+});
+const additionalReasonCount = computed(
+  (): number => props.match.reasons.length - summaryReasons.value.length,
+);
 const total = computed((): number =>
   props.match.cards.reduce((sum, card): number => sum + card.rank, 0),
 );
 const handMatched = computed((): boolean =>
   props.match.reasons.some((reason): boolean => reason.kind === 'hand'),
 );
-const sumReason = computed(() => props.match.reasons.find((reason) => reason.kind === 'sum'));
-const scoreReason = computed(() => props.match.reasons.find((reason) => reason.kind === 'score'));
+const sumReason = computed(() =>
+  props.match.reasons.find(
+    (
+      reason: DeepReadonly<StopReason>,
+    ): reason is DeepReadonly<Extract<StopReason, { kind: 'sum' }>> => reason.kind === 'sum',
+  ),
+);
+const scoreReason = computed(() =>
+  props.match.reasons.find(
+    (
+      reason: DeepReadonly<StopReason>,
+    ): reason is DeepReadonly<Extract<StopReason, { kind: 'score' }>> => reason.kind === 'score',
+  ),
+);
 const patternReason = computed(() =>
-  props.match.reasons.find((reason) => reason.kind === 'pattern'),
+  props.match.reasons.find(
+    (
+      reason: DeepReadonly<StopReason>,
+    ): reason is DeepReadonly<Extract<StopReason, { kind: 'pattern' }>> =>
+      reason.kind === 'pattern',
+  ),
 );
 
 function reasonLabel(reason: DeepReadonly<StopReason>): string {
@@ -31,6 +71,7 @@ function reasonLabel(reason: DeepReadonly<StopReason>): string {
       return t(`gambleBattle.hand.names.${reason.hand}`);
     case 'sum':
       return t('gambleBattle.conditions.sum.matched', {
+        comparison: comparisonSymbols[reason.comparison],
         threshold: n(reason.threshold),
         total: n(reason.total),
       });
@@ -72,13 +113,13 @@ function previewMatch(): void {
         <span class="flex min-w-0 flex-1 items-center gap-2">
           <span class="truncate" :title="summary">{{ summary }}</span>
           <UBadge
-            v-if="match.reasons.length > 1"
+            v-if="additionalReasonCount > 0"
             class="shrink-0"
             color="success"
             size="sm"
             variant="subtle"
           >
-            +{{ n(match.reasons.length - 1) }}
+            +{{ n(additionalReasonCount) }}
           </UBadge>
         </span>
         <UIcon
@@ -145,6 +186,7 @@ function previewMatch(): void {
                 :translation="
                   sumReason
                     ? t('gambleBattle.conditions.sum.condition', {
+                        comparison: comparisonSymbols[sumReason.comparison],
                         threshold: n(sumReason.threshold),
                       })
                     : t('gambleBattle.matched.total', { total: '{value}' })
