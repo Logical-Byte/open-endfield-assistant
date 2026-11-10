@@ -281,7 +281,9 @@
   "monitor": {
     "empty": "尚无游戏画面，请先启动游戏。",
     "format": "截图格式",
+    "formatLabel": "格式",
     "frameRate": "截图帧率",
+    "frameRateLabel": "帧率",
     "imageAlt": "游戏画面监控",
     "running": "正以 {{fps}} FPS 监控。",
     "start": "开始监控",

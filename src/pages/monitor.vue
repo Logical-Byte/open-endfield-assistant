@@ -123,18 +123,24 @@ onBeforeUnmount(stopMonitor);
   <WorkspaceCard body-class="flex flex-col gap-3 p-3" class="h-full">
     <template #header>
       <div class="flex flex-wrap items-center gap-2">
-        <USelect
-          v-model="fps"
-          :aria-label="t('monitor.frameRate')"
-          class="w-32"
-          :items="fpsOptions"
-        />
-        <USelect
-          v-model="format"
-          :aria-label="t('monitor.format')"
-          class="w-28"
-          :items="formatOptions"
-        />
+        <label class="flex items-center gap-2">
+          <span class="text-xs text-muted">{{ t('monitor.frameRateLabel') }}</span>
+          <USelect
+            v-model="fps"
+            :aria-label="t('monitor.frameRate')"
+            class="w-32"
+            :items="fpsOptions"
+          />
+        </label>
+        <label class="flex items-center gap-2">
+          <span class="text-xs text-muted">{{ t('monitor.formatLabel') }}</span>
+          <USelect
+            v-model="format"
+            :aria-label="t('monitor.format')"
+            class="w-28"
+            :items="formatOptions"
+          />
+        </label>
 
         <UButton
           v-if="!running"

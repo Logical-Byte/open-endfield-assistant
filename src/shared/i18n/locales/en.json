@@ -281,7 +281,9 @@
   "monitor": {
     "empty": "No game image yet. Open the game first.",
     "format": "Screenshot format",
+    "formatLabel": "Format",
     "frameRate": "Capture frame rate",
+    "frameRateLabel": "Frame rate",
     "imageAlt": "Game window monitor",
     "running": "Monitoring at {{fps}} FPS.",
     "start": "Start monitoring",
