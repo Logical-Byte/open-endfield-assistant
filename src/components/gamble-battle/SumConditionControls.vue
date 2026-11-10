@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, useId } from 'vue';
 import { useAppI18n } from '@/shared/i18n';
 import type { Comparison } from '@/shared/types/gambleBattle';
 import { comparisonSymbols } from '@/features/gambleBattle/comparison';
@@ -10,6 +10,7 @@ const threshold = defineModel<number>('threshold', { required: true });
 const comparison = defineModel<Comparison>('comparison', { required: true });
 const join = defineModel<'and' | 'or'>('join', { required: true });
 const { t } = useAppI18n();
+const switchId = useId();
 const comparisons = (Object.keys(comparisonSymbols) as Comparison[]).map(
   (value: Comparison): { value: Comparison; label: string } => ({
     value,
@@ -45,6 +46,14 @@ function cancel(element: Element): void {
 <template>
   <div class="rounded-lg border border-default p-2">
     <div class="flex flex-wrap items-center gap-2">
+      <USwitch
+        :id="switchId"
+        v-model="enabled"
+        :aria-label="t('gambleBattle.conditions.sum.label')"
+        class="shrink-0"
+        :disabled="props.disabled"
+        size="sm"
+      />
       <Transition
         :css="false"
         @enter="(element: Element, done: () => void) => animateJoin(element, done, true)"
@@ -64,13 +73,9 @@ function cancel(element: Element): void {
           </span>
         </span>
       </Transition>
-      <USwitch
-        v-model="enabled"
-        class="shrink-0"
-        :disabled="props.disabled"
-        :label="t('gambleBattle.conditions.sum.label')"
-        size="sm"
-      />
+      <label class="shrink-0 text-sm text-highlighted" :for="switchId">
+        {{ t('gambleBattle.conditions.sum.label') }}
+      </label>
       <div class="flex min-w-0 items-center gap-2">
         <USelect
           v-model="comparison"
