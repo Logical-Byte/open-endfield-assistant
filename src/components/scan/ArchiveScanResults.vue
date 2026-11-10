@@ -41,6 +41,7 @@ const {
   revealArchive,
 } = useArchiveScanResults();
 const { isActive } = useAutomationTask('archiveScan');
+const clearOpen = ref(false);
 const toast = useToast();
 const translatedToast = useTranslatedToast();
 const selectedArchiveId: Ref<ArchiveId | null> = ref(null);
@@ -187,6 +188,8 @@ async function locateArchive(id: ArchiveId): Promise<void> {
   if (index >= 0) archiveList.value?.virtualizer?.scrollToIndex(index, { align: 'start' });
 }
 function clearScans(): void {
+  if (isActive.value) return;
+  clearOpen.value = false;
   clearRecords();
   stopArchiveHighlight();
   stopScanHighlight();
@@ -362,18 +365,45 @@ watch(scans, (): void => {
                 :variant="scanFilter === option.value ? 'subtle' : 'outline'"
                 @click="scanFilter = option.value"
                 >{{ option.label }} {{ n(option.count) }}</UButton
-              ><UTooltip :text="t('scan.results.clear')"
-                ><UButton
+              ><UPopover v-model:open="clearOpen" class="ml-auto" :content="{ align: 'end' }">
+                <UButton
                   :aria-label="t('scan.results.clear')"
-                  class="ml-auto"
                   color="neutral"
                   :disabled="isActive"
                   icon="i-lucide-trash-2"
                   :label="t('common.clear')"
                   size="xs"
                   variant="outline"
-                  @click="clearScans"
-              /></UTooltip>
+                />
+                <template #content>
+                  <div class="w-72 space-y-3 p-3">
+                    <div class="space-y-1">
+                      <p class="text-sm font-semibold">
+                        {{ t('scan.results.clearConfirm.title') }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        {{ t('scan.results.clearConfirm.body', { total: n(scans.length) }) }}
+                      </p>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                      <UButton
+                        color="neutral"
+                        :label="t('common.cancel')"
+                        size="xs"
+                        variant="outline"
+                        @click="clearOpen = false"
+                      />
+                      <UButton
+                        color="error"
+                        :disabled="isActive"
+                        :label="t('scan.results.clearConfirm.confirm')"
+                        size="xs"
+                        @click="clearScans"
+                      />
+                    </div>
+                  </div>
+                </template>
+              </UPopover>
             </div>
             <div class="flex gap-2">
               <UInput

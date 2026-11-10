@@ -281,7 +281,9 @@
   "monitor": {
     "empty": "No game image yet. Open the game first.",
     "format": "Screenshot format",
+    "formatLabel": "Format",
     "frameRate": "Capture frame rate",
+    "frameRateLabel": "Frame rate",
     "imageAlt": "Game window monitor",
     "running": "Monitoring at {{fps}} FPS.",
     "start": "Start monitoring",
@@ -403,6 +405,11 @@
     "results": {
       "allMatched": "All scan results are matched",
       "clear": "Clear scan results",
+      "clearConfirm": {
+        "body": "This clears all {{total}} scan records, including manual matches.",
+        "confirm": "Clear",
+        "title": "Clear scan results?"
+      },
       "count": "Showing {{visible}} of {{total}} scans",
       "empty": "No scans match these filters",
       "search": "Search scan results",
