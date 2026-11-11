@@ -49,10 +49,17 @@ struct Recognition {
 fn normalize_screenshot(
     image: image::RgbaImage,
 ) -> Result<image::RgbaImage, game_environment::Error> {
-    game_environment::ResolutionTransform::new(game_environment::Resolution::new(
-        image.width(),
-        image.height(),
-    )?)?
+    let (width, height) = (image.width(), image.height());
+    game_environment::ResolutionTransform::new(
+        game_environment::Resolution::new(width, height)?,
+        // 本地截图已经是裁剪好的游戏画面，内容区域等于整张图。
+        oea_window::ContentRect {
+            x: 0,
+            y: 0,
+            width,
+            height,
+        },
+    )?
     .to_canonical_image(image)
 }
 

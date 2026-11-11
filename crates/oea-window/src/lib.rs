@@ -25,11 +25,40 @@ pub struct ClientSize {
     pub height: u32,
 }
 
-/// 精确匹配窗口条件，指定的条件必须同时满足。未指定的字段不参与匹配。
+/// 窗口内容区域在客户区中的位置与尺寸，使用物理像素。
+///
+/// 浏览器窗口的客户区还包含自绘的标签栏与地址栏，游戏画面只占据其中的网页视口。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ContentRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// 内容区域的判定方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContentKind {
+    /// 整个客户区，例如原生游戏客户端。
+    Client,
+    /// 浏览器网页视口，排除标签栏、地址栏等浏览器自身界面。
+    BrowserViewport,
+}
+
+/// 窗口标题匹配方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TitleMatch<'a> {
+    /// 与窗口标题完全一致。
+    Exact(&'a str),
+    /// 窗口标题包含指定文本。浏览器会改写标题，云游戏只能按包含匹配。
+    Contains(&'a str),
+}
+
+/// 匹配窗口条件，指定的条件必须同时满足。未指定的字段不参与匹配。
 #[derive(Debug, Default, Clone, Copy)]
 pub struct WindowQuery<'a> {
     pub class_name: Option<&'a str>,
-    pub title: Option<&'a str>,
+    pub title: Option<TitleMatch<'a>>,
 }
 
 /// 查找第一个匹配的顶层窗口，未找到返回 `None`。
@@ -65,11 +94,10 @@ impl Window {
         {
             let _dpi = windows::DpiContext::enter()?;
             windows::validate(*self)?;
-            let rect = windows::window::get_client_rect(*self)?;
-            anyhow::ensure!(rect.width() > 0 && rect.height() > 0, "窗口客户区尺寸无效");
+            let (width, height) = windows::window::client_size(*self)?;
             Ok(ClientSize {
-                width: rect.width() as u32,
-                height: rect.height() as u32,
+                width: width as u32,
+                height: height as u32,
             })
         }
         #[cfg(not(windows))]
@@ -108,12 +136,14 @@ impl Window {
         }
     }
 
-    /// 尝试激活目标窗口并移到 Z 序顶部，沿用现有前台激活逻辑。
+    /// 请求激活目标窗口并移到 Z 序顶部，不设置始终置顶。
+    ///
+    /// 请求可能异步完成，返回成功不保证已成为前台窗口。
     pub fn activate(&self) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             windows::validate(*self)?;
-            windows::window::ensure_foreground_and_topmost(*self)
+            windows::window::request_activation(*self)
         }
         #[cfg(not(windows))]
         {
@@ -121,11 +151,11 @@ impl Window {
         }
     }
 
-    /// 窗口最小化时将其恢复。
+    /// 窗口最小化时将其恢复，并等待最小化状态结束。
     pub fn restore_if_minimized(&self) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
-            windows::window::restore_window_if_minimized(*self)
+            windows::window::restore_if_minimized(*self)
         }
         #[cfg(not(windows))]
         {
@@ -133,13 +163,16 @@ impl Window {
         }
     }
 
-    /// 恢复最小化或最大化窗口并退出全屏，等待游戏完成窗口化。
-    pub fn ensure_windowed(&self) -> anyhow::Result<()> {
+    /// 按 Unity 的 `Alt+Enter` 协议退出全屏，等待窗口化几何恢复。
+    ///
+    /// 仅适用于支持该协议的 Unity 窗口。先恢复最小化或最大化，
+    /// 全屏时激活窗口并发送组合键，准备失败或等待超时返回错误。
+    pub fn ensure_unity_windowed(&self) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             let _dpi = windows::DpiContext::enter()?;
             windows::validate(*self)?;
-            windows::window::ensure_windowed(*self)
+            windows::window::ensure_unity_windowed(*self)
         }
         #[cfg(not(windows))]
         {
@@ -148,12 +181,14 @@ impl Window {
     }
 
     /// 将客户区调整为指定物理像素尺寸，并等待尺寸连续稳定。
-    pub fn resize_windowed_client(&self, width: i32, height: i32) -> anyhow::Result<()> {
+    ///
+    /// 调用方应先完成目标窗口的窗口化过渡。此方法不激活窗口、不退出全屏。
+    pub fn resize_client(&self, width: i32, height: i32) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             let _dpi = windows::DpiContext::enter()?;
             windows::validate(*self)?;
-            windows::window::resize_windowed_client(*self, width, height)
+            windows::window::resize_client(*self, width, height)
         }
         #[cfg(not(windows))]
         {
@@ -162,12 +197,52 @@ impl Window {
         }
     }
 
-    /// 将客户区移回显示器工作区，可选择保留尺寸。跳过最小化和最大化窗口。
-    pub fn ensure_on_screen(&self, preserve_size: bool) -> anyhow::Result<()> {
+    /// 读取内容区域在客户区中的矩形，不缓存。
+    ///
+    /// `ContentKind::BrowserViewport` 通过 UI Automation 读取网页视口，读不到时返回错误。
+    pub fn content_rect(&self, kind: ContentKind) -> anyhow::Result<ContentRect> {
         #[cfg(windows)]
         {
             let _dpi = windows::DpiContext::enter()?;
-            windows::window::ensure_window_on_screen(*self, preserve_size)
+            windows::validate(*self)?;
+            windows::window::content_rect(*self, kind)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = kind;
+            Err(unsupported())
+        }
+    }
+
+    /// 调整 Chromium 窗口，使网页视口的物理像素尺寸等于指定尺寸并保持稳定。
+    ///
+    /// 浏览器窗口的客户区包含自绘的工具栏，外框尺寸由实测的视口偏移反推，
+    /// 不能使用 `AdjustWindowRectExForDpi` 预测。先恢复最小化或最大化窗口，
+    /// 全屏时激活窗口并长按 `Esc` 退出。退出失败、读不到视口或尺寸不稳定时返回错误。
+    pub fn resize_chromium_viewport(&self, width: i32, height: i32) -> anyhow::Result<()> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::validate(*self)?;
+            windows::window::resize_viewport(*self, width, height)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (width, height);
+            Err(unsupported())
+        }
+    }
+
+    /// 调整客户区相对显示器工作区的位置。跳过最小化和最大化窗口。
+    ///
+    /// `preserve_size` 为 `false` 时，允许缩小超出工作区的客户区并等待尺寸稳定。
+    /// 为 `true` 时只移动，客户区过大时仍可能部分超出工作区。
+    /// 移动请求异步提交，不检查其他窗口遮挡，不保证返回时已完整可见。
+    pub fn adjust_client_to_work_area(&self, preserve_size: bool) -> anyhow::Result<()> {
+        #[cfg(windows)]
+        {
+            let _dpi = windows::DpiContext::enter()?;
+            windows::window::adjust_client_to_work_area(*self, preserve_size)
         }
         #[cfg(not(windows))]
         {
@@ -181,7 +256,7 @@ impl Window {
         #[cfg(windows)]
         {
             windows::validate(*self)?;
-            windows::window::hdr::is_hdr_enabled_on_window_monitor(*self)
+            windows::window::is_hdr_enabled_on_window_monitor(*self)
         }
         #[cfg(not(windows))]
         {

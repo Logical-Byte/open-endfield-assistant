@@ -69,11 +69,7 @@ impl TaskHotkeyScope {
             if self.app_window.is_foreground().unwrap_or(false) {
                 return true;
             }
-            oea_window::search(game_environment::window_query())
-                .ok()
-                .flatten()
-                .and_then(|window| window.is_foreground().ok())
-                .unwrap_or(false)
+            game_environment::is_game_window_foreground()
         }
         #[cfg(not(windows))]
         {

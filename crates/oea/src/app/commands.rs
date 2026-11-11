@@ -197,13 +197,8 @@ pub async fn screenshot(
     height: u32,
     format: ScreenshotFormat,
 ) -> Result<String, ScreenshotError> {
-    let environment = game_environment::connect(game_environment::Requirements {
-        restore_if_minimized: false,
-        ensure_on_screen: false,
-        hdr_disabled: false,
-        windowed_720p: false,
-    })
-    .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
+    let environment = game_environment::connect(game_environment::ConnectionMode::Monitor)
+        .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
 
     // 截图
     let raw = environment.window.screenshot().map_err(|error| {
@@ -211,9 +206,15 @@ pub async fn screenshot(
         ScreenshotError::CaptureFailed
     })?;
 
+    // 裁出游戏画面区域并归一化到 1280×720：云游戏还需要排除浏览器工具栏。
+    let canonical = environment
+        .transform
+        .to_canonical_image(raw)
+        .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
+
     // 缩放到指定尺寸
     let resized = imageops::resize(
-        &raw,
+        &canonical,
         width.max(1),
         height.max(1),
         imageops::FilterType::Triangle,

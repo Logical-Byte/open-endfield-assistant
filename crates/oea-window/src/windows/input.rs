@@ -1,3 +1,5 @@
+use std::{thread, time::Duration};
+
 use ::windows::Win32::Foundation::POINT;
 use ::windows::Win32::Graphics::Gdi::ClientToScreen;
 use ::windows::Win32::UI::Input::KeyboardAndMouse::{
@@ -136,6 +138,33 @@ fn send(event: INPUT) -> anyhow::Result<()> {
         "发送物理输入失败：{}",
         ::windows::core::Error::from_thread()
     );
+    Ok(())
+}
+
+/// 窗口模式切换与普通按键复用扫描码和发送逻辑。
+pub(crate) fn hold_key(key: u16, duration: Duration) -> anyhow::Result<()> {
+    send(keyboard(key, false))?;
+    thread::sleep(duration);
+    send(keyboard(key, true))
+}
+
+/// 批量发送组合键。部分发送失败时仍尝试释放涉及的按键。
+pub(crate) fn send_key_sequence(events: &[(u16, bool)]) -> anyhow::Result<()> {
+    let inputs: Vec<_> = events
+        .iter()
+        .map(|&(key, released)| keyboard(key, released))
+        .collect();
+    let size = std::mem::size_of::<INPUT>() as i32;
+    let written = unsafe { SendInput(&inputs, size) };
+    if written != inputs.len() as u32 {
+        let releases: Vec<_> = events
+            .iter()
+            .filter(|(_, released)| *released)
+            .map(|&(key, _)| keyboard(key, true))
+            .collect();
+        let _ = unsafe { SendInput(&releases, size) };
+        anyhow::bail!("无法发送窗口切换按键，请确认有操作窗口的权限");
+    }
     Ok(())
 }
 

@@ -40,10 +40,10 @@ impl Session {
         templates: TemplateLoader,
         stop: StopToken,
     ) -> Result<Self, capabilities::Error> {
-        let environment = game_environment::connect(game_environment::Requirements::default())?;
+        let environment = game_environment::connect(game_environment::ConnectionMode::Automation)?;
         info!("游戏分辨率: {}", environment.resolution);
         let window = environment.window;
-        let resolution_transform = ResolutionTransform::new(environment.resolution)?;
+        let resolution_transform = environment.transform;
 
         let input = InputPolicy::default().bind(window);
 

@@ -8,21 +8,18 @@ use ::windows::Win32::Graphics::Dxgi::Common::DXGI_COLOR_SPACE_RGB_FULL_G2084_NO
 use ::windows::Win32::Graphics::Dxgi::{
     CreateDXGIFactory1, DXGI_ERROR_NOT_FOUND, IDXGIFactory1, IDXGIOutput6,
 };
-use ::windows::Win32::Graphics::Gdi::{MONITOR_DEFAULTTONEAREST, MonitorFromWindow};
 use ::windows::core::Interface;
 use anyhow::bail;
 
 use crate::Window;
 
+use super::geometry;
+
 /// 判断指定窗口所在显示器是否开启了 HDR。
 ///
 /// 检测失败（API 不可用 / 查询出错）时返回 `Err`，由调用方决定是否阻断任务。
 pub(crate) fn is_hdr_enabled_on_window_monitor(window: Window) -> anyhow::Result<bool> {
-    let hwnd = window.raw;
-    let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
-    if monitor.is_invalid() {
-        bail!("无法获取窗口所在显示器");
-    }
+    let monitor = geometry::monitor(window)?;
 
     let factory: IDXGIFactory1 = unsafe { CreateDXGIFactory1() }?;
     let mut adapter_index = 0;
