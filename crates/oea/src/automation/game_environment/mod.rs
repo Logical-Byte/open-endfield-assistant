@@ -126,6 +126,7 @@ pub fn connect(mode: ConnectionMode) -> Result<Environment, Error> {
 }
 
 /// 任一终末地窗口位于前台。供任务热键判断适用范围。
+#[cfg(windows)]
 pub(crate) fn is_game_window_foreground() -> bool {
     Target::ALL.into_iter().any(|target| {
         find_matching_window(target.window_query())
