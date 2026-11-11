@@ -54,7 +54,7 @@ pub enum TitleMatch<'a> {
     Contains(&'a str),
 }
 
-/// 精确匹配窗口条件，指定的条件必须同时满足。未指定的字段不参与匹配。
+/// 匹配窗口条件，指定的条件必须同时满足。未指定的字段不参与匹配。
 #[derive(Debug, Default, Clone, Copy)]
 pub struct WindowQuery<'a> {
     pub class_name: Option<&'a str>,
@@ -136,12 +136,14 @@ impl Window {
         }
     }
 
-    /// 尝试激活目标窗口并移到 Z 序顶部，沿用现有前台激活逻辑。
+    /// 请求激活目标窗口并移到 Z 序顶部，不设置始终置顶。
+    ///
+    /// 请求可能异步完成，返回成功不保证已成为前台窗口。
     pub fn activate(&self) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             windows::validate(*self)?;
-            windows::window::ensure_foreground_and_topmost(*self)
+            windows::window::request_activation(*self)
         }
         #[cfg(not(windows))]
         {
@@ -149,11 +151,11 @@ impl Window {
         }
     }
 
-    /// 窗口最小化时将其恢复。
+    /// 窗口最小化时将其恢复，并等待最小化状态结束。
     pub fn restore_if_minimized(&self) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
-            windows::window::restore_window_if_minimized(*self)
+            windows::window::restore_if_minimized(*self)
         }
         #[cfg(not(windows))]
         {
@@ -161,13 +163,16 @@ impl Window {
         }
     }
 
-    /// 恢复最小化或最大化窗口并退出全屏，等待游戏完成窗口化。
-    pub fn ensure_windowed(&self) -> anyhow::Result<()> {
+    /// 按 Unity 的 `Alt+Enter` 协议退出全屏，等待窗口化几何恢复。
+    ///
+    /// 仅适用于支持该协议的 Unity 窗口。先恢复最小化或最大化，
+    /// 全屏时激活窗口并发送组合键，准备失败或等待超时返回错误。
+    pub fn ensure_unity_windowed(&self) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             let _dpi = windows::DpiContext::enter()?;
             windows::validate(*self)?;
-            windows::window::ensure_windowed(*self)
+            windows::window::ensure_unity_windowed(*self)
         }
         #[cfg(not(windows))]
         {
@@ -176,12 +181,14 @@ impl Window {
     }
 
     /// 将客户区调整为指定物理像素尺寸，并等待尺寸连续稳定。
-    pub fn resize_windowed_client(&self, width: i32, height: i32) -> anyhow::Result<()> {
+    ///
+    /// 调用方应先完成目标窗口的窗口化过渡。此方法不激活窗口、不退出全屏。
+    pub fn resize_client(&self, width: i32, height: i32) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             let _dpi = windows::DpiContext::enter()?;
             windows::validate(*self)?;
-            windows::window::resize_windowed_client(*self, width, height)
+            windows::window::resize_client(*self, width, height)
         }
         #[cfg(not(windows))]
         {
@@ -207,16 +214,17 @@ impl Window {
         }
     }
 
-    /// 调整窗口，使网页视口的物理像素尺寸等于指定尺寸并保持稳定。
+    /// 调整 Chromium 窗口，使网页视口的物理像素尺寸等于指定尺寸并保持稳定。
     ///
     /// 浏览器窗口的客户区包含自绘的工具栏，外框尺寸由实测的视口偏移反推，
-    /// 不能使用 `AdjustWindowRectExForDpi` 预测。窗口全屏或读不到网页视口时返回错误。
-    pub fn ensure_viewport_content_size(&self, width: i32, height: i32) -> anyhow::Result<()> {
+    /// 不能使用 `AdjustWindowRectExForDpi` 预测。先恢复最小化或最大化窗口，
+    /// 全屏时激活窗口并长按 `Esc` 退出。退出失败、读不到视口或尺寸不稳定时返回错误。
+    pub fn resize_chromium_viewport(&self, width: i32, height: i32) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             let _dpi = windows::DpiContext::enter()?;
             windows::validate(*self)?;
-            windows::window::ensure_viewport_content_size(*self, width, height)
+            windows::window::resize_viewport(*self, width, height)
         }
         #[cfg(not(windows))]
         {
@@ -225,44 +233,16 @@ impl Window {
         }
     }
 
-    /// 查询窗口是否处于全屏显示，不改变窗口状态。
+    /// 调整客户区相对显示器工作区的位置。跳过最小化和最大化窗口。
     ///
-    /// 同时识别 `WS_POPUP` 全屏与浏览器 `F11` 全屏（无标题栏且外框铺满显示器）。
-    pub fn is_fullscreen(&self) -> anyhow::Result<bool> {
+    /// `preserve_size` 为 `false` 时，允许缩小超出工作区的客户区并等待尺寸稳定。
+    /// 为 `true` 时只移动，客户区过大时仍可能部分超出工作区。
+    /// 移动请求异步提交，不检查其他窗口遮挡，不保证返回时已完整可见。
+    pub fn adjust_client_to_work_area(&self, preserve_size: bool) -> anyhow::Result<()> {
         #[cfg(windows)]
         {
             let _dpi = windows::DpiContext::enter()?;
-            windows::validate(*self)?;
-            windows::window::is_fullscreen(*self)
-        }
-        #[cfg(not(windows))]
-        {
-            Err(unsupported())
-        }
-    }
-
-    /// 让全屏窗口退出全屏。非全屏窗口直接返回成功。
-    ///
-    /// 云游戏页面会锁住键盘，只有浏览器自身的「长按 Esc」手势能退出全屏。
-    pub fn exit_fullscreen(&self) -> anyhow::Result<()> {
-        #[cfg(windows)]
-        {
-            let _dpi = windows::DpiContext::enter()?;
-            windows::validate(*self)?;
-            windows::window::exit_fullscreen(*self)
-        }
-        #[cfg(not(windows))]
-        {
-            Err(unsupported())
-        }
-    }
-
-    /// 将客户区移回显示器工作区，可选择保留尺寸。跳过最小化和最大化窗口。
-    pub fn ensure_on_screen(&self, preserve_size: bool) -> anyhow::Result<()> {
-        #[cfg(windows)]
-        {
-            let _dpi = windows::DpiContext::enter()?;
-            windows::window::ensure_window_on_screen(*self, preserve_size)
+            windows::window::adjust_client_to_work_area(*self, preserve_size)
         }
         #[cfg(not(windows))]
         {
@@ -276,7 +256,7 @@ impl Window {
         #[cfg(windows)]
         {
             windows::validate(*self)?;
-            windows::window::hdr::is_hdr_enabled_on_window_monitor(*self)
+            windows::window::is_hdr_enabled_on_window_monitor(*self)
         }
         #[cfg(not(windows))]
         {

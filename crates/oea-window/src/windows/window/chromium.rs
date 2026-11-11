@@ -6,47 +6,39 @@
 use std::time::{Duration, Instant};
 
 use ::windows::Win32::Foundation::{HWND, POINT, RECT};
-use ::windows::Win32::Graphics::Gdi::ClientToScreen;
+use ::windows::Win32::Graphics::Gdi::{ClientToScreen, GetMonitorInfoW, MONITORINFO};
 use ::windows::Win32::System::Com::{
     CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoUninitialize,
 };
-use ::windows::Win32::System::Variant::{VARIANT, VT_I4};
+use ::windows::Win32::System::Variant::VARIANT;
 use ::windows::Win32::UI::Accessibility::{
     CUIAutomation, IUIAutomation, TreeScope_Descendants, UIA_ControlTypePropertyId,
     UIA_DocumentControlTypeId,
 };
 use ::windows::Win32::UI::Input::KeyboardAndMouse::VK_ESCAPE;
-use ::windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+use ::windows::Win32::UI::WindowsAndMessaging::{
+    GWL_STYLE, GetWindowLongPtrW, GetWindowRect, WINDOW_STYLE, WS_CAPTION, WS_POPUP,
+};
 use anyhow::{Context, ensure};
 use tracing::debug;
 
-use crate::{ContentKind, ContentRect, Window};
+use crate::windows::input;
+use crate::{ContentRect, Window};
 
-use super::state::{self, SIZE_SETTLE_TIME};
-use super::window_operation::ensure_foreground_and_topmost;
+use super::{SIZE_SETTLE_TIME, activation, geometry, wait_until};
 
 /// 浏览器退出全屏需要保持 Esc 按下的时长。
 const FULLSCREEN_EXIT_HOLD: Duration = Duration::from_secs(3);
 
-pub(crate) fn content_rect(window: Window, kind: ContentKind) -> anyhow::Result<ContentRect> {
-    let (width, height) = state::client_size(window)?;
-    match kind {
-        ContentKind::Client => Ok(ContentRect {
-            x: 0,
-            y: 0,
-            width: width as u32,
-            height: height as u32,
-        }),
-        ContentKind::BrowserViewport => {
-            let insets = viewport_insets(window)?;
-            Ok(ContentRect {
-                x: insets.left,
-                y: insets.top,
-                width: (width - insets.left - insets.right) as u32,
-                height: (height - insets.top - insets.bottom) as u32,
-            })
-        }
-    }
+pub(super) fn viewport_rect(window: Window) -> anyhow::Result<ContentRect> {
+    let (width, height) = geometry::client_size(window)?;
+    let insets = viewport_insets(window)?;
+    Ok(ContentRect {
+        x: insets.left,
+        y: insets.top,
+        width: (width - insets.left - insets.right) as u32,
+        height: (height - insets.top - insets.bottom) as u32,
+    })
 }
 
 /// 调整窗口，使网页视口的物理像素尺寸等于指定尺寸。
@@ -54,28 +46,23 @@ pub(crate) fn content_rect(window: Window, kind: ContentKind) -> anyhow::Result<
 /// 客户区比视口多出浏览器工具栏等浏览器自身界面，因此每次调整前重新测量视口边距，
 /// 按实测边距反推目标客户区尺寸，直到客户区与视口同时稳定。
 ///
-/// 全屏窗口的几何由浏览器锁定，无法通过 `SetWindowPos` 改变，键盘也已被游戏拦截，
-/// 调用方应先判断全屏并改用实际视口缩放识别。
-pub(crate) fn ensure_viewport_content_size(
-    window: Window,
-    width: i32,
-    height: i32,
-) -> anyhow::Result<()> {
+/// 全屏时先激活浏览器并长按 `Esc` 退出，失败则中止调整。
+pub(crate) fn resize_viewport(window: Window, width: i32, height: i32) -> anyhow::Result<()> {
     ensure!(width > 0 && height > 0, "窗口视口尺寸必须为正数");
-    state::restore(window).context("恢复云游戏窗口超时")?;
+    activation::restore(window).context("恢复云游戏窗口超时")?;
     exit_fullscreen(window)?;
 
     let mut stable_since = None;
-    state::wait_until(|| {
+    wait_until(|| {
         let insets = viewport_insets(window)?;
-        let (client_width, client_height) = state::client_size(window)?;
+        let (client_width, client_height) = geometry::client_size(window)?;
         let target_width = width + insets.left + insets.right;
         let target_height = height + insets.top + insets.bottom;
         if client_width == target_width && client_height == target_height {
             return Ok(stable_since.get_or_insert_with(Instant::now).elapsed() >= SIZE_SETTLE_TIME);
         }
         stable_since = None;
-        state::set_client_size(window, target_width, target_height)?;
+        geometry::set_client_size(window, target_width, target_height)?;
         Ok(false)
     })
     .context("云游戏窗口未能稳定到指定视口尺寸")
@@ -86,19 +73,44 @@ pub(crate) fn ensure_viewport_content_size(
 /// 云游戏页面在播放时会锁住键盘，普通按键（包括 `F11` 与短按 `Esc`）到不了浏览器；
 /// 但 Chromium 把「长按 `Esc`」当作退出全屏的手势，键盘锁不会拦截它。
 /// 全屏窗口的几何由浏览器锁定，不先退出全屏就无法调整视口尺寸。
-pub(crate) fn exit_fullscreen(window: Window) -> anyhow::Result<()> {
-    if !state::is_fullscreen(window)? {
+fn exit_fullscreen(window: Window) -> anyhow::Result<()> {
+    if !is_fullscreen(window)? {
         return Ok(());
     }
     // 物理按键只发送给前台窗口，跨输入队列激活异步完成，以实际前台窗口为准。
-    ensure_foreground_and_topmost(window)?;
-    state::wait_until(|| Ok(unsafe { GetForegroundWindow() } == window.raw))
-        .context("等待云游戏窗口获得前台焦点超时")?;
+    activation::activate_and_wait(window)?;
 
     debug!("长按 Esc 退出云游戏窗口全屏");
-    state::hold_key(VK_ESCAPE, FULLSCREEN_EXIT_HOLD)?;
-    state::wait_until(|| Ok(!state::is_fullscreen(window)?))
-        .context("长按 Esc 后云游戏窗口仍处于全屏")
+    input::hold_key(VK_ESCAPE.0, FULLSCREEN_EXIT_HOLD)?;
+    wait_until(|| Ok(!is_fullscreen(window)?)).context("长按 Esc 后云游戏窗口仍处于全屏")
+}
+
+/// 判断窗口是否处于全屏显示。
+///
+/// 两种形式：设置了 `WS_POPUP` 的独占/无边框全屏，以及 Chromium 的 `F11` 全屏。
+/// 后者去掉标题栏与边框，外框正好铺满显示器，但不用 `WS_POPUP`。
+fn is_fullscreen(window: Window) -> anyhow::Result<bool> {
+    let style = WINDOW_STYLE(unsafe { GetWindowLongPtrW(window.raw, GWL_STYLE) } as u32);
+    if style.contains(WS_POPUP) {
+        return Ok(true);
+    }
+    if style.contains(WS_CAPTION) {
+        return Ok(false);
+    }
+
+    let monitor = geometry::monitor(window)?;
+    let mut info = MONITORINFO {
+        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+        ..Default::default()
+    };
+    unsafe { GetMonitorInfoW(monitor, &mut info) }.ok()?;
+    let mut outer = RECT::default();
+    unsafe { GetWindowRect(window.raw, &mut outer) }?;
+    let monitor_rect = info.rcMonitor;
+    Ok(outer.left == monitor_rect.left
+        && outer.top == monitor_rect.top
+        && outer.right == monitor_rect.right
+        && outer.bottom == monitor_rect.bottom)
 }
 
 /// 视口相对客户区的边距，已消除舍入误差，且保证能在客户区内切出视口。
@@ -125,7 +137,7 @@ const INSET_TOLERANCE: i32 = 4;
 
 /// 读取视口相对客户区的边距。
 fn viewport_insets(window: Window) -> anyhow::Result<Insets> {
-    let (client_width, client_height) = state::client_size(window)?;
+    let (client_width, client_height) = geometry::client_size(window)?;
     let insets = insets_for(measured_viewport(window)?, (client_width, client_height));
     ensure!(
         insets.left + insets.right < client_width && insets.top + insets.bottom < client_height,
@@ -186,13 +198,7 @@ fn document_viewport(hwnd: HWND) -> anyhow::Result<RECT> {
     let root = unsafe { automation.ElementFromHandle(hwnd) }
         .context("读取窗口的 UI Automation 元素失败")?;
 
-    let mut value = VARIANT::default();
-    // 控件类型属性按 `VT_I4` 传递，值是 `UIA_DocumentControlTypeId`。
-    unsafe {
-        let inner = &mut *value.Anonymous.Anonymous;
-        inner.vt = VT_I4;
-        inner.Anonymous.lVal = UIA_DocumentControlTypeId.0;
-    }
+    let value = VARIANT::from(UIA_DocumentControlTypeId.0);
     let condition =
         unsafe { automation.CreatePropertyCondition(UIA_ControlTypePropertyId, &value) }
             .context("创建 UI Automation 查询条件失败")?;

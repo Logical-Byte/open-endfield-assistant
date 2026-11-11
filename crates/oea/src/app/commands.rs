@@ -191,13 +191,8 @@ pub async fn screenshot(
     height: u32,
     format: ScreenshotFormat,
 ) -> Result<String, ScreenshotError> {
-    let environment = game_environment::connect(game_environment::Requirements {
-        restore_if_minimized: false,
-        ensure_on_screen: false,
-        hdr_disabled: false,
-        windowed_720p: false,
-    })
-    .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
+    let environment = game_environment::connect(game_environment::ConnectionMode::Monitor)
+        .map_err(|reason| ScreenshotError::GameEnvironment { reason })?;
 
     // 截图
     let raw = environment.window.screenshot().map_err(|error| {

@@ -13,13 +13,13 @@ use anyhow::bail;
 
 use crate::Window;
 
-use super::state;
+use super::geometry;
 
 /// 判断指定窗口所在显示器是否开启了 HDR。
 ///
 /// 检测失败（API 不可用 / 查询出错）时返回 `Err`，由调用方决定是否阻断任务。
 pub(crate) fn is_hdr_enabled_on_window_monitor(window: Window) -> anyhow::Result<bool> {
-    let monitor = state::monitor(window)?;
+    let monitor = geometry::monitor(window)?;
 
     let factory: IDXGIFactory1 = unsafe { CreateDXGIFactory1() }?;
     let mut adapter_index = 0;

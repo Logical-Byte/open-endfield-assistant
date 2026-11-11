@@ -90,7 +90,7 @@ impl ResolutionTransform {
     }
 
     /// 将调用方保证有效的 720p 识别坐标翻译为客户区内的物理坐标。
-    pub fn to_physical(&self, point: Point720p) -> Point {
+    pub fn to_client_point(&self, point: Point720p) -> Point {
         let canonical = self.canonical();
         let content = self.content;
 
@@ -159,7 +159,7 @@ impl ResolutionTransform {
         &CANONICAL_RESOLUTION
     }
 
-    pub fn physical(&self) -> &Resolution {
+    pub fn client_resolution(&self) -> &Resolution {
         &self.physical
     }
 }
@@ -242,7 +242,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            transform.to_physical(Point720p { x: 401, y: 182 }),
+            transform.to_client_point(Point720p { x: 401, y: 182 }),
             Point { x: 601, y: 273 },
         );
     }
@@ -259,7 +259,7 @@ mod tests {
         let transform = ResolutionTransform::new(client, viewport).unwrap();
 
         assert_eq!(
-            transform.to_physical(Point720p { x: 176, y: 25 }),
+            transform.to_client_point(Point720p { x: 176, y: 25 }),
             Point { x: 176, y: 82 },
         );
     }

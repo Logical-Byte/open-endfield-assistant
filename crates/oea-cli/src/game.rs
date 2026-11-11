@@ -20,7 +20,7 @@ pub(super) struct Connection {
 
 impl Connection {
     pub(super) fn client_size(&self) -> (u32, u32) {
-        self.transform.physical().dimensions()
+        self.transform.client_resolution().dimensions()
     }
 }
 
@@ -29,7 +29,7 @@ pub(super) fn connect() -> Result<Connection, commands::Error> {
     {
         use oea_lib::automation::game_environment;
 
-        let environment = game_environment::connect(game_environment::Requirements::default())
+        let environment = game_environment::connect(game_environment::ConnectionMode::Automation)
             .map_err(anyhow::Error::new)?;
         Ok(Connection {
             window: environment.window,
@@ -100,7 +100,7 @@ impl ScreenCapture for NavigationContext {
 
 impl Input for NavigationContext {
     fn click(&mut self, point: Point720p) -> Result<(), capabilities::Error> {
-        let point = self.capture.transform.to_physical(point);
+        let point = self.capture.transform.to_client_point(point);
         self.input
             .click(MouseButton::Left, point)
             .map_err(|error| {
@@ -126,7 +126,7 @@ impl Input for NavigationContext {
         let point = self
             .capture
             .transform
-            .to_physical(Point720p { x: 640, y: 360 });
+            .to_client_point(Point720p { x: 640, y: 360 });
         self.input.move_mouse(point).map_err(|error| {
             debug!(error = ?error, "移动游戏鼠标失败");
             capabilities::Error::ExecutionFailed

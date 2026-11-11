@@ -36,7 +36,7 @@ impl ScreenCapture for Session {
 impl Input for Session {
     fn click(&mut self, point: Point720p) -> Result<(), capabilities::Error> {
         self.check_stop()?;
-        let point = self.resolution_transform.to_physical(point);
+        let point = self.resolution_transform.to_client_point(point);
         self.input
             .click(MouseButton::Left, point)
             .map_err(|error| {
@@ -59,7 +59,9 @@ impl Input for Session {
     }
 
     fn move_mouse_to_safe_position(&mut self) -> Result<(), capabilities::Error> {
-        let point = self.resolution_transform.to_physical(SAFE_MOUSE_POSITION);
+        let point = self
+            .resolution_transform
+            .to_client_point(SAFE_MOUSE_POSITION);
         self.input.move_mouse(point).map_err(|error| {
             debug!(error = ?error, "移动游戏鼠标失败");
             capabilities::Error::ExecutionFailed
