@@ -7,6 +7,7 @@ withDefaults(
     icon: string;
     label?: string;
     tooltip?: string;
+    tooltipDisabled?: boolean;
     iconOnly?: boolean;
     collapsed?: boolean;
     to?: RouteLocationRaw;
@@ -16,6 +17,7 @@ withDefaults(
   {
     label: '',
     tooltip: '',
+    tooltipDisabled: false,
     iconOnly: false,
     collapsed: false,
     to: undefined,
@@ -29,7 +31,7 @@ withDefaults(
   <!-- 点击区域高 34px，背景内收后高 32px。图标按钮左右各留 3px，与 40px 图标列对齐。 -->
   <UTooltip
     :content="{ side: 'right' }"
-    :disabled="!iconOnly && !!label && !collapsed"
+    :disabled="tooltipDisabled || (!iconOnly && !!label && !collapsed)"
     :text="tooltip || label"
   >
     <UButton
