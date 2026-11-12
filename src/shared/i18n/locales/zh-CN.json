@@ -8,6 +8,7 @@
     "cancel": "取消",
     "clear": "清空",
     "close": "关闭",
+    "confirm": "确认",
     "disableHdr": "关闭 HDR",
     "dismiss": "知道了",
     "download": "下载",
@@ -691,6 +692,16 @@
     "toggleColorMode": "切换颜色模式"
   },
   "update": {
+    "action": {
+      "availableTooltip": "当前版本 {{current}}，可用更新 {{version}}，点击下载",
+      "confirmTitle": "重启并更新到{{version}}？",
+      "localTitle": "安装本地更新包并重启？",
+      "progressTooltip": "正在下载 {{version}}（{{percent}}）",
+      "published": "{{version}} 已发布！",
+      "readyTooltip": "{{version}} 已下载，点击安装并重启",
+      "restart": "重启并更新",
+      "warning": "应用内的扫描结果将会丢失。"
+    },
     "check": {
       "action": "检查更新",
       "available": "发现新版本",
@@ -711,7 +722,7 @@
     },
     "install": {
       "action": "立即安装",
-      "afterTask": "任务结束后将自动安装更新。",
+      "afterTask": "请等待自动化任务结束后再更新。",
       "completed": "更新完成",
       "failed": "安装失败",
       "installing": "正在安装更新",

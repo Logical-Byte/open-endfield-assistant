@@ -1,9 +1,5 @@
 //! 统一二进制的 helper 模式入口、日志设施和原生提示适配。
-use crate::{
-    locale::UiLocale,
-    platform::update::{UpdatePrompt, show_update_error},
-    settings,
-};
+use crate::{locale::UiLocale, platform::update::show_update_error, settings};
 use oea_logger as logger;
 use oea_update::install::{self, HelperHost, HelperLaunch, HelperLocale, InstallTarget};
 use std::path::Path;
@@ -14,15 +10,21 @@ const HELPER_ARGUMENT: &str = "--oea-update-helper";
 pub(super) fn helper_launch(
     target: &InstallTarget,
     locale: UiLocale,
+    restart: bool,
 ) -> Result<HelperLaunch, String> {
     let source_executable =
         std::env::current_exe().map_err(|error| format!("获取当前可执行文件路径失败: {error}"))?;
-    Ok(HelperLaunch::new(
+    let launch = HelperLaunch::new(
         source_executable,
         [HELPER_ARGUMENT.into()],
         target,
         helper_locale(locale),
-    ))
+    );
+    Ok(if restart {
+        launch.restart_after_exit(std::process::id())
+    } else {
+        launch.wait_for_exit(std::process::id())
+    })
 }
 
 /// 普通启动时返回，识别到 helper 入口时由内核执行并退出进程。
@@ -41,7 +43,7 @@ struct OeaHelperHost;
 
 impl HelperHost for OeaHelperHost {
     type LogGuard = logger::LogGuard;
-    type Prompt = UpdatePrompt;
+    type Prompt = ();
 
     fn init_logging(&mut self, root: &Path) -> Self::LogGuard {
         let (guard, log_rx) = logger::init(&root.join("logs"));
@@ -50,15 +52,9 @@ impl HelperHost for OeaHelperHost {
         guard
     }
 
-    fn show_progress(&mut self, locale: HelperLocale) -> Self::Prompt {
-        let (title, progress, _) = helper_messages(ui_locale(locale));
-        UpdatePrompt::new(title, progress)
-    }
+    fn show_progress(&mut self, _locale: HelperLocale) {}
 
-    fn show_success(&mut self, mut prompt: Self::Prompt, locale: HelperLocale) {
-        let (title, _, success) = helper_messages(ui_locale(locale));
-        prompt.show_success(title, success);
-    }
+    fn show_success(&mut self, _prompt: (), _locale: HelperLocale) {}
 
     fn show_error(&mut self, locale: HelperLocale, error: &str) {
         show_helper_error(ui_locale(locale), error);
@@ -76,21 +72,6 @@ fn ui_locale(locale: HelperLocale) -> UiLocale {
     match locale {
         HelperLocale::ZhCn => UiLocale::ZhCn,
         HelperLocale::EnUs => UiLocale::EnUs,
-    }
-}
-
-fn helper_messages(locale: UiLocale) -> (&'static str, &'static str, &'static str) {
-    match locale {
-        UiLocale::ZhCn => (
-            "OEA 更新",
-            "正在提交程序更新，请稍候…",
-            "程序更新已准备好，请重新启动 OEA 以完成更新",
-        ),
-        UiLocale::EnUs => (
-            "OEA update",
-            "Applying the application update. Please wait…",
-            "The application update is ready. Restart OEA to complete the update.",
-        ),
     }
 }
 

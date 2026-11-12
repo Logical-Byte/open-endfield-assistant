@@ -4,6 +4,7 @@ use std::{
     fs::{self, File, OpenOptions},
     io,
     path::{Path, PathBuf},
+    sync::Mutex,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -14,28 +15,85 @@ use crate::update::Updater;
 use tauri::Manager;
 use tracing::{debug, info};
 
-/// 选择、暂存并安装本地 ZIP，不向 WebView 暴露文件路径。
+/// 用户已选择的受控暂存包，路径始终留在 Rust 内部。
+#[derive(Default)]
+pub struct SelectedDeveloperPackage(Mutex<Option<PathBuf>>);
+
+#[tauri::command]
+pub fn select_developer_update(
+    manager: tauri::State<'_, Updater>,
+    selected: tauri::State<'_, SelectedDeveloperPackage>,
+) -> Result<bool, update::Error> {
+    update::ensure_enabled()?;
+    let mut slot = selected
+        .0
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    discard_package(&mut slot)?;
+    *slot = manager.select_local_package(choose_and_stage_developer_package)?;
+    Ok(slot.is_some())
+}
+
+#[tauri::command]
+pub fn discard_developer_update(
+    selected: tauri::State<'_, SelectedDeveloperPackage>,
+) -> Result<(), update::Error> {
+    discard_package(
+        &mut selected
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()),
+    )
+}
+
+fn discard_package(slot: &mut Option<PathBuf>) -> Result<(), update::Error> {
+    if let Some(path) = slot.take() {
+        match fs::remove_file(path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("清理本地更新包失败: {error}").into()),
+        }
+    }
+    Ok(())
+}
+
+/// 确认后才消费已选择的本地包。更新内核仍负责互斥、校验与安装。
 #[tauri::command]
 pub fn developer_install_update(
     manager: tauri::State<'_, Updater>,
+    selected: tauri::State<'_, SelectedDeveloperPackage>,
     app: tauri::AppHandle,
-) -> Result<bool, update::Error> {
+) -> Result<(), update::Error> {
     update::ensure_enabled()?;
     let target = super::install_target(&AppPaths::new()?)?;
-    let result = manager.install_local(
-        choose_and_stage_developer_package,
-        &target,
-        || {
-            let locale = app.state::<Controller>().ui_locale();
-            super::helper::helper_launch(&target, locale)
-        },
-        |stage| super::emit_install_stage(&app, stage),
-    )?;
-    if result.is_none() {
-        return Ok(false);
-    }
+    app.state::<Controller>().install_when_idle(|| {
+        manager
+            .install_local(
+                || {
+                    selected
+                        .0
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner())
+                        .take()
+                        .map(Some)
+                        .ok_or_else(|| {
+                            oea_update::Error::failed(
+                                oea_update::Reason::NoUpdate,
+                                anyhow::anyhow!("请先选择本地更新包"),
+                            )
+                        })
+                },
+                &target,
+                || {
+                    let locale = app.state::<Controller>().ui_locale();
+                    super::helper::helper_launch(&target, locale, true)
+                },
+                |stage| super::emit_install_stage(&app, stage),
+            )
+            .map_err(Into::into)
+    })?;
     app.exit(0);
-    Ok(true)
+    Ok(())
 }
 
 fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, oea_update::Error> {
@@ -54,7 +112,7 @@ fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, oea_update::E
             operation = "install",
             install_kind = "developer_package",
             result = "cancelled",
-            "用户取消选择或确认开发者更新包"
+            "用户取消选择开发者更新包"
         );
         info!("已取消安装开发者更新包");
         return Ok(None);
@@ -72,7 +130,7 @@ fn choose_and_stage_developer_package() -> Result<Option<PathBuf>, oea_update::E
     Ok(Some(staged))
 }
 
-/// 导入用户明确选择的外部包到 `cache/downloads`；目录内的包直接复用。
+/// 将用户选择的包复制到独立暂存文件，取消或失败清理时保留原包。
 fn stage_developer_package(paths: &AppPaths, selected: &Path) -> Result<PathBuf, String> {
     if !selected
         .extension()
@@ -86,25 +144,18 @@ fn stage_developer_package(paths: &AppPaths, selected: &Path) -> Result<PathBuf,
     let selected = selected
         .canonicalize()
         .map_err(|error| format!("解析所选更新包路径失败: {error}"))?;
-    let canonical_downloads = downloads
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| format!("生成更新包暂存名称失败: {error}"))?
+        .as_nanos();
+    let staged = downloads.join(format!(
+        "developer-update-{}-{timestamp}.zip",
+        std::process::id()
+    ));
+    copy_to_new_file(&selected, &staged)?;
+    staged
         .canonicalize()
-        .map_err(|error| format!("解析更新下载目录失败: {error}"))?;
-    if selected.starts_with(&canonical_downloads) {
-        Ok(selected)
-    } else {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|error| format!("生成更新包暂存名称失败: {error}"))?
-            .as_nanos();
-        let staged = downloads.join(format!(
-            "developer-update-{}-{timestamp}.zip",
-            std::process::id()
-        ));
-        copy_to_new_file(&selected, &staged)?;
-        staged
-            .canonicalize()
-            .map_err(|error| format!("解析已复制更新包路径失败: {error}"))
-    }
+        .map_err(|error| format!("解析已复制更新包路径失败: {error}"))
 }
 
 /// 以 `create_new` 创建暂存文件，任何命名碰撞都不得覆盖另一个安装正在读取的包。

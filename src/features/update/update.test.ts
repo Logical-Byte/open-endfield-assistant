@@ -20,7 +20,9 @@ vi.mock('@tauri-apps/api/event', () => ({
 vi.mock('@/app/build', () => ({
   AppVariant,
   appVariant: AppVariant.Release,
+  appVersion: '1.2.0',
 }));
+vi.mock('@/shared/i18n/toast', () => ({ useTranslatedToast: () => ({ add: vi.fn() }) }));
 
 const updateInfo = { versionName: '1.3.0', releaseNote: 'notes' };
 let backendStatus: UpdateStatus;
@@ -68,9 +70,8 @@ beforeEach(async () => {
         return { state: 'idle', lastRun: null };
       case 'get_update_status':
         return backendStatus;
-      case 'consume_startup_update_result':
-        return 'no_transaction';
       case 'check_update':
+        backendStatus = { ...backendStatus, availableUpdate: updateInfo };
         return { status: 'available', update: updateInfo };
       case 'download_update':
         backendStatus = { ...backendStatus, pendingUpdate: updateInfo };
@@ -97,6 +98,94 @@ beforeEach(async () => {
 });
 
 describe('自动安装编排', () => {
+  it('手动检查仍自动下载，但取消确认不安装，确认才安装并重启', async () => {
+    settings.editSettings({ autoDownloadUpdates: true });
+    await settle();
+    backendStatus = { operation: 'idle', availableUpdate: null, pendingUpdate: null };
+    await update.refreshUpdateStatus();
+    const { useUpdateAction } = await import('./useUpdateAction');
+    const action = useUpdateAction();
+    await action.activate();
+    await settle();
+    expect(invoke.mock.calls.some(([command]) => command === 'download_update')).toBe(true);
+    expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
+    await action.activate();
+    expect(action.confirmation.value?.kind).toBe('online');
+    await action.cancel();
+    expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
+    await action.activate();
+    void action.confirm();
+    await settle();
+    expect(invoke).toHaveBeenCalledWith('install_update', { restart: true });
+  });
+
+  it('手动更新在任务运行时不能安装，任务结束后仍等待用户操作', async () => {
+    await update.startDownload('manual');
+    const { useUpdateAction } = await import('./useUpdateAction');
+    const action = useUpdateAction();
+    await publishAutomationStatus({ state: 'running', taskKind: 'archiveScan' });
+    await action.activate();
+    expect(action.confirmation.value).toBeNull();
+    await publishAutomationStatus({ state: 'idle', lastRun: null });
+    expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
+    await action.activate();
+    await publishAutomationStatus({ state: 'running', taskKind: 'archiveScan' });
+    await action.confirm();
+    expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
+    expect(action.confirmation.value?.kind).toBe('online');
+  });
+
+  it('安装准备失败后可以重新下载并再次确认', async () => {
+    await update.startDownload('manual');
+    const { useUpdateAction } = await import('./useUpdateAction');
+    const action = useUpdateAction();
+    await action.activate();
+    const previous = invoke.getMockImplementation()!;
+    invoke.mockImplementation(async (command) => {
+      if (command === 'install_update') {
+        backendStatus = { ...backendStatus, pendingUpdate: null };
+        throw new Error('helper launch failed');
+      }
+      return previous(command);
+    });
+    await action.confirm();
+    expect(action.confirmation.value).toBeNull();
+    expect(action.disabledReason.value).toBe('');
+    invoke.mockImplementation(previous);
+    await action.activate();
+    await action.activate();
+    expect(action.confirmation.value?.kind).toBe('online');
+  });
+
+  it('取消本地包确认后，旧确认无法安装，重新选择失败后仍可重试', async () => {
+    const { useUpdateAction } = await import('./useUpdateAction');
+    const action = useUpdateAction();
+    const previous = invoke.getMockImplementation()!;
+    let selectionFails = false;
+    invoke.mockImplementation(async (command) => {
+      if (command === 'select_developer_update') {
+        if (selectionFails) throw new Error('cannot read ZIP');
+        return true;
+      }
+      if (command === 'discard_developer_update') return;
+      return previous(command);
+    });
+    await update.selectLocalUpdate();
+    expect(action.confirmation.value?.kind).toBe('local');
+    await action.cancel();
+    await action.confirm();
+    expect(invoke.mock.calls.some(([command]) => command === 'developer_install_update')).toBe(
+      false,
+    );
+    selectionFails = true;
+    await update.selectLocalUpdate();
+    expect(action.confirmation.value).toBeNull();
+    expect(update.updateOperationBusy.value).toBe(false);
+    selectionFails = false;
+    await update.selectLocalUpdate();
+    expect(action.confirmation.value?.kind).toBe('local');
+  });
+
   it('没有待安装更新时，扫描结束不发起安装也不写更新日志', async () => {
     for (let run = 0; run < 2; run++) {
       await publishAutomationStatus({ state: 'running', taskKind: 'archiveScan' });
@@ -109,8 +198,9 @@ describe('自动安装编排', () => {
   });
 
   it('空闲时下载完成只发起一次安装', async () => {
-    await update.startDownload();
+    await update.startDownload('automatic');
     await settle();
+    expect(invoke).toHaveBeenCalledWith('install_update', { restart: false });
     expect(invoke.mock.calls.filter(([command]) => command === 'install_update')).toHaveLength(1);
     await update.refreshUpdateStatus();
     await settle();
@@ -134,7 +224,7 @@ describe('自动安装编排', () => {
     '扫描$name后安装已下载更新，等待期间不写日志',
     async ({ outcome }) => {
       await publishAutomationStatus({ state: 'running', taskKind: 'archiveScan' });
-      await update.startDownload();
+      await update.startDownload('automatic');
       await settle();
       expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
       invoke.mockClear();
@@ -151,7 +241,7 @@ describe('自动安装编排', () => {
   it('已有待安装更新时，开启自动安装须等设置保存成功', async () => {
     settings.editSettings({ autoInstallUpdates: false });
     await settle();
-    await update.startDownload();
+    await update.startDownload('automatic');
     await settle();
     expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
 

@@ -16,7 +16,7 @@ use crate::{
     data::{AppData, archive},
     navigation::Navigator,
     settings,
-    update::Updater,
+    update::{self, Updater},
 };
 
 /// 应用控制器（Tauri 托管状态）。
@@ -31,6 +31,8 @@ pub struct Controller {
     automation_runtime: Arc<automation::Runtime>,
     /// 各领域的只读运行时数据，启动时统一加载
     app_data: Arc<AppData>,
+    /// 串行决定任务启动与安装接管。接管成功后保持为 true，直到进程退出。
+    update_installing: Mutex<bool>,
 }
 
 impl Controller {
@@ -48,6 +50,7 @@ impl Controller {
             navigator,
             automation_runtime,
             app_data: Arc::new(app_data),
+            update_installing: Mutex::new(false),
         }
     }
 
@@ -84,6 +87,11 @@ impl Controller {
         &self,
         request: automation::StartRequest,
     ) -> Result<(), settings::SettingsError> {
+        let installing = self.update_installing.lock().unwrap();
+        if *installing {
+            warn!("正在安装更新，拒绝启动自动化任务");
+            return Ok(());
+        }
         let settings = self.settings_snapshot()?;
         match request {
             automation::StartRequest::GambleBattle {
@@ -117,6 +125,25 @@ impl Controller {
             }
         }
         Ok(())
+    }
+
+    /// 与所有任务启动入口共用接管锁，避免检查空闲后又被热键启动任务。
+    pub(crate) fn install_when_idle<T>(
+        &self,
+        install: impl FnOnce() -> Result<T, update::Error>,
+    ) -> Result<T, update::Error> {
+        {
+            let mut installing = self.update_installing.lock().unwrap();
+            if *installing || self.automation_status().is_active() {
+                return Err(update::Error::new(update::error::Reason::Busy));
+            }
+            *installing = true;
+        }
+        let result = install();
+        if result.is_err() {
+            *self.update_installing.lock().unwrap() = false;
+        }
+        result
     }
 
     /// 请求停止当前自动化任务（原子置位，由任务内部轮询实现优雅停止）。

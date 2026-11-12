@@ -8,6 +8,7 @@
     "cancel": "Cancel",
     "clear": "Clear",
     "close": "Close",
+    "confirm": "Confirm",
     "disableHdr": "Disable HDR",
     "dismiss": "Got it",
     "download": "Download",
@@ -692,6 +693,16 @@
     "toggleColorMode": "Toggle color mode"
   },
   "update": {
+    "action": {
+      "availableTooltip": "Current version {{current}}. Update {{version}} available. Click to download.",
+      "confirmTitle": "Restart and update to {{version}}?",
+      "localTitle": "Install the local update and restart?",
+      "progressTooltip": "Downloading {{version}} ({{percent}})",
+      "published": "{{version}} is available!",
+      "readyTooltip": "{{version}} downloaded. Click to install and restart.",
+      "restart": "Restart and update",
+      "warning": "Scan results in the app will be lost."
+    },
     "check": {
       "action": "Check for updates",
       "available": "New version available",
@@ -715,7 +726,7 @@
     },
     "install": {
       "action": "Install now",
-      "afterTask": "The update will install automatically after the task finishes.",
+      "afterTask": "Wait for the automation task to finish before updating.",
       "completed": "Update complete",
       "failed": "Installation failed",
       "installing": "Installing update",

@@ -29,6 +29,69 @@ fn full_zip_updates_the_running_host_and_preserves_settings() {
 }
 
 #[test]
+fn manual_update_restarts_the_new_host_and_completes_resources() {
+    let installation = Installation::with_prefix(OsStr::new("重启 空间 "));
+    let mut old = installation.install(&installation.full_package(), "restart");
+    old.expect("installed");
+    let mut helper = installation.helper();
+    helper.send("run");
+    helper.expect("logging");
+    // helper 必须等宿主退出，再提交程序、启动新版。
+    helper.assert_waiting();
+    old.send("exit");
+    old.wait(true);
+    helper.expect("progress:EnUs");
+    helper.expect("success:EnUs");
+    helper.expect("prompt-dropped");
+    helper.expect("log-dropped");
+    helper.expect("host-dropped");
+    helper.closed();
+    let mut restarted = installation.restarted(2);
+    restarted.expect("resources");
+    restarted.expect("startup:Completed");
+    restarted.closed();
+    installation.assert_updated();
+}
+
+#[test]
+fn failed_restart_preserves_the_transaction_for_manual_startup() {
+    let installation = Installation::new();
+    let package = installation.full_package();
+    // 通过宿主的完成回调模拟新版在重启前被外部移走，实际 spawn 应失败。
+    fs::write(installation.root.path().join("remove-before-restart"), "").unwrap();
+    let mut old = installation.install(&package, "restart");
+    old.expect("installed");
+    let mut helper = installation.helper();
+    helper.send("run");
+    helper.expect("logging");
+    old.send("exit");
+    old.wait(true);
+    helper.expect("progress:EnUs");
+    helper.expect("success:EnUs");
+    helper.expect("prompt-dropped");
+    helper.expect("error:EnUs");
+    helper.expect("log-dropped");
+    helper.expect("host-dropped");
+    helper.closed();
+    assert!(
+        installation
+            .root
+            .path()
+            .join("cache/update/transaction.json")
+            .exists()
+    );
+    assert!(installation.root.path().join("resources/old.txt").exists());
+    // 修复启动问题后，用户手动打开新版仍能完成已准备好的资源事务。
+    fs::copy(
+        env!("CARGO_BIN_EXE_update-host-v2"),
+        installation.root.path().join(APP),
+    )
+    .unwrap();
+    installation.start("Completed", 2);
+    installation.assert_updated();
+}
+
+#[test]
 fn incremental_zip_applies_changes_with_or_without_a_new_executable() {
     for executable in [true, false] {
         let installation = Installation::new();

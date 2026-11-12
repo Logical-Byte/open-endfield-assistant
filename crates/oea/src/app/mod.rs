@@ -74,8 +74,9 @@ pub fn run() {
             update::commands::download_update,
             update::commands::cancel_download,
             update::install::install_update,
-            update::install::consume_startup_update_result,
             update::install::extra::developer_install_update,
+            update::install::extra::select_developer_update,
+            update::install::extra::discard_developer_update,
         ])
         .on_window_event(|window, event| {
             // 关闭窗口时：若启用最小化到托盘，则隐藏窗口而不是退出应用
@@ -143,6 +144,7 @@ fn setup_app(app: &mut tauri::App) -> anyhow::Result<()> {
 
     // 窗口关闭处理和前端更新命令需要此状态，必须在创建窗口之前托管。
     app.manage(update::Updater::default());
+    app.manage(update::install::extra::SelectedDeveloperPackage::default());
 
     // 创建 Webview 窗口。
     main_window::create(app, &app_paths)?;

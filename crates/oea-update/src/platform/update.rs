@@ -7,6 +7,32 @@ use std::{
     path::Path,
 };
 
+/// helper 在更新宿主退出后才提交程序，避免新版与旧版同时运行。
+pub(crate) fn wait_for_process_exit(process_id: u32) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        windows::update::wait_for_process_exit(process_id)
+    }
+    #[cfg(unix)]
+    {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        loop {
+            let result = unsafe { libc::kill(process_id as libc::pid_t, 0) };
+            if result != 0 {
+                let error = io::Error::last_os_error();
+                if error.raw_os_error() == Some(libc::ESRCH) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(io::Error::new(io::ErrorKind::TimedOut, "旧应用仍在运行"));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
+}
+
 /// 一个持有底层文件句柄的跨进程排他锁。
 ///
 /// 锁文件本身可以永久存在。真正表示 “持锁” 的是这个值所持有的打开句柄，

@@ -54,11 +54,13 @@ withDefaults(
           class="relative flex h-8.5 shrink-0 items-center justify-center"
           :class="iconOnly ? 'w-8.5' : 'w-10'"
         >
-          <UIcon
-            class="size-5 shrink-0"
-            :class="loading && 'animate-spin'"
-            :name="loading ? 'i-lucide-loader-circle' : icon"
-          />
+          <slot name="icon">
+            <UIcon
+              class="size-5 shrink-0"
+              :class="loading && 'animate-spin'"
+              :name="loading ? 'i-lucide-loader-circle' : icon"
+            />
+          </slot>
           <slot name="indicator" />
         </span>
       </template>
