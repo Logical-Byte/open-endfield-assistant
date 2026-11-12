@@ -18,7 +18,7 @@ name = "oea_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = "2.6.3"
+tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 anyhow = { workspace = true }
