@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ icon: string; spinning: boolean; progress: number | null }>();
+defineProps<{ icon: string; spinning: boolean; progress: number | null; ready: boolean }>();
 </script>
 <template>
   <svg
@@ -29,5 +29,13 @@ defineProps<{ icon: string; spinning: boolean; progress: number | null }>();
       stroke-width="2"
     />
   </svg>
-  <UIcon v-else class="size-5 shrink-0" :class="spinning && 'animate-spin'" :name="icon" />
+  <span v-else aria-hidden="true" class="relative grid size-5 shrink-0 place-items-center">
+    <UIcon class="size-5" :class="spinning && 'animate-spin'" :name="icon" />
+    <span
+      v-if="ready"
+      class="absolute -right-0.5 -bottom-0.5 grid size-3 place-items-center rounded-full bg-current"
+    >
+      <UIcon class="size-2 text-inverted" name="i-lucide-check" />
+    </span>
+  </span>
 </template>

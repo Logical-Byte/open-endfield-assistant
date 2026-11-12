@@ -48,6 +48,7 @@ const links = computed<AboutLink[]>((): AboutLink[] => [
 
 const action = useUpdateAction();
 const {
+  phase,
   icon: updateIcon,
   spinning,
   progress,
@@ -112,6 +113,7 @@ const lastCheckedText = computed<string>((): string => {
                   ><UpdateActionIcon
                     :icon="updateIcon"
                     :progress="progress?.progress ?? null"
+                    :ready="phase === 'ready'"
                     :spinning="spinning" /></template
               ></UButton>
             </span>

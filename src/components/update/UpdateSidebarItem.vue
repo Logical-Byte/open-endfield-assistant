@@ -3,7 +3,8 @@ import SidebarItem from '@/components/layout/SidebarItem.vue';
 import { useUpdateAction } from '@/features/update/useUpdateAction';
 import UpdateActionIcon from './UpdateActionIcon.vue';
 defineProps<{ collapsed: boolean }>();
-const { icon, spinning, progress, label, tooltip, disabledReason, activate } = useUpdateAction();
+const { phase, icon, spinning, progress, label, tooltip, disabledReason, activate } =
+  useUpdateAction();
 </script>
 <template>
   <UTooltip :content="{ side: 'right' }" :disabled="collapsed" :text="tooltip">
@@ -16,7 +17,11 @@ const { icon, spinning, progress, label, tooltip, disabledReason, activate } = u
       @click="activate"
     >
       <template #icon
-        ><UpdateActionIcon :icon="icon" :progress="progress?.progress ?? null" :spinning="spinning"
+        ><UpdateActionIcon
+          :icon="icon"
+          :progress="progress?.progress ?? null"
+          :ready="phase === 'ready'"
+          :spinning="spinning"
       /></template>
     </SidebarItem>
   </UTooltip>
