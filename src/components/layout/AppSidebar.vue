@@ -11,7 +11,6 @@ import type { NavigationMenuItem } from '@nuxt/ui';
 import { appPresentation } from '@/app/presentation';
 import { AppVariant } from '@/app/build';
 import { useAppI18n } from '@/shared/i18n';
-import { updateCapabilities } from '@/features/update/variantPolicy';
 import SidebarNavigation from './SidebarNavigation.vue';
 import SidebarItem from './SidebarItem.vue';
 import { useColorMode, useEventListener } from '@vueuse/core';
@@ -258,7 +257,7 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
             />
             <div v-if="!sectionPage" class="mt-auto shrink-0 px-2 pb-2">
               <div>
-                <UpdateSidebarItem v-if="updateCapabilities.onlineUpdate" :collapsed="collapsed" />
+                <UpdateSidebarItem :collapsed="collapsed" />
               </div>
               <!-- 固定工具栏宽度，侧栏动画期间按钮也保持原位。 -->
               <div class="flex w-30">
