@@ -1,6 +1,6 @@
 //! Tauri 后端接口封装：类型安全地调用 Rust 命令、监听后端事件。
 
-import type { DownloadOutcome } from '@/shared/types/update';
+import type { DownloadOutcome, DownloadTrigger } from '@/shared/types/update';
 import type { DownloadProgress, UpdateAvailability, UpdateStatus } from './types/update';
 import { Channel, invoke } from '@tauri-apps/api/core';
 
@@ -20,8 +20,9 @@ export function createDownloadProgressChannel(
 
 export async function downloadUpdate(
   onProgress: Channel<DownloadProgress>,
+  trigger: DownloadTrigger,
 ): Promise<DownloadOutcome> {
-  return await invoke<DownloadOutcome>('download_update', { onProgress });
+  return await invoke<DownloadOutcome>('download_update', { onProgress, trigger });
 }
 
 export async function installUpdate(restart: boolean): Promise<void> {

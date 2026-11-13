@@ -8,7 +8,7 @@ import type { UpdateStatus } from '@/features/update/types/update';
 import { AppVariant } from '@/shared/types/app';
 
 const { invoke } = vi.hoisted(() => ({
-  invoke: vi.fn<(command: string) => Promise<unknown>>(),
+  invoke: vi.fn<(command: string, args?: Record<string, unknown>) => Promise<unknown>>(),
 }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke, Channel: class {} }));
 vi.mock('@tauri-apps/api/event', () => ({
@@ -45,9 +45,14 @@ async function publishAutomationStatus(status: Status): Promise<void> {
 beforeEach(async () => {
   vi.resetModules();
   invoke.mockReset();
-  backendStatus = { operation: 'idle', availableUpdate: updateInfo, pendingUpdate: null };
+  backendStatus = {
+    operation: 'idle',
+    availableUpdate: updateInfo,
+    pendingUpdate: null,
+    downloadTrigger: 'manual',
+  };
   saveResult = Promise.resolve();
-  invoke.mockImplementation(async (command) => {
+  invoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
     switch (command) {
       case 'load_oea_settings':
         return {
@@ -74,7 +79,11 @@ beforeEach(async () => {
         backendStatus = { ...backendStatus, availableUpdate: updateInfo };
         return { status: 'available', update: updateInfo };
       case 'download_update':
-        backendStatus = { ...backendStatus, pendingUpdate: updateInfo };
+        backendStatus = {
+          ...backendStatus,
+          pendingUpdate: updateInfo,
+          downloadTrigger: args?.trigger === 'automatic' ? 'automatic' : 'manual',
+        };
         return { status: 'completed', update: updateInfo };
       case 'install_update':
         // 安装接管后应用会退出，保留在途请求以观察是否重复发起。
@@ -98,10 +107,41 @@ beforeEach(async () => {
 });
 
 describe('自动安装编排', () => {
+  it('手动下载后重载前端仍等待确认', async () => {
+    await update.startDownload('manual');
+    vi.resetModules();
+    settings = await import('@/features/settings/settings');
+    await settings.initOeaSettings();
+    update = await import('./update');
+    await update.initUpdateState();
+    await settle();
+    expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
+    const { useUpdateAction } = await import('./useUpdateAction');
+    await useUpdateAction().activate();
+    expect(update.installConfirmation.value?.kind).toBe('online');
+  });
+
+  it('自动下载后重载前端仍遵循自动安装设置', async () => {
+    await publishAutomationStatus({ state: 'running', taskKind: 'archiveScan' });
+    await update.startDownload('automatic');
+    vi.resetModules();
+    settings = await import('@/features/settings/settings');
+    await settings.initOeaSettings();
+    update = await import('./update');
+    await update.initUpdateState();
+    await settle();
+    expect(invoke).toHaveBeenCalledWith('install_update', { restart: false });
+  });
+
   it('手动检查仍自动下载，但取消确认不安装，确认才安装并重启', async () => {
     settings.editSettings({ autoDownloadUpdates: true });
     await settle();
-    backendStatus = { operation: 'idle', availableUpdate: null, pendingUpdate: null };
+    backendStatus = {
+      operation: 'idle',
+      availableUpdate: null,
+      pendingUpdate: null,
+      downloadTrigger: 'manual',
+    };
     await update.refreshUpdateStatus();
     const { useUpdateAction } = await import('./useUpdateAction');
     const action = useUpdateAction();
@@ -141,7 +181,7 @@ describe('自动安装编排', () => {
     const action = useUpdateAction();
     await action.activate();
     const previous = invoke.getMockImplementation()!;
-    invoke.mockImplementation(async (command) => {
+    invoke.mockImplementation(async (command: string) => {
       if (command === 'install_update') {
         backendStatus = { ...backendStatus, pendingUpdate: null };
         throw new Error('helper launch failed');
@@ -157,12 +197,46 @@ describe('自动安装编排', () => {
     expect(action.confirmation.value?.kind).toBe('online');
   });
 
+  it.each([false, true])(
+    '后端 Busy 后保留安装确认并允许重试（本地包：%s）',
+    async (local: boolean) => {
+      let busy = true;
+      const previous = invoke.getMockImplementation()!;
+      invoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+        if (command === 'select_developer_update') return true;
+        if (command === 'install_update' || command === 'developer_install_update') {
+          if (busy) throw { reason: { kind: 'busy' } };
+          return new Promise<void>(() => {});
+        }
+        return previous(command, args);
+      });
+      const { useUpdateAction } = await import('./useUpdateAction');
+      const action = useUpdateAction();
+      if (local) await update.selectLocalUpdate();
+      else {
+        await update.startDownload('manual');
+        await action.activate();
+      }
+      await action.confirm();
+      expect(action.confirmation.value?.kind).toBe(local ? 'local' : 'online');
+      expect(update.localPackageSelected.value).toBe(local);
+      busy = false;
+      void action.confirm();
+      await settle();
+      const command = local ? 'developer_install_update' : 'install_update';
+      expect(invoke.mock.calls.filter(([name]) => name === command)).toHaveLength(2);
+      expect(invoke.mock.calls.filter(([name]) => name === 'select_developer_update')).toHaveLength(
+        local ? 1 : 0,
+      );
+    },
+  );
+
   it('取消本地包确认后，旧确认无法安装，重新选择失败后仍可重试', async () => {
     const { useUpdateAction } = await import('./useUpdateAction');
     const action = useUpdateAction();
     const previous = invoke.getMockImplementation()!;
     let selectionFails = false;
-    invoke.mockImplementation(async (command) => {
+    invoke.mockImplementation(async (command: string) => {
       if (command === 'select_developer_update') {
         if (selectionFails) throw new Error('cannot read ZIP');
         return true;

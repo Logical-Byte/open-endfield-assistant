@@ -30,7 +30,11 @@ defineProps<{ icon: string; spinning: boolean; progress: number | null; ready: b
     />
   </svg>
   <span v-else aria-hidden="true" class="relative grid size-5 shrink-0 place-items-center">
-    <UIcon class="size-5" :class="spinning && 'animate-spin'" :name="icon" />
+    <UIcon
+      class="size-5 motion-reduce:animate-none"
+      :class="spinning && 'animate-spin'"
+      :name="icon"
+    />
     <span
       v-if="ready"
       class="absolute -right-0.5 -bottom-0.5 grid size-3 place-items-center rounded-full bg-current"

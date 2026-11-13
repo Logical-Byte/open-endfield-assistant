@@ -31,7 +31,7 @@ pub struct Controller {
     automation_runtime: Arc<automation::Runtime>,
     /// 各领域的只读运行时数据，启动时统一加载
     app_data: Arc<AppData>,
-    /// 串行决定任务启动与安装接管。接管成功后保持为 true，直到进程退出。
+    /// 串行决定任务启动、安装接管与退出。接管或退出后保持为 true。
     update_installing: Mutex<bool>,
 }
 
@@ -166,10 +166,13 @@ impl Controller {
 
     /// 退出程序：请求停止后退出 Tauri 应用。
     pub fn quit(&self, app_handle: &AppHandle) {
-        if app_handle.state::<Updater>().is_installing() {
+        let mut installing = self.update_installing.lock().unwrap();
+        if *installing || app_handle.state::<Updater>().is_installing() {
             warn!("正在安装更新，拒绝退出");
             return;
         }
+        // 与安装/任务启动共用交接锁，退出请求发出后也不再接受新的接管。
+        *installing = true;
         self.automation_runtime.request_stop_for_shutdown();
         info!("收到退出请求，正在退出程序...");
         app_handle.exit(0);
