@@ -185,6 +185,12 @@ impl Installation {
         peer
     }
 
+    pub fn restarted(&self, version: u8) -> Peer {
+        let mut peer = self.accept(self.root.path().join("restart.log"));
+        peer.expect(&format!("start:v{version}"));
+        peer
+    }
+
     pub fn assert_updated(&self) {
         assert_eq!(
             fs::read(self.root.path().join(APP)).unwrap(),
@@ -262,7 +268,6 @@ impl Peer {
             fs::read_to_string(&self.log).unwrap_or_default()
         );
     }
-    #[cfg(windows)]
     pub fn assert_waiting(&mut self) {
         self.stream
             .get_mut()

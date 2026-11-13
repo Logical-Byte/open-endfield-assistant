@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { useAppI18n } from '@/shared/i18n';
-import { startDownload, updateCheckState } from '@/features/update/update';
+import { useUpdateAction } from '@/features/update/useUpdateAction';
 import { appPresentation } from '@/app/presentation';
 import { AppVariant } from '@/app/build';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 const { t } = useAppI18n();
 
@@ -13,12 +13,7 @@ const { t } = useAppI18n();
 // 用动态绑定避免 Vite 把它当作模块导入解析。
 const faviconUrl = '/favicon.ico';
 
-const availableVersion = computed<string | null>(() => {
-  if (updateCheckState.value.status !== 'available') {
-    return null;
-  }
-  return updateCheckState.value.update.versionName;
-});
+const { release, label, tooltip, disabledReason, activate } = useUpdateAction();
 
 const appWindow = isTauri() ? getCurrentWindow() : null;
 const isMaximized = ref(false);
@@ -65,13 +60,14 @@ onUnmounted(() => {
         :src="faviconUrl"
       />
       <button
-        v-if="availableVersion"
-        :aria-label="t('update.notice', { version: availableVersion })"
-        class="titlebar-update-notice text-xs font-bold"
+        v-if="release"
+        :aria-label="tooltip"
+        class="text-xs font-medium text-toned hover:text-primary"
         data-tauri-drag-region="false"
-        @click="startDownload"
+        :disabled="!!disabledReason"
+        @click="activate"
       >
-        {{ t('update.notice', { version: availableVersion }) }}
+        {{ label }}
       </button>
       <span class="pointer-events-none font-ui text-xs text-toned">
         {{ appPresentation.name }}
@@ -110,28 +106,3 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-
-<style lang="css" scoped>
-.titlebar-update-notice {
-  background-image: linear-gradient(
-    90deg,
-    var(--color-red-500),
-    /* var(--color-orange-500), */ var(--color-yellow-500),
-    /* var(--color-lime-500), */ var(--color-green-500),
-    /* var(--color-teal-500), */ var(--color-cyan-500),
-    /* var(--color-sky-500), */ var(--color-blue-500),
-    /* var(--color-violet-500), */ var(--color-fuchsia-500) /* var(--color-pink-500) */
-  );
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: titlebar-update-notice-flow 3s linear infinite;
-}
-
-@keyframes titlebar-update-notice-flow {
-  to {
-    background-position: -200% 0;
-  }
-}
-</style>

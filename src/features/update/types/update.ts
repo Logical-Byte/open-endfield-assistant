@@ -31,14 +31,5 @@ export type DownloadState =
 export enum UpdateInstallStatus {
   Idle,
   Installing,
-  Completed,
   Failed,
-}
-
-/** 更新完成弹窗使用的信息；跨进程 metadata 缺失时只保证 `timestamp`。 */
-export interface UpdateCompleteInfo {
-  previousVersion?: string;
-  newVersion?: string;
-  releaseNote?: string;
-  timestamp: number;
 }

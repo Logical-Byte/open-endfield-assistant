@@ -1,17 +1,8 @@
 //! Tauri 后端接口封装：类型安全地调用 Rust 命令、监听后端事件。
 
-import type { DownloadOutcome } from '@/shared/types/update';
-import type { StartupUpdateResult } from '@/shared/types/update';
-import type {
-  DownloadProgress,
-  UpdateAvailability,
-  UpdateInstallStageEvent,
-  UpdateStatus,
-} from './types/update';
+import type { DownloadOutcome, DownloadTrigger } from '@/shared/types/update';
+import type { DownloadProgress, UpdateAvailability, UpdateStatus } from './types/update';
 import { Channel, invoke } from '@tauri-apps/api/core';
-import { listen, type Event } from '@tauri-apps/api/event';
-
-export type { StartupUpdateResult } from '@/shared/types/update';
 
 export async function getUpdateStatus(): Promise<UpdateStatus> {
   return await invoke<UpdateStatus>('get_update_status');
@@ -29,28 +20,22 @@ export function createDownloadProgressChannel(
 
 export async function downloadUpdate(
   onProgress: Channel<DownloadProgress>,
+  trigger: DownloadTrigger,
 ): Promise<DownloadOutcome> {
-  return await invoke<DownloadOutcome>('download_update', { onProgress });
+  return await invoke<DownloadOutcome>('download_update', { onProgress, trigger });
 }
 
-export async function requestDownloadCancellation(): Promise<void> {
-  await invoke('cancel_download');
+export async function installUpdate(restart: boolean): Promise<void> {
+  await invoke('install_update', { restart });
 }
 
-export async function takeStartupUpdateResult(): Promise<StartupUpdateResult> {
-  return await invoke<StartupUpdateResult>('consume_startup_update_result');
+export async function developerInstallUpdate(): Promise<void> {
+  return await invoke<void>('developer_install_update');
 }
 
-export async function onUpdateInstallStage(
-  cb: (event: Event<UpdateInstallStageEvent>) => void,
-): Promise<() => void> {
-  return await listen<UpdateInstallStageEvent>('update-install-stage', cb);
+export async function selectDeveloperUpdate(): Promise<boolean> {
+  return await invoke<boolean>('select_developer_update');
 }
-
-export async function installUpdate(): Promise<void> {
-  await invoke('install_update');
-}
-
-export async function developerInstallUpdate(): Promise<boolean> {
-  return await invoke<boolean>('developer_install_update');
+export async function discardDeveloperUpdate(): Promise<void> {
+  await invoke('discard_developer_update');
 }

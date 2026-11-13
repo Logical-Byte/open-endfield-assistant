@@ -3,12 +3,15 @@ use super::{HelperLaunch, HelperResult, InstallTarget, validate_helper_request};
 use std::{
     ffi::OsString,
     path::{Path, PathBuf},
+    process::{Command, Stdio},
 };
 use tracing::{debug, error, info};
 
 const ROOT_ARGUMENT: &str = "--oea-update-root";
 const EXECUTABLE_NAME_ARGUMENT: &str = "--oea-update-executable-name";
 const UI_LOCALE_ARGUMENT: &str = "--oea-update-ui-locale";
+const PARENT_ARGUMENT: &str = "--oea-update-parent-pid";
+const RESTART_ARGUMENT: &str = "--oea-update-restart";
 
 /// helper 原生提示使用的语言，与宿主的设置类型独立。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,6 +21,18 @@ pub enum HelperLocale {
 }
 
 impl HelperLaunch {
+    /// 等宿主真正退出后才提交程序。自动安装可只退出，不重新启动。
+    pub fn wait_for_exit(mut self, process_id: u32) -> Self {
+        self.args
+            .extend([PARENT_ARGUMENT.into(), process_id.to_string().into()]);
+        self
+    }
+
+    /// 手动确认后的安装：宿主退出、事务锁释放后启动目标目录中的新版。
+    pub fn restart_after_exit(mut self, process_id: u32) -> Self {
+        self.args.push(RESTART_ARGUMENT.into());
+        self.wait_for_exit(process_id)
+    }
     /// 使用显式源程序和宿主入口参数构造启动配置。
     ///
     /// `entry_args` 可为模式标志或子命令，原样放在事务参数前。
@@ -104,6 +119,8 @@ fn parse_arguments(
                 value != ROOT_ARGUMENT
                     && value != EXECUTABLE_NAME_ARGUMENT
                     && value != UI_LOCALE_ARGUMENT
+                    && value != PARENT_ARGUMENT
+                    && value != RESTART_ARGUMENT
             }) {
                 locale = args.next().and_then(|value| match value.to_str() {
                     Some("zh-CN") => Some(HelperLocale::ZhCn),
@@ -125,6 +142,12 @@ fn helper_exit_code(
     default_locale: HelperLocale,
     host: &mut impl HelperHost,
 ) -> i32 {
+    let args: Vec<_> = args.into_iter().collect();
+    let restart = args.iter().any(|argument| argument == RESTART_ARGUMENT);
+    let parent = args
+        .windows(2)
+        .find(|pair| pair[0] == PARENT_ARGUMENT)
+        .and_then(|pair| pair[1].to_str()?.parse::<u32>().ok());
     let (target, locale) = parse_arguments(args, default_locale);
     let request = target.and_then(|target| {
         let actual = std::env::current_exe()
@@ -152,6 +175,14 @@ fn helper_exit_code(
     );
     info!("更新安装程序已启动");
 
+    if let Some(parent) = parent
+        && let Err(error) = crate::platform::update::wait_for_process_exit(parent)
+    {
+        // 宿主尚未退出时不叠加原生错误框，也不修改已准备好的事务。
+        error!(error = %error, "等待旧应用退出失败，保留更新事务供下次启动处理");
+        return 1;
+    }
+
     let mut prompt = None;
     let result = request.run(|| {
         prompt = Some(host.show_progress(locale));
@@ -163,6 +194,22 @@ fn helper_exit_code(
         );
     }
     drop(prompt);
+    if restart && result == Ok(HelperResult::ExecutableCommitted) {
+        // `request.run` 已返回并释放事务锁，新版才能在启动时提交资源。
+        let executable = request.target.root().join(request.target.executable_name());
+        if let Err(error) = Command::new(&executable)
+            .current_dir(request.root())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            let message = format!("无法自动启动更新后的应用，请手动启动 OEA 继续完成更新。{error}");
+            error!(error = %error, "自动启动更新后的应用失败");
+            host.show_error(locale, &message);
+            return 1;
+        }
+    }
     match result {
         Ok(helper_result) => {
             debug!(
@@ -173,7 +220,8 @@ fn helper_exit_code(
             match helper_result {
                 HelperResult::NoTransaction => info!("没有需要安装的更新事务"),
                 HelperResult::AlreadyCommitted => info!("程序更新已由先前的安装操作完成"),
-                HelperResult::ExecutableCommitted => info!("程序更新已准备完成，请重新启动应用"),
+                HelperResult::ExecutableCommitted if restart => info!("已启动更新后的应用"),
+                HelperResult::ExecutableCommitted => info!("程序更新已准备完成"),
             }
             0
         }

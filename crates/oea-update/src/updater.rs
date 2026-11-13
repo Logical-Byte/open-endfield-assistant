@@ -47,6 +47,15 @@ impl Updater {
     pub fn cancel_download(&self) -> Result<(), Error> {
         self.manager.cancel_download()
     }
+
+    /// 选择并暂存本地包，返回后释放操作租约，由宿主等待用户确认。
+    pub fn select_local_package(
+        &self,
+        choose_package: impl FnOnce() -> Result<Option<PathBuf>, Error>,
+    ) -> Result<Option<PathBuf>, Error> {
+        let _lease = self.manager.start_developer_install()?;
+        choose_package()
+    }
     /// 检查更新并缓存规范化后的可用更新。
     /// 取得操作租约后才调用 `options`，由宿主读取本次生效设置快照。
     pub async fn check(

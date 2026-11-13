@@ -6,10 +6,7 @@ use crate::{
 };
 use oea_update::install::InstallTarget;
 use serde::Serialize;
-use std::{
-    ffi::OsString,
-    sync::{Mutex, OnceLock},
-};
+use std::ffi::OsString;
 use tauri::{Emitter, Manager};
 use tracing::warn;
 use ts_rs::TS;
@@ -19,41 +16,6 @@ mod helper;
 mod startup;
 pub use helper::run_helper_if_requested;
 pub(crate) use startup::initialize_at_startup;
-
-/// 前端消费启动更新结果时，只区分是否有一次已完成的事务。
-#[derive(Debug, Clone, Copy, Serialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export, export_to = "update/")]
-pub enum StartupUpdateResult {
-    NoTransaction,
-    Completed,
-}
-
-static STARTUP_UPDATE_RESULT: OnceLock<Mutex<Option<StartupUpdateResult>>> = OnceLock::new();
-
-fn startup_result_slot() -> &'static Mutex<Option<StartupUpdateResult>> {
-    STARTUP_UPDATE_RESULT.get_or_init(|| Mutex::new(None))
-}
-
-/// 记录应用启动早期完成的资源事务结果，供 Tauri 前端在初始化后消费。
-pub(crate) fn record_startup_update_result(result: oea_update::install::StartupUpdateResult) {
-    if result == oea_update::install::StartupUpdateResult::Completed {
-        *startup_result_slot()
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) =
-            Some(StartupUpdateResult::Completed);
-    }
-}
-
-/// 取出并清除本进程启动早期的更新结果，没有待消费结果时返回 `NoTransaction`。
-#[tauri::command]
-pub fn consume_startup_update_result() -> StartupUpdateResult {
-    startup_result_slot()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .take()
-        .unwrap_or(StartupUpdateResult::NoTransaction)
-}
 
 #[derive(Debug, Clone, Copy, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -118,17 +80,22 @@ fn install_target(paths: &AppPaths) -> Result<InstallTarget, String> {
 pub fn install_update(
     manager: tauri::State<'_, Updater>,
     app: tauri::AppHandle,
+    restart: bool,
 ) -> Result<(), update::Error> {
     update::ensure_enabled()?;
     let target = install_target(&AppPaths::new()?)?;
-    manager.install(
-        &target,
-        || {
-            let locale = app.state::<Controller>().ui_locale();
-            helper::helper_launch(&target, locale)
-        },
-        |stage| emit_install_stage(&app, stage),
-    )?;
+    app.state::<Controller>().install_when_idle(|| {
+        manager
+            .install(
+                &target,
+                || {
+                    let locale = app.state::<Controller>().ui_locale();
+                    helper::helper_launch(&target, locale, restart)
+                },
+                |stage| emit_install_stage(&app, stage),
+            )
+            .map_err(Into::into)
+    })?;
     app.exit(0);
     Ok(())
 }

@@ -3,13 +3,17 @@ use super::{
     Updater,
     error::Reason,
     options,
-    status::{UpdateInfo, UpdateStatus},
+    status::{DownloadTrigger, UpdateInfo, UpdateStatus},
 };
 use crate::{app_paths::AppPaths, controller::Controller, update};
 use serde::Serialize;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tracing::warn;
 use ts_rs::TS;
+
+/// 与更新器具有相同的后端会话生命周期，不随 WebView 重载而丢失。
+#[derive(Default)]
+pub struct DownloadOrigin(Mutex<DownloadTrigger>);
 
 /// 更新可用性。第三方下载元数据只保留在后端缓存中。
 #[derive(Debug, Clone, Serialize, TS)]
@@ -89,8 +93,13 @@ impl From<oea_update::DownloadProgress> for DownloadProgress {
 
 /// 读取可用更新、待安装更新和当前操作的一致快照。
 #[tauri::command]
-pub fn get_update_status(manager: tauri::State<'_, Updater>) -> UpdateStatus {
-    manager.status().into()
+pub fn get_update_status(
+    manager: tauri::State<'_, Updater>,
+    origin: tauri::State<'_, DownloadOrigin>,
+) -> UpdateStatus {
+    let mut status: UpdateStatus = manager.status().into();
+    status.download_trigger = *origin.0.lock().unwrap();
+    status
 }
 
 /// 检查更新并缓存规范化后的可用更新。
@@ -119,6 +128,8 @@ pub async fn download_update(
     controller: tauri::State<'_, Controller>,
     app: tauri::AppHandle,
     on_progress: tauri::ipc::Channel<DownloadProgress>,
+    origin: tauri::State<'_, DownloadOrigin>,
+    trigger: DownloadTrigger,
 ) -> Result<DownloadOutcome, update::Error> {
     update::ensure_enabled()?;
     let downloads = AppPaths::new()?.downloads_dir();
@@ -130,7 +141,11 @@ pub async fn download_update(
         .download(
             &app.package_info().version.to_string(),
             &downloads,
-            |_| Ok(source),
+            |_| {
+                // 下载租约已接受后才记录，避免被并发的 Busy 请求覆盖来源。
+                *origin.0.lock().unwrap() = trigger;
+                Ok(source)
+            },
             Arc::new(move |progress| {
                 on_progress
                     .send(DownloadProgress::from(progress))

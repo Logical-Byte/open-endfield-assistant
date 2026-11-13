@@ -16,7 +16,7 @@ use crate::{
     data::{AppData, archive},
     navigation::Navigator,
     settings,
-    update::Updater,
+    update::{self, Updater},
 };
 
 /// 应用控制器（Tauri 托管状态）。
@@ -31,6 +31,8 @@ pub struct Controller {
     automation_runtime: Arc<automation::Runtime>,
     /// 各领域的只读运行时数据，启动时统一加载
     app_data: Arc<AppData>,
+    /// 串行决定任务启动、安装接管与退出。接管或退出后保持为 true。
+    update_installing: Mutex<bool>,
 }
 
 impl Controller {
@@ -48,6 +50,7 @@ impl Controller {
             navigator,
             automation_runtime,
             app_data: Arc::new(app_data),
+            update_installing: Mutex::new(false),
         }
     }
 
@@ -84,6 +87,11 @@ impl Controller {
         &self,
         request: automation::StartRequest,
     ) -> Result<(), settings::SettingsError> {
+        let installing = self.update_installing.lock().unwrap();
+        if *installing {
+            warn!("正在安装更新，拒绝启动自动化任务");
+            return Ok(());
+        }
         let settings = self.settings_snapshot()?;
         match request {
             automation::StartRequest::GambleBattle {
@@ -119,6 +127,25 @@ impl Controller {
         Ok(())
     }
 
+    /// 与所有任务启动入口共用接管锁，避免检查空闲后又被热键启动任务。
+    pub(crate) fn install_when_idle<T>(
+        &self,
+        install: impl FnOnce() -> Result<T, update::Error>,
+    ) -> Result<T, update::Error> {
+        {
+            let mut installing = self.update_installing.lock().unwrap();
+            if *installing || self.automation_status().is_active() {
+                return Err(update::Error::new(update::error::Reason::Busy));
+            }
+            *installing = true;
+        }
+        let result = install();
+        if result.is_err() {
+            *self.update_installing.lock().unwrap() = false;
+        }
+        result
+    }
+
     /// 请求停止当前自动化任务（原子置位，由任务内部轮询实现优雅停止）。
     pub fn stop_automation(&self) {
         self.automation_runtime.stop();
@@ -139,10 +166,13 @@ impl Controller {
 
     /// 退出程序：请求停止后退出 Tauri 应用。
     pub fn quit(&self, app_handle: &AppHandle) {
-        if app_handle.state::<Updater>().is_installing() {
+        let mut installing = self.update_installing.lock().unwrap();
+        if *installing || app_handle.state::<Updater>().is_installing() {
             warn!("正在安装更新，拒绝退出");
             return;
         }
+        // 与安装/任务启动共用交接锁，退出请求发出后也不再接受新的接管。
+        *installing = true;
         self.automation_runtime.request_stop_for_shutdown();
         info!("收到退出请求，正在退出程序...");
         app_handle.exit(0);

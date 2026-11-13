@@ -11,8 +11,6 @@ import type { NavigationMenuItem } from '@nuxt/ui';
 import { appPresentation } from '@/app/presentation';
 import { AppVariant } from '@/app/build';
 import { useAppI18n } from '@/shared/i18n';
-import { updateCapabilities } from '@/features/update/variantPolicy';
-import { updatePopoverOpen } from '@/features/update/updatePopover';
 import SidebarNavigation from './SidebarNavigation.vue';
 import SidebarItem from './SidebarItem.vue';
 import { useColorMode, useEventListener } from '@vueuse/core';
@@ -65,8 +63,7 @@ const sidebarArea = useTemplateRef<HTMLElement>('sidebarArea');
 const keyboardFocusWithin = ref(false);
 const expandedWidth = ref(defaultWidth);
 const collapsed = computed<boolean>(
-  (): boolean =>
-    !pinned.value && !hovered.value && !keyboardFocusWithin.value && !updatePopoverOpen.value,
+  (): boolean => !pinned.value && !hovered.value && !keyboardFocusWithin.value,
 );
 const width = computed<number>((): number =>
   collapsed.value ? collapsedWidth : expandedWidth.value,
@@ -259,8 +256,8 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
               :items="sectionPage ? sectionItems : navigationItems"
             />
             <div v-if="!sectionPage" class="mt-auto shrink-0 px-2 pb-2">
-              <div v-show="!collapsed">
-                <UpdatePopover v-if="updateCapabilities.onlineUpdate" :collapsed="collapsed" />
+              <div>
+                <UpdateSidebarItem :collapsed="collapsed" />
               </div>
               <!-- 固定工具栏宽度，侧栏动画期间按钮也保持原位。 -->
               <div class="flex w-30">

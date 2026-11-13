@@ -3,14 +3,15 @@ import { useAppI18n } from '@/shared/i18n';
 import { simulateArchiveScan } from '@/features/archiveScan/workerType';
 import { simulateGambleBattle } from '@/features/gambleBattle/workerType';
 import { updateCapabilities } from '@/features/update/variantPolicy';
-import {
-  developerInstallBusy,
-  developerInstallTrace,
-  developerInstallUnavailable,
-  developerInstallUpdatePackage,
-} from '@/features/update/developerUpdate';
-
+import { useUpdateAction } from '@/features/update/useUpdateAction';
 import SettingsItem from './SettingsItem.vue';
+
+const { local } = useUpdateAction();
+const {
+  busy: developerInstallBusy,
+  disabled: developerInstallUnavailable,
+  select: developerInstallUpdatePackage,
+} = local;
 
 const { t } = useAppI18n();
 
@@ -71,13 +72,6 @@ const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
         :loading="developerInstallBusy"
         @click="developerInstallUpdatePackage"
       />
-      <pre
-        class="max-h-52 w-full overflow-auto rounded-md bg-muted p-2 text-xs whitespace-pre-wrap text-toned"
-        >{{
-          developerInstallTrace.length > 0
-            ? developerInstallTrace.join('\n')
-            : t('settings.developer.trace.empty')
-        }}</pre>
     </div>
   </SettingsItem>
 </template>

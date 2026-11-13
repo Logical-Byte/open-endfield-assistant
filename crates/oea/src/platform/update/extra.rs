@@ -8,7 +8,7 @@ use std::{
 #[cfg(target_os = "macos")]
 use std::process::Command;
 
-/// 让开发者选择一个 ZIP 更新包，并在原生窗口中确认将退出应用执行安装。
+/// 选择本地 ZIP，安装确认留给前端。
 pub fn choose_update_package(default_directory: &Path) -> io::Result<Option<PathBuf>> {
     #[cfg(target_os = "macos")]
     {
@@ -36,7 +36,6 @@ fn choose_update_package_macos(default_directory: &Path) -> io::Result<Option<Pa
     let script = format!(
         "set selectedFile to choose file with prompt \"选择用于更新测试的 ZIP\" default location POSIX file \"{default_directory}/\" of type {{\"public.zip-archive\"}}\n\
          set selectedPath to POSIX path of selectedFile\n\
-         display dialog \"将安装以下本地更新包并退出 OEA：\\n\\n\" & selectedPath buttons {{\"取消\", \"安装并退出\"}} default button \"安装并退出\" cancel button \"取消\" with title \"OEA 开发者选项\"\n\
          return selectedPath"
     );
     let output = Command::new("osascript").args(["-e", &script]).output()?;

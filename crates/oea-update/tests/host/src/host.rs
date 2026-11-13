@@ -40,7 +40,7 @@ pub fn main(version: u8) {
 
 fn run(version: u8) -> Result<()> {
     let mut args = std::env::args_os().skip(1);
-    let mode = args.next().ok_or("missing test host mode")?;
+    let mode = args.next().unwrap_or_else(|| "start".into());
     let mut control = TcpStream::connect(std::env::var("OEA_TEST_CONTROL_ADDR")?)?;
     control.set_read_timeout(Some(Duration::from_secs(15)))?;
     control.set_write_timeout(Some(Duration::from_secs(15)))?;
@@ -56,7 +56,7 @@ fn run(version: u8) -> Result<()> {
             let _ = command(&mut watchdog);
             std::process::exit(2);
         });
-        install::run_helper(args, HelperLocale::ZhCn, Host(control));
+        install::run_helper(args, HelperLocale::ZhCn, Host(control, None));
     }
     let actual = std::env::current_exe()?;
     let root = actual.parent().ok_or("host has no parent directory")?;
@@ -121,12 +121,17 @@ fn run(version: u8) -> Result<()> {
                 } else {
                     actual.clone()
                 };
-                Ok(HelperLaunch::new(
+                let launch = HelperLaunch::new(
                     source,
                     [OsString::from("helper-entry")],
                     &target,
                     HelperLocale::EnUs,
-                ))
+                );
+                Ok(if mode == "restart" {
+                    launch.restart_after_exit(std::process::id())
+                } else {
+                    launch
+                })
             },
             |_| {},
         );
@@ -154,7 +159,7 @@ fn run(version: u8) -> Result<()> {
     Ok(())
 }
 
-struct Host(TcpStream);
+struct Host(TcpStream, Option<std::path::PathBuf>);
 impl Drop for Host {
     fn drop(&mut self) {
         let _ = send(&mut self.0, "host-dropped");
@@ -179,6 +184,7 @@ impl HelperHost for Host {
     type LogGuard = LogGuard;
     type Prompt = Prompt;
     fn init_logging(&mut self, root: &Path) -> LogGuard {
+        self.1 = Some(root.to_owned());
         fs::create_dir_all(root.join("logs")).unwrap();
         send(&mut self.0, "logging").unwrap();
         LogGuard(self.0.try_clone().unwrap())
@@ -190,6 +196,15 @@ impl HelperHost for Host {
     fn show_success(&mut self, prompt: Prompt, locale: HelperLocale) {
         send(&mut self.0, &format!("success:{locale:?}")).unwrap();
         drop(prompt);
+        let root = self.1.as_ref().unwrap();
+        if root.join("remove-before-restart").exists() {
+            fs::remove_file(root.join(if cfg!(windows) {
+                "test host.exe"
+            } else {
+                "test host"
+            }))
+            .unwrap();
+        }
     }
     fn show_error(&mut self, locale: HelperLocale, _: &str) {
         send(&mut self.0, &format!("error:{locale:?}")).unwrap();
