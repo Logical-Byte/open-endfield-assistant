@@ -1,6 +1,6 @@
 {
   "app": {
-    "description": "OEA 是开源免费的终末地小助手，支持档案查漏补缺和百趣演武自动抽。",
+    "description": "OEA 是开源免费的终末地小助手，支持档案查漏补缺。",
     "title": "OEA - 终末地小助手"
   },
   "common": {
@@ -73,101 +73,6 @@
       "versionMismatch": "下载源版本 {{actual}} 与预期版本 {{expected}} 不一致，请稍后重试。"
     }
   },
-  "gambleBattle": {
-    "allowEarlyStop": "命中条件后提前停止",
-    "allowEarlyStopDescription": "铭牌不足五张时也可停止抽牌。",
-    "blocked": "其他任务正在运行",
-    "conditions": {
-      "conjunctiveMatch": "{{other}}，且 {{sum}}",
-      "heading": "停止条件",
-      "join": {
-        "and": "且",
-        "label": "条件组合方式",
-        "or": "或"
-      },
-      "pattern": {
-        "condition": "点数包含子串：{value}",
-        "input": "点数子串（1 到 5 的数字，长度 1 到 5）",
-        "invalid": "请输入由 1 到 5 的数字组成、长度 1 到 5 的子串。",
-        "label": "点数包含子串",
-        "matched": "点数包含 {{pattern}}"
-      },
-      "required": "请至少启用一个停止条件。",
-      "score": {
-        "condition": "分数：{value} ≥ {{threshold}}",
-        "invalid": "请输入大于 0 的整数。",
-        "label": "分数大于等于",
-        "matched": "分数 {{score}} ≥ {{threshold}}",
-        "threshold": "分数阈值"
-      },
-      "sum": {
-        "comparison": "战力点比较符号",
-        "condition": "战力点之和：{value} {{comparison}} {{threshold}}",
-        "invalid": "请输入 {{min}} 到 {{max}} 之间的整数。",
-        "label": "战力点之和",
-        "matched": "战力点之和 {{total}} {{comparison}} {{threshold}}",
-        "threshold": "战力点阈值"
-      },
-      "title": "以下任一条件满足"
-    },
-    "dataplete": "{{rank}} {{suit}}",
-    "event": "活动",
-    "failed": "百趣演武自动化失败",
-    "guide": {
-      "disableHdr": "{hdr}，关闭性能监控软件",
-      "openArena": "终末地打开{screen}",
-      "selectTarget": "选择{targetHands}",
-      "setup": "打开终末地，将游戏语言设为{language}",
-      "show": "查看教程",
-      "startDrawing": "点击{start}",
-      "title": "使用教程"
-    },
-    "hand": {
-      "label": "牌型：{value}",
-      "names": {
-        "flush": "同花",
-        "fullHouse": "葫芦",
-        "pair": "对子",
-        "quad": "四条",
-        "straight": "顺子",
-        "straightFlush": "同花顺",
-        "triplet": "三条",
-        "twoPair": "两对"
-      },
-      "none": "无牌型"
-    },
-    "history": {
-      "empty": "暂无命中记录。",
-      "title": "命中记录"
-    },
-    "lucky": {
-      "badge": "好运加成 ×2",
-      "hand": "今日好运组合：{{hand}}"
-    },
-    "matched": {
-      "elapsed": "耗时：{{seconds}} 秒",
-      "round": "轮次：{{round}}",
-      "score": "分数：{{score}}",
-      "total": "战力点之和：{{total}}"
-    },
-    "screenshot": {
-      "original": "原始截图",
-      "title": "百趣演武命中截图"
-    },
-    "simulate": "开始模拟抽牌",
-    "start": "开始抽牌",
-    "stop": "停止自动化",
-    "stopPreferences": "停止偏好",
-    "stopping": "正在停止",
-    "suit": {
-      "names": {
-        "bing": "饼",
-        "tiao": "条",
-        "wan": "万"
-      }
-    },
-    "title": "百趣演武"
-  },
   "help": {
     "archiveScan": {
       "archiveHome": "档案库主界面",
@@ -177,15 +82,6 @@
       "startScan": "点击{scan}，或按 {key}（引号键）。",
       "tip": "理论上支持从协议终端、大世界和任意档案库界面开始扫描。为了稳定性，建议始终从{archive}开始扫描。",
       "title": "档案查漏补缺"
-    },
-    "arena": {
-      "autoStop": "满足所设停止条件后会自动停止抽牌。战力点之和可选择与其他条件同时满足，或任一满足。",
-      "chooseTargets": "选择{targetHands}。",
-      "open": "终末地打开{screen}。",
-      "screen": "百趣演武的抽牌界面",
-      "start": "点击{start}，或按 {key}（分号键）。",
-      "targetHands": "停止条件",
-      "title": "百趣演武自动抽"
     },
     "credits": {
       "endfieldMap": "终末地地图集",
@@ -228,7 +124,6 @@
     },
     "sections": {
       "archiveScan": "档案扫描",
-      "arena": "百趣演武",
       "credits": "致谢",
       "disclaimer": "说明",
       "faq": "常见问题",
@@ -237,7 +132,6 @@
       "shortcuts": "快捷键"
     },
     "shortcuts": {
-      "arena": "按 {key}（分号键）开始百趣演武自动抽牌，再次按下可停止。",
       "quit": "按 {keys} 退出程序。",
       "scan": "按 {key}（引号键）开始扫描档案库，扫描过程中再次按下可停止。"
     }
@@ -466,11 +360,6 @@
         "description": "从给定的 .zip 更新包运行一次原地更新流程。支持增量包和全量包。",
         "title": "安装更新包"
       },
-      "simulateArena": {
-        "description": "无需游戏窗口即可模拟百趣演武。重启应用后关闭。",
-        "enable": "使用模拟",
-        "title": "模拟百趣演武"
-      },
       "simulateScan": {
         "description": "用固定示例结果调试档案扫描页面，无需游戏窗口。约 20 秒完成，可随时停止。重启应用后关闭。",
         "enable": "使用模拟扫描结果",
@@ -564,7 +453,7 @@
     },
     "sound": {
       "volume": {
-        "description": "档案扫描或百趣演武开始、完成、失败或被停止时播放提示音",
+        "description": "档案扫描开始、完成、失败或被停止时播放提示音",
         "title": "自动化提示音音量"
       }
     },

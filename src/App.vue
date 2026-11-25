@@ -1,34 +1,30 @@
 <script setup lang="ts">
+import { appPresentation } from '@/app/presentation';
 import { useTheme } from '@/composables/useTheme';
+import { initUiScale } from '@/features/appearance/uiScale';
+import { initScannedItems } from '@/features/archiveScan/scannedItems';
 import { initAutomationState } from '@/features/automation/state';
 import { initArchiveCatalog } from '@/features/gameData/archiveCatalog';
+import { initLogState } from '@/features/log/logState';
 import {
-  settingsSaveError,
   initOeaSettings,
   markSettingsUnsupported,
   retrySettingsSave,
+  settingsSaveError,
   settingsState,
 } from '@/features/settings/settings';
-import { initLogState } from '@/features/log/logState';
-import { initScannedItems } from '@/features/archiveScan/scannedItems';
-import { initGambleBattleState } from '@/features/gambleBattle/state';
-import { useGambleBattleControls } from '@/features/gambleBattle/controls';
-import { onGambleBattleToggleRequested } from '@/features/gambleBattle/ipc';
 import { initUpdateState } from '@/features/update/update';
-import { initUiScale } from '@/features/appearance/uiScale';
-import { appPresentation } from '@/app/presentation';
+import { i18n, useAppI18n } from '@/shared/i18n';
+import { bindTranslatedToasts, useTranslatedToast } from '@/shared/i18n/toast';
+import { en, zh_cn } from '@nuxt/ui/locale';
 import { isTauri } from '@tauri-apps/api/core';
 import { useHead } from '@unhead/vue';
 import { useColorMode } from '@vueuse/core';
 import { computed, watch } from 'vue';
-import { en, zh_cn } from '@nuxt/ui/locale';
-import { i18n, useAppI18n } from '@/shared/i18n';
-import { bindTranslatedToasts, useTranslatedToast } from '@/shared/i18n/toast';
 import { useRoute, useRouter } from 'vue-router';
 
 const { t, locale } = useAppI18n();
 const toast = useTranslatedToast();
-const { toggleAutomation: toggleGambleBattle } = useGambleBattleControls();
 bindTranslatedToasts();
 watch(
   settingsState,
@@ -104,8 +100,6 @@ async function initApp(): Promise<void> {
   await initLogState();
   await initOeaSettings();
   await initScannedItems();
-  await initGambleBattleState();
-  await onGambleBattleToggleRequested(toggleGambleBattle);
   await initUiScale();
   await initUpdateState();
 }

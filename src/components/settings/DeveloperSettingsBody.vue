@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { useAppI18n } from '@/shared/i18n';
 import { simulateArchiveScan } from '@/features/archiveScan/workerType';
-import { simulateGambleBattle } from '@/features/gambleBattle/workerType';
-import { updateCapabilities } from '@/features/update/variantPolicy';
 import { useUpdateAction } from '@/features/update/useUpdateAction';
+import { updateCapabilities } from '@/features/update/variantPolicy';
+import { useAppI18n } from '@/shared/i18n';
 import SettingsItem from './SettingsItem.vue';
 
 const { local } = useUpdateAction();
@@ -36,17 +35,6 @@ const { unsupported = false } = defineProps<{ unsupported?: boolean }>();
       v-model="simulateArchiveScan"
       color="warning"
       :label="t('settings.developer.simulateScan.enable')"
-    />
-  </SettingsItem>
-  <SettingsItem
-    :description="t('settings.developer.simulateArena.description')"
-    icon="i-lucide-layers"
-    :title="t('settings.developer.simulateArena.title')"
-  >
-    <UCheckbox
-      v-model="simulateGambleBattle"
-      color="warning"
-      :label="t('settings.developer.simulateArena.enable')"
     />
   </SettingsItem>
   <SettingsItem

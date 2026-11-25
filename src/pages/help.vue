@@ -171,52 +171,6 @@ onBeforeUnmount(() => {
         </p>
       </WorkspaceSection>
 
-      <!-- 百趣演武自动抽 -->
-      <WorkspaceSection id="gamble-battle" class="scroll-mt-2">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-dices" />
-            <span class="font-semibold text-highlighted">{{ t('help.arena.title') }}</span>
-          </div>
-        </template>
-        <ol class="flex flex-col gap-3 leading-relaxed text-default">
-          <li class="flex items-baseline gap-3">
-            <span class="w-6 flex-none text-end text-primary tabular-nums">1.</span
-            ><span
-              ><TranslationComponent :translation="t('help.arena.open')"
-                ><template #screen
-                  ><strong class="text-primary">{{ t('help.arena.screen') }}</strong></template
-                ></TranslationComponent
-              ></span
-            >
-          </li>
-          <li class="flex items-baseline gap-3">
-            <span class="w-6 flex-none text-end text-primary tabular-nums">2.</span
-            ><span
-              ><TranslationComponent :translation="t('help.arena.chooseTargets')"
-                ><template #targetHands
-                  ><strong class="text-primary">{{ t('help.arena.targetHands') }}</strong></template
-                ></TranslationComponent
-              ></span
-            >
-          </li>
-          <li class="flex items-baseline gap-3">
-            <span class="w-6 flex-none text-end text-primary tabular-nums">3.</span
-            ><span
-              ><TranslationComponent :translation="t('help.arena.start')"
-                ><template #start
-                  ><strong class="text-primary">{{ t('gambleBattle.start') }}</strong></template
-                ><template #key><UKbd>;</UKbd></template></TranslationComponent
-              ></span
-            >
-          </li>
-          <li class="flex items-baseline gap-3">
-            <span class="w-6 flex-none text-end text-primary tabular-nums">4.</span
-            ><span>{{ t('help.arena.autoStop') }}</span>
-          </li>
-        </ol>
-      </WorkspaceSection>
-
       <!-- 快捷键 -->
       <WorkspaceSection id="usage" class="scroll-mt-2">
         <template #header>
@@ -229,11 +183,6 @@ onBeforeUnmount(() => {
           <li>
             <TranslationComponent :translation="t('help.shortcuts.scan')"
               ><template #key><UKbd>'</UKbd></template></TranslationComponent
-            >
-          </li>
-          <li>
-            <TranslationComponent :translation="t('help.shortcuts.arena')"
-              ><template #key><UKbd>;</UKbd></template></TranslationComponent
             >
           </li>
           <li>

@@ -12,7 +12,7 @@ use tauri::{AppHandle, Manager};
 use tracing::{info, warn};
 
 use crate::{
-    automation::{self, archive_scan, gamble_battle},
+    automation::{self, archive_scan},
     data::{AppData, archive},
     navigation::Navigator,
     settings,
@@ -94,24 +94,6 @@ impl Controller {
         }
         let settings = self.settings_snapshot()?;
         match request {
-            automation::StartRequest::GambleBattle {
-                conditions,
-                allow_early_stop,
-                worker_type,
-            } => {
-                self.automation_runtime
-                    .start(automation::TaskKind::GambleBattle, || match worker_type {
-                        automation::WorkerType::Production => Box::new(gamble_battle::Worker::new(
-                            conditions,
-                            allow_early_stop,
-                            settings.sound_volume,
-                            Arc::clone(&self.ocr),
-                        )),
-                        automation::WorkerType::Simulation => Box::new(
-                            gamble_battle::SimulationWorker::new(conditions, allow_early_stop),
-                        ),
-                    });
-            }
             automation::StartRequest::ArchiveScan { worker_type } => {
                 self.automation_runtime
                     .start(automation::TaskKind::ArchiveScan, || match worker_type {

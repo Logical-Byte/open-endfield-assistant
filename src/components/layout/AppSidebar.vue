@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { AppVariant } from '@/app/build';
+import { appPresentation } from '@/app/presentation';
 import {
   activeHelpSectionId,
   helpSectionRequest,
   helpSections,
   settingsSections,
 } from '@/app/sectionNavigation';
-import type { NavigationMenuItem } from '@nuxt/ui';
-import { appPresentation } from '@/app/presentation';
-import { AppVariant } from '@/app/build';
 import { useAppI18n } from '@/shared/i18n';
-import SidebarNavigation from './SidebarNavigation.vue';
-import SidebarItem from './SidebarItem.vue';
+import type { NavigationMenuItem } from '@nuxt/ui';
 import { useColorMode, useEventListener } from '@vueuse/core';
+import { computed, ref, useTemplateRef, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import SidebarItem from './SidebarItem.vue';
+import SidebarNavigation from './SidebarNavigation.vue';
 
 const { t } = useAppI18n();
 const colorMode = useColorMode();
@@ -136,7 +136,6 @@ function handleFocusOut(event: FocusEvent): void {
 
 const navigationItems = computed<NavigationMenuItem[]>(() => [
   { label: t('nav.scan'), icon: 'i-lucide-scan-line', to: '/', exact: true },
-  { label: t('gambleBattle.title'), icon: 'i-lucide-dices', to: '/gamble-battle' },
   { label: t('nav.logs'), icon: 'i-lucide-scroll-text', to: '/log' },
   { label: t('nav.monitor'), icon: 'i-lucide-monitor-play', to: '/monitor' },
 ]);

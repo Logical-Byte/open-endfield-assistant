@@ -1,6 +1,6 @@
 {
   "app": {
-    "description": "OEA is a free, open-source Endfield assistant for finding missing archives and auto-drawing cards in Arena of Games.",
+    "description": "OEA is a free, open-source Endfield assistant for finding missing archives.",
     "title": "OEA - Open Endfield Assistant"
   },
   "common": {
@@ -73,101 +73,6 @@
       "versionMismatch": "The download source version {{actual}} does not match the expected version {{expected}}. Try again later."
     }
   },
-  "gambleBattle": {
-    "allowEarlyStop": "Stop early when a condition is met",
-    "allowEarlyStopDescription": "Allow stopping with fewer than five datapletes.",
-    "blocked": "Another task is running",
-    "conditions": {
-      "conjunctiveMatch": "{{other}} and {{sum}}",
-      "heading": "Stop conditions",
-      "join": {
-        "and": "And",
-        "label": "Combine conditions",
-        "or": "Or"
-      },
-      "pattern": {
-        "condition": "BP pattern contains: {value}",
-        "input": "BP sequence (digits 1 to 5, length 1 to 5)",
-        "invalid": "Enter 1 to 5 digits from 1 to 5.",
-        "label": "BP sequence contains a substring",
-        "matched": "BP sequence contains {{pattern}}"
-      },
-      "required": "Enable at least one stop condition.",
-      "score": {
-        "condition": "Score: {value} ≥ {{threshold}}",
-        "invalid": "Enter a whole number greater than 0.",
-        "label": "Score at least",
-        "matched": "Score {{score}} ≥ {{threshold}}",
-        "threshold": "Score threshold"
-      },
-      "sum": {
-        "comparison": "Total BP comparison",
-        "condition": "Total BP: {value} {{comparison}} {{threshold}}",
-        "invalid": "Enter a whole number from {{min}} to {{max}}.",
-        "label": "Total BP",
-        "matched": "Total BP {{total}} {{comparison}} {{threshold}}",
-        "threshold": "BP threshold"
-      },
-      "title": "Match any of these conditions"
-    },
-    "dataplete": "{{rank}} {{suit}}",
-    "event": "Event",
-    "failed": "Arena of Games automation failed",
-    "guide": {
-      "disableHdr": "{hdr} and turn off performance monitoring software.",
-      "openArena": "Open {screen} in Endfield.",
-      "selectTarget": "Choose {targetHands}.",
-      "setup": "Open Endfield and set the game language to {language}.",
-      "show": "Show tutorial",
-      "startDrawing": "Select {start}.",
-      "title": "How to use"
-    },
-    "hand": {
-      "label": "Hand: {value}",
-      "names": {
-        "flush": "Flush",
-        "fullHouse": "Full House",
-        "pair": "Pair",
-        "quad": "Quad",
-        "straight": "Straight",
-        "straightFlush": "Straight Flush",
-        "triplet": "Triplet",
-        "twoPair": "Two Pair"
-      },
-      "none": "No hand"
-    },
-    "history": {
-      "empty": "No matches yet.",
-      "title": "Match history"
-    },
-    "lucky": {
-      "badge": "Lucky bonus ×2",
-      "hand": "Today's lucky hand: {{hand}}"
-    },
-    "matched": {
-      "elapsed": "Elapsed: {{seconds}} seconds",
-      "round": "Round: {{round}}",
-      "score": "Score: {{score}}",
-      "total": "Total BP: {{total}}"
-    },
-    "screenshot": {
-      "original": "Original screenshot",
-      "title": "Arena of Games matching screenshot"
-    },
-    "simulate": "Start simulation",
-    "start": "Start drawing",
-    "stop": "Stop automation",
-    "stopPreferences": "Stopping preferences",
-    "stopping": "Stopping",
-    "suit": {
-      "names": {
-        "bing": "Bing",
-        "tiao": "Tiao",
-        "wan": "Wan"
-      }
-    },
-    "title": "Arena of Games"
-  },
   "help": {
     "archiveScan": {
       "archiveHome": "archive library home screen",
@@ -177,15 +82,6 @@
       "startScan": "Select {scan}, or press {key} (apostrophe).",
       "tip": "Scanning can start from the protocol terminal, the open world or any archive library screen. For stability, always start from the {archive}.",
       "title": "Finding missing archives"
-    },
-    "arena": {
-      "autoStop": "Drawing stops when your stop conditions are met. Total BP can be required alongside the other conditions, or used as an alternative.",
-      "chooseTargets": "Choose {targetHands}.",
-      "open": "Open {screen} in Endfield.",
-      "screen": "the Arena of Games card draw screen",
-      "start": "Select {start}, or press {key} (semicolon).",
-      "targetHands": "the stop conditions",
-      "title": "Arena of Games auto-drawing"
     },
     "credits": {
       "endfieldMap": "Open Endfield Map",
@@ -228,7 +124,6 @@
     },
     "sections": {
       "archiveScan": "Archive Scan",
-      "arena": "Arena of Games",
       "credits": "Acknowledgements",
       "disclaimer": "Disclaimer",
       "faq": "Frequently asked questions",
@@ -237,7 +132,6 @@
       "shortcuts": "Shortcuts"
     },
     "shortcuts": {
-      "arena": "Press {key} (semicolon) to start Arena of Games auto-drawing. Press it again to stop.",
       "quit": "Press {keys} to quit the application.",
       "scan": "Press {key} (apostrophe) to start scanning the archive library. Press it again while scanning to stop."
     }
@@ -467,11 +361,6 @@
         "description": "Install a local .zip update package in place. Supports incremental and full packages.",
         "title": "Install update package"
       },
-      "simulateArena": {
-        "description": "Simulate Arena of Games without a game window. Disabled after restarting the app.",
-        "enable": "Use simulation",
-        "title": "Simulate Arena of Games"
-      },
       "simulateScan": {
         "description": "Debug archive scanning with fixed example results, without a game window. Takes about 20 seconds and can be stopped at any time. Disabled after restarting the app.",
         "enable": "Use simulated scan results",
@@ -565,7 +454,7 @@
     },
     "sound": {
       "volume": {
-        "description": "Play a sound when archive scanning or Arena of Games starts, completes, fails or stops.",
+        "description": "Play a sound when archive scanning starts, completes, fails or stops.",
         "title": "Automation sound volume"
       }
     },
