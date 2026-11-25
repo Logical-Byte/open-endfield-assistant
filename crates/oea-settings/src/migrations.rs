@@ -11,11 +11,18 @@ struct Migration {
     to: Version,
     apply: fn(&mut Map<String, Value>, UiLocale) -> Result<(), SettingsError>,
 }
-const MIGRATIONS: &[Migration] = &[Migration {
-    from: Version(0, 1),
-    to: Version(0, 2),
-    apply: migrate_0_1_to_0_2,
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        from: Version(0, 0),
+        to: Version(0, 1),
+        apply: migrate_0_0_to_0_1,
+    },
+    Migration {
+        from: Version(0, 1),
+        to: Version(0, 2),
+        apply: migrate_0_1_to_0_2,
+    },
+];
 
 pub(super) fn migrate(document: &mut Value, locale: UiLocale) -> Result<bool, SettingsError> {
     let object = document
@@ -62,6 +69,14 @@ fn version_number(value: &Value) -> Result<u32, SettingsError> {
 }
 fn invalid(message: &str) -> SettingsError {
     SettingsError::new(SettingsErrorKind::InvalidFile, message)
+}
+
+fn migrate_0_0_to_0_1(
+    object: &mut Map<String, Value>,
+    locale: UiLocale,
+) -> Result<(), SettingsError> {
+    object.entry("uiLocale").or_insert_with(|| json!(locale));
+    Ok(())
 }
 
 fn migrate_0_1_to_0_2(
