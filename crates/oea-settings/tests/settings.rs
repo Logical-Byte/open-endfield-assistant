@@ -24,6 +24,8 @@ fn migrates_0_0_settings_through_0_1_and_persists_the_result() {
     assert_eq!(saved["minorVersion"], 2);
     assert_eq!(saved["uiLocale"], "en-US");
     assert_eq!(saved["updateSource"], "oem");
+    assert_eq!(saved["soundVolume"], 0.75);
+    assert_eq!(saved["autoDownloadUpdates"], false);
 }
 
 #[test]
