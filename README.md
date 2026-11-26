@@ -27,7 +27,6 @@ OEA 是开源免费的终末地小助手，支持**档案查漏补缺**。
 
 ![OEA-image-3](https://cos.yituliu.cn/endfield/oea/assets/oea-image-3.png)
 ![OEA-image-2](https://cos.yituliu.cn/endfield/oea/assets/oea-image-2.webp)
-![OEA-image-4](https://cos.yituliu.cn/endfield/oea/assets/oea-image-4.png)
 
 ## 使用前准备
 
