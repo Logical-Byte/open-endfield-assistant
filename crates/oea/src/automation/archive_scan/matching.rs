@@ -525,14 +525,47 @@ mod tests {
         );
     }
 
-    #[test]
-    fn real_titles_match_or_recommend_the_observed_archive() -> anyhow::Result<()> {
+    fn load_real_index() -> anyhow::Result<archive::Database> {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
             .parent()
             .unwrap();
-        let index = archive::Database::load(&AppPaths::with_root_dir(root))?;
+        archive::Database::load(&AppPaths::with_root_dir(root))
+    }
+
+    #[test]
+    fn real_duplicate_normalized_titles_request_body_ocr() -> anyhow::Result<()> {
+        let index = load_real_index()?;
+        for category in &index.catalog().categories {
+            for (title, candidates) in index.normalized_groups(category.id) {
+                if title.is_empty() {
+                    continue;
+                }
+                let Some(candidate) = candidates.iter().nth(1) else {
+                    continue;
+                };
+                // 传入原始中文标题，由 `match_title` 执行规范化。
+                assert!(
+                    matches!(
+                        match_title(&index, category.id, &candidate.title.zh_cn),
+                        TitleMatch::NeedsBody(_)
+                    ),
+                    "档案分类 {:?} 的规范化标题 {title:?} 命中多个档案，但未请求正文识别。档案 ID：{:?}",
+                    category.id,
+                    candidates
+                        .iter()
+                        .map(|entry| entry.id.as_str())
+                        .collect::<Vec<_>>()
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn real_titles_match_or_recommend_the_observed_archive() -> anyhow::Result<()> {
+        let index = load_real_index()?;
         for archive in &index.catalog().archives {
             if normalize(&archive.title.zh_cn).is_empty() {
                 continue;
