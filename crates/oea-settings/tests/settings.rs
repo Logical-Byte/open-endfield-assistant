@@ -2,6 +2,33 @@ use oea_settings::{SettingsStore, UiLocale, UpdateSource};
 use std::fs;
 
 #[test]
+fn migrates_0_0_settings_through_0_1_and_persists_the_result() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("settings.json");
+    fs::write(
+        &path,
+        r#"{"majorVersion":0,"minorVersion":0,"soundVolume":0.75,"updateSource":"mirrorchyan","mirrorchyanCdkEncrypted":"","autoDownloadUpdates":false}"#,
+    )
+    .unwrap();
+
+    let settings = SettingsStore::open(path.clone(), UiLocale::EnUs)
+        .unwrap()
+        .snapshot();
+    assert_eq!(settings.ui_locale, UiLocale::EnUs);
+    assert_eq!(settings.update_source, UpdateSource::Oem);
+    assert_eq!(settings.sound_volume, 0.75);
+    assert!(!settings.auto_download_updates);
+
+    let saved: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+    assert_eq!(saved["majorVersion"], 0);
+    assert_eq!(saved["minorVersion"], 2);
+    assert_eq!(saved["uiLocale"], "en-US");
+    assert_eq!(saved["updateSource"], "oem");
+    assert_eq!(saved["soundVolume"], 0.75);
+    assert_eq!(saved["autoDownloadUpdates"], false);
+}
+
+#[test]
 fn migrates_legacy_mirror_without_cdk_and_preserves_other_settings() {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("settings.json");
@@ -43,16 +70,12 @@ fn unversioned_settings_use_historical_defaults_before_migration() {
 }
 
 #[test]
-fn rejects_future_unsupported_and_invalid_files_without_overwriting_them() {
+fn rejects_future_and_invalid_files_without_overwriting_them() {
     use oea_settings::SettingsErrorKind;
     for (text, kind) in [
         (
             r#"{"majorVersion":0,"minorVersion":3}"#,
             SettingsErrorKind::NewerVersion,
-        ),
-        (
-            r#"{"majorVersion":0,"minorVersion":0}"#,
-            SettingsErrorKind::UnsupportedVersion,
         ),
         (r#"{"majorVersion":0}"#, SettingsErrorKind::InvalidFile),
         ("broken JSON", SettingsErrorKind::InvalidFile),
