@@ -1,21 +1,18 @@
 import { computed, ref, shallowRef, watch } from 'vue';
-import { whenever } from '@vueuse/core';
 import { t } from '@/shared/i18n';
 import { useTranslatedToast } from '@/shared/i18n/toast';
 import { normalizeBackendError, formatBackendError, type ErrorFacts } from '@/shared/errors';
 import { automationStatus } from '@/features/automation/state';
 import type { DraftSettings, SettingsState } from '@/features/settings/settingsStore';
-import type { DownloadTrigger as UpdateTrigger } from '@/shared/types/update';
 import { settingsState } from '@/features/settings/settings';
 import { logError, logWarn } from '@/features/log/ipc';
 import { updateCapabilities } from './variantPolicy';
-import {
-  UpdateInstallStatus,
-  type DownloadProgress,
-  type DownloadState,
-  type UpdateCheckState,
-  type UpdateOperation,
-  type UpdateStatus,
+import type {
+  DownloadProgress,
+  DownloadState,
+  UpdateCheckState,
+  UpdateOperation,
+  UpdateStatus,
 } from './types/update';
 import {
   getUpdateStatus,
@@ -28,13 +25,11 @@ import {
   developerInstallUpdate,
 } from './ipc';
 
-export type { DownloadTrigger as UpdateTrigger } from '@/shared/types/update';
 export type InstallConfirmation = { kind: 'online'; version: string } | { kind: 'local' };
 const updateStatus = shallowRef<UpdateStatus>({
   operation: 'idle',
   availableUpdate: null,
   pendingUpdate: null,
-  downloadTrigger: 'manual',
 });
 const requestedOperation = ref<UpdateOperation | null>(null);
 export const effectiveOperation = computed(
@@ -46,6 +41,7 @@ export const updateOperation = computed(() => updateStatus.value.operation);
 const lastCheckedAt = ref<number | null>(null);
 const checkError = shallowRef<ErrorFacts | null>(null);
 const downloadError = shallowRef<ErrorFacts | null>(null);
+export const onlineInstallError = shallowRef<ErrorFacts | null>(null);
 const downloadProgress = ref<DownloadProgress>({
   downloadedSize: 0,
   totalSize: 0,
@@ -54,10 +50,7 @@ const downloadProgress = ref<DownloadProgress>({
 });
 export const localPackageSelected = ref(false);
 export const installConfirmation = shallowRef<InstallConfirmation | null>(null);
-export const installStatus = ref(UpdateInstallStatus.Idle);
-export const showInstallModal = computed(
-  () => installStatus.value === UpdateInstallStatus.Installing,
-);
+export const showInstallModal = ref(false);
 export const updateOperationBusy = computed(
   () =>
     effectiveOperation.value !== 'idle' ||
@@ -90,7 +83,11 @@ export const downloadState = computed<DownloadState>(() => {
   if (downloadError.value) return { status: 'failed', error: downloadError.value };
   return { status: 'idle' };
 });
-function notifyFailure(error: unknown, stage: 'check' | 'download' | 'install'): ErrorFacts {
+function notifyFailure(
+  error: unknown,
+  stage: 'check' | 'download' | 'install',
+  localInstall = false,
+): ErrorFacts {
   const facts = normalizeBackendError(error, { operation: 'update', stage });
   const operation = { check: '检查更新', download: '下载更新', install: '安装更新' }[stage];
   void logError(`${operation}失败: ${formatBackendError(facts)}`).catch(console.error);
@@ -102,7 +99,10 @@ function notifyFailure(error: unknown, stage: 'check' | 'download' | 'install'):
           ? 'update.download.failed'
           : 'update.install.failed',
     ),
-    description: formatBackendError(facts),
+    description:
+      localInstall && (facts.operation !== 'update' || facts.error?.reason.kind !== 'busy')
+        ? `${t('update.install.selectLocalAgain')} ${formatBackendError(facts)}`
+        : formatBackendError(facts),
     actions: [{ label: t('common.viewLogs'), to: '/log' }],
   }));
   return facts;
@@ -114,10 +114,11 @@ export async function refreshUpdateStatus(): Promise<void> {
     void logWarn(`读取更新状态失败: ${String(error)}`).catch(console.error);
   }
 }
-export async function checkUpdate(trigger: UpdateTrigger = 'manual'): Promise<void> {
+export async function checkUpdate(trigger: 'manual' | 'automatic' = 'manual'): Promise<void> {
   if (!updateCapabilities.onlineUpdate || updateOperationBusy.value) return;
   requestedOperation.value = 'checking';
   checkError.value = null;
+  onlineInstallError.value = null;
   let autoDownload = false;
   try {
     const result = await requestUpdateCheck();
@@ -135,9 +136,9 @@ export async function checkUpdate(trigger: UpdateTrigger = 'manual'): Promise<vo
     await refreshUpdateStatus();
     requestedOperation.value = null;
   }
-  if (autoDownload) await startDownload(trigger);
+  if (autoDownload) await startDownload();
 }
-export async function startDownload(trigger: UpdateTrigger = 'manual'): Promise<void> {
+export async function startDownload(): Promise<void> {
   if (
     effectiveOperation.value !== 'idle' ||
     !availableUpdate.value ||
@@ -146,7 +147,7 @@ export async function startDownload(trigger: UpdateTrigger = 'manual'): Promise<
   )
     return;
   requestedOperation.value = 'downloading';
-  installStatus.value = UpdateInstallStatus.Idle;
+  onlineInstallError.value = null;
   downloadError.value = null;
   downloadProgress.value = { downloadedSize: 0, totalSize: 0, speed: 0, progress: 0 };
   try {
@@ -154,7 +155,6 @@ export async function startDownload(trigger: UpdateTrigger = 'manual'): Promise<
       createDownloadProgressChannel((progress: DownloadProgress) => {
         downloadProgress.value = progress;
       }),
-      trigger,
     );
   } catch (error) {
     downloadError.value = notifyFailure(error, 'download');
@@ -166,19 +166,6 @@ export async function startDownload(trigger: UpdateTrigger = 'manual'): Promise<
 export async function initUpdateState(): Promise<void> {
   if (!updateCapabilities.onlineUpdate && !updateCapabilities.localInstall) return;
   await refreshUpdateStatus();
-  whenever(
-    () =>
-      pendingUpdate.value !== null &&
-      updateStatus.value.downloadTrigger === 'automatic' &&
-      effectiveSettings()?.autoInstallUpdates === true &&
-      taskIdle.value &&
-      effectiveOperation.value === 'idle' &&
-      installStatus.value === UpdateInstallStatus.Idle,
-    () => {
-      void startInstall(false);
-    },
-    { immediate: true },
-  );
   if (!pendingUpdate.value) {
     if (effectiveSettings()) await checkUpdate('automatic');
     else {
@@ -213,34 +200,29 @@ export async function cancelInstallConfirmation(): Promise<void> {
   }
 }
 export async function confirmInstall(): Promise<void> {
-  if (!installConfirmation.value || !taskIdle.value || effectiveOperation.value !== 'idle') return;
-  const local = installConfirmation.value.kind === 'local';
-  installConfirmation.value = null;
-  await startInstall(true, local);
-}
-export async function startInstall(restart = false, local = false): Promise<void> {
+  const confirmation = installConfirmation.value;
   if (
-    (!local && !pendingUpdate.value) ||
-    (local && !localPackageSelected.value) ||
+    !confirmation ||
+    (confirmation.kind === 'online' && !pendingUpdate.value) ||
+    (confirmation.kind === 'local' && !localPackageSelected.value) ||
     effectiveOperation.value !== 'idle' ||
     !taskIdle.value
   )
     return;
-  const confirmation: InstallConfirmation = local
-    ? { kind: 'local' }
-    : { kind: 'online', version: pendingUpdate.value!.versionName };
+  const local = confirmation.kind === 'local';
+  installConfirmation.value = null;
   let retryConfirmation = false;
   requestedOperation.value = 'installing';
-  installStatus.value = UpdateInstallStatus.Installing;
+  showInstallModal.value = true;
   try {
     if (local) await developerInstallUpdate();
-    else await installUpdate(restart);
+    else await installUpdate();
   } catch (error) {
-    const facts = notifyFailure(error, 'install');
-    retryConfirmation =
-      restart && facts.operation === 'update' && facts.error?.reason.kind === 'busy';
-    installStatus.value = retryConfirmation ? UpdateInstallStatus.Idle : UpdateInstallStatus.Failed;
+    const facts = notifyFailure(error, 'install', local);
+    retryConfirmation = facts.operation === 'update' && facts.error?.reason.kind === 'busy';
+    showInstallModal.value = false;
     if (retryConfirmation) installConfirmation.value = confirmation;
+    else if (!local) onlineInstallError.value = facts;
   } finally {
     if (!retryConfirmation) localPackageSelected.value = false;
     await refreshUpdateStatus();

@@ -12,7 +12,7 @@ export type OeaSettings = {
  */
 uiLocale: UiLocale, 
 /**
- * 设置文件主要版本号，产生不兼容变更（改变字段结构或者删除字段）时，增加 `majorVersion` 的值
+ * 设置文件主要版本号，表示不兼容的格式变更。
  */
 majorVersion: number, 
 /**
@@ -47,10 +47,6 @@ updateProxyUrl: string,
  * 是否自动下载更新。
  */
 autoDownloadUpdates: boolean, 
-/**
- * 是否自动安装已下载的更新。
- */
-autoInstallUpdates: boolean, 
 /**
  * 档案扫描启动提示已确认的版本号。
  *

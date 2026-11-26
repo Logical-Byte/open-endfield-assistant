@@ -26,10 +26,3 @@ export type DownloadState =
   | { status: 'cancelling'; progress: DownloadProgress }
   | { status: 'completed'; update: UpdateInfo }
   | { status: 'failed'; error: ErrorFacts };
-
-/** 安装阶段。 */
-export enum UpdateInstallStatus {
-  Idle,
-  Installing,
-  Failed,
-}

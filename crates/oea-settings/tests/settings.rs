@@ -21,7 +21,7 @@ fn migrates_0_0_settings_through_0_1_and_persists_the_result() {
 
     let saved: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
     assert_eq!(saved["majorVersion"], 0);
-    assert_eq!(saved["minorVersion"], 2);
+    assert_eq!(saved["minorVersion"], 3);
     assert_eq!(saved["uiLocale"], "en-US");
     assert_eq!(saved["updateSource"], "oem");
     assert_eq!(saved["soundVolume"], 0.75);
@@ -40,7 +40,7 @@ fn migrates_legacy_mirror_without_cdk_and_preserves_other_settings() {
     assert_eq!(settings.scan_tips_dismissed_version, 7);
     assert_eq!(settings.ui_locale, UiLocale::EnUs);
     let saved: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
-    assert_eq!(saved["minorVersion"], 2);
+    assert_eq!(saved["minorVersion"], 3);
     assert_eq!(saved["updateSource"], "oem");
 }
 
@@ -66,7 +66,42 @@ fn unversioned_settings_use_historical_defaults_before_migration() {
         .snapshot();
     assert_eq!(settings.update_source, UpdateSource::Mirrorchyan);
     assert_eq!(settings.ui_locale, UiLocale::EnUs);
-    assert_eq!(settings.minor_version, 2);
+    assert_eq!(settings.minor_version, 3);
+}
+
+#[test]
+fn removes_automatic_install_on_upgrade_without_changing_other_settings() {
+    for auto_install in [Some(true), Some(false), None] {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("settings.json");
+        let mut original = serde_json::json!({
+            "majorVersion": 0,
+            "minorVersion": 2,
+            "uiLocale": "en-US",
+            "updateSource": "mirrorchyan",
+            "mirrorchyanCdkEncrypted": "saved-cipher",
+            "updateProxyMode": "custom",
+            "updateProxyUrl": "http://127.0.0.1:7890",
+            "autoDownloadUpdates": false,
+            "scanTipsDismissedVersion": 7,
+            "minimizeToTray": true,
+            "soundVolume": 0.75
+        });
+        if let Some(enabled) = auto_install {
+            original["autoInstallUpdates"] = serde_json::json!(enabled);
+        }
+        fs::write(&path, original.to_string()).unwrap();
+
+        SettingsStore::open(path.clone(), UiLocale::ZhCn).unwrap();
+
+        let saved: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+        original
+            .as_object_mut()
+            .unwrap()
+            .remove("autoInstallUpdates");
+        original["minorVersion"] = serde_json::json!(3);
+        assert_eq!(saved, original);
+    }
 }
 
 #[test]
@@ -74,7 +109,7 @@ fn rejects_future_and_invalid_files_without_overwriting_them() {
     use oea_settings::SettingsErrorKind;
     for (text, kind) in [
         (
-            r#"{"majorVersion":0,"minorVersion":3}"#,
+            r#"{"majorVersion":0,"minorVersion":4}"#,
             SettingsErrorKind::NewerVersion,
         ),
         (r#"{"majorVersion":0}"#, SettingsErrorKind::InvalidFile),

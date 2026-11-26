@@ -233,13 +233,6 @@ onBeforeUnmount(stopResetScroll);
           :title="t('settings.update.autoDownload.title')"
         />
 
-        <SettingsItem
-          :description="t('settings.update.autoInstall.description')"
-          icon="i-lucide-rocket"
-          :item="fields.switch('autoInstallUpdates')"
-          :title="t('settings.update.autoInstall.title')"
-        />
-
         <UpdateSourceSettings />
 
         <SettingsItem

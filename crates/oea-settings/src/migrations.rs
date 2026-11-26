@@ -22,6 +22,11 @@ const MIGRATIONS: &[Migration] = &[
         to: Version(0, 2),
         apply: migrate_0_1_to_0_2,
     },
+    Migration {
+        from: Version(0, 2),
+        to: Version(0, 3),
+        apply: migrate_0_2_to_0_3,
+    },
 ];
 
 pub(super) fn migrate(document: &mut Value, locale: UiLocale) -> Result<bool, SettingsError> {
@@ -93,6 +98,14 @@ fn migrate_0_1_to_0_2(
     {
         object.insert("updateSource".into(), json!("oem"));
     }
+    Ok(())
+}
+
+fn migrate_0_2_to_0_3(
+    object: &mut Map<String, Value>,
+    _locale: UiLocale,
+) -> Result<(), SettingsError> {
+    object.remove("autoInstallUpdates");
     Ok(())
 }
 

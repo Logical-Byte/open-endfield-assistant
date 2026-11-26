@@ -49,16 +49,15 @@ beforeEach(async () => {
     operation: 'idle',
     availableUpdate: updateInfo,
     pendingUpdate: null,
-    downloadTrigger: 'manual',
   };
   saveResult = Promise.resolve();
-  invoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+  invoke.mockImplementation(async (command: string) => {
     switch (command) {
       case 'load_oea_settings':
         return {
           uiLocale: 'en-US',
           majorVersion: 0,
-          minorVersion: 0,
+          minorVersion: 3,
           minimizeToTray: false,
           soundVolume: 0.5,
           updateSource: 'mirrorchyan',
@@ -66,7 +65,6 @@ beforeEach(async () => {
           updateProxyMode: 'system',
           updateProxyUrl: '',
           autoDownloadUpdates: false,
-          autoInstallUpdates: true,
           scanTipsDismissedVersion: 0,
         } satisfies Settings;
       case 'save_oea_settings':
@@ -79,11 +77,7 @@ beforeEach(async () => {
         backendStatus = { ...backendStatus, availableUpdate: updateInfo };
         return { status: 'available', update: updateInfo };
       case 'download_update':
-        backendStatus = {
-          ...backendStatus,
-          pendingUpdate: updateInfo,
-          downloadTrigger: args?.trigger === 'automatic' ? 'automatic' : 'manual',
-        };
+        backendStatus = { ...backendStatus, pendingUpdate: updateInfo };
         return { status: 'completed', update: updateInfo };
       case 'install_update':
         // 安装接管后应用会退出，保留在途请求以观察是否重复发起。
@@ -106,9 +100,13 @@ beforeEach(async () => {
   invoke.mockClear();
 });
 
-describe('自动安装编排', () => {
-  it('手动下载后重载前端仍等待确认', async () => {
-    await update.startDownload('manual');
+describe('更新安装确认', () => {
+  it('自动下载完成及重载前端后都等待确认', async () => {
+    settings.editSettings({ autoDownloadUpdates: true });
+    await settle();
+    await update.checkUpdate('automatic');
+    expect(update.pendingUpdate.value).toEqual(updateInfo);
+    expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
     vi.resetModules();
     settings = await import('@/features/settings/settings');
     await settings.initOeaSettings();
@@ -116,21 +114,10 @@ describe('自动安装编排', () => {
     await update.initUpdateState();
     await settle();
     expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
+    expect(update.pendingUpdate.value).toEqual(updateInfo);
     const { useUpdateAction } = await import('./useUpdateAction');
     await useUpdateAction().activate();
     expect(update.installConfirmation.value?.kind).toBe('online');
-  });
-
-  it('自动下载后重载前端仍遵循自动安装设置', async () => {
-    await publishAutomationStatus({ state: 'running', taskKind: 'archiveScan' });
-    await update.startDownload('automatic');
-    vi.resetModules();
-    settings = await import('@/features/settings/settings');
-    await settings.initOeaSettings();
-    update = await import('./update');
-    await update.initUpdateState();
-    await settle();
-    expect(invoke).toHaveBeenCalledWith('install_update', { restart: false });
   });
 
   it('手动检查仍自动下载，但取消确认不安装，确认才安装并重启', async () => {
@@ -140,7 +127,6 @@ describe('自动安装编排', () => {
       operation: 'idle',
       availableUpdate: null,
       pendingUpdate: null,
-      downloadTrigger: 'manual',
     };
     await update.refreshUpdateStatus();
     const { useUpdateAction } = await import('./useUpdateAction');
@@ -156,11 +142,11 @@ describe('自动安装编排', () => {
     await action.activate();
     void action.confirm();
     await settle();
-    expect(invoke).toHaveBeenCalledWith('install_update', { restart: true });
+    expect(invoke).toHaveBeenCalledWith('install_update');
   });
 
   it('手动更新在任务运行时不能安装，任务结束后仍等待用户操作', async () => {
-    await update.startDownload('manual');
+    await update.startDownload();
     const { useUpdateAction } = await import('./useUpdateAction');
     const action = useUpdateAction();
     await publishAutomationStatus({ state: 'running', taskKind: 'archiveScan' });
@@ -176,7 +162,7 @@ describe('自动安装编排', () => {
   });
 
   it('安装准备失败后可以重新下载并再次确认', async () => {
-    await update.startDownload('manual');
+    await update.startDownload();
     const { useUpdateAction } = await import('./useUpdateAction');
     const action = useUpdateAction();
     await action.activate();
@@ -190,6 +176,7 @@ describe('自动安装编排', () => {
     });
     await action.confirm();
     expect(action.confirmation.value).toBeNull();
+    expect(action.phase.value).toBe('installFailed');
     expect(action.disabledReason.value).toBe('');
     invoke.mockImplementation(previous);
     await action.activate();
@@ -214,7 +201,7 @@ describe('自动安装编排', () => {
       const action = useUpdateAction();
       if (local) await update.selectLocalUpdate();
       else {
-        await update.startDownload('manual');
+        await update.startDownload();
         await action.activate();
       }
       await action.confirm();
@@ -260,27 +247,6 @@ describe('自动安装编排', () => {
     expect(action.confirmation.value?.kind).toBe('local');
   });
 
-  it('没有待安装更新时，扫描结束不发起安装也不写更新日志', async () => {
-    for (let run = 0; run < 2; run++) {
-      await publishAutomationStatus({ state: 'running', taskKind: 'archiveScan' });
-      await publishAutomationStatus({
-        state: 'idle',
-        lastRun: { taskKind: 'archiveScan', outcome: { status: 'completed' } },
-      });
-    }
-    expect(invoke).not.toHaveBeenCalled();
-  });
-
-  it('空闲时下载完成只发起一次安装', async () => {
-    await update.startDownload('automatic');
-    await settle();
-    expect(invoke).toHaveBeenCalledWith('install_update', { restart: false });
-    expect(invoke.mock.calls.filter(([command]) => command === 'install_update')).toHaveLength(1);
-    await update.refreshUpdateStatus();
-    await settle();
-    expect(invoke.mock.calls.filter(([command]) => command === 'install_update')).toHaveLength(1);
-  });
-
   it.each([
     { name: '完成', outcome: { status: 'completed' } },
     {
@@ -295,10 +261,12 @@ describe('自动安装编排', () => {
       },
     },
   ] satisfies { name: string; outcome: RunOutcome }[])(
-    '扫描$name后安装已下载更新，等待期间不写日志',
+    '扫描$name后保留已下载更新，直到用户确认',
     async ({ outcome }) => {
+      settings.editSettings({ autoDownloadUpdates: true });
+      await settle();
       await publishAutomationStatus({ state: 'running', taskKind: 'archiveScan' });
-      await update.startDownload('automatic');
+      await update.checkUpdate('automatic');
       await settle();
       expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
       invoke.mockClear();
@@ -308,26 +276,32 @@ describe('自动安装编排', () => {
         state: 'idle',
         lastRun: { taskKind: 'archiveScan', outcome },
       });
-      expect(invoke.mock.calls.filter(([command]) => command === 'install_update')).toHaveLength(1);
+      expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
+      const { useUpdateAction } = await import('./useUpdateAction');
+      const action = useUpdateAction();
+      await action.activate();
+      expect(action.confirmation.value?.kind).toBe('online');
+      await action.cancel();
+      expect(update.pendingUpdate.value).toEqual(updateInfo);
+      expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
     },
   );
 
-  it('已有待安装更新时，开启自动安装须等设置保存成功', async () => {
-    settings.editSettings({ autoInstallUpdates: false });
-    await settle();
-    await update.startDownload('automatic');
-    await settle();
-    expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
-
+  it('自动下载使用已保存设置，关闭后保留已下载更新', async () => {
     let completeSave!: () => void;
     saveResult = new Promise<void>((resolve) => {
       completeSave = resolve;
     });
-    settings.editSettings({ autoInstallUpdates: true });
-    await settle();
-    expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
+    settings.editSettings({ autoDownloadUpdates: true });
+    await update.checkUpdate();
+    expect(update.pendingUpdate.value).toBeNull();
     completeSave();
     await settle();
-    expect(invoke.mock.calls.filter(([command]) => command === 'install_update')).toHaveLength(1);
+    await update.checkUpdate();
+    expect(update.pendingUpdate.value).toEqual(updateInfo);
+    settings.editSettings({ autoDownloadUpdates: false });
+    await settle();
+    expect(update.pendingUpdate.value).toEqual(updateInfo);
+    expect(invoke.mock.calls.some(([command]) => command === 'install_update')).toBe(false);
   });
 });

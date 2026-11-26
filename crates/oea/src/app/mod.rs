@@ -147,7 +147,6 @@ fn setup_app(app: &mut tauri::App) -> anyhow::Result<()> {
 
     // 窗口关闭处理和前端更新命令需要此状态，必须在创建窗口之前托管。
     app.manage(update::Updater::default());
-    app.manage(update::commands::DownloadOrigin::default());
     app.manage(update::install::extra::SelectedDeveloperPackage::default());
 
     // 创建 Webview 窗口。

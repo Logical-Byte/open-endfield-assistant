@@ -106,7 +106,7 @@ const lastCheckedText = computed<string>((): string => {
               <UButton
                 color="neutral"
                 :disabled="Boolean(disabledReason)"
-                :label="label"
+                :label="phase === 'ready' ? t('update.install.action') : label"
                 variant="outline"
                 @click="activate"
                 ><template #leading
@@ -125,7 +125,9 @@ const lastCheckedText = computed<string>((): string => {
           class="flex flex-col items-start justify-between gap-3 rounded-lg border border-default bg-elevated p-4 sm:col-span-2 sm:flex-row sm:items-center sm:gap-6"
         >
           <div>
-            <p class="text-xs text-muted">{{ t('update.check.available') }}</p>
+            <p class="text-xs text-muted">
+              {{ t(phase === 'ready' ? 'update.download.completed' : 'update.check.available') }}
+            </p>
             <p class="mt-1 text-[26px] leading-8 font-bold tracking-[-0.7px] text-primary">
               {{ releaseVersion }}
             </p>
@@ -154,7 +156,6 @@ const lastCheckedText = computed<string>((): string => {
         </h3>
         <ul class="list-disc space-y-2 pl-5 text-sm text-muted">
           <li>{{ t('settings.about.devRestrictions.updates') }}</li>
-          <li>{{ t('settings.about.devRestrictions.automaticUpdates') }}</li>
           <li>{{ t('settings.about.devRestrictions.localInstall') }}</li>
         </ul>
       </section>
