@@ -2,6 +2,8 @@
 export const CONTENT_PREVIEW_ARCHIVE_IDS = new Set([
   'nar_paper_map02_93_1',
   'nar_paper_map02_93_2',
+  'nar_paper_map02_16013_1',
+  'nar_paper_map02_17011_1',
 ]);
 
 /** 源换行决定首行，移除显示标签，保留遮罩文字。 */

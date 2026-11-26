@@ -60,20 +60,20 @@ pub(super) struct BodyMatch {
 }
 
 /// 已实际支持的同名组专用判别方式。
-///
-/// 当前只硬编码「挂在竹子上的字条」。它用首行前缀判断，但不要求将来其他同名组
-/// 使用相同算法。各分支自行选择 OCR 区域与判断方式，无需建立通用正文规则表。
 #[derive(Debug)]
 enum BodyDiscriminator {
     BambooNotes,
+    TrespasserNotes,
 }
 
 impl BodyMatch {
-    /// 返回该同名组已标定的正文区域，使用 1280 × 720 截图坐标。
+    /// 返回该同名组的正文 OCR 区域，使用 1280 × 720 截图坐标。
     pub(super) fn ocr_roi(&self) -> Region2D<u32> {
         match self.discriminator {
             // 两份字条的首行布局一致，范围包含灰色遮罩，但避开标题和下一行正文。
             BodyDiscriminator::BambooNotes => ltwh!(380, 118, 545, 36),
+            // 按同为单行标题的纸质记录详情页选取正文首行区域。
+            BodyDiscriminator::TrespasserNotes => ltwh!(380, 118, 545, 36),
         }
     }
 
@@ -85,6 +85,7 @@ impl BodyMatch {
         let matched_id = match body {
             Some(body) => match self.discriminator {
                 BodyDiscriminator::BambooNotes => match_bamboo_notes_body(body),
+                BodyDiscriminator::TrespasserNotes => match_trespasser_notes_body(body),
             },
             None => None,
         };
@@ -123,6 +124,18 @@ fn match_bamboo_notes_body(body: &str) -> Option<&'static str> {
     }
 }
 
+/// “误入者的留言” 的两份正文首句不同，按规范化后的前缀确认档案。
+fn match_trespasser_notes_body(body: &str) -> Option<&'static str> {
+    let body: String = body.chars().filter(|c| c.is_alphanumeric()).collect();
+    if body.starts_with("这村庄有些奇妙") {
+        Some("nar_paper_map02_16013_1")
+    } else if body.starts_with("那些侵蚀") {
+        Some("nar_paper_map02_17011_1")
+    } else {
+        None
+    }
+}
+
 /// 在扫描分类内依次尝试规范化精确匹配、已知标题解释和模糊推荐。
 /// 只有精确命中的已知同名组会返回 `NeedsBody`，模糊标题不会触发正文判断。
 pub(super) fn match_title(
@@ -149,6 +162,11 @@ pub(super) fn match_title(
             TitleMatch::NeedsBody(BodyMatch {
                 candidates: ids,
                 discriminator: BodyDiscriminator::BambooNotes,
+            })
+        } else if category == archive::Category::Paper && normalized == "误入者的留言" {
+            TitleMatch::NeedsBody(BodyMatch {
+                candidates: ids,
+                discriminator: BodyDiscriminator::TrespasserNotes,
             })
         } else {
             TitleMatch::Complete(MatchResult::Recommendations { archive_ids: ids })
