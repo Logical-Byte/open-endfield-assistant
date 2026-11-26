@@ -75,12 +75,11 @@ fn install_target(paths: &AppPaths) -> Result<InstallTarget, String> {
     InstallTarget::new(paths.root_dir(), executable_name)
 }
 
-/// helper 启动成功后，请求当前应用通过原有生命周期退出。
+/// 用户确认后安装更新。helper 启动成功后，退出当前应用并启动新版。
 #[tauri::command]
 pub fn install_update(
     manager: tauri::State<'_, Updater>,
     app: tauri::AppHandle,
-    restart: bool,
 ) -> Result<(), update::Error> {
     update::ensure_enabled()?;
     let target = install_target(&AppPaths::new()?)?;
@@ -90,7 +89,7 @@ pub fn install_update(
                 &target,
                 || {
                     let locale = app.state::<Controller>().ui_locale();
-                    helper::helper_launch(&target, locale, restart)
+                    helper::helper_launch(&target, locale)
                 },
                 |stage| emit_install_stage(&app, stage),
             )

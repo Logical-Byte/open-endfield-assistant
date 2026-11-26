@@ -5,7 +5,7 @@ use ts_rs::TS;
 /// 当前设置文件主要版本号
 pub const CURRENT_MAJOR_VERSION: u32 = 0;
 /// 当前设置文件次要版本号
-pub const CURRENT_MINOR_VERSION: u32 = 2;
+pub const CURRENT_MINOR_VERSION: u32 = 3;
 
 /// 更新源。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -36,7 +36,7 @@ pub enum UpdateProxyMode {
 pub struct OeaSettings {
     /// 应用界面与原生提示使用的语言。
     pub ui_locale: UiLocale,
-    /// 设置文件主要版本号，产生不兼容变更（改变字段结构或者删除字段）时，增加 `majorVersion` 的值
+    /// 设置文件主要版本号，表示不兼容的格式变更。
     pub major_version: u32,
     /// 设置文件次要版本号，设置格式或规则发生可迁移的兼容变更时，增加 `minorVersion` 的值
     pub minor_version: u32,
@@ -54,8 +54,6 @@ pub struct OeaSettings {
     pub update_proxy_url: String,
     /// 是否自动下载更新。
     pub auto_download_updates: bool,
-    /// 是否自动安装已下载的更新。
-    pub auto_install_updates: bool,
     /// 档案扫描启动提示已确认的版本号。
     ///
     /// 提示内容版本与设置格式版本相互独立。需要用户重新确认提示时，
@@ -76,7 +74,6 @@ impl Default for OeaSettings {
             update_proxy_mode: UpdateProxyMode::default(),
             update_proxy_url: "".to_string(),
             auto_download_updates: true,
-            auto_install_updates: true,
             scan_tips_dismissed_version: 0,
         }
     }

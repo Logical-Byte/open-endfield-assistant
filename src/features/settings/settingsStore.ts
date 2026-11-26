@@ -244,7 +244,6 @@ function toDraft(settings: Settings, mirrorchyanCdk: string | null): DraftSettin
     updateProxyMode: settings.updateProxyMode,
     updateProxyUrl: settings.updateProxyUrl,
     autoDownloadUpdates: settings.autoDownloadUpdates,
-    autoInstallUpdates: settings.autoInstallUpdates,
     scanGuideEnabled: settings.scanTipsDismissedVersion < CURRENT_SCAN_TIPS_VERSION,
     mirrorchyanCdk,
   };

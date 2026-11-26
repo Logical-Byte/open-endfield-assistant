@@ -3,6 +3,8 @@
 本文从完整 candidate 构造完成开始，说明 executable 和 `resources/` 如何进入应用根目录。
 更新只修改这两个目标；`config/`、`logs/` 和其他缓存不参与版本切换。
 
+下载完成后，在线更新在当前会话中保留为待安装更新。在线更新和本地更新包都需要用户确认 “安装并重启” 后才开始安装。安装接管与自动化任务互斥。
+
 ## 0. Candidate 已完整构造
 
 v1 仍在运行，根目录仍是完整 v1。新版本先在临时目录中完成并校验，再原子 rename 为
@@ -56,7 +58,7 @@ candidate executable 的消失就是交接记录。helper 不移动 resources，
 
 ## 3. v2 已让旧 resources 退出根目录
 
-用户启动 v2。它在创建任何资源消费者前执行第一次原子 rename：
+helper 启动 v2。v2 也可由用户手动启动。它在创建任何资源消费者前执行第一次原子 rename：
 
 ```text
 root/resources  ──rename──>  cache/update/discard/resources

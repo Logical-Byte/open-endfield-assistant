@@ -86,7 +86,7 @@ pub fn developer_install_update(
                 &target,
                 || {
                     let locale = app.state::<Controller>().ui_locale();
-                    super::helper::helper_launch(&target, locale, true)
+                    super::helper::helper_launch(&target, locale)
                 },
                 |stage| super::emit_install_stage(&app, stage),
             )

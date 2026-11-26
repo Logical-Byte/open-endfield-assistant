@@ -9,7 +9,7 @@ function createSettingsFixture(overrides: Partial<Settings> = {}): Settings {
   return {
     uiLocale: 'en-US',
     majorVersion: 0,
-    minorVersion: 2,
+    minorVersion: 3,
     minimizeToTray: false,
     soundVolume: 0.5,
     updateSource: 'oem',
@@ -17,7 +17,6 @@ function createSettingsFixture(overrides: Partial<Settings> = {}): Settings {
     updateProxyMode: 'system',
     updateProxyUrl: '',
     autoDownloadUpdates: true,
-    autoInstallUpdates: true,
     scanTipsDismissedVersion: 0,
     ...overrides,
   };
@@ -193,7 +192,7 @@ describe('设置提交', () => {
     const second = deferred<void>();
     io.save.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
     store.edit({ soundVolume: 0.2 });
-    store.edit({ soundVolume: 0.7, autoInstallUpdates: false });
+    store.edit({ soundVolume: 0.7, autoDownloadUpdates: false });
     first.reject(new Error('首次失败'));
     await first.promise.catch(() => {});
     expect(io.save).toHaveBeenCalledTimes(2);
@@ -201,7 +200,7 @@ describe('设置提交', () => {
     await second.promise.catch(() => {});
     expect(ready(store).draft.soundVolume).toBe(0.7);
     expect(ready(store).effective.soundVolume).toBe(0.5);
-    expect(ready(store).effective.autoInstallUpdates).toBe(true);
+    expect(ready(store).effective.autoDownloadUpdates).toBe(true);
     expect(ready(store).saveError?.message).toBe('磁盘写入失败');
     expect(io.save).toHaveBeenCalledTimes(2);
 
@@ -209,7 +208,7 @@ describe('设置提交', () => {
     await Promise.resolve();
     expect(io.save).toHaveBeenCalledTimes(3);
     expect(ready(store).effective.soundVolume).toBe(0.7);
-    expect(ready(store).effective.autoInstallUpdates).toBe(false);
+    expect(ready(store).effective.autoDownloadUpdates).toBe(false);
     expect(ready(store).saveError).toBeNull();
   });
 

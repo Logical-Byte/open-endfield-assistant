@@ -10,7 +10,6 @@ const HELPER_ARGUMENT: &str = "--oea-update-helper";
 pub(super) fn helper_launch(
     target: &InstallTarget,
     locale: UiLocale,
-    restart: bool,
 ) -> Result<HelperLaunch, String> {
     let source_executable =
         std::env::current_exe().map_err(|error| format!("获取当前可执行文件路径失败: {error}"))?;
@@ -20,11 +19,7 @@ pub(super) fn helper_launch(
         target,
         helper_locale(locale),
     );
-    Ok(if restart {
-        launch.restart_after_exit(std::process::id())
-    } else {
-        launch.wait_for_exit(std::process::id())
-    })
+    Ok(launch.restart_after_exit(std::process::id()))
 }
 
 /// 普通启动时返回，识别到 helper 入口时由内核执行并退出进程。

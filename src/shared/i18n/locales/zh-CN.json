@@ -92,7 +92,7 @@
       "compliance": "使用者必须确保使用本工具符合相关法律法规与服务条款，禁止用于任何违法或侵权行为。",
       "recognition": "机器识别，可能存在错误。若发现错误，欢迎反馈。",
       "risk": "使用者需承担因使用本工具产生的任何风险、损失或责任。",
-      "updates": "自动更新功能有删除硬盘上的文件的操作，请确保重要数据已备份再使用自动更新功能，避免误删重要文件。",
+      "updates": "安装更新会替换应用文件。请在安装前备份重要数据。",
       "warranty": "本工具按 “原样”、“包含全部错误” 和 “视可用性情况” 提供，作者不对可用性、准确性或使用效果做出任何承诺或保证。"
     },
     "faq": {
@@ -334,7 +334,6 @@
       "community": "反馈交流群",
       "dev": "开发版",
       "devRestrictions": {
-        "automaticUpdates": "自动下载、自动安装设置不会触发上述操作。",
         "localInstall": "开发者选项中的 “手动安装更新包” 已禁用。",
         "title": "开发版功能限制",
         "updates": "检查更新、下载更新和安装更新均已禁用。"
@@ -384,7 +383,7 @@
       "pageDescription": "无法从后端初始化设置。界面缩放和开发者功能仍可使用。",
       "retry": "重新初始化",
       "title": "设置初始化失败",
-      "toastDescription": "自动更新和扫描提示暂时不会使用用户设置。"
+      "toastDescription": "更新和扫描提示暂时无法读取用户设置。"
     },
     "interface": {
       "appearance": {
@@ -467,10 +466,6 @@
       "autoDownload": {
         "description": "检查到新版本后自动开始下载",
         "title": "自动下载更新"
-      },
-      "autoInstall": {
-        "description": "更新包下载完成后自动安装",
-        "title": "自动安装更新"
       },
       "cdk": {
         "clear": "清除 CDK",
@@ -583,13 +578,15 @@
   "update": {
     "action": {
       "availableTooltip": "当前版本 {{current}}，可用更新 {{version}}，点击下载",
-      "confirmTitle": "重启并更新到{{version}}？",
+      "confirmTitle": "安装 {{version}} 并重启？",
+      "later": "稍后",
       "localTitle": "安装本地更新包并重启？",
       "progressTooltip": "正在下载 {{version}}（{{percent}}）",
       "published": "{{version}} 已发布！",
-      "readyTooltip": "{{version}} 已下载，点击安装并重启",
-      "restart": "重启并更新",
-      "warning": "应用内的扫描结果将会丢失。"
+      "ready": "{{version}} 已下载",
+      "readyTooltip": "安装更新时将重启 OEA",
+      "restart": "安装并重启",
+      "warning": "重启会清空本轮扫描结果和人工匹配。"
     },
     "check": {
       "action": "检查更新",
@@ -610,13 +607,14 @@
       "start": "立即更新"
     },
     "install": {
-      "action": "立即安装",
+      "action": "安装更新",
       "afterTask": "请等待自动化任务结束后再更新。",
       "completed": "更新完成",
       "failed": "安装失败",
       "installing": "正在安装更新",
       "preparing": "准备中…",
       "redownload": "重新下载",
+      "selectLocalAgain": "请重新选择本地更新包。",
       "success": "更新已成功安装，可以继续使用 OEA。",
       "taskRunning": "自动化任务运行中"
     },

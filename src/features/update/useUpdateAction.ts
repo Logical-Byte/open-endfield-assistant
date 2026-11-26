@@ -11,6 +11,7 @@ import {
   availableUpdate,
   pendingUpdate,
   downloadState,
+  onlineInstallError,
   updateCheckState,
   effectiveOperation,
   localPackageSelected,
@@ -53,6 +54,7 @@ export function useUpdateAction(): {
   const phase = computed(() => {
     if (effectiveOperation.value !== 'idle') return effectiveOperation.value;
     if (pendingUpdate.value) return 'ready';
+    if (onlineInstallError.value && availableUpdate.value) return 'installFailed';
     if (downloadState.value.status === 'failed') return 'downloadFailed';
     if (availableUpdate.value) return 'available';
     return 'idle';
@@ -63,7 +65,7 @@ export function useUpdateAction(): {
   const icon = computed(() =>
     phase.value === 'ready' || phase.value === 'installing'
       ? 'i-lucide-rotate-cw'
-      : ['available', 'downloadFailed', 'downloading'].includes(phase.value)
+      : ['available', 'downloadFailed', 'downloading', 'installFailed'].includes(phase.value)
         ? 'i-lucide-download'
         : 'i-lucide-refresh-cw',
   );
@@ -88,17 +90,17 @@ export function useUpdateAction(): {
       return progress.value.totalSize > 0
         ? `${bytes(progress.value.downloadedSize)} / ${bytes(progress.value.totalSize)}`
         : bytes(progress.value.downloadedSize);
-    if (phase.value === 'ready') return t('update.action.restart');
+    if (phase.value === 'ready') return t('update.action.ready', { version: version.value });
     if (phase.value === 'checking') return t('update.check.checking');
     if (phase.value === 'installing') return t('update.install.installing');
+    if (phase.value === 'installFailed') return t('update.install.redownload');
     if (phase.value === 'downloadFailed') return t('settings.about.retryDownload');
     if (phase.value === 'available')
       return t('update.action.published', { version: version.value });
     return t('update.check.action');
   });
   const tooltip = computed(() => {
-    if (phase.value === 'ready')
-      return disabledReason.value || t('update.action.readyTooltip', { version: version.value });
+    if (phase.value === 'ready') return disabledReason.value || t('update.action.readyTooltip');
     if (progress.value)
       return t('update.action.progressTooltip', {
         version: version.value,
@@ -111,6 +113,8 @@ export function useUpdateAction(): {
       });
     if (downloadState.value.status === 'failed')
       return formatBackendError(downloadState.value.error);
+    if (phase.value === 'installFailed' && onlineInstallError.value)
+      return formatBackendError(onlineInstallError.value);
     if (updateCheckState.value.status === 'error')
       return formatBackendError(updateCheckState.value.error);
     return disabledReason.value || label.value;
@@ -118,7 +122,7 @@ export function useUpdateAction(): {
   async function activate(): Promise<void> {
     if (disabledReason.value) return;
     if (pendingUpdate.value) requestInstallConfirmation();
-    else if (availableUpdate.value) await startDownload('manual');
+    else if (availableUpdate.value) await startDownload();
     else await checkUpdate('manual');
   }
   return {
